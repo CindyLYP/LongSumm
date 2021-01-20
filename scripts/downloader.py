@@ -18,7 +18,8 @@ def url_response(url):
             with open(os.path.join(OUTPUT_DIR,name+".pdf"), 'wb') as f:
                 for ch in r:
                     f.write(ch)
-        except requests.ConnectionError as e:
+        except:
+        # except requests.ConnectionError as e:
             print("  Failed to open: "+ url)
 
 
@@ -61,7 +62,7 @@ if __name__ == '__main__':
     parser.add_argument('--clusters_dir', default='C:\\Users\\yingsenci\\gitlib\\LongSumm\\abstractive_summaries\\'
                                                   'by_clusters', help='link to the folder that contains the summaries')
     parser.add_argument('--out_folder',default=OUTPUT_DIR, help='output folder')
-    parser.add_argument('--num_processes', default=32, help='number of processes to use')
+    parser.add_argument('--num_processes', default=50, help='number of processes to use')
 
     args = parser.parse_args()
     main(args)

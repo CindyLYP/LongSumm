@@ -77,17 +77,14 @@ class DelBrokenPDF:
             for dir_file in dir_or_files:
                 # 获取目录或者文件的路径
                 # dir_file_path = os.path.join(root_path,dir_file)
-                print(dir_file)
+                # print(dir_file)
                 if self.isValidPDF_pathfile(dir_file):
-                    if self.isValidPDF_pathfile2(dir_file):
-                        print("OK")
-                        # fp.write("OK   \t"+dir_file+"\r\n")
-                    else:
-                        print("ERROR2")
+                    if not self.isValidPDF_pathfile2(dir_file):
+                        print("ERROR2: ", dir_file)
                         fp.write("ERROR\t" + dir_file + "\r\n")
                         os.remove(dir_file)
                 else:
-                    print("ERROR")
+                    print("ERROR: ", dir_file)
                     fp.write("ERROR\t" + dir_file + "\r\n")
                     os.remove(dir_file)
 

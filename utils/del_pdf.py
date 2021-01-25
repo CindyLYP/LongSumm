@@ -89,3 +89,6 @@ class DelBrokenPDF:
                     os.remove(dir_file)
 
 
+OUTPUT_DIR = '../abstractive_papers/'
+del_pdf = DelBrokenPDF(OUTPUT_DIR)
+del_pdf.start()

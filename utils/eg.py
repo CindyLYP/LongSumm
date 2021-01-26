@@ -9,3 +9,7 @@ print(res)
 d = "adf\nsadf"
 print(d)
 print(d.replace('\n',' '))
+
+a = ["dsaf", 'ggg', 'errer','12334.sa,','sd54ui']
+b = sum(a)
+print(b)

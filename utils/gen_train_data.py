@@ -20,8 +20,7 @@ def get_tfrecords_example(inputs, targets):
     return tf.train.Example(features=tf.train.Features(feature=tfrecords_features))
 
 
-def gen_tf_training_data():
-
+def gen_data_dict():
     def gen_cont(path='./train_json'):
         _, _, files = next(os.walk(path))
         json_list = []
@@ -61,17 +60,29 @@ def gen_tf_training_data():
                     tmp['body'] = text.replace('\n', ' ')
 
         dt.append(tmp)
+    return dt
+
+
+def gen_tf_training_data():
+    dt = gen_data_dict()
 
     tfrecord_wrt = tf.python_io.TFRecordWriter('./dataset/train.tfrecord')
     cnt = 0
     for d in dt:
         if 'body' not in d.keys():
-            continue
-        example = get_tfrecords_example(d['body'], d['target'])
-        tfrecord_wrt.write(example.SerializeToString())
-        cnt += 1
+            example = get_tfrecords_example(d['body'], d['target'])
+            tfrecord_wrt.write(example.SerializeToString())
+            cnt += 1
     tfrecord_wrt.close()
-    print("total training examples: ",cnt)
+    print("total training examples: ", cnt)
 
 
-gen_tf_training_data()
+def gen_training_data():
+    dt = gen_data_dict()
+    inp, tar, sec, summ = [], [], [], []
+    for d in dt:
+        if 'body' in d.keys():
+            inp.append(d['body']), tar.append(d['target']), sec.append(d['sections']), summ.append(d['summary'])
+    return inp, tar, sec, summ
+
+

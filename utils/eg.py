@@ -1,15 +1,9 @@
 import logging
 import os
 import re
+import numpy as np
+from scipy.special import softmax
 
-pattern = re.compile(r'[\[].*\]]')
-res = pattern.findall("[sdaf], [dsfa],sdafas,dsaf,[sd],sd")
-print(res)
+a = np.array([[0,1,2], [1,0,4],[2,4,0]])
 
-d = "adf\nsadf"
-print(d)
-print(d.replace('\n',' '))
-
-a = ["dsaf", 'ggg', 'errer','12334.sa,','sd54ui']
-b = sum(a)
-print(b)
+print(softmax(a, axis=1))

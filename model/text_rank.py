@@ -3,14 +3,16 @@ from nltk.tokenize import sent_tokenize
 import nltk
 import numpy as np
 from nltk.corpus import stopwords
-import re
 from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
-import networkx as nx
 from tqdm import tqdm
-from scipy.special import softmax
+
+
 stop_words = stopwords.words('english')
 word_embeddings = {}
+steps = 100
+damping = 0.85
+min_diff = 1e-5
 
 
 def gen_embedding(path):
@@ -25,6 +27,20 @@ def gen_embedding(path):
 
 def remove_stopwords(s):
     return ' '.join([i for i in s if i not in stop_words])
+
+
+def page_rank(similarity_matrix):
+    cur_vector = np.array([1] * len(similarity_matrix))
+
+    pre = 0
+    for epoch in range(steps):
+        cur_vector = (1 - damping) + damping * np.matmul(similarity_matrix, cur_vector)
+        if abs(pre - sum(cur_vector)) < min_diff:
+            break
+        else:
+            pre = sum(cur_vector)
+
+    return cur_vector
 
 
 def  extract_raw_dataset(embedding_path="./dataset/glove_100d.txt"):
@@ -43,7 +59,6 @@ def  extract_raw_dataset(embedding_path="./dataset/glove_100d.txt"):
 
             sentences_vectors = []
             for i in clean_sentences:
-                # 如果句子长度不为0
                 if len(i) != 0:
                     v = sum([word_embeddings.get(w, np.zeros((100,))) for w in i.split()]) / (len(i.split()) + 1e-2)
                 else:
@@ -58,23 +73,17 @@ def  extract_raw_dataset(embedding_path="./dataset/glove_100d.txt"):
                         similarity_matrix[i][j] = cosine_similarity(
                             sentences_vectors[i].reshape(1, -1), sentences_vectors[j].reshape(1, -1)
                         )
+            similarity_matrix = similarity_matrix+similarity_matrix.T-np.diag(similarity_matrix.diagonal())
+            norm = np.sum(similarity_matrix, axis=0)
+            norm_similarity_matrix = np.divide(similarity_matrix, norm, where=norm != 0)
 
-            nx_graph = nx.from_numpy_array(softmax(similarity_matrix, axis=1))
-            try:
-                scores = nx.pagerank(nx_graph, max_iter=100)
-            except:
-                print(len(clean_sentences))
-                print(clean_sentences)
-                continue
+            sentences_rank = page_rank(norm_similarity_matrix)
+            idx = list(np.argsort(-sentences_rank))
 
-            ranked_sentences = sorted(
-                ((scores[i], s) for i, s in enumerate(sentences)), reverse=True
-            )
-
-            sect = ''
-            for rs in ranked_sentences:
-                if len(sect)+len(rs[1]) < 900:
-                    sect += rs[1]
+            sect = ""
+            for i in range(5):
+                if len(sect)< 900:
+                    sect += sentences[idx[i]]
 
             train_example.append(sect)
         train_examples.append(train_example)

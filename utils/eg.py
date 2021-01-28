@@ -1,13 +1,21 @@
-import logging
-import os
-import re
-import numpy as np
-from scipy.special import softmax
+import torch
+import torch.nn as nn
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from torchsummary import summary
+import tensorflow as tf
+import tensorflow_datasets as tfds
+tf.enable_eager_execution()
 
-a = np.array([[1,2],[3,4]])
-b = np.array([3,5,1,2])
-c = ['1234', 'asdf', 'gggg', 'hhhhh']
-print(a+a.T-np.diag(a.diagonal()))
-idx = list(np.argsort(-b))
-for i in range(3):
-    print(c[idx[i]])
+tokenizer = AutoTokenizer.from_pretrained("./pretrain_model/pegasus")
+model = AutoModelForSeq2SeqLM.from_pretrained("./pretrain_model/pegasus")
+print(model)
+d = tfds.load('scientific_papers', data_dir='/data/ysc/tensorflow_datasets/')
+train = d['train']
+for eg in train.take(1):
+    t1, t2, t3 = eg['abstract'], eg['article'], eg['section_names']
+    inputs = tokenizer([t2.numpy().decode('utf-8')], max_length=1024, return_tensors='pt')
+
+    summary_ids = model.generate(inputs['input_ids'])
+
+print("SD")
+

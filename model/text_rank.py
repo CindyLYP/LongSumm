@@ -7,9 +7,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
 from tqdm import tqdm
 
-
 stop_words = stopwords.words('english')
 word_embeddings = {}
+emb_dim = 50
 steps = 100
 damping = 0.85
 min_diff = 1e-5
@@ -43,7 +43,7 @@ def page_rank(similarity_matrix):
     return cur_vector
 
 
-def  extract_raw_dataset(embedding_path="./dataset/glove_100d.txt"):
+def  extract_raw_dataset(embedding_path="./pretrain_model/glove/glove_50d.txt"):
     _, _, examples, summary = gen_training_data()
     word_embeddings = gen_embedding(embedding_path)
     train_examples = []
@@ -60,9 +60,9 @@ def  extract_raw_dataset(embedding_path="./dataset/glove_100d.txt"):
             sentences_vectors = []
             for i in clean_sentences:
                 if len(i) != 0:
-                    v = sum([word_embeddings.get(w, np.zeros((100,))) for w in i.split()]) / (len(i.split()) + 1e-2)
+                    v = sum([word_embeddings.get(w, np.zeros((emb_dim,))) for w in i.split()]) / (len(i.split()) + 1e-2)
                 else:
-                    v = np.zeros((100,))
+                    v = np.zeros((emb_dim,))
                 sentences_vectors.append(v)
 
             similarity_matrix = np.zeros((len(clean_sentences), len(clean_sentences)))
@@ -81,7 +81,7 @@ def  extract_raw_dataset(embedding_path="./dataset/glove_100d.txt"):
             idx = list(np.argsort(-sentences_rank))
 
             sect = ""
-            for i in range(5):
+            for i in range(min(5, len(sentences))):
                 if len(sect)< 900:
                     sect += sentences[idx[i]]
 

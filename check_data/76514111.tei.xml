@@ -1,0 +1,402 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Character-based Neural Machine Translation</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2016-06-30">30 Jun 2016</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author role="corresp">
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">José</forename><forename type="middle">A R</forename><surname>Fonollosa</surname></persName>
+							<email>jose.fonollosa@upc.edu</email>
+							<affiliation key="aff0">
+								<orgName type="institution">TALP Research Center Universitat Politècnica de Catalunya</orgName>
+								<address>
+									<settlement>Barcelona</settlement>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Character-based Neural Machine Translation</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2016-06-30">30 Jun 2016</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1603.00810v3[cs.CL]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:44+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Neural Machine Translation (MT) has reached state-of-the-art results. However, one of the main challenges that neural MT still faces is dealing with very large vocabularies and morphologically rich languages. In this paper, we propose a neural MT system using character-based embeddings in combination with convolutional and highway layers to replace the standard lookup-based word representations. The resulting unlimited-vocabulary and affixaware source word embeddings are tested in a state-of-the-art neural MT based on an attention-based bidirectional recurrent neural network. The proposed MT scheme provides improved results even when the source language is not morphologically rich. Improvements up to BLEU points are obtained in the German-English WMT task.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>Machine Translation (MT) is the set of algorithms that aim at transforming a source language into a target language. For the last 20 years, one of the most popular approaches has been statistical phrase-based MT, which uses a combination of features to maximise the probability of the target sentence given the source sentence <ref type="bibr" target="#b10">(Koehn et al., 2003)</ref>. Just recently, the neural MT approach has appeared <ref type="bibr">(Kalchbrenner and Blunsom, 2013;</ref><ref type="bibr" target="#b16">Sutskever et al., 2014;</ref><ref type="bibr" target="#b4">Cho et al., 2014;</ref><ref type="bibr" target="#b0">Bahdanau et al., 2015)</ref> and obtained state-of-the-art results.</p><p>Among its different strengths neural MT does not need to pre-design feature functions beforehand; optimizes the entire system at once because it provides a fully trainable model; uses word embeddings <ref type="bibr" target="#b16">(Sutskever et al., 2014</ref>) so that words (or minimal units) are not independent anymore; and is easily extendable to multimodal sources of information <ref type="bibr" target="#b7">(Elliott et al., 2015)</ref>. As for weaknesses, neural MT has a strong limitation in vocabulary due to its architecture and it is difficult and computationally expensive to tune all parameters in the deep learning structure.</p><p>In this paper, we use the neural MT baseline system from <ref type="bibr" target="#b0">(Bahdanau et al., 2015)</ref>, which follows an encoder-decoder architecture with attention, and introduce elements from the characterbased neural language model <ref type="bibr" target="#b9">(Kim et al., 2016)</ref>. The translation unit continues to be the word, and we continue using word embeddings related to each word as an input vector to the bidirectional recurrent neural network (attention-based mechanism). The difference is that now the embeddings of each word are no longer an independent vector, but are computed from the characters of the corresponding word. The system architecture has changed in that we are using a convolutional neural network (CNN) and a highway network over characters before the attention-based mechanism of the encoder. This is a significant difference from previous work <ref type="bibr" target="#b15">(Sennrich et al., 2015)</ref> which uses the neural MT architecture from (Bahdanau et al., 2015) without modification to deal with subword units (but not including unigram characters).</p><p>Subword-based representations have already been explored in Natural Language Processing (NLP), e.g. for POS tagging <ref type="bibr" target="#b14">(Santos and Zadrozny, 2014)</ref>, name entity recognition (Santos and aes, 2015), parsing <ref type="bibr" target="#b1">(Ballesteros et al., 2015)</ref>, normalization <ref type="bibr" target="#b5">(Chrupala, 2014)</ref> or learning word representations <ref type="bibr">(Botha and Blunsom, 2014;</ref><ref type="bibr" target="#b3">Chen et al., 2015)</ref>. These previous works show different advantages of using character-level information. In our case, with the new character-based neural MT architecture, we take advantage of intra-word information, which is proven to be extremely useful in other NLP applications <ref type="bibr" target="#b14">(Santos and Zadrozny, 2014;</ref><ref type="bibr" target="#b11">Ling et al., 2015a)</ref>, especially when dealing with morphologically rich languages. When using the character-based source word embeddings in MT, there ceases to be unknown words in the source input, while the size of the target vocabulary remains unchanged. Although the target vocabulary continues with the same limitation as in the standard neural MT system, the fact that there are no unknown words in the source helps to reduce the number of unknowns in the target. Moreover, the remaining unknown target words can now be more successfully replaced with the corresponding source-aligned words. As a consequence, we obtain a significant improvement in terms of translation quality (up to 3 BLEU points).</p><p>The rest of the paper is organized as follows. Section 2 briefly explains the architecture of the neural MT that we are using as a baseline system. Section 3 describes the changes introduced in the baseline architecture in order to use characterbased embeddings instead of the standard lookupbased word representations. Section 4 reports the experimental framework and the results obtained in the German-English WMT task. Finally, section 5 concludes with the contributions of the paper and further work.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Neural Machine Translation</head><p>Neural MT uses a neural network approach to compute the conditional probability of the target sentence given the source sentence <ref type="bibr" target="#b4">(Cho et al., 2014;</ref><ref type="bibr" target="#b0">Bahdanau et al., 2015)</ref>. The approach used in this work (Bahdanau et al., 2015) follows the encoder-decoder architecture.First, the encoder reads the source sentence s = (s 1 , ..s I ) and encodes it into a sequence of hidden states h = (h 1 , ..h I ). Then, the decoder generates a corresponding translation t = t 1 , ..., t J based on the encoded sequence of hidden states h. Both encoder and decoder are jointly trained to maximize the conditional log-probability of the correct translation.</p><p>This baseline autoencoder architecture is improved with a attention-based mechanism (Bahdanau et al., 2015), in which the encoder uses a bi-directional gated recurrent unit (GRU). This GRU allows for a better performance with long sentences. The decoder also becomes a GRU and each word t j is predicted based on a recurrent hidden state, the previously predicted word t j−1 , and a context vector. This context vector is obtained from the weighted sum of the annotations h k , which in turn, is computed through an alignment model α jk (a feedforward neural network). This neural MT approach has achieved competitive results against the standard phrase-based system in the WMT 2015 evaluation <ref type="bibr" target="#b8">(Jean et al., 2015)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">Character-based Machine Translation</head><p>Word embeddings have been shown to boost the performance in many NLP tasks, including machine translation. However, the standard lookupbased embeddings are limited to a finite-size vocabulary for both computational and sparsity reasons. Moreover, the orthographic representation of the words is completely ignored. The standard learning process is blind to the presence of stems, prefixes, suffixes and any other kind of affixes in words.</p><p>As a solution to those drawbacks, new alternative character-based word embeddings have been recently proposed for tasks such as language modeling <ref type="bibr" target="#b9">(Kim et al., 2016;</ref><ref type="bibr" target="#b11">Ling et al., 2015a)</ref>, parsing <ref type="bibr" target="#b1">(Ballesteros et al., 2015)</ref> or POS tagging <ref type="bibr" target="#b11">(Ling et al., 2015a;</ref><ref type="bibr" target="#b14">Santos and Zadrozny, 2014)</ref>. Even in MT <ref type="bibr" target="#b12">(Ling et al., 2015b)</ref>, where authors use the character transformation presented in <ref type="bibr" target="#b1">(Ballesteros et al., 2015;</ref><ref type="bibr" target="#b11">Ling et al., 2015a)</ref> both in the source and target. However, they do not seem to get clear improvements. Recently, (Luong and Manning, 2016) propose a combination of word and characters in neural MT.</p><p>For our experiments in neural MT, we selected the best character-based embedding architecture proposed by <ref type="bibr" target="#b9">Kim et al. (Kim et al., 2016)</ref> for language modeling. As the <ref type="figure" target="#fig_0">Figure 1</ref> shows, the computation of the representation of each word starts with a character-based embedding layer that associates each word (sequence of characters) with a sequence of vectors. This sequence of vectors is then processed with a set of 1D convolution filters of different lengths (from 1 to 7 characters) followed with a max pooling layer. For each convolutional filter, we keep only the output with the maximum value. The concatenation of these max values already provides us with a representation of each word as a vector with a fixed length equal to the total number of convolutional ker-nels. However, the addition of two highway layers was shown to improve the quality of the language model in <ref type="bibr" target="#b9">(Kim et al., 2016)</ref> so we also kept these additional layers in our case. The output of the second Highway layer will give us the final vector representation of each source word, replacing the standard source word embedding in the neural machine translation system. In the target size we are still limited in vocabulary by the softmax layer at the output of the network and we kept the standard target word embeddings in our experiments. However, the results seem to show that the affix-aware representation of the source words has a positive influence on all the components of the network. The global optimization of the integrated model forces the translation model and the internal vector representation of the target words to follow the affix-aware codification of the source words.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Experimental framework</head><p>This section reports the data used, its preprocessing, baseline details and results with the enhanced character-based neural MT system.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Data</head><p>We used the German-English WMT data 1 including the EPPS, NEWS and Commoncrawl. Preprocessing consisted of tokenizing, truecasing, normalizing punctuation and filtering sentences with more than 5% of their words in a language http://www.statmt.org/wmt15/translation-task.html other than German or English. Statistics are shown in <ref type="table">Table 1</ref> </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Baseline systems</head><p>The phrase-based system was built using Moses <ref type="bibr" target="#b10">(Koehn et al., 2007)</ref>, with standard parameters such as grow-final-diag for alignment, Good-Turing smoothing of the relative frequencies, 5gram language modeling using Kneser-Ney discounting, and lexicalized reordering, among others. The neural-based system was built using the software from DL4MT 2 available in github. We generally used settings from previous work <ref type="bibr" target="#b8">(Jean et al., 2015)</ref>: networks have an embedding of 620 and a dimension of 1024, a batch size of 32, and no dropout. We used a vocabulary size of 90 thousand words in German-English. Also, as proposed in <ref type="bibr" target="#b8">(Jean et al., 2015)</ref> we replaced unknown words (UNKs) with the corresponding source word using the alignment information. <ref type="table" target="#tab_3">Table 3</ref> shows the BLEU results for the baseline systems (including phrase and neural-based, NN) and the character-based neural MT (CHAR). We also include the results for the CHAR and NN systems with post-processing of unknown words, which consists in replacing the UNKs with the corresponding source word (+Src), as suggested in <ref type="bibr" target="#b8">(Jean et al., 2015)</ref>. BLEU results improve by almost 1.5 points in German-to-English and by more than 3 points in English-to-German. The reduction in the number of unknown words (after postprocessing) goes from 1491 (NN) to 1260 (CHAR) in the direction from German-to-English and from to 2640 in the opposite direction. Note the http://dl4mt.computing.dcu.ie/ 1 SRC Berichten zufolge hofft Indien darber hinaus auf einen Vertrag zur Verteidigungszusammenarbeit zwischen den beiden Nationen . Phrase reportedly hopes India , in addition to a contract for the defence cooperation between the two nations . NN according to reports , India also hopes to establish a contract for the UNK between the two nations . CHAR according to reports , India hopes to see a Treaty of Defence Cooperation between the two nations . REF India is also reportedly hoping for a deal on defence collaboration between the two nations . 2 SRC der durchtrainierte Mainzer sagt von sich , dass er ein " ambitionierter Rennradler " ist . Phrase the will of Mainz says that he a more ambitious . NN the UNK Mainz says that he is a " ambitious , . " CHAR the UNK in Mainz says that he is a ' ambitious racer ' . REF the well-conditioned man from Mainz said he was an " ambitious racing cyclist . " SRC die GDL habe jedoch nicht gesagt , wo sie streiken wolle , so dass es schwer sei , die Folgen konkret vorherzusehen . Phrase the GDL have , however , not to say , where they strike , so that it is difficult to predict the consequences of concrete . NN however , the UNK did not tell which they wanted to UNK , so it is difficult to predict the consequences . CHAR however , the UNK did not say where they wanted to strike , so it is difficult to predict the consequences .   number of out-of-vocabulary words of the test set is shown in <ref type="table">Table 1</ref>. The character-based embedding has an impact in learning a better translation model at various levels, which seems to include better alignment, reordering, morphological generation and disambiguation. <ref type="table" target="#tab_2">Table 2</ref> shows some examples of the kind of improvements that the character-based neural MT system is capable of achieving compared to baseline systems. Examples 1 and 2 show how the reduction of source unknowns improves the adequacy of the translation. Examples 3 and 4 show how the character-based approach is able to handle morphological variations. Finally, example 5 shows an appropriate semantic disambiguation.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">Results</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>REF</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Conclusions</head><p>Neural MT offers a new perspective in the way MT is managed. Its main advantages when compared with previous approaches, e.g. statistical phrase-based, are that the translation is faced with trainable features and optimized in an end-to-end scheme. However, there still remain many challenges left to solve, such as dealing with the limi-tation in vocabulary size.</p><p>In this paper we have proposed a modification to the standard encoder/decoder neural MT architecture to use unlimited-vocabulary character-based source word embeddings. The improvement in BLEU is about 1.5 points in German-to-English and more than 3 points in English-to-German.</p><p>As further work, we are currently studying different alternatives <ref type="bibr" target="#b6">(Chung et al., 2016)</ref> to extend the character-based approach to the target side of the neural MT system.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 :</head><label>1</label><figDesc>Character-based word embedding</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head></head><label></label><figDesc>the GDL have not said , however , where they will strike , making it difficult to predict exactly what the consequences will be .</figDesc><table><row><cell>4</cell><cell>SRC</cell><cell>die Premierminister Indiens und Japans trafen sich in Tokio .</cell></row><row><cell></cell><cell>Phrase</cell><cell>the Prime Minister of India and Japan in Tokyo .</cell></row><row><cell></cell><cell>NN</cell><cell>the Prime Minister of India and Japan met in Tokyo</cell></row><row><cell></cell><cell>CHAR</cell><cell>the Prime Ministers of India and Japan met in Tokyo</cell></row><row><cell></cell><cell>REF</cell><cell>India and Japan prime ministers meet in Tokyo</cell></row><row><cell></cell><cell>SRC</cell><cell>wo die Beamten es aus den Augen verloren .</cell></row><row><cell></cell><cell>Phrase</cell><cell>where the officials lost sight of</cell></row><row><cell></cell><cell>NN</cell><cell>where the officials lost it out of the eyes</cell></row><row><cell></cell><cell>CHAR</cell><cell>where officials lose sight of it</cell></row><row><cell></cell><cell>REF</cell><cell>causing the officers to lose sight of it</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_2"><head>Table 2 :</head><label>2</label><figDesc>Translation examples.</figDesc><table><row><cell></cell><cell cols="2">De-&gt;En En-&gt;De</cell></row><row><cell>Phrase</cell><cell>20.99</cell><cell>17.04</cell></row><row><cell>NN</cell><cell>18.83</cell><cell>16.47</cell></row><row><cell>NN+Src</cell><cell>20.64</cell><cell>17.15</cell></row><row><cell>CHAR</cell><cell>21.40</cell><cell>19.53</cell></row><row><cell>CHAR+Src</cell><cell>22.10</cell><cell>20.22</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_3"><head>Table 3 :</head><label>3</label><figDesc></figDesc><table /><note>De-En BLEU results.</note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgements</head><p>This work is supported by the 7th Framework Program of the European Commission through the International Outgoing Fellowship Marie Curie Action (IMTraP-2011-29951) and also by the Spanish Ministerio de Economía y Competitividad and European Regional Developmend Fund, contract TEC2015-69266-P (MINECO/FEDER, UE).</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<title level="m" type="main">Neural machine translation by jointly learning to align and translate</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">[</forename><surname>References</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bahdanau</surname></persName>
+		</author>
+		<idno>abs/1409.0473</idno>
+		<imprint>
+			<date type="published" when="2015" />
+			<publisher>CoRR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Improved transitionbased parsing by modeling characters instead of words with lstms</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ballesteros</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2015 Conference on Empirical Methods in Natural Language Processing</title>
+		<meeting>the 2015 Conference on Empirical Methods in Natural Language Processing<address><addrLine>Lisbon, Portugal</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2015-09" />
+			<biblScope unit="page" from="349" to="359" />
+		</imprint>
+	</monogr>
+	<note>Association for Computational Linguistics</note>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Compositional Morphology for Word Representations and Language Modelling</title>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 31st International Conference on Machine Learning (ICML)</title>
+		<editor>A. Botha and Phil Blunsom</editor>
+		<meeting>the 31st International Conference on Machine Learning (ICML)<address><addrLine>Beijing, China</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2014-01" />
+		</imprint>
+	</monogr>
+	<note>Botha and Blunsom2014. jun. *Award for best application paper*</note>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Joint learning of character and word embeddings</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">[</forename><surname>Chen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IJ-CAI</title>
+		<editor>Qiang Yang and Michael Wooldridge</editor>
+		<imprint>
+			<publisher>AAAI Press</publisher>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="1236" to="1242" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">On the properties of neural machine translation: Encoder-decoder approaches</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">[</forename><surname>Cho</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of the Eighth Workshop on Syntax, Semantics and Structure in Statistical Translation</title>
+		<meeting>of the Eighth Workshop on Syntax, Semantics and Structure in Statistical Translation<address><addrLine>Doha</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Normalizing tweets with edit scripts and recurrent neural embeddings</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Grzegorz</forename><surname>Chrupala</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 52nd Annual Meeting of the Association for Computational Linguistics, ACL 2014</title>
+		<meeting>the 52nd Annual Meeting of the Association for Computational Linguistics, ACL 2014<address><addrLine>Baltimore, MD, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>Short Papers</publisher>
+			<date type="published" when="2014-06-22" />
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page" from="680" to="686" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<monogr>
+		<title level="m" type="main">A character-level decoder without explicit segmentation for neural machine translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chung</forename></persName>
+		</author>
+		<idno>abs/1603.06147</idno>
+		<imprint>
+			<date type="published" when="2016" />
+			<publisher>CoRR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<title level="m" type="main">Multi-language image description with neural sequence models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">[</forename><surname>Elliott</surname></persName>
+		</author>
+		<idno>abs/1510.04709</idno>
+		<imprint>
+			<date type="published" when="2015" />
+			<publisher>CoRR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Kalchbrenner and Blunsom2013] Nal Kalchbrenner and Phil Blunsom. 2013. Recurrent continuous translation models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">[</forename><surname>Jean</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of the Conference on Empirical Methods in Natural Language Processing</title>
+		<meeting>of the Conference on Empirical Methods in Natural Language essing<address><addrLine>Lisbon; Seattle</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note>Proc. of the 10th Workshop on Statistical Machine Translation</note>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Characteraware neural language models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">[</forename><surname>Kim</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 30th AAAI Conference on Artificial Intelligence (AAAI&apos;16)</title>
+		<meeting>the 30th AAAI Conference on Artificial Intelligence (AAAI&apos;16)</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Moses: Open Source Toolkit for Statistical Machine Translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">[</forename><surname>Koehn</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of the 41th Annual Meeting of the Association for Computational Linguistics</title>
+		<meeting>of the 41th Annual Meeting of the Association for Computational Linguistics<address><addrLine>Nicolas Bertoldi, Brooke Cowan, Wade Shen, Christine Moran, Richard Zens, Chris Dyer, Ondrej Bojar, Alexandra Constantin, and Evan Herbst</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2003" />
+			<biblScope unit="page" from="177" to="180" />
+		</imprint>
+	</monogr>
+	<note>Proc. of the 45th Annual Meeting of the Association for Computational Linguistics</note>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Finding function in form: Compositional character models for open vocabulary word representation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ling</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2015 Conference on Empirical Methods in Natural Language Processing</title>
+		<meeting>the 2015 Conference on Empirical Methods in Natural Language Processing<address><addrLine>Lisbon, Portugal</addrLine></address></meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2015-09" />
+			<biblScope unit="page" from="1520" to="1530" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Achieving open vocabulary neural machine translation with hybrid word-character models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ling</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Association for Computational Linguistics (ACL)</title>
+		<meeting><address><addrLine>Berlin, Germany</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note>Character-based neural machine translation. CoRR, abs/1511.04586</note>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Boosting named entity recognition with neural character embeddings</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Cicero</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Victor</forename><surname>Santos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Guimar</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Fifth Named Entity Workshop</title>
+		<meeting>the Fifth Named Entity Workshop<address><addrLine>Beijing, China</addrLine></address></meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2015-07" />
+			<biblScope unit="page" from="25" to="33" />
+		</imprint>
+	</monogr>
+	<note>Santos and aes2015</note>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Learning character-level representations for part-of-speech tagging</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Santos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Cicero</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bianca</forename><surname>Santos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Zadrozny</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 31st International Conference on Machine Learning (ICML-14)</title>
+		<editor>Tony Jebara and Eric P. Xing</editor>
+		<meeting>the 31st International Conference on Machine Learning (ICML-14)</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="1818" to="1826" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<monogr>
+		<title level="m" type="main">Neural machine translation of rare words with subword units</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rico</forename><surname>Sennrich</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Barry</forename><surname>Haddow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alexandra</forename><surname>Birch</surname></persName>
+		</author>
+		<idno>abs/1508.07909</idno>
+		<imprint>
+			<date type="published" when="2015" />
+			<publisher>CoRR</publisher>
+		</imprint>
+	</monogr>
+	<note>Sennrich et al.2015</note>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Sequence to sequence learning with neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ilya</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Oriol</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Quoc</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Le</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<editor>Z. Ghahramani, M. Welling, C. Cortes, N. D. Lawrence, and K. Q. Weinberger</editor>
+		<imprint>
+			<publisher>Curran Associates, Inc</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="volume">27</biblScope>
+			<biblScope unit="page" from="3104" to="3112" />
+		</imprint>
+	</monogr>
+	<note>Sutskever et al.2014</note>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

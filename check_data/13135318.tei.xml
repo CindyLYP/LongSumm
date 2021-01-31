@@ -1,0 +1,579 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Derflow: Distributed Deterministic Dataflow Programming for Erlang</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Manuel</forename><surname>Bravo</surname></persName>
+							<email>angel.bravo@uclouvain.be</email>
+							<affiliation key="aff0">
+								<orgName type="institution">Université catholique de Louvain</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zhongmiao</forename><surname>Li</surname></persName>
+							<email>zhongmiao.li@uclouvain.be</email>
+							<affiliation key="aff1">
+								<orgName type="institution">Université catholique de Louvain</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Peter</forename><forename type="middle">Van</forename><surname>Roy</surname></persName>
+							<email>peter.vanroy@uclouvain.be</email>
+							<affiliation key="aff2">
+								<orgName type="institution">Université catholique de Louvain</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christopher</forename><surname>Meiklejohn</surname></persName>
+							<email>cmeiklejohn@basho.com</email>
+							<affiliation key="aff3">
+								<orgName type="institution">Basho Technologies, Inc</orgName>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Derflow: Distributed Deterministic Dataflow Programming for Erlang</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+					<idno type="DOI">10.1145/http://dx.doi.org/10.1145/2633448.2633451</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:42+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<textClass>
+				<keywords>
+					<term>Dynamo</term>
+					<term>Erlang</term>
+					<term>Riak</term>
+				</keywords>
+			</textClass>
+			<abstract>
+				<p>Erlang implements a message-passing execution model in which concurrent processes send each other messages asynchronously. This model is inherently non-deterministic: a process can receive messages sent by any process which knows its process identifier, leading to an exponential number of possible executions based on the number messages received. Concurrent programs in nondeterministic languages are notoriously hard to prove correct and have led to well-known disasters. Furthermore, Erlang natively provides distribution and process clustering. This enables processes to asynchronously communicate between different virtual machines across the network, which increases the potential non-determinism. We propose a new execution model for Erlang, &quot;Deterministic Dataflow Programming&quot;, based on a highly available, scalable single-assignment data store implemented on top of the riak core distributed systems framework. This execution model provides concurrent communication between Erlang processes, yet has no observable non-determinism. Given the same input values, a deterministic dataflow program will always return the same output values, or never return; liveness under failures is sacrificed to ensure safety. Our proposal provides a distributed deterministic dataflow solution that operates transparently over distributed Erlang, providing the ability to have highly-available, fault-tolerant, deterministic computations.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><p>model is inherently non-deterministic, in that a process can receive messages sent by any process which knows its process identifier, leading to an exponential number of possible executions based on the number of messages received. Concurrent programs in nondeterministic languages, are notoriously hard to prove correct, and have lead to many well-known disasters. <ref type="bibr" target="#b14">[15]</ref> When reasoning about the correctness of our programs, we treat every message received by a process as a 'choice'. A series of these 'choices' define one execution of a program. Given this, to prove a program is correct requires proving that each of these executions are correct; that is, for each execution all possible inputs are able to be processed resulting in termination. While there is work underway on making this approach more viable <ref type="bibr" target="#b1">[2]</ref>, we believe that limiting the ability to write non-deterministic code provides a reasonable alternative to exhaustively checking our applications for correctness.</p><p>In addition, Erlang natively provides distribution and clustering as part of the runtime environment. This provides the ability to have processes asynchronously communicate across the network between different instances of the virtual machine. When using asynchronous communication across the network, one can provide even fewer guarantees regarding message delivery and reordering <ref type="bibr" target="#b18">[18]</ref>. Erlang, in an effort to solve both of these problems, uses programming patterns and libraries (e.g. OTP) that are designed to reduce the number of choices and to maintain invariants for the remaining choices.</p><p>We propose a new execution model for Erlang, namely deterministic dataflow programming. This execution model provides concurrency, while also eliminating all observable nondeterminism. Given the same input values, a program written in deterministic dataflow style will always return the same output values, or never return. These input values can be data streams as well, which is a natural generalization of functional programming to the concurrent setting. Our proposed solution provides a distributed deterministic dataflow solution which operates transparently over distributed Erlang, providing the ability to have highly-available, fault-tolerant, deterministic computations.</p><p>The major contributions of this paper are the following:</p><p>• Prototype implementation of a deterministic dataflow extension to Erlang called Derflow, with examples of its usage for common computations.</p><p>• Transparent distribution of computations, through the usage of the Dynamo-inspired <ref type="bibr" target="#b5">[6]</ref> distributed systems framework, riak core. <ref type="bibr" target="#b2">[3]</ref>.</p><p>The remainder of this paper is organized as follows: Section 2 introduces background material related to distributed dataflow programming and the riak core distribution model; Section 3 describes the semantics of Derflow; Section 4 discusses the implementation challenges; Section 5 discusses a few application of Derflow; then, Section 6 discusses integration with non-determinism; finally, Section 7 discusses future work and concludes the paper.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">Background</head><p>The following subsections provide background on Dynamo, the riak core library, and deterministic dataflow programming.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1">Dynamo</head><p>Consistent hashing, hash-space partitioning and a configurable data replication factor are the concepts critical for understanding riak core's implementation of the Dynamo mode. We discuss in Section 4.2 how Derflow is built on top of riak core.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1.1">Consistent Hashing</head><p>The Amazon Dynamo paper describes a key-value based storage system made up of a cluster of nodes, where every node in the cluster stores some subset of the total data. To distribute this data, a consistent hashing algorithm applied to the data's key is then used to determine a token in the hash-space for where this data should be distributed.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1.2">Hash-Space Partitioning</head><p>The entirety of the hash space is then evenly divided between the nodes. Each even portion of the hash space is called a partition, and each partition is managed by a virtual node. Each physical node in the cluster hosts a number of virtual nodes, one for each partition assigned to that physical node. The hash resulting from running a key through the consistent hashing algorithm determines which partition is responsible for storing the data associated with that key.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1.3">Replication Factor</head><p>Dynamo replicates data on consecutive partitions. The replication factor N determines the number of replicas. When a key is mapped to a particular partition in the hash-space, the (N − 1) consecutive partitions are used to store replicas of the data. This collection of partitions is called the preference list or primaries.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1.4">Dynamic Cluster Membership</head><p>As the cluster grows and shrinks, partitions are redistributed to nodes, minimizing the amount of partitions that have to move between nodes to cut down on data transfer between nodes. This is a property of the consistent hashing algorithm described in section 2.1.1.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">Deterministic dataflow programming</head><p>Deterministic dataflow was first proposed by <ref type="bibr">Gilles Kahn in 1974</ref>, in a programming model that is now known as Kahn networks <ref type="bibr" target="#b11">[12]</ref>. In 1977, a lazy version of this same model was proposed by Kahn and David MacQueen <ref type="bibr" target="#b12">[13]</ref>. However, up until recently this model has never become part of mainstream concurrent programming. This may be due to either the model's inability to express nondeterminism or the simultaneous invention of two other models for handling concurrent programming: the actor model (message passing) and monitors (shared state) <ref type="bibr" target="#b8">[9,</ref><ref type="bibr" target="#b9">10]</ref>.</p><p>However, deterministic dataflow is now becoming a more important model in mainstream programming due to the increasing prominence of parallel computing, both in distributed computing and in multicore processors. Recent examples include the Oz deterministic dataflow execution model <ref type="bibr" target="#b19">[19]</ref>, the Akka library for concurrent and distributed programming in Scala <ref type="bibr" target="#b0">[1,</ref><ref type="bibr" target="#b20">20]</ref>, and Ozma, which is a Scala language extension that adds deterministic dataflow <ref type="bibr" target="#b6">[7]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">Semantics of Derflow</head><p>This section presents the semantics of Derflow in four subsections. First, we focus on the primitive semantics which support deterministic dataflow; then, we introduce data streams, a programming technique that enriches deterministic dataflow. Then, we discuss a lazy execution extension. Finally, we discuss issues of failure handling.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">Deterministic dataflow</head><p>The deterministic dataflow model uses a single-assignment store. This store is shared through all the processes that participate in the deterministic dataflow program. We represent the singleassignment store as:</p><formula xml:id="formula_0">σ = {x1, . . . , xn}</formula><p>where xi represents a variable declared in σ. The stored variables are called dataflow variables. Dataflow variables are assigned to dataflow values. A dataflow value is either an Erlang term or a previously declared dataflow variable.</p><p>Contrary to Erlang variables, a dataflow variable is allowed to be unbound. Thus, the possible states of a dataflow variable are the following: unbound, bound to a term, partially bound. The former is the initial state of a dataflow variable after is created. After the initial state, the dataflow variable can be either assigned to an Erlang term or to another dataflow variable. If the dataflow variable is assigned to another dataflow variable, we say that the variable is partially bound if the second dataflow variable is unbound. <ref type="figure" target="#fig_1">Figure 1</ref> diagrams the states that a dataflow variable can visit.</p><p>Therefore, the following single-assignment dataflow store is consistent with the previous definitions: During the rest of the section, we use the following notation to specify the state of a dataflow variable:   Each dataflow variable has to keep some extra information in order to implement the primitive operations on which deterministic dataflow relies. A dataflow variable is composed as follows:</p><formula xml:id="formula_1">σ = {x1 = x2, x2 = ∅, x3 = 5, x4 = [a, b</formula><formula xml:id="formula_2">• xi = ∅:</formula><p>xi = {value, bound variables, waiting processes} where value is either empty or a dataflow value, bound variables is a set of dataflow variables that are partially bound to xi, and waiting processes is a set of processes waiting for xi to be bound. The set of waiting processes is used by the read and the bind primitive operations later described. The deterministic dataflow model is an extension of the functional programming model with concurrency, dataflow variables and synchronization on them. The model then guarantees that under a particular input, a deterministic dataflow program will always produce the same result. It is well known that determinism is a desired property that simplifies the development of applications.</p><p>We now look at which primitives are required to transform a functional program into a deterministic dataflow program. The following primitives we aim to provide are: declare(), bind(x, v) and read(x).</p><p>declare() creates a new dataflow variable into the singleassignment store. The operation returns the identifier of the newly created dataflow variable. More precisely, this operation can be expressed as follows: xi.value = vi </p><formula xml:id="formula_3">• Before: σ = {x1, . . . , xn} • xn+1 = declare()</formula><formula xml:id="formula_4">• After: σ = {x1, . . . , xi = vi, . . . ,</formula><formula xml:id="formula_5">• Before: σ = {x1, . . . , xi, . . . , xn} • vi = read(xi) if xi.value == (xm ∨ ∅) − xi.waiting processes ∪ {self ()} − wait until xi is bound vi = xi.value • After: σ = {x1, . . . , xi = vi, . . . , xn}</formula><p>Finally, Derflow uses the Erlang spawn primitive to add concurrency to the deterministic dataflow model, a fundamental feature of the deterministic dataflow model. Furthermore, useful properties such as transparent concurrency are added. Section 5 shows why transparency concurrency is a desirable property and how programmer can use it.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">Streams</head><p>Streams are a useful technique which allow threads, or processes, to communicate and synchronize in concurrent programming. A stream is represented here as a list of dataflow variables, with an unbound dataflow variable as the final element of the list. For instance, a stream variable can be expressed as the following: In order to add streams to Derflow, we extended the metadata kept by a dataflow variable with a new parameter called next. This new parameter stores the id of the dataflow variable that represents the successor element in the stream. Thus, a dataflow variable is now composed as follows:</p><formula xml:id="formula_6">si = x1 | . . . |</formula><p>xi = {value, bound variables, waiting processes, next} There are two basic operations applicable to a stream: produce(x, v) and consume(x).</p><p>produce(xn, vn) extends the stream by binding the tail xn to vn and creating a new tail xn+1. It returns the new tail. More precisely, this operation can be expressed as follows: It returns the read value (vi) and the identifier of the next element in the stream (xi+1). More precisely, this operation can be expressed as follows:</p><formula xml:id="formula_7">• Before: σ = {x1, . . . , xn = ∅} • xn+1 = produce(xn, vn) bind(xn, vn) xn+1 = declare() xn.next = xn+1</formula><formula xml:id="formula_8">• Before: σ = {x1, . . . , xi = vi ∨ xm ∨ ∅, xi+1, . . . , xn} • {vi, xi+1} = consume(xi) vi = read(xi) xi+1 = xi.next • After: σ = {x1, . . . , xi = vi, xi+1, . . . , xn}</formula><p>Different processes can read from the stream simultaneously. This do not compromise determinism. Nevertheless, the number of producers is restricted to one in order to keep determinism.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">Laziness</head><p>Lazy, non-strict evaluation, or demand-driven execution, delays the evaluation of an expression until the value is needed somewhere else in the program. Lazy execution can improve the performance of programs by avoiding unnecessary computation. Lazy execution also enables the possibility of creating potentially infinite data structures, e.g. infinite lists and infinite trees, since each element will only be created when it is needed by the program.</p><p>The intuition of lazy evaluation is simple: a process that wants to assign a lazy variable to a value will be suspended until the value is needed by other process.</p><p>The only primitive we need to add is wait needed(x). This operation suspends the caller process until the dataflow variable</p><p>x is needed. As a consequence of this new primitive, the metadata kept by the dataflow variable has to be extended once more. A new parameter called lazy is added to the metadata. lazy is the set of the processes that called wait needed(x) for the variable x. The dataflow variable is now composed as follows:</p><p>xi = {value, bound variables, waiting processes, next, lazy} More precisely, the wait needed(x) primitive can be expressed as follows:</p><formula xml:id="formula_9">• Before: σ = {x1, . . . , xi = ∅, . . . , xn} • wait needed(xi) if xi.waiting processes == ∅ − xi.lazy ∪ {self ()} − wait until a read(xi) is issued • After: σ = {x1, . . . , xi, . . . , xn}</formula><p>In case xi was already bound, wait needed(x) returns immediately.</p><p>Furthermore, the primitive read(x) has to be changed to notify the processes that called wait needed(x) . More precisely, the new read(x) primitive can be expressed as follows:</p><formula xml:id="formula_10">• Before: σ = {x1, . . . , xi, . . . , xn} • vi = read(xi) ∀p ∈ xi.lazy, notify p if xi.value == (xm ∨ ∅) − xi.waiting processes ∪ {self ()} − wait until xi is bound vi = xi.value • After: σ = {x1, . . . , xi = vi, . . . , xn}</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4">Failure handling</head><p>Failures introduce non-determinism. Therefore, a deterministic program can easily become non-deterministic if care is not taken to handle failures in a deterministic manner.</p><p>One simple approach to ensure determinism in the presence of failures is to force processes to wait forever if a dataflow variable is either unbound or not reachable. Obviously, this approach does not ensure progress. Consider the following example:</p><p>• Process p0 is supposed to bind a dataflow variable, however fails before completing its task. • Processes p1 . . . pn are waiting on p0 to bind.</p><p>• Processes p1 . . . pn wait forever, resulting in non-termination.</p><p>However, determinism and dataflow variables provide a very useful property for failure handling: redundant computation will not affect the correctness of a deterministic dataflow program. We propose a failure handling model where failed processes or temporarily unreachable processes, can be restarted while still providing the guarantees of the deterministic programming model. We classify the failures into two groups:</p><p>• Computing process failure: Failure of an individual Erlang process which uses a value in the single-assignment store. Given other processes may be waiting for the result of this processes computation, this can cause the program to block forever.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>• Dataflow variable failure:</head><p>A dataflow variable stored in the single-assignment store is not reachable. This means that computing processes issuing operations on the unreachable variable will block until the dataflow variable becomes accesible again. This may never happen and the computing process would block forever.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4.1">Computing process failure handling</head><p>Computing process failures are rather straightforward to handle; execution can continue by re-executing the failing process without having to worry about duplicate processing introducing nondeterminism. Consider the following example:</p><p>• Process p0 reads a dataflow variable, x1.</p><p>• Process p0 performs a computation based on the value of x1, and binds the result of computation to x2.</p><p>Two possible failure conditions can occur:</p><p>• If the output variable never binds, process p0 can be restarted and will allow the program to continue executing deterministically.</p><p>• If the output variable binds, restarting process p0 has no effect,</p><p>given the single-assignment nature of variables.</p><p>Derflow does not provide any primitive for handling this computation, as the Erlang primitives are sufficient to handle these failures. Section 5.4 provides an example on how to successfully handle computing process failures.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4.2">Dataflow variable failure handling</head><p>Dataflow variable failures are more difficult to handle, given that re-execution of a blocked or failed process does not guarantee progress.</p><p>Consider the following example:</p><p>• Process p0 attempts to compute value for dataflow variable x1 and fails. • Process p1 blocks on x1 to be bound by p0, which will not complete successfully.</p><p>The re-execution of blocked process p1 will result in the process immediately blocking again. Therefore we must provide a way to identify dependencies between processes and dataflow variables in order to provide a deterministic restart strategy which guarantees progress. A common strategy to ensure progress in this situation is to restart the process that declared the failed dataflow variable. In addition, all the processes depending on the restarted process should also be restarted.</p><p>We can use the Erlang primitives monitor/2 and link/1 to build custom supervision trees which will guarantee a proper restart strategy which will ensure progress. Nevertheless, we still need to provide a way of monitoring and killing dataflow variables of the single-assignment store. To facilitate this, we extend our model with two additional primitives: monitor(x) and kill(x). These primitives are inspired by the failure model of Collet <ref type="bibr" target="#b3">[4]</ref>.</p><p>To support these two primitives, we extend dataflow variables as follows:</p><p>• We extend dataflow variables allowing them to bind to a nonusable value, represented by . A read or bind operation on a non-usable dataflow variable blocks the caller process forever. <ref type="bibr">•</ref> We extend dataflow variables allowing them to track processes which have placed monitors on them. These monitors are tracked to support the kill primitive.</p><p>Below is the updated definition of dataflow variables:</p><p>xi = {value, bound variables, waiting processes, next, lazy, monitors}</p><p>The call monitor(xi) sets a monitor to the dataflow variable xi and returns a stream (initially, an unbound dataflow variable y) that will contain the reachability states that the dataflow variable xi visits on the node that did the monitor call. The new metadata monitors is a set that contains all the identifiers of the processes monitoring the dataflow variable.</p><p>If the reachability state of xi changes on a node, the new state is inserted at the end of each monitor stream that was created on that node. A dataflow variable can visit three reachability states: perm fail, temp fail and normal. perm fail means that the dataflow variable is permanently unreachable. temp fail means that the dataflow variable is temporarily unreachable but it may become reachable again. Finally, normal means that the dataflow variable is reachable. A dataflow variable can only visit the reachability state normal after visiting temp fail. <ref type="figure" target="#fig_5">Figure 2</ref> diagrams the reachability states that a dataflow variable can visit.</p><p>More precisely, the execution of monitor(xi) can be defined as follows:</p><formula xml:id="formula_11">• Before: σ = {x1, . . . , xi, . . . , xn} • y = monitor(xi)</formula><p>xi.monitors ∪ {self ()} y = declare() </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">Implementation</head><p>The following section discusses the implementation of Derflow.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Derflow API</head><p>Derflow currently provides the following functions:</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Deterministic dataflow</head><p>• {ok, Id::term()} = declare():</p><p>Creates a new unbound dataflow variable in the store. It returns the id of the newly created variable. Returns the head of a stream that will contain the states that the dataflow variable Id visits, from the caller process view.</p><formula xml:id="formula_12">• ok = kill(Id):</formula><p>Set the dataflow variable represented by Id to non-usable.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Distribution</head><p>Derflow is implemented as an Erlang library, which relies on a single-assignment store. This store needs to be accessible by all the processes that participate in the execution of the Derflow program.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.1">Partition strategies</head><p>In a single system, the design of such a store is simpler as the memory is accessible and shared by all the communicating processes. Nevertheless, in a distributed fashion, the implementation becomes tricky and keeping consistency guarantees and high grade of scalability is challenging. We considered three approaches:</p><p>• Each dataflow variable has a 'home process', where it was initially created. Therefore, binding the variable always sends a message to the 'home process', which then broadcasts the binding to all the instances.</p><p>• Each instance of a dataflow variable knows all the other instances. There are no 'home processes'. Therefore, after binding the local instance, the operation is directly broadcast to the other instances.</p><p>• Each computing node has a partition of the single-assignment store. All processes on a given computing node will reference the local partition. Binding a variable sends the operation to the local partition, which will then send it to the partition replicas.</p><p>We chose the third approach. In the first two approaches, every process that knows about a particular dataflow variable creates a new instance; therefore, it will eventually participate in the corresponding bind operation. In some cases, the number of instances can be large. This would result in poor performance. Nevertheless, in the third approach, each computing node is responsible for a partition of the single-assignment store; therefore no matter how many processes know about a particular dataflow variable, the binding operation would always be sent to the responsible and to the corresponding replicas.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.2">Design considerations</head><p>When choosing to implement our distributed single-assignment store, we examined two possible choices: riak core and mnesia <ref type="bibr" target="#b7">[8]</ref>.</p><p>mnesia provides a native Erlang implementation of a relational database management system, which supports atomic transactions and the ability to distribute tables across nodes through replication. However, we look at two specific problems with mnesia:</p><p>• Problems arise in the presence of network partitions <ref type="bibr" target="#b10">[11]</ref> where the mnesia nodes on either side of the network partition are able to make progress independently. Currently, no mechanisms exist for reconciling the changes made to the database when nodes reconnect, nor reasoning about concurrent or causally influenced operations. While the functionality for reasoning about concurrent events is not necessary for the implementation of the single-assignment store, Section 7 discusses a generalization of our single-assignment variables to conflict-free replicated data types, or CRDTs <ref type="bibr" target="#b16">[17]</ref>, where causality is desired. • mnesia performs replication to all nodes which share a table of data. This requires writing a custom distribution layer for distributing the data if we want to have it partitioned to ensure even load distribution given dynamic membership and node failures.</p><p>Given the background discussed in Section 2.1, riak core provides solutions to both of these problems:</p><p>• riak core provides a dotted version vector <ref type="bibr" target="#b15">[16]</ref> and vector clock facility as a causality tracking mechanism which can be used to reason about concurrent operations. In addition, riak core provides mechanisms, such as active anti-entropy and handoff, which allow us to reason about divergences between replicas.</p><p>• riak core's distribution layer provides minimal reshuffling of data, and predictable hashing through hash-space partitioning, consistent hashing, and a virtual node abstraction.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.3">Implementation on riak core</head><p>In implementing the partitioned single-assignment store on riak core, we made the following design decisions:</p><p>• Data is partitioned across a series of nodes, using the hashspace partitioning and consistent hashing techniques described in Section 2.1.1 and Section 2.1.2.</p><p>• When declaring new dataflow variables, we write the variable into the replica set for that variable, requiring that the write be acknowledged by a strict quorum to ensure fault-tolerance of the variable as described in Section 2.1.3.</p><p>• As dataflow variables become bound, we rely again on a strict quorum to acknowledge the write, and notify all processes waiting for the value that the variable has been bound. Given that n/2 − 1 nodes might not accept the write or be available, we ensure that an active anit-entropy mechanism exists to notify any processes on the node which did not receive the update which might be waiting when the bound value is replicated.</p><p>• If a strict quorum is not available because of a network partition, operations on dataflow variables do not make progress until the partition has healed.</p><p>In the event of ownership transfer, during dynamic membership changes within the cluster, we perform the following:</p><p>• Each replica's portion of single-assignment store is transferred over to the target replica. As this occurs, each dataflow variable, if bound, notifies all waiting processes on the target replica allowing any processes which were waiting during the partition to proceed. • As each variable is transferred over, monitors are removed locally and reapplied for each dataflow variable on the target vnode, given the processes which are waiting. • Given that the process notification of a bound variable operation is idempotent, duplicate notifications to the same process produces no result.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.">Examples</head><p>In this section we describe some use cases for Derflow.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1">Concurrency transparency</head><p>In Derflow, any function that uses dataflow variables can be run in a different process while keeping the final result same. Thus, programmers can transparently add concurrency to their programs (either parallelism or distribution) in a secure way without thinking about data races and possible bugs. One such example is a map function, that receives a stream of inputs and applies a function to each element resulting an output stream of equal length. The code in Derflow for a sequential map function is the following: Nevertheless, due to the concurrency transparency property, the programmer could easily upgrade his sequential map to a concurrent implementation without compromising determinism. The code in Derflow for the concurrent implementation of the map function is the following: In this case, the programmer explicitly specified (by using the primitive spawn(module, function, args)) that the evaluation of the function F is done asynchronously. Therefore, the map function can read the next element from the input stream without waiting for the function to be evaluated. The concurrent map, when leveraging parallel execution, will be faster than its sequential counterpart.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2">Concurrent deployment</head><p>In concurrent deployment, we could further leverage concurrency transparency to concurrently and incrementally start new processes according to need. There is no need to start all processes when initializing programs, instead only a few processes will be started at first and they will launch new processes during runtime according to need. The launched processes are executed concurrently and will terminate when it finishes its computation, without affecting the execution of other processes.</p><p>The following example is a pipeline that implements the Sieve of Eratosthenes. This program receives a stream of integers and returns a stream with the integers that are prime. At each iteration of the sieve, the stream of candidates is filtered by using the latest prime found. Thus, one filter process is created per iteration. The output of a filter is used as an input of the next filter. Filters are pipelined; therefore, as soon as a filter outputs the first element of its output stream, the next filter can start its execution. The code in Erlang using Derflow is the following: </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3">Laziness</head><p>The following examples show how the wait needed primitive can be used to implement lazy functions.</p><p>The first example implements a lazy version of a sorting algorithm that sorts a list of numbers in ascending order. The Derflow implementation is the following: case derflow:consume(In) of {ok, nil, _} -&gt; {ok, Next} = derflow:produce(Out, X), derflow:bind(Next, nil); {ok, V, SNext} -&gt; if X &lt; V -&gt; {ok, Next} = derflow:produce(Out, X), derflow:produce(Next, In); true -&gt; {ok, Next} = derflow:produce(Out,V), insert(X, SNext, Next) end end.</p><p>The primitives that contributes to the laziness of this program are spawn on the fourth line of insort and the wait needed function call in the first line of the insert function. The spawn operation creates a process when an insertion should be executed. The wait needed causes the created process to suspend until the result is needed by some other process. When only partial results are needed for the sorting algorithm, the lazy implementation can have a performance gain over the eager version.</p><p>For instance, if only the smallest number of the sorted list is needed, we can simply read the first element of the output list. When the input list is <ref type="bibr" target="#b0">[1,</ref><ref type="bibr" target="#b1">2,</ref><ref type="bibr" target="#b2">3,</ref><ref type="bibr" target="#b3">4,</ref><ref type="bibr" target="#b4">5,</ref><ref type="bibr" target="#b5">6,</ref><ref type="bibr" target="#b6">7,</ref><ref type="bibr" target="#b7">8,</ref><ref type="bibr" target="#b8">9,</ref><ref type="bibr" target="#b9">10]</ref>, both eager execution and lazy execution performs insertion ten times. However, when the input is <ref type="bibr" target="#b9">[10,</ref><ref type="bibr" target="#b8">9,</ref><ref type="bibr" target="#b7">8,</ref><ref type="bibr" target="#b6">7,</ref><ref type="bibr" target="#b5">6,</ref><ref type="bibr" target="#b4">5,</ref><ref type="bibr" target="#b3">4,</ref><ref type="bibr" target="#b2">3,</ref><ref type="bibr" target="#b1">2,</ref><ref type="bibr" target="#b0">1]</ref>, the eager version executes insertion for 54 times; in contrast, the lazy version only executes insertion 19 times.</p><p>The second example combines lazy execution and eager execution. We implemented a bounded-buffer that connects a producer and a consumer. Thus, the producer only produces on demand when the consumer needs to consume. Nevertheless, the producer is allowed to generate some elements in advance in order to be more efficient. The Derflow implementation is the following:</p><formula xml:id="formula_13">producer(Value, N, Output) -&gt;</formula><p>if (N &gt; 0) -&gt; ok = derflow:wait_needed(Output), {ok, Next} = derflow:produce(Output, Value), producer(Value+1, N-1, Next); true -&gt; derflow:bind(Output, nil) end.</p><p>loop(S1, S2, End) -&gt; ok = derflow:wait_needed(S2), {ok, S1Value, S1Next} = derflow:consume(S1), {ok, S2Next} = derflow:produce(S2, S1Value), case derflow:extend(End) of {ok, nil} -&gt; ok; {ok, EndNext} -&gt; loop(S1Next, S2Next, EndNext) end.</p><p>buffer(S1, BUFFER_SIZE, S2) -&gt; End = drop_list(S1, BUFFER_SIZE), loop(S1, S2, End). The above code has three main components:</p><p>• The producer that only produces items when it is needed. This is achieved by calling wait needed for the next element after it has produced an item. • The bounded buffer: It takes the output stream of the producer and the input stream of the consumer. It firstly asks for a number of items (BUFFER SIZE) to the producer by extending the producer's stream (drop list), then it keeps checking if the consumer asks for items. In case the consumer has asked, the bounded buffer copies an element from the producer's stream to the consumer's stream and extend the producer's stream by one more element.</p><p>• The consumer that asks for items eagerly.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.4">MapReduce-style example</head><p>We implement a simple framework that can concurrently launch tasks from multiple clients, similar to MapReduce <ref type="bibr" target="#b4">[5]</ref>. It combines the use of dataflow variables, concurrency transparency, concurrent deployment, and non-determinism.</p><p>In the example, clients send a MapReduce-style task to a proxy through send task. The proxy appends received tasks to a stream and keeps waiting for tasks. The job tracker checks the task stream, spawns mappers and reducers concurrently for incoming tasks and continues checking for tasks. The implementation of the proxy embodies non-determinism, as tasks may be received in different orders due to the process scheduler or network congestion.</p><p>However, since the proxy can not predict the arriving order of tasks, it is impossible to write the program in a deterministic way. In fact, this level of non-determinism only affects the order that tasks are launched. Since each task is executed in parallel without interaction between each other, users can not perceive nondeterminism.</p><p>The job tracker also exemplifies several concepts we proposed. Firstly, the job tracker starts a job when it receives a new task incrementally and does not need to wait for all tasks before it starts any, which is concurrent deployment. Secondly, in each job, mappers and reducers are launched concurrently. This exploits the concurrency transparency property. Each mapper has its own output stream. The reducer reads from the mappers output streams sequentially. Thus, it uses the dataflow variables to synchronize the concurrent execution.</p><p>In addition, the example handles computing processes failures. The first argument (Superv), of the jobtracker function, is the process id of a supervisor process. Thus, all new dataflow processes created in jobtracker (using the function spawn mon) are supervised by it.</p><p>According to the semantics of Derflow, redundant computation does not affect the correctness of the program. Therefore, deterministic dataflow functions are idempotent. Considering this property, we implemented a simple supervisor that restarts the failing deterministic dataflow processes when a problem is detected. The code is the following: The above supervisor receives supervise and down messages. The former is a monitoring request; therefore, the supervisor simply uses the Erlang monitor primitive to set the monitor. The latter is received when a monitored process does not exist, it is not reachable or it has died. The supervisor behaves the same in all situations by re-executing the deterministic dataflow process. The supervisor uses dict to store the information regarding the monitored processes such as the function executed by the process and its arguments.</p><p>Nevertheless, the shown supervisor is only one example. More sophisticated supervisors can be implemented. For instance, the supervisor could behave differently for temporary failures. Then, it can decide to wait longer before restarting the computation. In some cases, it is not efficient to restart the execution.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.">Integration with non-determinism</head><p>Deterministic dataflow is a powerful concurrent programming model that eliminates all race conditions by design. However, it is clear that practical applications sometimes need non-determinism. In most cases, the non-determinism is only needed in a small part of the program. But the need cannot be reduced to zero. For example, a simple client-server application needs non-determinism since the server must accept requests from any client. There is only one point of non-deterministic choice, at the server, but it cannot be eliminated. So our deterministic model must cohabit in a simple way with non-deterministic execution. In this section, we show to integrate our model with non-deterministic execution.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.1">is det primitive</head><p>Derflow provides one primitive which allows us to support nondeterministic execution: is det(x). This operation checks whether a dataflow variable (x) is bound or not, which introduces nondeterminism due to different process scheduling or network delays in each program execution.</p><p>is det(x) primitive is useful for stream management. For instance, in a producer-consumer application, where the producer is faster than the consumer, the latter might be interested in only consuming the latest element produced until that point. Thus, it would like to skip some of the produced elements.</p><p>More precisely, is det can be described as follows: The skip function traverses the input stream and returns the latest frame until that point. The display function displays the frame returned by skip.</p><formula xml:id="formula_14">• Before: σ = {x1, . . . ,</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.2">Integration with Erlang</head><p>One of the main limitations of the deterministic dataflow model is that only one process can write into a stream; therefore, a simple client-server application cannot be implemented. By using communication channels, this limitation can be overcome.</p><p>The following example shows how to do this by taking advantage of the message-passing primitives of Erlang. The example implements a monitoring system. It is composed of a centralized component that receives messages from multiple sensor entities placed elsewhere. In this example, we monitor the number of failures per datacenter in a geo-replicated application. There is one sensor per datacenter that sends a failure message to the central component The above application is mainly composed by three functions:</p><p>• observer proxy that continuously waits for messages. If a message is received, it immediately appends it to the associated stream. It intentionally waits forever if no messages are sent.</p><p>• sensor that sends a message to the observer proxy every time a computer fails. The computer failure is modeled by a random wait.</p><p>• dcs observer that registers the failures by reading the stream associated to the observer proxy.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.">Conclusions and future work</head><p>In this paper, we have proposed Derflow, a deterministic dataflow extension for Erlang. Derflow relies on a robust, highly available and scalable single-assignment store built using riak core, a distributed systems framework. We have shown examples of its usage and explained how it can be integrated with non-deterministic computations.</p><p>The following paragraphs outline a series of planned extensions to Derflow that will provide a more expressive and complete computational model for large-scale distributed applications.</p><p>Generalizing to semilattices Given that our dataflow variables can be seen as simple semilattices with two states: bound and unbound, we would like to extend them to more expressive semilattices used to build CRDTs. This is very similar to the approach taken by LVars <ref type="bibr" target="#b13">[14]</ref> to provide deterministic parallel programming. Our work expands on this work by providing this deterministic parallelism across computing nodes, in a fault-tolerant manner.</p><p>Similarly to LVars, we would also like to provide a threshold read primitive over these datatypes, which would cause an application to block and synchronize on a value until a particular threshold is passed. However, we are still uncertain what difficulties arise when introducing distribution into this model, given the various failure conditions that can be experienced over computer networks. Furthermore, some CRDTs composed by multiple semi-lattices do not behave monotonically. This may restrict the use of threshold reads.</p><p>Extending the Erlang syntax and runtime system Our current model is implemented with a set of library functions. Compiler and run-time modifications can be done to provide a simple syntax for deterministic dataflow programs and to provide simpler ways to control non-determinism in programs. These extensions would provide a much more compelling computational model for the user.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 1 .</head><label>1</label><figDesc>Dataflow variable state diagram from xi perspective • if xi does not appear assigned to anything, it means it is not relevant to which kind of value is assigned.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head></head><label></label><figDesc>create a unique dataflow variable xn+1 store xn+1 into σ • After: σ = {x1, . . . , xn+1 = ∅} bind(xi, vi) binds the dataflow variable xi to the value vi. More precisely, this operation can be expressed as follows: • Before: σ = {x1, . . . , xi = ∅, . . . , xn} • bind(xi, vi) ∀p ∈ xi.waiting processes, notify p ∀x ∈ xi.bound variables, bind(x, vi)</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>•</head><label></label><figDesc>After: σ = {x1, . . . , xn = vn, xn+1 = ∅} consume(xi) reads the element of the stream represented by xi.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>•</head><label></label><figDesc>After: σ = {x1, . . . , xi, . . . , xn, y} kill(xi) sets the dataflow variable xi to non-usable. It is a synchronous operation; therefore, the caller will block until the operation is completed. All processes monitoring a killed dataflow variable must be notified. This implies that if there are reachability problems the operation may never return. More precisely, the execution of this operation can be defined as follows: • Before: σ = {x1, . . . , xi, . . . , xn} • kill(xi) xi.value = ∀p ∈ xi.monitors, notify p • After: σ = {x1, . . . , xi = , . . . , xn}</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>Figure 2 .</head><label>2</label><figDesc>• ok = bind(Id, Value): Binds the dataflow variable Id to Value. Value can either be an Erlang term or any other dataflow variable. normal temp_failure perm_failure Dataflow variable reachability state diagram.• ok = bind(Id, Mod, Fun, Args):Binds the dataflow variable Id to the result of evaluating Mod:Fun(Args).• {ok, Value::term()} = read(Id):Returns the value bound to the dataflow variable Id. If the variable represented by Id is not bound, the caller blocks until it is bound.Streams• {ok, NextId::term()} = produce(Id, Value): Binds the variable Id to Value. It returns the pair composed by the atom ok and the variable NextId that represents the id of the next element of the stream. • {ok, NextId::term()} = produce(Id, Mod, Fun, Args): Binds the variable Id to the result of evaluating Mod:Fun(Args). It returns the pair composed by the atom ok and the variable NextId that represents the id of the next element of the stream. • {ok, Value::term(), NextId::term()} = consume(Id): Returns the value bound to the dataflow variable Id and the id of the next element in the stream. If the variable represented byId is not bound, the caller blocks until it is bound.• {ok, NextId::term()} = extend(Id):Declares the variable that follows the variable Id in the stream. It returns the id of the next element of the stream. This function is useful for achieving concurrency in some cases (e.g. The Sieve of Eratosthenes).Laziness• ok = wait needed(Id): Used for adding laziness to the execution. The caller blocks until the variable represented by Id is needed when attempting to read the value.Dataflow variable failure handling• {ok, IdStream::term()} = monitor(Id):Registers the caller as monitor of the dataflow variable Id.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_6"><head></head><label></label><figDesc>map(S1, M, F, S2) -&gt; case derflow:consume(S1) of {ok, nil, _} -&gt; derflow:bind(S2, nil); {ok, Value, Next} -&gt; {ok, NextOut} = derflow:produce(S2, M, F, Value), map(Next, F, NextOut) end.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_7"><head></head><label></label><figDesc>concurrent_map(S1, M, F, S2) -&gt; case derflow:consume(S1) of {ok, nil, _} -&gt; derflow:bind(S2, nil); {ok, Value, Next} -&gt; {ok, NextOut} = derflow:extend(S2), spawn(derflow, bind, [S2, M, F, Value]), concurrent_map(Next, F, NextOut) end.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_8"><head></head><label></label><figDesc>sieve(S1, S2) -&gt; case derflow:consume(S1) of {ok, nil, _} -&gt; derflow:bind(S2, nil); {ok, Value, Next} -&gt; {ok, SN} = derflow:declare(), F = fun(Y) -&gt; Y rem Value =/= 0 end, spawn(sieve, filter, [Next, F, SN]), {ok, NextOut} = derflow:produce(S2, Value), sieve(SN, NextOut) end. filter(S1, F, S2) -&gt; case derflow:consume(S1) of {ok, nil, _} -&gt; derflow:bind(S2, nil); {ok, Value, Next} -&gt; case F(Value) of false -&gt; filter(Next, F, S2); true-&gt; {ok, NextOut} = derflow:produce(S2, Value), filter(Next, F, NextOut) end end.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_9"><head></head><label></label><figDesc>= derflow:declare(), insort(T, OutS), spawn(getmin, insert, [H, OutS, S]); [] -&gt; derflow:bind(S, nil) end. insert(X, In, Out) -&gt; ok = derflow:wait_needed(Out);</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_10"><head></head><label></label><figDesc>{ok, Next} = derflow:extend(S), drop_list(Next, Size-1) end. consumer(S2, Size, F, Output) -&gt; if Size == 0 -&gt; ok; true -&gt; case derflow:consume(S2) of {ok, nil, _} -&gt; derflow:bind(Output, nil); {ok, Value, Next} -&gt; {ok, NextOut} = derflow:produce(Output, F(Value)), consumer(Next, Size-1, F, NextOut) end end.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_11"><head></head><label></label><figDesc>send_task(Proxy, Map, Reduce, Input, Output) -&gt; Proxy ! {Map, Reduce, Input, Output}. jobproxy(TaskStream) -&gt; receive Task -&gt; {ok, Next} = derflow:produce(TaskStream, Task), jobproxy(Next) end. jobtracker(Superv, Tasks) -&gt; case derflow:consume(Tasks) of {ok, nil, _} -&gt; io:format("All job finished!~n"); {ok, Value, Next} -&gt; {MapTask, ReduceTask, In, Out} = Value, {Mod, MapFun} = MapTask, {Mod2, RedFun} = ReduceTask, MapOut = spawn_map(Superv, In, Mod, MapFun, []), spawn_mon(Superv, Mod2, RedFun, [MapOut, Out]), jobtracker(Next) end. spawn_map(Superv, Inputs, Mod, Fun, Outputs) -&gt; case Inputs of [H|T] -&gt; {ok, S} = derflow:declare(), spawn_mon(Superv, Mod, Fun, [H, S]), spawnmap(T, Mod, Fun, lists:append(Outputs,[S])); [] -&gt; Outputs end. spawn_mon(Superv, Mod, Fun, Args) -&gt; Pid = spawn(Module, Function, Args), Superv ! {'SUPERVISE', Pid, Mod, Fun, Args}.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_12"><head></head><label></label><figDesc>supervisor(Dict) -&gt; receive {'DOWN', Ref, process, _, _} -&gt; case dict:find(Ref, Dict) of {ok, {Module, Function, Args}} -&gt; spawn_mon(self(), Module, Function, Args); error -&gt; supervisor(Dict) end; {'SUPERVISE', PID, Information} -&gt; Ref = erlang:monitor(process, PID), Dict2 = dict:store(Ref, Information, Dict), supervisor(Dict2) end.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_13"><head></head><label></label><figDesc>(through a proxy) each time a computer is down. The centralized component registers the failures to eventually analyze the statistics. The proxy is the component that uses the Erlang communication channels. It receives spontaneous messages from the sensors and serializes them by appending them to an associated stream. observer_proxy(S) -&gt; receive {Msg, From} -&gt; {ok, Next} = derflow:produce(S, {Msg, From}), observer_proxy(Next) end. sensor(Proxy, Identifier) -&gt; Random = random:uniform(), Milliseconds = round(timer:seconds(Random)), timer:sleep(Milliseconds), Proxy ! {computer_down, Identifier}, sensor(Proxy, Identifier). dcs_observer(Input, Output, State) -&gt; case derflow:consume(Input) of {ok, {computer_down, Identifier}, NextInput} -&gt; State2 = register(Identifier, State), {ok, NextOut} = derflow:produce(Output, State2), dcs_observer(NextInput, NextOut, State2); {ok, _, NextInput} -&gt; % Ignore dcs_observer(NextInput, Output, State) end. end.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head></head><label></label><figDesc>Variable xi is unbound. xi = xm: Variable xi is partially bound; therefore, it is assigned to another dataflow variable (xm). This also implies that xm is unbound.</figDesc><table /><note>•• xi = vi: Variable xi is bound to a term (vi).</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_2"><head>xn} In case the program binds xi to another dataflow</head><label></label><figDesc>variable (bind(xi, xw)), xi become equivalent to xw. Thus, xi will be bound to the same term than xw when xw becomes bound (in case it was not bound when bind(xi, xw) was issued). Binding xi with the same value for several times introduces no side effect, i.e. it is idempotent. On the other hand, if xi was already bound to the term vw and vi do not match vw, the execution of the deterministic dataflow program terminates due to a programming error. read(xi) returns the term bound to xi. More precisely, this operation can be expressed as follows:</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_3"><head></head><label></label><figDesc>xn−1 | xn, xn = ∅ where x1, . . . , xn−1 are dataflow variables either bound or partially bound, and xn is an unbound dataflow variable.</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_4"><head></head><label></label><figDesc>xi, . . . , xn} = {x1, . . . , xi, . . . , xn} Accordingly, the Derflow API is extended as follows: Returns true if the dataflow variable Id is bound, false otherwise. A good example of the use of is det(x) is a live-streaming video displayer. The displayer always tries to display the latest frame sent and skip the intermediate ones. A simplified version of this program can be written in Derflow as follows:</figDesc><table><row><cell>skip(Input, Output) -&gt;</cell></row><row><cell>case derflow:consume(Input) of</cell></row><row><cell>{ok, nil, _} -&gt;</cell></row><row><cell>derflow:bind(Output, nil);</cell></row><row><cell>{ok, _, Next} -&gt;</cell></row><row><cell>{ok, Bound} = derflow:is_det(Next),</cell></row><row><cell>if</cell></row><row><cell>Bound -&gt;</cell></row><row><cell>skip(Next, Output);</cell></row><row><cell>true -&gt;</cell></row><row><cell>derflow:produce(Output, {ok, Input})</cell></row><row><cell>end</cell></row><row><cell>end.</cell></row><row><cell>display(Input) -&gt;</cell></row><row><cell>{ok, Output} = derflow:declare(),</cell></row><row><cell>skip(Input, Output),</cell></row><row><cell>case derflow:consume(Output) of</cell></row><row><cell>{ok, Value, Next} -&gt;</cell></row><row><cell>display_frame(Value),</cell></row><row><cell>display(Next)</cell></row><row><cell>end.</cell></row></table><note>• bool = is det(xi) bool = xi.value == vi• After: σ• {ok, Value::boolean()} = is det(Id):</note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgments</head><p>We thank Nicholas Rutherford and Sean Cribbs for comments that helped to improve the paper. This work was partially funded by the SyncFree project in the European Seventh Framework Programme (FP7/2007-2013) under Grant Agreement n o 609551 and by the Erasmus Mundus Joint Doctorate Programme under Grant Agreement 2012-0030.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<title level="m" type="main">Akka: Building powerful concurrent and distributed applications more easily</title>
+		<ptr target="http://akka.io/" />
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Optimal dynamic partial order reduction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Abdulla</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Aronis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Jonsson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Sagonas</surname></persName>
+		</author>
+		<idno type="DOI">10.1145/2535838.2535845</idno>
+		<idno>978-1- 4503-2544-8</idno>
+		<ptr target="http://doi.acm.org/10.1145/2535838.2535845" />
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 41st ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages, POPL &apos;14</title>
+		<meeting>the 41st ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages, POPL &apos;14<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="373" to="384" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<title level="m" type="main">Basho Technologies Inc. Riak core source code repository</title>
+		<ptr target="http://github.com/basho/riak_core" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<monogr>
+		<title level="m" type="main">The Limits of Network Transparency in a Distributed Programming Language</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Collet</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2007-12" />
+			<pubPlace>Louvain-la-Neuve, Belgium</pubPlace>
+		</imprint>
+		<respStmt>
+			<orgName>Université catholique de Louvain</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">PhD thesis</note>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Mapreduce: Simplified data processing on large clusters</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Dean</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ghemawat</surname></persName>
+		</author>
+		<ptr target="http://dl.acm.org/citation.cfm?id=1251254.1251264" />
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 6th Conference on Symposium on Opearting Systems Design &amp; Implementation</title>
+		<meeting>the 6th Conference on Symposium on Opearting Systems Design &amp; Implementation<address><addrLine>Berkeley, CA, USA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2004" />
+			<biblScope unit="volume">6</biblScope>
+			<biblScope unit="page" from="10" to="10" />
+		</imprint>
+	</monogr>
+	<note>OSDI&apos;04</note>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Dynamo: Amazon&apos;s highly available key-value store</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Decandia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Hastorun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Jampani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Kakulapati</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lakshman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Pilchin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Sivasubramanian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Vosshall</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Vogels</surname></persName>
+		</author>
+		<idno type="DOI">10.1145/1294261.1294281</idno>
+		<idno>978-1-59593-591-5</idno>
+		<ptr target="http://doi.acm.org/10.1145/1294261.1294281" />
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of Twenty-first ACM SIGOPS Symposium on Operating Systems Principles, SOSP &apos;07</title>
+		<meeting>Twenty-first ACM SIGOPS Symposium on Operating Systems Principles, SOSP &apos;07<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2007" />
+			<biblScope unit="page" from="205" to="220" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">A new concurrency model for Scala based on a declarative dataflow core</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Doeraene</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Van Roy</surname></persName>
+		</author>
+		<idno type="DOI">10.1145/2489837.2489841</idno>
+		<idno>978-1-4503-2064-1</idno>
+		<ptr target="http://doi.acm.org/10.1145/2489837.2489841" />
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 4th Workshop on Scala, SCALA &apos;13</title>
+		<meeting>the 4th Workshop on Scala, SCALA &apos;13<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2013" />
+			<biblScope unit="volume">4</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">B</forename><surname>Ericsson</surname></persName>
+		</author>
+		<ptr target="http://www.erlang.org/doc/man/mnesia.html" />
+		<title level="m">mnesia -a distributed telecommunications dbms</title>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">A universal modular actor formalism for artificial intelligence</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Hewitt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Bishop</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Steiger</surname></persName>
+		</author>
+		<ptr target="http://dl.acm.org/citation.cfm?id=1624775.1624804" />
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 3rd International Joint Conference on Artificial Intelligence, IJCAI&apos;73</title>
+		<meeting>the 3rd International Joint Conference on Artificial Intelligence, IJCAI&apos;73<address><addrLine>San Francisco, CA, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>Morgan Kaufmann Publishers Inc</publisher>
+			<date type="published" when="1973" />
+			<biblScope unit="page" from="235" to="245" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Monitors: An operating system structuring concept</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">A R</forename><surname>Hoare</surname></persName>
+		</author>
+		<idno type="DOI">10.1145/355620.361161</idno>
+		<idno>0001-0782</idno>
+		<ptr target="http://doi.acm.org/10.1145/355620.361161" />
+	</analytic>
+	<monogr>
+		<title level="j">Commun. ACM</title>
+		<imprint>
+			<biblScope unit="volume">17</biblScope>
+			<biblScope unit="issue">10</biblScope>
+			<biblScope unit="page" from="549" to="557" />
+			<date type="published" when="1974-10" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Joel</forename><surname>Reymont</surname></persName>
+		</author>
+		<ptr target="http://erlang.org/pipermail/erlang-questions/2008-November/039537.html" />
+		<title level="m">is there an elephant in the room? mnesia network partition</title>
+		<imprint/>
+	</monogr>
+	<note>erlang-questions</note>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">The semantics of a simple language for parallel programming</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Kahn</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Information Processing&apos;74: Proceedings of the IFIP Congress</title>
+		<imprint>
+			<date type="published" when="1974" />
+			<biblScope unit="volume">74</biblScope>
+			<biblScope unit="page" from="471" to="475" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Coroutines and networks of parallel processes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Kahn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Macqueen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of the IFIP Congress</title>
+		<meeting>of the IFIP Congress</meeting>
+		<imprint>
+			<date type="published" when="1977" />
+			<biblScope unit="volume">77</biblScope>
+			<biblScope unit="page" from="994" to="998" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Lvars: Lattice-based data structures for deterministic parallelism</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Kuper</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">R</forename><surname>Newton</surname></persName>
+		</author>
+		<idno type="DOI">10.1145/2502323.2502326</idno>
+		<idno>978-1- 4503-2381-9</idno>
+		<ptr target="http://doi.acm.org/10.1145/2502323.2502326" />
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2Nd ACM SIG-PLAN Workshop on Functional High-performance Computing, FHPC &apos;13</title>
+		<meeting>the 2Nd ACM SIG-PLAN Workshop on Functional High-performance Computing, FHPC &apos;13<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="71" to="84" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Learning from mistakes: A comprehensive study on real world concurrency bug characteristics</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Lu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Park</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Seo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Zhou</surname></persName>
+		</author>
+		<idno type="DOI">10.1145/1346281.1346323</idno>
+		<idno>978-1-59593-958-6</idno>
+		<ptr target="http://doi.acm.org/10.1145/1346281.1346323" />
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 13th International Conference on Architectural Support for Programming Languages and Operating Systems, ASPLOS XIII</title>
+		<meeting>the 13th International Conference on Architectural Support for Programming Languages and Operating Systems, ASPLOS XIII<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2008" />
+			<biblScope unit="page" from="329" to="339" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<monogr>
+		<title level="m" type="main">Dotted version vectors: Logical clocks for optimistic replication</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><forename type="middle">M</forename><surname>Preguiça</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Baquero</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">S</forename><surname>Almeida</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Fonte</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Gonçalves</surname></persName>
+		</author>
+		<idno>abs/1011.5808</idno>
+		<imprint>
+			<date type="published" when="2010" />
+			<publisher>CoRR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Conflictfree replicated data types</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Shapiro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Preguiça</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Baquero</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Zawirski</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Stabilization, Safety, and Security of Distributed Systems</title>
+		<editor>X. Défago, F. Petit, and V. Villain</editor>
+		<imprint>
+			<biblScope unit="page" from="386" to="400" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Heidelberg</forename><surname>Springer Berlin</surname></persName>
+		</author>
+		<idno type="DOI">10.1007/978-3-642-24550-3_29</idno>
+		<idno>978-3-642-24549-7</idno>
+		<ptr target="http://dx.doi.org/10.1007/978-3-642-24550-3_29" />
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Programming distributed erlang applications: Pitfalls and recipes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Svensson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L.-A</forename><surname>Fredlund</surname></persName>
+		</author>
+		<idno type="DOI">10.1145/1292520.1292527</idno>
+		<idno>978-1-59593-675-2</idno>
+		<ptr target="http://doi.acm.org/10.1145/1292520.1292527" />
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2007 SIGPLAN Workshop on ERLANG Workshop, ERLANG &apos;07</title>
+		<meeting>the 2007 SIGPLAN Workshop on ERLANG Workshop, ERLANG &apos;07<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2007" />
+			<biblScope unit="page" from="37" to="42" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<title level="m" type="main">Concepts, techniques, and models of computer programming</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Van Roy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Haridi</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2004" />
+			<publisher>MIT press</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wyatt</surname></persName>
+		</author>
+		<title level="m">Akka concurrency: Building reliable software in a multicore world. Artima</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

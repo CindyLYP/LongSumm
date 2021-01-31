@@ -1,0 +1,1472 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Network-regularized Sparse Logistic Regression Models for Clinical Risk Prediction and Biomarker Discovery</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2016-09-21">21 Sep 2016</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Wenwen</forename><surname>Min</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Juan</forename><surname>Liu</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Shihua</forename><surname>Zhang</surname></persName>
+						</author>
+						<title level="a" type="main">Network-regularized Sparse Logistic Regression Models for Clinical Risk Prediction and Biomarker Discovery</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2016-09-21">21 Sep 2016</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1609.06480v1[q-bio.GN]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:41+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<textClass>
+				<keywords>
+					<term>Sparse logistic regression</term>
+					<term>network-regularized penalty</term>
+					<term>survival risk prediction</term>
+					<term>feature selection</term>
+				</keywords>
+			</textClass>
+			<abstract>
+				<p>Molecular profiling data (e.g., gene expression) has been used for clinical risk prediction and biomarker discovery. However, it is necessary to integrate other prior knowledge like biological pathways or gene interaction networks to improve the predictive ability and biological interpretability of biomarkers. Here, we first introduce a general regularized Logistic Regression (LR) framework with regularized term λ w 1 + ηw T M w, which can reduce to different penalties, including Lasso, elastic net, and network-regularized terms with different M. This framework can be easily solved in a unified manner by a cyclic coordinate descent algorithm which can avoid inverse matrix operation and accelerate the computing speed. However, if those estimated w i and w j have opposite signs, then the traditional network-regularized penalty may not perform well. To address it, we introduce a novel network-regularized sparse LR model with a new penalty λ w 1 + η|w| T M |w| to consider the difference between the absolute values of the coefficients. And we develop two efficient algorithms to solve it. Finally, we test our methods and compare them with the related ones using simulated and real data to show their efficiency.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>INTRODUCTION</head><p>P REDICTING clinical risk and discovering molecular prognostic signatures are key topics in genomic studies <ref type="bibr" target="#b0">[1]</ref>, <ref type="bibr" target="#b1">[2]</ref>. Large number of genomic datasets (e.g., TCGA <ref type="bibr" target="#b2">[3]</ref>, <ref type="bibr" target="#b3">[4]</ref>) have been rapidly generated on cancer and other complex disease <ref type="bibr" target="#b2">[3]</ref>, <ref type="bibr" target="#b4">[5]</ref>, <ref type="bibr" target="#b5">[6]</ref>, <ref type="bibr" target="#b6">[7]</ref>. These available cancer genomic data provides us an unprecedented opportunity to predict the development risk of cancer via integrating diverse molecular profiling data <ref type="bibr" target="#b7">[8]</ref>, <ref type="bibr" target="#b4">[5]</ref>. Recently, some prognostic models have been proposed via integrating clinical and gene expression data <ref type="bibr" target="#b8">[9]</ref>, <ref type="bibr" target="#b9">[10]</ref>, <ref type="bibr" target="#b10">[11]</ref>. Most of these methods are based on the Cox proportional hazards model <ref type="bibr" target="#b11">[12]</ref> and a few are designed based on other machine learning methods for this task. We can also easily dichotomize the survival time into a binary outcome and obtain a typical classification problem which can been solved by many supervised machine learning methods.</p><p>Logistic regression (LR) is one of such a classical method and has been widely used for classification <ref type="bibr" target="#b12">[13]</ref>. However the traditional LR model employs all (or most) variables for predicting and lead to a non-sparse solution with limited interpretability. The sparsity principle is an important strategy for interpretable analysis in statistics and machine learning. Recently, a number of studies have focused on developing regularized or penalized LR models to encourage sparse solutions and use a limited number of variables for</p><p>• <ref type="bibr">Wenwen Min, and</ref>  predicting <ref type="bibr" target="#b13">[14]</ref>, <ref type="bibr" target="#b14">[15]</ref>, <ref type="bibr" target="#b15">[16]</ref>, <ref type="bibr" target="#b16">[17]</ref>, <ref type="bibr" target="#b17">[18]</ref>, <ref type="bibr" target="#b18">[19]</ref>, <ref type="bibr" target="#b19">[20]</ref>. Many of the penalized LR models apply Lasso as a penalty function to induce sparsity. However the Lasso fails to select strongly correlated variables together and tends to select a variable from them <ref type="bibr" target="#b20">[21]</ref>. Thus, many generalizations of the Lasso have been proposed to solve the limits of Lasso <ref type="bibr" target="#b21">[22]</ref>, including elastic net, group Lasso, and fused Lasso, etc. On the other hand, some researchers proposed refined regression models with network-based penalties <ref type="bibr" target="#b22">[23]</ref>, <ref type="bibr" target="#b23">[24]</ref>, <ref type="bibr" target="#b24">[25]</ref>. These models are expect to get more accurate prediction and better interpretability via integrating prior knowledge. Motivated by the development of sparse coding and network-regularized norm <ref type="bibr" target="#b22">[23]</ref>, <ref type="bibr" target="#b25">[26]</ref>, we address the double tasks -feature selection and class prediction -by using a network-based penalty in the Logistic Regression (LR) framework. Specifically, we first focus on a traditional network-regularized penalty:</p><formula xml:id="formula_0">R 1 (w) = λ w 1 + ηw T Lw,<label>(1)</label></formula><p>where L is the normalized Laplacian matrix encoding a prior network (e.g., a protein interaction network). The first term is a L 1 -norm penalty to induce sparsity. The second term w</p><formula xml:id="formula_1">T Lw = i∼j A ij (w i / √ d i − w j / d j )</formula><p>2 is a quadratic-Laplacian norm penalty to force the coefficients of w to be smooth. More importantly, it is a convex penalty. Thus, such a regularized LR model and its reduced forms can be solved effectively. However if those estimated w i and w j have opposite signs, then the traditional networkregularized penalty may not perform well. To address this limitation, we focus on a novel network-based penalty <ref type="bibr" target="#b26">[27]</ref>:</p><formula xml:id="formula_2">R 2 (w) = λ w 1 + η|w| T L|w|,<label>(2)</label></formula><p>where</p><formula xml:id="formula_3">|w| T L|w| = i∼j A ij (|w i |/ √ d i − |w j |/ d j ) 2</formula><p>which is adopted to eliminate the effects of symbols of the estimated coefficients. However, the novel penalty is not differentiable at the zero point. Intuitively, it is a challenge issue to solve such a regularized LR model using the conventional gradient descent method. Here we develop two methods to solve it. We first propose to use the following penalty:</p><formula xml:id="formula_4">λ p i=1 |w i | + η i∼j A ij sign( w i )w i √ d i − sign( w j )w j d j 2 to replace R 2 , i.e., |w i | ≈ sign( w i )w i ,</formula><p>where w is computed using the maximum likelihood estimation for classical LR model. The new penalty is a convex function and has been used for a regression model <ref type="bibr" target="#b23">[24]</ref>. Similarly, we can effectively solve this regularized LR model. We also try to solve the novel penalty (R (w)) directly. Fortunately, Hastie et al. <ref type="bibr" target="#b27">[28]</ref> (see Page 112) find that R 2 has a good property (i.e., condition regularity <ref type="bibr" target="#b27">[28]</ref>, <ref type="bibr" target="#b28">[29]</ref>), which inspires us to solve it via a cycle coordinate descent algorithm.</p><p>To sum up, our key contributions are two-fold. First, we introduce a unified Network-regularized Sparse LR (NSLR) framework enabling the Lasso, elastic net and networkregularized LR models are all special cases of it. More importantly, this framework can be efficiently solved using a coordinate-wise Newton algorithm. Second, we propose a novel network-regularized LR model to eliminate the sensitivity of the conventional network-regularized penalty to the signs of estimated coefficients. Here we adopt an approximate algorithm and a coordinate-wise Newton algorithm to solve it, respectively. Finally, we apply our methods to Glioblastoma multiforme (GBM) gene expression and cancer clinical data from TCGA database <ref type="bibr" target="#b2">[3]</ref>, and a protein interaction network data from Pathway Commons <ref type="bibr" target="#b29">[30]</ref> for survival risk prediction and biomarker discovery. Our first key is to identify some gene biomarkers for survival risk prediction. In addition, based on the prediction probability scores of GBM patients, we can divide them into different subtypes relating to survival output. Furthermore, we apply our methods to a lung cancer dataset with two subtypes including Lung adenocarcinoma (LUAD) and Lung squamous-cell carcinoma (LUSC) to identify subtypespecific biomarkers.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">METHOD</head><p>In this section, we first briefly review the typical logistic regression model and an iteratively re-weight least squares (IRLS) learning strategy based on a coordinate-wise Newton method. We further introduce the two network-regularized LR models together with the basic regularized LR models (Lasso and elastic net) in a unified framework in Section 2.3 and suggest a general coordinate-wise Newton algorithm for solving this framework. Lastly, we propose a novel network-regularized sparse LR model in Section 2.5. We can use an approximate strategy (AdaNet.LR in Section 2.3) to solve it. In addition, we also develop an efficient coordinatewise Newton algorithm to solve the AdaNet.LR directly (Section 2.5).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1">Logistic Regression</head><p>Here we consider a binary classification problem. Given n training samples</p><formula xml:id="formula_5">D = {(x 1 , y 1 ), • • • , (x n , y n )} where x i ∈</formula><p>R p is a p-dimensional column vector and label y i ∈ {0, 1}. We first write the logistic function as follows:</p><formula xml:id="formula_6">p(x; w, b) = P r(y = 1|x; w, b) = 1 1 + exp(−w T x − b)</formula><p>.</p><p>For convenience, let w = (w, b) and x = (x, 1). We can rewrite it:</p><formula xml:id="formula_7">p(x; w) = P r(y = 1|x; w) = 1 1 + exp(−w T x) ,<label>(3)</label></formula><p>where w is the weight vector of coefficients, and p(•) is a sigmoid function. Here we assume that the n training examples are generated independently. We thus can obtain the following log-likelihood:</p><formula xml:id="formula_8">ℓ(w) = n i=1 log P r(y i |x i ; w) = n i=1 {y i log p(x i ; w) + (1 − y i ) log(1 − p(x i ; w))} = n i=1 {y i w T x i − log(1 + exp(w T x i )}.<label>(4)</label></formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">A Learning Algorithm for Logistic Regression</head><p>Clearly, the above likelihood is a convex function. Thus we can maximize the likelihood via its gradient equations with respect to w:</p><formula xml:id="formula_9">∇ w ℓ(w) = n i=1 {x i (y i − p(x i ; w))} = X T (y − p) = 0,<label>(5)</label></formula><p>where</p><formula xml:id="formula_10">y = (y 1 , • • • , y n ) is a n-dimensional column vector, X = (x 1 , • • • , x n )</formula><p>is a n × (p + 1) matrix and p = (p(</p><formula xml:id="formula_11">x 1 ; w), • • • , p(x n ; w))</formula><p>is also a n-dimensional column vector. Here we adapt a Newton (or Newton-Raphson) algorithm to maximize problem <ref type="bibr" target="#b3">(4)</ref>. To this end, we first compute the Hessian matrix H of Eq. (4).</p><formula xml:id="formula_12">H(w) = ∇ 2 w ℓ(w) = − n i=1 {x i x T i p(x i ; w)(1 − p(x i ; w))} = −X T ΛX,<label>(6)</label></formula><p>where Λ is a n × n diagonal matrix with</p><formula xml:id="formula_13">Λ ii = p(x i ; w)(1 − p(x i ; w)).</formula><p>Starting with w old , we thus can obtain a Newton update rule:</p><formula xml:id="formula_14">w new = w old − [H(w old )] −1 ∇ w ℓ(w) | w=w old . (7)</formula><p>Combining Eq. (5), Eq. (6) and Eq. (7), we can rewrite the Newton update step as follows:</p><formula xml:id="formula_15">w new = w old + (X T ΛX) −1 X T (y − p) = (X T ΛX) −1 X T Λz,<label>(8)</label></formula><p>where z = Xw old + Λ −1 (y − p). We can see that the Newton update step is equivalent to solve the following linear equations with respect to w new :  <ref type="figure" target="#fig_0">Fig. 1</ref>: (A) A novel network-regularized sparse logistic regression framework by considering the difference between the absolute values of the coefficients. It combines the gene expression data, the normalized Laplacian matrix L encoding the protein interaction network and the clinical binary outcome to train a prediction model. (B) Illustration of sample divisions with an application using GBM data from TCGA. Here we collect a total of 525 GBM samples which are randomly divided into two subsets, including 350 training samples and 175 testing samples. We dichotomize the survival time of patients into clinical binary outcomes to formulate it into a classification problem. For each patient, we dichotomize its survival time into a binary outcome based on his/her survival time. For training samples, there are 57 censored patients kept for using in survival analysis. For testing samples, there are 32 censored patients. In the training process, we first remove those censored samples to train the regularized LR models. Then, we re-test all the training data and all the testing data (including censored samples) with the trained models. Based on the predicted LR scores computed via P r(y = 1|x; w), we divide all the training and testing samples into different risk groups for further survival analysis.</p><formula xml:id="formula_16">(X T ΛX)w new − X T Λz = 0.<label>(9</label></formula><p>Note that the diagonal matrix Λ and the vector z are updated using the following two formulas:</p><formula xml:id="formula_17">Λ ii = p(x i ; w old )(1 − p(x i ; w old )),<label>(10)</label></formula><formula xml:id="formula_18">z i = x T i w old + y i − p(x i ; w old ) Λ ii .<label>(11)</label></formula><p>Since</p><formula xml:id="formula_19">X T ΛX = (Λ 1/2 X) T (Λ 1/2 X)</formula><p>is a symmetric positive semi-definite matrix, we can obtain the optimal solution of linear system (9) via minimizing the following Quadratic Program (QP) problem:</p><formula xml:id="formula_20">w new = arg min w 1 2 w T (X T ΛX)w − w T (X T Λz). (12)</formula><p>That is to say that each Newton update step in Eq. <ref type="formula">7</ref>is equivalent to minimize a QP problem. To avoid inverse matrix operation, we apply a cyclic coordinate descent method <ref type="bibr" target="#b30">[31]</ref>, <ref type="bibr" target="#b31">[32]</ref> to solve these QP problems. After a few steps of Newton update, we can get the optimal solution of Eq. (4). This process is also known as the iteratively re-weight least squares (IRLS) strategy <ref type="bibr" target="#b32">[33]</ref>, <ref type="bibr" target="#b33">[34]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.3">A Unified Regularized Logistic Regression Framework</head><p>Here we first introduce the Network-regularized Sparse LR (NSLR) models in a unified regularized LR framework as follows: min</p><formula xml:id="formula_21">w,b {− 1 n ℓ(w, b) + R(w)} (13) with R(w) = λ{α p i=1 |w i | + (1 − α) 2 w T M w},<label>(14)</label></formula><p>where n denotes the number of samples and α ∈ [0, 1]. We can solve this framework via the above IRLS strategy. In other words, each Newton update step of Eq. (13) is equivalent to solving a new QP problem. For convenience, we define the coefficient vector</p><formula xml:id="formula_22">w = (w 1 , • • • , w p ) and θ = (w 1 , • • • , w p , b),</formula><p>where b is the intercept. Then, the QP problem can be defined as follows:</p><formula xml:id="formula_23">L(w, b) = 1 2n θ T (X T ΛX)θ − 1 n θ T (X T Λz) + R(w),<label>(15)</label></formula><p>where R(w) is a generalized network-regularized penalty.</p><p>With different M in R(w), the penalty reduces to different cases including Lasso, Elastic net and two networkregularized ones. |w i |, which is the Lasso penalty <ref type="bibr" target="#b34">[35]</ref>. We denote this case as Lasso.LR. It has been widely used in bioinformatics <ref type="bibr" target="#b13">[14]</ref>, <ref type="bibr" target="#b14">[15]</ref>, <ref type="bibr" target="#b16">[17]</ref>. However, Lasso has some potential limits <ref type="bibr" target="#b20">[21]</ref>. For example, it fails to select strongly correlated variable group and only selects one variable from such group and ignores the others in it. |w i | + (1/2)ηw T w, which is the so-called Elastic net penalty <ref type="bibr" target="#b20">[21]</ref>. We denote this case as Elastic.LR which has adopted in <ref type="bibr" target="#b20">[21]</ref>. However, to incorporate the known biological networks, a network-regularized penalty is needed in LR model.</p><formula xml:id="formula_24">Case 3: M = L, where L = I − D 1/2 AD 1/2</formula><p>is a symmetric normalized Laplacian matrix and A ∈ R p×p is the adjacency matrix for a given prior network (e.g., a protein interaction network). If vertex i and vertex j are connected, then A ij = 1 and A ij = 0 otherwise. The degree of vertex i is defined by</p><formula xml:id="formula_25">d i = p j=1 A ij .</formula><p>Thus, L = (L ij ) can be re-written as follows:</p><formula xml:id="formula_26">L ij =        1, if i = j and d i = 0, − Aij √ didj</formula><p>, if i and j are connected,</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>0,</head><p>otherwise.</p><p>Li and Li <ref type="bibr" target="#b22">[23]</ref> applied such a network-regularized regression model for analyzing genomic data. Zhang et al. <ref type="bibr" target="#b35">[36]</ref> applied this penalty into the LR model for molecular pathway identification. We denote the Network-regularized LR model as Network.LR. They solve this model using the CVX package which was implemented for solving convex optimization problems <ref type="bibr" target="#b36">[37]</ref>. In this paper, compared with the method based on CVX, we develop a simple coordinatewise Newton algorithm to avoid inverse matrix operation. However, the typical network-regularized penalty ignores that the pairwise variables of coefficients (linked in the prior network) may have opposite signs. Case 4: M = L * . To consider the signs of the estimated vector w, we can adopt an adaptive network-based penalty R(w):</p><formula xml:id="formula_28">λ 1 p i=1 |w i | + η 1 i∼j A ij sign( w i )w i √ d i − sign( w j )w j d j 2 ,</formula><p>where</p><formula xml:id="formula_29">λ 1 = λα, η 1 = λ(1−α) 2</formula><p>and w is computed using the maximum likelihood estimation for the classical LR model. It can considered as an approximation of |w j | using sign( w j )w j . At same time, L * can be re-written as:</p><formula xml:id="formula_30">L * ij =        1, if i = j and d i = 0, − sign( wi)sign( wj )Aij √ didj</formula><p>, if i and j are connected, 0, otherwise.</p><p>Here we denote the Adaptive Network-regularized LR as AdaNet.LR. In addition to the four cases, we also consider a novel network-regularized penalty: <ref type="bibr" target="#b26">[27]</ref>, to consider the opposite signs of pairwise variables directly. The new penalty can eliminate the sensitivity of the typical one to the signs of the feature correlation. However, it is non-differentiable at zero point and thus the general gradient descent method cannot solve AbsNet.LR directly. In the Section 2.5, we will introduce a clever way to solve it. Note that the AdaNet.LR model can be regarded as an approximation of the AbsNet.LR model.</p><formula xml:id="formula_32">R(w) = λ p i=1 |w i | + η|w| T M |w|</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.4">A Learning Algorithm for NSLR</head><p>Here we apply a coordinate-wise Newton algorithm to solve the NSLR framework. We first use a cyclic coordinate descent algorithm <ref type="bibr" target="#b30">[31]</ref>, <ref type="bibr" target="#b31">[32]</ref> to solve the QP problem in Eq. <ref type="bibr" target="#b14">(15)</ref>. Without loss of generality, we extend the p × p matrix M to a (p + 1) × (p + 1) matrix as follows:</p><formula xml:id="formula_33">M ← M 0 0 0 . Let λ = n • λ and w = (w 1 , • • • , w p , b)</formula><p>. We can obtain a unified form of Eq. <ref type="formula" target="#formula_23">15</ref>:</p><formula xml:id="formula_34">L(w) = 1 2 w T (X T ΛX)w − w T (X T Λz) + R(w),<label>(18)</label></formula><p>where</p><formula xml:id="formula_35">R(w) = λ{α p i=1 |w i | + (1 − α)/2w T M w}.</formula><p>We can easily prove that the objective function (18) is a convex one. To minimize it, we first obtain the gradient of w as follows:</p><formula xml:id="formula_36">∇ w L(w) = (X T ΛX)w−X T Λz+α s+(1−α)λM w, (19)</formula><p>where s is a column vector. Let B = X T ΛX + (1 − α)λM , and t = X T Λz. Furthermore, we can also obtain the gradient with respect to w j :</p><formula xml:id="formula_37">∂L ∂w j = B jj w j + i =j B ji w i − t j + αλs j , j = 1, • • • , p,<label>(20)</label></formula><p>where</p><formula xml:id="formula_38">s j = sign(w j ) if w j = 0, s j = 0 otherwise. Let ∂L ∂w j = 0,</formula><p>thus we have the following update rule for w j :</p><formula xml:id="formula_39">w j = S(t j − i =j B ji w i , αλ)/B jj ,<label>(21)</label></formula><p>where the soft-thresholding function is defined as</p><formula xml:id="formula_40">S(a, ρ) = sign(a)(|a| − ρ) + .</formula><p>Similarly, we can also get the update rule for the bias term b (note that b = w p+1 ). Given k = p + 1, then we write the gradient of b:</p><formula xml:id="formula_41">∂L ∂b = B kk w k + i =k B ki w i − t k .<label>(22)</label></formula><p>Let ∂L ∂b = 0. It leads to the update rule for b:</p><formula xml:id="formula_42">b = (t k − i =k B ki w i )/B kk .<label>(23)</label></formula><p>Briefly, here we employ the iteratively re-weight least squares (IRLS) strategy to solve the unified regularized LR framework. In each iteration, we first update Eq. (10) and Eq. <ref type="bibr" target="#b10">(11)</ref> to get a new constrained QP problem <ref type="bibr" target="#b17">(18)</ref>. Then we apply a cycle coordinate descent algorithm to solve it. This process is repeated until convergence. To summarize, we propose the following Algorithm 1.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.5">A Novel Network-regularized LR</head><p>In the subsection, we focus on a novel Network-regularized Logistic Regression model with absolute operation (Ab-sNet.LR) as follows: Update Λ using Eq. <ref type="formula" target="#formula_17">10</ref>5:</p><formula xml:id="formula_43">min w,b {− 1 n ℓ(w, b) + λ p i=1 |w i | + η|w| T L|w|},<label>(24)</label></formula><p>Update z using Eq. <ref type="formula" target="#formula_18">11</ref>6:</p><p>Update B = X T ΛX + (1 − α)λM and t = X T Λz 7:</p><formula xml:id="formula_44">for j = 1 to p do 8:</formula><p>Update w j using Eq. <ref type="formula" target="#formula_39">21</ref>9:</p><p>end for 10:</p><p>Update the intercept b using Eq. <ref type="formula" target="#formula_42">23</ref>11:</p><p>Compute the criteria J = −(1/n)ℓ(w, b) + R(w) for testing convergence 12: until The objective function J converges a minimum 13: return w</p><formula xml:id="formula_45">where ℓ(w, b) = n i=1 {y i w T x i − log(1 + exp(w T x i )} and |w| = (w 1 , w 2 , • • • , w p ) T .</formula><p>As we have discussed that AdaNet.LR model can be considered as an approximation of it (see Section 2.3 for Case 4). AdaNet.LR applies a convex penalty to replace the one in Eq. <ref type="formula" target="#formula_43">24</ref>enabling it can be solved by NSLR algorithm (Algorithm 1). In the subsection we employ a coordinate-wise Newton algorithm to solve it directly. For each Newton update step, we focus on the following optimization problem:</p><formula xml:id="formula_46">L(w, b) = 1 2n w T (X T ΛX)w − 1 n w T (X T Λz) + R(w),<label>(25)</label></formula><formula xml:id="formula_47">where R(w) = λ{α p i=1 |w i | + (1 − α)/2|w| T L|w|}.</formula><p>The coordinate-wise descent strategy does not work for some penalties (e.g., fused lasso) <ref type="bibr" target="#b27">[28]</ref>. However, Hastie et al. <ref type="bibr" target="#b27">[28]</ref> (see page 112) find the penalty R(w) shows a good property: condition regularity, implying that if the iteration moving along all coordinate directions fails to enable the objective function decrease, then it achieves the minimum <ref type="bibr" target="#b27">[28]</ref>, <ref type="bibr" target="#b28">[29]</ref>. Thus we can minimize Eq. (25) via a cycle coordinate descent method. For convenience, let B = X T ΛX, t = X T Λz and η = λ(1 − α)/2, we can rewrite the subproblem as follows:</p><formula xml:id="formula_48">L k = 1 2n (B kk w 2 k + 2 j =k B kj w j w k + j =k i =k B ji w j w i ) − 1 n (w k t k + j =k w j t j ) + λ(|w k | + j =k |w j |) +ηL kk w 2 k + 2η j =k L kj |w j ||w k | +η j =k i =k L ji |w j ||w i |.<label>(26)</label></formula><p>Then we have the subgradient equation of w k :</p><formula xml:id="formula_49">∂L ∂w k = (1/n)(B kk w k + j =k B kj w j ) − (1/n)t k + λs k +2η(L kk w k + s k j =k L kj |w j |).<label>(27)</label></formula><p>Let ∂L ∂w k = 0 and τ = B kk + 2nηL kk . We obtain the following update rule:</p><formula xml:id="formula_50">w k = S(t k − j =k B kj w j , nλ + 2nη j =k L kj |w j |)/τ. (28)</formula><p>Similarly, we can also get the update rule for the bias term b. The sub-gradient is given by</p><formula xml:id="formula_51">∂L ∂b = B kk w k + i =k B ki w i − t k ,<label>(29)</label></formula><p>where k = p + 1, and b = w k . Let ∂L ∂b = 0. It leads to the update rule:</p><formula xml:id="formula_52">b = (t k − i =k B ki w i )/B kk .<label>(30)</label></formula><p>To summarize, we propose the Algorithm 2 to solve the AbsNet.LR model.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Algorithm 2 AbsNet.LR learning algorithm</head><p>Require: Training data D = {X, y}, a normalized Laplacian matrix L ∈ R p×p , two parameters λ and α. Ensure: w.</p><p>1: Initialize w = 0 2: Set λ = n • λ, where n is the number of samples. 3: repeat</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>4:</head><p>Update Λ using Eq. <ref type="formula" target="#formula_17">10</ref>5:</p><p>Update z using Eq. <ref type="formula" target="#formula_18">11</ref>6:</p><p>Update B = X T ΛX and t = X T Λz 7:</p><formula xml:id="formula_53">for k = 1 to p do 8:</formula><p>Update w k using Eq. <ref type="formula">28</ref> </p><formula xml:id="formula_54">AUC = 1 n 1 n 2 n1 i=1 n2 j=1 I(s i &gt; t j ) + 1 2 I(s i = t j ) ,<label>(31)</label></formula><p>where I(s i &gt; t j ) is 1, if s i &gt; t j , and 0 otherwise. However, sometimes the parameter selection may be unnecessary in a real application. For example, we may choose suitable parameters to obtain a solution for the desired degree of sparsity.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">SYNTHETIC DATA EXPERIMENTS</head><p>To compare the performance of different regularized LR models, we first generate a sparse coefficient vector w with p = 100 and a bias term b as follows:</p><formula xml:id="formula_55">w = [sample(N (0, 1), 40), rep(0, 60)], b = 0,</formula><p>where sample(N (0, 1), 40) denotes a vector of length 40, whose elements are sampled from a standard normal distribution, and rep(0, 60) denotes a vector of length 60, whose entries are zero. To generate an expression matrix X ∈ R 500×100 , we define a covariance matrix of the variables Σ ∈ R 100×100 , where Σ ij = 0.6 when 1 ≤ i = j ≤ 40, Σ ii = 1 when i = 1, • • • , 100 and the others entries are zero. It can ensure that the 40 feature vectors are strong correlated in X. We generate the X using the function "mvrnorm" in the MASS R package with parameters mu = 0 and sigma = Σ. Furthermore, we also compute the binary response y = (y 1 , • • • , y 500 ) based on a Bernoulli distribution with the following formula:</p><formula xml:id="formula_56">y i = I(p(x i ) ≥ 0.5), p(x i ) = 1 1 + exp(−w T x i − b)</formula><p>,</p><p>where x i denotes the i-th column of X T . Finally, we also generate a prior network A ∈ R 100×100 , whose node pairs among all the first 40 nodes are connected with probability p 11 = 0.3, and the remaining ones are connected with probability p 12 = 0.1. Note we set the observed matrix X * = X + γǫ, where the elements of ǫ are randomly sampled from a standard normal distribution, and γ = 3 is used to control the signal-to-noise ratio. The observed X * contains 500 samples with 100 features. We randomly select 300 samples as the training samples and the remaining samples as the testing samples. We test all regularized LR models on the synthetic training data using 5-fold crossvalidation strategy to select the optimal parameters. We repeat the simulations over 50 times. We then compute the average AUCs of 50 experiments about classification on the testing synthetic data. To compare the performance on variable selection, we also calculate the average sensitivity/specificity scores with respect to the selected variables (nonzero of w), and the average numbers of edges of the selected variables in the prior network.</p><p>Here we define the sensitivity as the percentage of true non-zero entries discovered, and the specificity as the percentage of true zero entries discovered, respectively. The overall results are shown in <ref type="table" target="#tab_3">Table 1</ref>. Generally, these network-based regularized LR models (especially Ab-sNet.LR) are superior to other algorithms with respect to AUCs. Moreover, AbsNet.LR obtains the relatively higher sensitivity in the selected variables, and relatively larger number of edges of them in the prior network compared to others. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">The GBM Data</head><p>We download the level 3 gene expression data (Broad Institute HT-HG-U133A platform) and clinical data of GBM from the TCGA database <ref type="bibr" target="#b2">[3]</ref>. We employ two alternative methods to impute the missing data in gene expression profiling: (1) the k-nearest neighbor algorithm (knn) method implemented as the "impute" R package; (2) the mean of considered genes. We find that the two methods only have little effect on the final results. Thus, we simply adopt the second method to impute the missing data. We obtain the gene expression data of 1,2042 genes across 525 patients. Furthermore, we standardize the expression of each gene across all samples using the "scale" function in R. We also download a protein interaction network (PPI) data from Pathway Commons <ref type="bibr" target="#b29">[30]</ref>. Finally, we obtain a gene expression data with 1,0963 genes and a PPI network with 24,8403 edges. Here our goal of this application is to predict the survival risk of GBM patients <ref type="figure" target="#fig_0">(Fig. 1A)</ref>. We first dichotomize the survival time of patients into a binary outcome through a designated cutoff. Here we consider one year as the cutoff time to balance the number of positive and negative samples ( <ref type="figure" target="#fig_0">Fig. 1B</ref> and <ref type="table" target="#tab_4">Table 2</ref>). We apply the univariate Cox proportional hazard model <ref type="bibr" target="#b11">[12]</ref> to assess and filter the 1,0963 genes of GBM gene expression data <ref type="table" target="#tab_4">(Table 2)</ref>. Finally, we obtain 2001 genes with P &lt; 0.05 for further analysis. Only those genes are used in all the regularized LR models.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Results of the GBM Data</head><p>We first randomly select 2/3 samples (n = 350) as the training samples and 1/3 samples (n = 175) as the testing samples <ref type="figure" target="#fig_0">(Fig. 1B)</ref>. We consider λ ∈ {0.001, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4} and α ∈ {0.05, 0.1, 0.2, 0.5, 0.7, 0.9} to form a total of 42 pair parameter sets. We first learn the different regularized LR methods on the GBM training data using 5-fold cross-validation. Then we test all the methods on the GBM testing data. We find the regularized LR models are superior to the typical LR model <ref type="table">(Table 3)</ref>. Generally, Lasso.LR is inferior to other regularized methods (Elastic.LR, Network.LR, AdaNet.LR and AbsNet.LR) whose results are relatively consistent. However, AbsNet.LR, AdaNet.LR and Network.LR identify a gene set with more edges via integrating the prior network data. All these results imply the importance of integrating the prior protein interaction network data to improve the prediction accuracy and biological interpretation. Therefore, we only focus on the result analysis of AbsNet.LR which obtains AUC = 0.6627 with λ = 0.3 and α = 0.1, and a gene set with 157 genes.</p><p>To evaluate the biological relevance of the identified gene set, we apply the DAVID online web tool <ref type="bibr" target="#b37">[38]</ref> to perform the Gene Ontology (GO) biological processes enrichment analysis. The GO biological processes with p-values &lt; 0.05 are selected as significant ones. We find the genes is related to some important ones including positive regulation of kinase activity, synaptic transmission glutamatergic and inositol metabolic process. The identified biological processes  <ref type="table" target="#tab_3">E  F   NETO2  RPS28  CETP  ZNF208  MTHFSD  SMYD3  LDB1  KCNG1  NEU2  EDG5  ELSPBP1  CACNA1D  TFR2  RPL39L  HOXD11  HOXD10  PITX1  SRD5A2L  CLEC5A  DDIT3  HEMK1  CRELD1  BDH1  ETNK2  PRKAG2  AKR1B1  GABRA4  PPFIA4  EEF1A2  NPTXR   CLEC5A  TFR2  RPL39L  BDH1  PITX1  HOXD11  HOXD10  DDIT3  AKR1B1  SMYD3  EDG5  NEU2  GABRA4  KCNG1  LDB1  ZNF208  NETO2  CETP  RPS28  ELSPBP1  CACNA1D  SRD5A2L  ETNK2  HEMK1  CRELD1  MTHFSD  PRKAG2  PPFIA4  NPTXR</ref>  are consistent with recent literature reports. For example 'the positive regulation of protein kinase activity' process is well-known to be related to GBM and its activation is a key mechanism for GBM development <ref type="bibr" target="#b38">[39]</ref>. Furthermore, we extract the top 30 genes corresponding to the largest absolute values of the estimated coefficients (by the AbsNet.LR). Based on the top 30 genes, we re-train the typical LR model in the training data. In the independent testing data, LR obtain an AUC of 0.6727. However, on average, only AUC of 0.55 are obtained with randomly select 30 genes. Next, based on the built LR model, we re-test all the training data and all testing data <ref type="figure" target="#fig_0">(Fig. 1B)</ref> and based on the predicted LR scores computed via P r(y = 1|x; w), we divide all the training and testing samples into three groups, called low-, intermediate-and high-risk ones, respectively ( <ref type="figure" target="#fig_1">Fig. 2A and B)</ref>. We can also see the expression heat maps of the top 30 genes with the three groups ( <ref type="figure" target="#fig_1">Fig.  2E and 2F</ref>). We find that some genes in the specific group are high expressed, while some are low expressed in the other group. Interestingly, we also find that these top genes form a set of sub-networks (e.g., <ref type="figure">Fig. 3A and B)</ref>, which are sugested to be related with GBM <ref type="bibr" target="#b39">[40]</ref>, <ref type="bibr" target="#b40">[41]</ref>, <ref type="bibr" target="#b41">[42]</ref>, <ref type="bibr" target="#b42">[43]</ref>. 3: Summary of 42 trials in the independent test data. "avg.no.edge" denotes the average number of the identified genes. Similarly, "avg.no.edge" denotes the average number of edges between the identified genes. "avg.AUC" denotes the average AUC of all the 42 trials. "max.AUC" denotes the maximal AUC of <ref type="bibr" target="#b41">42</ref>  Furthermore, we study whether the defined groups have significant relationships with some other clinical variables (e.g., age). We find that the patients of high-risk group are old than those in low and intermediate-risk group on both training and testing data ( <ref type="figure" target="#fig_1">Fig. 2C and D)</ref>. All these results show that the identified gene set is related to the survival outcome of GBM patients. <ref type="table" target="#tab_3">DDIT3   TP53   TFR2   HOXD10   RPS28   PITX1   ETNK2   ICAM1</ref> NR3C1</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>CETP KCNG1 AKR1B1</head><p>A B <ref type="figure">Fig. 3</ref>: Two known pathway sub-networks of the identified top genes. Three genes (TP53, ICAM1 and NR3C1) are "linked genes included by using Ingenuity Pathway Analysis (IPA, http://www.ingenuity.com) software.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">APPLICATION TO LUNG CANCER DATA</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1">Non-Small Cell Lung Cancer Expression Data</head><p>We download two subtypes of non-small cell lung cancer gene expression datasets from TCGA <ref type="bibr" target="#b3">[4]</ref>, including Lung adenocarcinoma (LUAD) with 350 samples and Lung squamous-cell carcinoma (LUSC) with 315 samples. Here we consider the level 3 expression data of TCGA which is quantified at the gene and transcript levels using RNA-Seq data by an expectation maximization method <ref type="bibr" target="#b43">[44]</ref>. Then the expression values are log 2 -transformed. We first process the LUAD and LUSC gene expression data to keep the genes that are appeared in the KEGG pathway database from the Molecular Signatures Database (MSigDB) <ref type="bibr" target="#b44">[45]</ref>. Finally, we obtain 3230 genes related with 151 KEGG pathways. Here we consider each KEGG pathway as a fully connected subnetwork to build a prior network with 143438 edges.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2">Results of the Lung Cancer Data</head><p>Here we apply all the methods to the lung cancer data to identify subtype-specific biomarkers. Compared to the integration of PPI network in the GBM data, we focus on the KEGG pathway as the prior information. We randomly select all the samples of 2/3 as the training samples and remaining ones are as the independent test samples. We show the results from all the regularized LR models in the independent training set (  Furthermore, we evaluate the biological relevance of the identified 69 genes using the DAVID online web tool <ref type="bibr" target="#b37">[38]</ref> and find several significantly enriched KEGG pathways relating to lung cancer, including metabolism of xenobiotics by cytochrome P450 (GSTA2, CYP3A5, CYP2F1, CYP3A7, CYP2C9, CYP2C8, UGT2A1) <ref type="bibr" target="#b45">[46]</ref>, linoleic acid metabolism (CYP3A5, CYP3A7, CYP2C9, AKR1B10, CYP2C8) <ref type="bibr" target="#b46">[47]</ref> and retinol metabolism (CYP3A5, CYP3A7, CYP2C9, CYP2C8, UGT2A1, RPE65) <ref type="bibr" target="#b47">[48]</ref> and so on.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6">COMPUTING PLATFORM AND RUNNING TIME</head><p>All scripts were run on a desktop personal computer with an Inter(R) Core(TM) i7-4770 CPU@ 3.4 GHz and 16 GB memory running Windows OS and R 3.2.5. The code is available at http://page.amss.ac.cn/shihua.zhang/. For the synthetic data experiments, the memory used is about 140 MB and the running time is about 0.7 hours. For the application to GBM data, the memory used is about 150 MB and the running time is about 0.8 hours. For the application to lung cancer data, the memory used is about 160 MB and the running time is about 1 hour.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7">CONCLUSION</head><p>In this paper, we first introduce the typical networkregularized LR models with others in a unified framework. Although the typical network-regularized LR model can incorporate such prior information to get better biological interpretability, it fails to focus on the opposite effect of variables with different signs. To solve this limitation, we adopt a novel network-regularized penalty R = λ w 1 + η|w| T L|w| into LR model (denoted as Ab-sNet.LR). However, the novel penalty is not differentiable at the zero point, enforcing it is hard to be solved using the typical gradient descent method. To this end, we first adapt the adaptive network-regularized penalty (note that it is convex) to approximate this novel network-regularized penalty and develop an adaptive network-regularized LR (AdaNet.LR) model which can be solved easily using the NSLR algorithm (Algorithm 1). We further find that the novel network-regularized penalty has a good propertycondition regularity <ref type="bibr" target="#b27">[28]</ref>, <ref type="bibr" target="#b28">[29]</ref>, which inspires us to solve it via a cycle coordinate-wise Newton algorithm efficiently. We note that the binary LR-based classification models can be easily extended to the multiclass or multinomial classification problem <ref type="bibr" target="#b33">[34]</ref>, <ref type="bibr" target="#b48">[49]</ref>.</p><p>Applications to the synthetic data show that the present methods are more effective compared to the typical ones. We also apply them to the GBM expression and a protein interaction network data to predict mortality probability of patients within one year. In addition, we apply them to a lung cancer expression data of two subtypes to identify subtype-specific biomarkers. We find a gene set with 69 genes which are tightly connected in the prior network. Functional enrichment analysis of these genes discovers a few KEGG pathways relating to the lung cancer clearly.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Case 1 :</head><label>1</label><figDesc>M = 0. The penalty function Eq. (14) reduces to R(w) = λ p i=1</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Case 2 :</head><label>2</label><figDesc>M = I. The penalty function Eq. (14) reduces to R(w) = λ p i=1</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head></head><label></label><figDesc>Compute the criteria J = −(1/n)ℓ(w, b) + R(w) for testing convergence 12: until The objective function J converges to a mimimum 13: return w Tuning parameter selection. Selecting the regularized parameters {λ, α} for NSLR and AbsNet.LR is a very important task. Here these parameters are selected via maximizing the index -Area Under Curve (AUC). Suppose there are n 1 positive class samples and n 2 negative class samples in a given dataset. Given a binary classifier, {s 1 , • • • , s n1 } are the scores for the positive points and {t 1 , • • • , t n2 } are the scores for the negative points. The AUC of this classifier is calculated using the following formula:</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Fig. 2 :</head><label>2</label><figDesc>EEF1A2p&lt;0.002 (testing data) p&lt;4.0e-06 (training data) Performance evaluation in the training and testing data. We divide the GBM patients into different groups according to their estimated LR scores. (A) and (B) Kaplan-Meier (KM) survival curves for for low-, intermediate (int)-, and high-risk groups. P -values are computed using the log-rank test. (C) and (D) Age distribution in the three GBM patient groups with p-value &lt;4.0e-06 for training data and p-value &lt; 0.002 for testing data (using an analysis of variance model ). (E) and (F) The expression heat maps of the training and testing data based on the top 30 genes.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_3"><head>TABLE 1 :</head><label>1</label><figDesc>Results on the synthetic data.</figDesc><table><row><cell></cell><cell></cell><cell>w</cell><cell>no. of</cell><cell>w</cell><cell>w</cell></row><row><cell>methods</cell><cell>AUC</cell><cell>nonzero</cell><cell>edges</cell><cell cols="2">sensitivity specificity</cell></row><row><cell>LR</cell><cell>0.733</cell><cell>100</cell><cell>450.00</cell><cell>1.00</cell><cell>0.00</cell></row><row><cell>Lasso.LR</cell><cell>0.792</cell><cell>45.84</cell><cell>134.22</cell><cell>0.67</cell><cell>0.68</cell></row><row><cell>Elastic.LR</cell><cell>0.806</cell><cell>52.76</cell><cell>176.62</cell><cell>0.79</cell><cell>0.64</cell></row><row><cell>Network.LR</cell><cell>0.828</cell><cell>54.64</cell><cell>234.42</cell><cell>0.97</cell><cell>0.74</cell></row><row><cell>AdaNet.LR</cell><cell>0.823</cell><cell>53.20</cell><cell>196.40</cell><cell>0.88</cell><cell>0.70</cell></row><row><cell>AbsNet.LR</cell><cell>0.830</cell><cell>63.50</cell><cell>281.78</cell><cell>0.98</cell><cell>0.60</cell></row></table><note>4 APPLICATION TO GBM DATA</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_4"><head>TABLE 2 :</head><label>2</label><figDesc>Description of the GBM data.</figDesc><table><row><cell>⋆ denotes the num-</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_5"><head>TABLE</head><label></label><figDesc></figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_6"><head></head><label></label><figDesc>trials. methods avg.no.gene avg.no.edge avg.AUC max.AUC</figDesc><table><row><cell>LR</cell><cell>2001</cell><cell>6341</cell><cell>0.5787</cell><cell>0.5787</cell></row><row><cell>Lasso.LR</cell><cell>152.2619</cell><cell>45.0714</cell><cell>0.5673</cell><cell>0.6182</cell></row><row><cell>Elastic.LR</cell><cell>324.1429</cell><cell>296.9762</cell><cell>0.5842</cell><cell>0.6659</cell></row><row><cell>Network.LR</cell><cell>325.6905</cell><cell>328.1905</cell><cell>0.5832</cell><cell>0.6660</cell></row><row><cell>AdaNet.LR</cell><cell>331.7857</cell><cell>448.9524</cell><cell>0.5823</cell><cell>0.6659</cell></row><row><cell>AbsNet.LR</cell><cell>410.6429</cell><cell>1013.6190</cell><cell>0.5860</cell><cell>0.6627</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_7"><head>Table 4 )</head><label>4</label><figDesc>. In total, 69 genes are selected by the AbsNet.LR. All the genes identified by other regularized LR models (Lasso.LR, Elastic.LR, Network.LR and AdaNet.LR) are included in the 69 genes. The network-regularized LR models give similar results, which are superior to that of typical LR and Lasso.LR models. In addition, compared to the other network-regularized LR models, AbsNet.LR identifies a gene set with more edges in the KEGG pathway network.</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_8"><head>TABLE 4 :</head><label>4</label><figDesc>Results of Lung cancer data.</figDesc><table><row><cell>methods</cell><cell>AUC</cell><cell cols="2">no. of genes no. of edges</cell></row><row><cell>LR</cell><cell>0.7540</cell><cell>3230</cell><cell>-</cell></row><row><cell>Lasso.LR</cell><cell>0.9784</cell><cell>48</cell><cell>53</cell></row><row><cell>Elastic.LR</cell><cell>0.9789</cell><cell></cell><cell>62</cell></row><row><cell>Network.LR</cell><cell>0.9789</cell><cell>59</cell><cell>67</cell></row><row><cell>AdaNet.LR</cell><cell>0.9789</cell><cell>57</cell><cell>62</cell></row><row><cell>AbsNet.LR</cell><cell>0.9794</cell><cell></cell><cell>104</cell></row></table><note></note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0" />
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Breast tumor subgroups reveal diverse clinical prognostic power</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X.-S</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Zhang</surname></persName>
+		</author>
+		<idno type="DOI">10.1038/srep04002</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Scientific reports</title>
+		<imprint>
+			<biblScope unit="volume">4</biblScope>
+			<biblScope unit="page">4002</biblScope>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Comparative pan-cancer DNA methylation analysis reveals cancer common and specific patterns</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Gao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Zhang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Briefings in Bioinformatics</title>
+		<imprint>
+			<biblScope unit="volume">063</biblScope>
+			<biblScope unit="page" from="1" to="13" />
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">The somatic genomic landscape of glioblastoma</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Benz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Barnholtz-Sloan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Barrett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Ostrom</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Wolinsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Black</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Bose</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Boulos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Boulos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Brown</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Cell</title>
+		<imprint>
+			<biblScope unit="volume">155</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="462" to="477" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Multiplatform analysis of 12 cancer types reveals molecular classification within and across tissues of origin</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">A</forename><surname>Hoadley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Yau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">M</forename><surname>Wolf</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">D</forename><surname>Cherniack</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Tamborero</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">D M</forename><surname>Leiserson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Niu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">D</forename><surname>Mclellan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Uzunangelov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Cell</title>
+		<imprint>
+			<biblScope unit="volume">158</biblScope>
+			<biblScope unit="issue">4</biblScope>
+			<biblScope unit="page" from="929" to="944" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Principles and methods of integrative genomic analyses in cancer</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><forename type="middle">N</forename><surname>Kristensen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><forename type="middle">C</forename><surname>Lingjaerde</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><forename type="middle">G</forename><surname>Russnes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><forename type="middle">K M</forename><surname>Vollan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Frigessi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A.-L</forename><surname>Børresen-Dale</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nature Reviews Cancer</title>
+		<imprint>
+			<biblScope unit="volume">14</biblScope>
+			<biblScope unit="issue">5</biblScope>
+			<biblScope unit="page" from="299" to="313" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Efficient methods for identifying mutated driver pathways in cancer</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Zhao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L.-Y</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X.-S</forename><surname>Zhang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Bioinformatics</title>
+		<imprint>
+			<biblScope unit="volume">28</biblScope>
+			<biblScope unit="issue">22</biblScope>
+			<biblScope unit="page" from="2940" to="2947" />
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Discovery of multi-dimensional modules by integrative analysis of cancer genomic data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C.-C</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Shen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">W</forename><surname>Laird</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><forename type="middle">J</forename><surname>Zhou</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nucleic acids research</title>
+		<imprint>
+			<biblScope unit="volume">40</biblScope>
+			<biblScope unit="issue">19</biblScope>
+			<biblScope unit="page" from="9397" to="9391" />
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">A novel computational framework for simultaneous integration of multiple types of genomic data to identify microRNA-gene regulatory modules</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><forename type="middle">J</forename><surname>Zhou</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Bioinformatics</title>
+		<imprint>
+			<biblScope unit="volume">27</biblScope>
+			<biblScope unit="issue">13</biblScope>
+			<biblScope unit="page" from="401" to="409" />
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Integrated modeling of clinical and gene expression information for personalized prediction of disease outcomes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Pittman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Dressman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C.-F</forename><surname>Horng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">H</forename><surname>Cheng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M.-H</forename><surname>Tsou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C.-M</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bild</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">S</forename><surname>Iversen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">T</forename><surname>Huang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Proceedings of the National Academy of Sciences of the United States of America</title>
+		<imprint>
+			<biblScope unit="volume">101</biblScope>
+			<biblScope unit="issue">22</biblScope>
+			<biblScope unit="page" from="8431" to="8436" />
+			<date type="published" when="2004" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Network-based survival analysis reveals subnetwork signatures for predicting outcomes of ovarian cancer treatment</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Ota</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Shridhar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Chien</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Kuang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Plos Computational Biology</title>
+		<imprint>
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="760" to="766" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Regularization paths for cox&apos;s proportional hazards model via coordinate descent</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Simon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Friedman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Hastie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Tibshirani</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Statistical Software</title>
+		<imprint>
+			<biblScope unit="volume">39</biblScope>
+			<biblScope unit="issue">5</biblScope>
+			<biblScope unit="page" from="1" to="13" />
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Regression models and life-tables</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">R</forename><surname>Cox</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of the Royal Statistical Society. Series B (Methodological)</title>
+		<imprint>
+			<biblScope unit="volume">34</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="187" to="220" />
+			<date type="published" when="1972" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Logistic regression for disease classification using microarray data: model selection in a large p and small n case</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Liao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K.-V</forename><surname>Chin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Bioinformatics</title>
+		<imprint>
+			<biblScope unit="volume">23</biblScope>
+			<biblScope unit="issue">15</biblScope>
+			<biblScope unit="page" from="1945" to="1951" />
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">A simple and efficient algorithm for gene selection using sparse logistic regression</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">K</forename><surname>Shevade</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">S</forename><surname>Keerthi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Bioinformatics</title>
+		<imprint>
+			<biblScope unit="volume">19</biblScope>
+			<biblScope unit="issue">17</biblScope>
+			<biblScope unit="page" from="2246" to="2253" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Gene selection in cancer classification using sparse logistic regression with bayesian regularization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">C</forename><surname>Cawley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><forename type="middle">L C</forename><surname>Talbot</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Bioinformatics</title>
+		<imprint>
+			<biblScope unit="volume">22</biblScope>
+			<biblScope unit="issue">19</biblScope>
+			<biblScope unit="page" from="2348" to="2355" />
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Genomewide association analysis by lasso penalized logistic regression</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">T</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><forename type="middle">F</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Hastie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Sobel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Lange</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Bioinformatics</title>
+		<imprint>
+			<biblScope unit="volume">25</biblScope>
+			<biblScope unit="issue">6</biblScope>
+			<biblScope unit="page" from="714" to="721" />
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Classification of mislabelled microarrays using robust sparse logistic regression</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Bootkrajang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kabn</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Bioinformatics</title>
+		<imprint>
+			<biblScope unit="volume">29</biblScope>
+			<biblScope unit="issue">7</biblScope>
+			<biblScope unit="page" from="870" to="877" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Minimax sparse logistic regression for very high-dimensional feature selection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Tan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><forename type="middle">W</forename><surname>Tsang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Wang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Neural Networks and Learning Systems</title>
+		<imprint>
+			<biblScope unit="volume">24</biblScope>
+			<biblScope unit="issue">10</biblScope>
+			<biblScope unit="page" from="1609" to="1622" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Advanced colorectal neoplasia risk stratification by penalized logistic regression</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Yu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Chappell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">F</forename><surname>Imperiale</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Statistical Methods in Medical Research</title>
+		<imprint>
+			<biblScope unit="volume">25</biblScope>
+			<biblScope unit="issue">4</biblScope>
+			<biblScope unit="page" from="1677" to="1691" />
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">A novel adaptive penalized logistic regression for uncovering biomarker associated with anti-cancer drug sensitivity</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Park</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Shiraishi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Imoto</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Miyano</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE/ACM Transactions on Computational Biology and Bioinformatics</title>
+		<imprint>
+			<biblScope unit="issue">1</biblScope>
+			<date type="published" when="2016" />
+			<publisher>PrePrints</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Regularized logistic regression with adjusted adaptive elastic net for gene selection in high dimensional cancer classification</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><forename type="middle">Y</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">H</forename><surname>Lee</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Computers in Biology and Medicine</title>
+		<imprint>
+			<biblScope unit="volume">67</biblScope>
+			<biblScope unit="page" from="136" to="145" />
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Regression shrinkage and selection via the lasso: a retrospective</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Tibshirani</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of the Royal Statistical Society</title>
+		<imprint>
+			<biblScope unit="volume">73</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="273" to="282" />
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Network-constrained regularization and variable selection for analysis of genomic data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Li</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Bioinformatics</title>
+		<imprint>
+			<biblScope unit="volume">24</biblScope>
+			<biblScope unit="issue">9</biblScope>
+			<biblScope unit="page" from="1175" to="1182" />
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Variable selection and regression analysis for graphstructured covariates with an application to genomics</title>
+	</analytic>
+	<monogr>
+		<title level="j">The annals of applied statistics</title>
+		<imprint>
+			<biblScope unit="volume">4</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="1498" to="1516" />
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">Joint network and node selection for pathway-based genomic data analysis</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Zhe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">A</forename><surname>Naqvi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Qi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Bioinformatics</title>
+		<imprint>
+			<biblScope unit="volume">29</biblScope>
+			<biblScope unit="issue">16</biblScope>
+			<biblScope unit="page" from="1987" to="96" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Graph regularized nonnegative matrix factorization for data representation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Cai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Han</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">S</forename><surname>Huang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Pattern Analysis and Machine Intelligence</title>
+		<imprint>
+			<biblScope unit="volume">33</biblScope>
+			<biblScope unit="issue">8</biblScope>
+			<biblScope unit="page" from="1548" to="1560" />
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<monogr>
+		<title level="m" type="main">L0-norm sparse graph-regularized svd for biclustering</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Min</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Zhang</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1603.06035</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<monogr>
+		<title level="m" type="main">Statistical learning with sparsity: the lasso and generalizations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Hastie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Tibshirani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Wainwright</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015" />
+			<publisher>CRC Press</publisher>
+			<pubPlace>London</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">Convergence of a block coordinate descent method for nondifferentiable minimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Tseng</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Optimization Theory and Applications</title>
+		<imprint>
+			<biblScope unit="volume">109</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="475" to="494" />
+			<date type="published" when="2001" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Pathway commons, a web resource for biological pathway data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">G</forename><surname>Cerami</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">E</forename><surname>Gross</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Demir</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Rodchenkov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Babur</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Anwar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Schultz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">D</forename><surname>Bader</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Sander</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nucleic Acids Research</title>
+		<imprint>
+			<biblScope unit="volume">39</biblScope>
+			<biblScope unit="page" from="685" to="90" />
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+	<note>no. Database issue</note>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Pathwise coordinate optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Friedman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Hastie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Höfling</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Tibshirani</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">The Annals of Applied Statistics</title>
+		<imprint>
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="302" to="332" />
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">Regularization paths for generalized linear models via coordinate descent</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Friedman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Hastie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Tibshirani</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of statistical software</title>
+		<imprint>
+			<biblScope unit="volume">33</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="1" to="22" />
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Iteratively reweighted least squares for maximum likelihood estimation, and some robust and resistant alternatives</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">J</forename><surname>Green</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">J.royal Stat.soc.ser.b</title>
+		<imprint>
+			<biblScope unit="volume">46</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="149" to="192" />
+			<date type="published" when="1984" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<analytic>
+		<title level="a" type="main">Sparse multinomial logistic regression: Fast algorithms and generalization bounds</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Krishnapuram</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Carin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">A</forename><surname>Figueiredo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">J</forename><surname>Hartemink</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE transactions on pattern analysis and machine intelligence</title>
+		<imprint>
+			<date type="published" when="2005" />
+			<biblScope unit="volume">27</biblScope>
+			<biblScope unit="page" from="957" to="968" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">Regression shrinkage and selection via the lasso</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Tibshirani</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of the Royal Statistical Society. Series B (Methodological)</title>
+		<imprint>
+			<biblScope unit="volume">58</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="267" to="288" />
+			<date type="published" when="1996" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<analytic>
+		<title level="a" type="main">Molecular pathway identification using biological network-regularized logistic models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Wan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">I</forename><surname>Allen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Pang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">L</forename><surname>Anderson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Liu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">BMC genomics</title>
+		<imprint>
+			<biblScope unit="volume">14</biblScope>
+			<biblScope unit="page" from="1" to="8" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+	<note>Suppl 8</note>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<monogr>
+		<title level="m" type="main">CVX: Matlab software for disciplined convex programming, version 2.1</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Grant</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Boyd</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2014-03" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">Systematic and integrative analysis of large gene lists using DAVID bioinformatics resources</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">W</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">T</forename><surname>Sherman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">A</forename><surname>Lempicki</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nature protocols</title>
+		<imprint>
+			<biblScope unit="volume">4</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="44" to="57" />
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<analytic>
+		<title level="a" type="main">Protein kinase d2 is a novel regulator of glioblastoma growth and tumor formation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Azoitei</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kleger</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Schoo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">R</forename><surname>Thal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Brunner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">V</forename><surname>Pusapati</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Filatova</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Genze</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Möller</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Acker</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neuro-oncology</title>
+		<imprint>
+			<biblScope unit="volume">13</biblScope>
+			<biblScope unit="issue">7</biblScope>
+			<biblScope unit="page" from="710" to="724" />
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">Glioma tumor grade correlates with parkin depletion in mutant p53-linked tumors and results from loss of function of p53 transcriptional activity</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Viotti</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Duplan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Caillava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Condat</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Goiran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Giordano</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Marie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Idbaih</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">Y</forename><surname>Delattre</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Honnorat</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Oncogene</title>
+		<imprint>
+			<biblScope unit="volume">33</biblScope>
+			<biblScope unit="issue">14</biblScope>
+			<biblScope unit="page" from="1764" to="75" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<analytic>
+		<title level="a" type="main">Glioblastoma cells inhibit astrocytic p53-expression favoring cancer malignancy</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Biasoli</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Oncogenesis</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="issue">e123</biblScope>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<analytic>
+		<title level="a" type="main">Targeting microrna-23a to inhibit glioma cell invasion via hoxd10</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Hu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Cui</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Huang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Scientific Reports</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="issue">7478</biblScope>
+			<biblScope unit="page" from="182" to="182" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<analytic>
+		<title level="a" type="main">Transferrin receptor 2 is frequently and highly expressed in glioblastomas</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Calzolari</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">M</forename><surname>Larocca</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Deaglio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Finisguerra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Boe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Raggi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Ricci-Vitani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Pierconti</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Malavasi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">D</forename><surname>Maria</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Translational Oncology</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="123" to="134" />
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<analytic>
+		<title level="a" type="main">What is the expectation maximization algorithm?</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">B</forename><surname>Do</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Batzoglou</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nature biotechnology</title>
+		<imprint>
+			<biblScope unit="volume">26</biblScope>
+			<biblScope unit="issue">8</biblScope>
+			<biblScope unit="page" from="897" to="899" />
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<analytic>
+		<title level="a" type="main">Gene set enrichment analysis: a knowledge-based approach for interpreting genome-wide expression profiles</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Subramanian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Tamayo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><forename type="middle">K</forename><surname>Mootha</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mukherjee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">L</forename><surname>Ebert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">A</forename><surname>Gillette</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Paulovich</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">L</forename><surname>Pomeroy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">R</forename><surname>Golub</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">S</forename><surname>Lander</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Proceedings of the National Academy of Sciences</title>
+		<imprint>
+			<biblScope unit="volume">102</biblScope>
+			<biblScope unit="issue">43</biblScope>
+			<biblScope unit="page" from="15" to="545" />
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<analytic>
+		<title level="a" type="main">Expression and regulation of xenobiotic-metabolizing cytochrome p450 (cyp) enzymes in human lung</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Hukkanen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Pelkonen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Hakkola</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Raunio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Critical Reviews in Toxicology</title>
+		<imprint>
+			<biblScope unit="volume">32</biblScope>
+			<biblScope unit="issue">5</biblScope>
+			<biblScope unit="page" from="391" to="411" />
+			<date type="published" when="2002" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b46">
+	<analytic>
+		<title level="a" type="main">Serum free fatty acid biomarkers of lung cancer</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">J</forename><surname>Mazzone</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">P</forename><surname>Cata</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kurz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Bauer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">J</forename><surname>Mascha</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">I</forename><surname>Sessler</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Chest</title>
+		<imprint>
+			<biblScope unit="volume">146</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="670" to="679" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b47">
+	<analytic>
+		<title level="a" type="main">Abnormal expression of genes that regulate retinoid metabolism and signaling in nonsmall-cell lung cancer</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">S</forename><surname>Kuznetsova</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><forename type="middle">L</forename><surname>Zinovieva</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><forename type="middle">Y</forename><surname>Oparina</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">M</forename><surname>Prokofjeva</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">V</forename><surname>Spirin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><forename type="middle">A</forename><surname>Favorskaya</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><forename type="middle">B</forename><surname>Zborovskaya</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><forename type="middle">A</forename><surname>Lisitsyn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><forename type="middle">S</forename><surname>Prassolov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">D</forename><surname>Mashkova</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Molecular Biology</title>
+		<imprint>
+			<biblScope unit="volume">50</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="220" to="229" />
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b48">
+	<analytic>
+		<title level="a" type="main">Sparse multinomial logistic regression via bayesian L1 regularisation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">C</forename><surname>Cawley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><forename type="middle">L</forename><surname>Talbot</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Girolami</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<biblScope unit="volume">19</biblScope>
+			<biblScope unit="page" from="209" to="216" />
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

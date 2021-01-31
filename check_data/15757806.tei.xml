@@ -1,0 +1,881 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Measuring abstract reasoning in neural networks</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><forename type="middle">G T</forename><surname>Barrett</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Felix</forename><surname>Hill</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adam</forename><surname>Santoro</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ari</forename><forename type="middle">S</forename><surname>Morcos</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Timothy</forename><surname>Lillicrap</surname></persName>
+						</author>
+						<title level="a" type="main">Measuring abstract reasoning in neural networks</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:45+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Whether neural networks can learn abstract reasoning or whether they merely rely on superficial statistics is a topic of recent debate. Here, we propose a dataset and challenge designed to probe abstract reasoning, inspired by a well-known human IQ test. To succeed at this challenge, models must cope with various generalisation &apos;regimes&apos; in which the training and test data differ in clearlydefined ways. We show that popular models such as ResNets perform poorly, even when the training and test sets differ only minimally, and we present a novel architecture, with a structure designed to encourage reasoning, that does significantly better. When we vary the way in which the test questions and training data differ, we find that our model is notably proficient at certain forms of generalisation, but notably weak at others. We further show that the model&apos;s ability to generalise improves markedly if it is trained to predict symbolic explanations for its answers. Altogether, we introduce and explore ways to both measure and induce stronger abstract reasoning in neural networks. Our freely-available dataset should motivate further progress in this direction.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.">Introduction</head><p>Abstract reasoning is a hallmark of human intelligence. A famous example is Einstein's elevator thought experiment, in which Einstein reasoned that an equivalence relation exists between an observer falling in uniform acceleration and an observer in a uniform gravitational field. It was the ability to relate these two abstract concepts that allowed him to derive the surprising predictions of general relativity, such as the curvature of space-time.</p><p>A human's capacity for abstract reasoning can be estimated *Equal contribution, ordered by surname. 1 DeepMind, London, United Kingdom. Correspondence to: &lt;{barrettdavid; felixhill; adamsantoro}@google.com&gt;. In (a) the underlying abstract rule is an arithmetic progression on the number of shapes along the columns. In (b) there is an XOR relation on the shape positions along the rows (panel 3 = XOR(panel 1, panel 2)). Other features such as shape type do not factor in. A is the correct choice for both. surprisingly effectively using simple visual IQ tests, such as Raven's Progressive Matrices (RPMs) ( <ref type="figure" target="#fig_0">Figure 1</ref>) <ref type="bibr" target="#b25">(Raven et al., 1938)</ref>. The premise behind RPMs is simple: one must reason about the relationships between perceptually obvious visual features -such as shape positions or line colors -to choose an image that completes the matrix. For example, perhaps the size of squares increases along the rows, and the correct image is that which adheres to this size relation. RPMs are strongly diagnostic of abstract verbal, spatial and mathematical reasoning ability, discriminating even among populations of highly educated subjects <ref type="bibr" target="#b27">(Snow et al., 1984)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Proceedings of the 35 th</head><p>Since one of the goals of AI is to develop machines with similar abstract reasoning capabilities to humans, to aid scientific discovery for instance, it makes sense to ask whether visual IQ tests can help to understand learning machines. Unfortunately, even in the case of humans such tests can be invalidated if subjects prepare too much, since test-specific heuristics can be learned that shortcut the need for generallyapplicable reasoning <ref type="bibr" target="#b29">(Te Nijenhuis et al., 2001;</ref><ref type="bibr" target="#b6">Flynn, 1987)</ref>. This potential pitfall is even more acute in the case of neural networks, given their striking capacity for memorization <ref type="bibr" target="#b32">(Zhang et al., 2016)</ref> and ability to exploit superficial statistical cues <ref type="bibr" target="#b14">(Jo &amp; Bengio, 2017;</ref><ref type="bibr" target="#b28">Szegedy et al., 2013)</ref>.</p><p>Nonetheless, we contend that visual intelligence tests can help to better understand learning and reasoning in machines <ref type="bibr" target="#b5">(Fleuret et al., 2011)</ref>, provided they are coupled with a principled treatment of generalisation. Suppose we are concerned with whether a model can robustly infer the notion of 'monotonically increasing'. In its most abstract form, this principle can apply to the quantity of shapes or lines, or even the intensity of their colour. We can construct training data that instantiates this notion for increasing quantities or sizes and we can construct test data that only involves increasing colour intensities. Generalisation to the test set would then be evidence of an abstract and flexible application of what it means to monotonically increase. In this way, a dataset with explicitly defined abstract semantics (e.g., relations, attributes, pixels, etc.), allows us to curate training and testing sets that precisely probe the generalisation dimensions of abstract reasoning in which we are interested.</p><p>To this end, we have developed a large dataset of abstract visual reasoning questions where the underlying abstract semantics can be precisely controlled. This approach allows us to address the following questions: (1) Can state-of-the-art neural networks find solutions -any solutions -to complex, human-challenging abstract reasoning tasks if trained with plentiful training data? (2) If so, how well does this capacity generalise when the abstract content of training data is specifically controlled for?</p><p>To begin, we describe and motivate our dataset, outline a procedure for automatic generation of data, and detail the generalisation regimes we chose to explore. Next, we establish a number of strong baselines, and show that well known architectures that use only convolutions, such as ResNet-50 <ref type="bibr" target="#b8">(He et al., 2016)</ref>, struggle. We designed a novel variant of the Relation Network <ref type="bibr" target="#b26">(Santoro et al., 2017;</ref><ref type="bibr" target="#b24">Raposo et al., 2017)</ref>, a neural network with specific structure designed to encourage relation-level comparisons and reasoning. We found that this model substantially outperforms other wellknown architectures. We then study this top-performing model on our proposed generalisation tests and find that it generalises well in certain test regimes (e.g. applying known abstract relationships in novel combinations), but fails notably in others (such as applying known abstract relationships to unfamiliar entities). Finally, we propose a means to improve generalisation: the use of auxiliary training to encourage our model to provide an explanation for its solutions.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">Procedurally generating matrices</head><p>In 1936 the psychologist John Raven introduced the now famous human IQ test: Raven's Progressive Matrices (RPM)</p><formula xml:id="formula_0">(a)<label>(b)</label></formula><p>Unary (progression on shape number) Binary (XOR on line type)</p><p>Ternary (consistent union on shape type) { { , , <ref type="figure">Figure 2</ref>. A difficult PGM and a depiction of relation types. (a) a challenging puzzle with multiple relations and distractor information. (b) a possible categorization of relation types based on how the panels are considered when computing the relation: for unary, a function is computed on one panel to produce the subsequent panel; for binary, two independently sampled panels are considered in conjunction to produce a third panel; and for ternary, all three panels adhere to some rule, such as all containing shapes from some common set, regardless of order. <ref type="bibr" target="#b25">(Raven et al., 1938)</ref>. RPMs consist of an incomplete 3 × 3 matrix of context images (see figure 1), and some (typically 8) candidate answer images. The subject must decide which of the candidate images is the most appropriate choice to complete the matrix.</p><p>It is thought that much of the power of RPMs as diagnostic of human intelligence derives from the way they probe eductive or fluid reasoning <ref type="bibr" target="#b13">(Jaeggi et al., 2008)</ref>. Since no definition of an 'appropriate" choice is provided, it is in possible in principle to come up with a reason supporting any of the candidate answers. To succeed, however, the subject must assess all candidate answers, all plausible justifications for those answers, and identify the answer with the strongest justification. In practice, the right answer tends to be the one that can be explained with the simplest justification using the basic relations underlying the matrices.</p><p>Although Raven hand-designed each of the matrices in his tests, later research typically employed some structured generative model to create large numbers of questions. In this setting, a potential answer is correct if it is consistent with the underlying generative model, and success rests on the ability to invert the model.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1.">Automatic generation of PGMs</head><p>Here we describe our process for creating RPM-like matrices. We call our dataset the Procedurally Generated Matrices (PGM) dataset. To generate PGMs, we take inspiration from <ref type="bibr" target="#b2">Carpenter et al. (1990)</ref>, who identified and catalogued the relations that commonly underlie RPMs, as well as <ref type="bibr" target="#b30">Wang &amp; Su (2015)</ref>, who outlined one process for creating an automatic generator.</p><p>The first step is to build an abstract structure for the matrices. This is done by randomly sampling from the following primitive sets:</p><p>• relation types (R, with elements r): progression, XOR, OR, AND, consistent union 1 • object types (O, with elements o): shape, line • attribute types (A, with elements a): size, type, colour, position, number</p><p>The structure S of a PGM is a set of triples, S = {[r, o, a] : r ∈ R, o ∈ O, a ∈ A}. These triples determine the challenge posed by a particular matrix. For instance, if S contains the triple [progression, shape, colour], the PGM will exhibit a progression relation, instantiated on the colour (greyscale intensity) of shapes. Challenging PGMs exhibit relations governed by multiple such triples: we permit up to four relations per matrix (1 ≤ |S| ≤ 4).</p><p>Each attribute type a ∈ A (e.g. colour) can take one of a finite number of discrete values v ∈ V (e.g. 10 integers between [0, 255] denoting greyscale intensity). So a given structure has multiple realisations depending on the randomly chosen values for the attribute types, but all of these realisations share the same underlying abstract challenge. The choice of r constrains the values of v that can be realized. For instance, if r is progression, the values of v must strictly increase along rows or columns in the matrix, but can vary randomly within this constraint. See the appendix for the full list of relations, attribute types, values, their hierarchical organisation, and other statistics of the dataset.</p><p>We use S a to denote the set of attributes among the triples in S. After setting values for the colour attribute, we then choose values for all other attributes a ∈ S a in one of two ways. In the distracting setting, we allow these values to vary at random provided that they do not induce any further meaningful relations. Otherwise, the a ∈ S a take a single value that remains consistent across the matrix (for example, perhaps all the shapes are the exact same size). Randomly varying values across the matrix is a type of distraction common to Raven's more difficult Progressive Matrices.</p><p>Thus, the generation process consists of: (1) Sampling 1-4 triples, (2) Sampling values v ∈ V for each a ∈ S a , adhering to the associated relation r, (3) Sampling values v ∈ V for each a ∈ S a , ensuring no spurious relation is induced, (4) Rendering the symbolic form into pixels.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2.">Generalisation Regimes</head><p>Generalisation in neural networks has been subject of lots of recent debate, with some emphasising the successes <ref type="bibr" target="#b18">(LeCun et al., 2015)</ref> and others the failures <ref type="bibr" target="#b7">(Garnelo et al., 2016;</ref><ref type="bibr" target="#b17">Lake &amp; Baroni, 2017;</ref><ref type="bibr" target="#b21">Marcus, 2018)</ref>. Our choice of regimes is informed by this, but is in no way exhaustive.</p><p>(1) Neutral In both training and test sets, the structures S can contain any triples [r, o, a] for r ∈ R, o ∈ O and a ∈ A. The training and test sets are disjoint, but this separation was at the level of the input variables (i.e., the pixel manifestations of the matrices).</p><p>(2) Interpolation;</p><p>(3) Extrapolation As in the neutral split, S consisted of any triples [r, o, a]. For interpolation, in the training set, when a = colour or a = size (the ordered attributes), the values of a were restricted to evenindexed members of the discrete set V a , whereas in the test set only odd-indexed values were permitted. For extrapolation, the values of a were restricted to the lower half of their discrete set of values V a during training, whereas in the test set they took values in the upper half. Note that all S contained some triple [r, o, a] with a = colour or a = size. Thus, generalisation is required for every question in the test set.</p><p>(4) Held-out Attribute shape-colour or (5) line-type S in the training set contained no triples with o = shape and a = colour. All structures governing puzzles in the test set contained at least one triple with o = shape and a = colour. For comparison, we included a similar split in which triples were held-out if o = line and a = type.</p><p>6: Held-out Triples In our dataset, there are 29 possible unique triples [r, o, a]. We allocated seven of these for the test set, at random, but such that each of the a ∈ A was represented exactly once in this set. These held-out triples never occurred in questions in the training set, and every S in the test set contained at least one of them.</p><p>7: Held-out Pairs of Triples All S contained at least two triples, of which 400 are viable 2 and number pairs</p><formula xml:id="formula_1">([r 1 , o 1 , a 1 ], [r 2 , o 2 , a 2 ]) = (t 1 , t 2 )</formula><p>. We randomly allocated 360 to the training set and 40 to the test set. Members (t 1 , t 2 ) of the 40 held-out pairs did not occur together in structures S in the training set, and all structures S had at least one such pair (t 1 , t 2 ) as a subset.</p><p>8: Held-out Attribute Pairs S contained at least two triples. There are 20 (unordered) viable pairs of attributes (a 1 , a 2 ) such that for some</p><formula xml:id="formula_2">r i , o i , ([r 1 , o 1 , a 1 ], [r 2 , o 2 , a 2 ])</formula><p>is a viable triple pair.</p><formula xml:id="formula_3">([r 1 , o 1 , a 1 ], [r 2 , o 2 , a 2 ]) = (t 1 , t 2 ).</formula><p>We allocated 16 of these pairs for training and four for testing. For a pair (a 1 , a 2 ) in the test set, S in the training set contained triples with a 1 and a 2 . In the test set, all S contained triples with a 1 and a 2 .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">Models and Experimental Setup</head><p>We first compared the performance of several standard deep neural networks on the neutral split of the PGM dataset. We also developed a novel architecture based on Relation Networks <ref type="bibr" target="#b26">(Santoro et al., 2017)</ref>, that we call the Wild Relation Network (WReN), named in recognition of Mary Wild who contributed to the development of Raven's progressive matrices along with her husband John Raven.</p><p>The input consisted of the eight context panels and eight multiple-choice panels. Each panel is an 80 × 80 pixel image; so, the panels were presented as a set of 16 feature maps.</p><p>Models were trained to produce the label of the correct missing panel as an output answer by optimising a softmax cross entropy loss. We trained all networks by stochastic gradient descent using the ADAM optimiser <ref type="bibr" target="#b16">(Kingma &amp; Ba, 2014</ref>). For each model, hyper-parameters were chosen using a grid sweep to select the model with smallest loss estimated on a held-out validation set. We used the validation loss for early-stopping and we report performance values on a held-out test set. For hyper-parameter settings and further details on all models see appendix A.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>CNN-MLP:</head><p>We implemented a standard four layer convolutional neural network with batch normalization and ReLU non-linearities <ref type="bibr" target="#b18">(LeCun et al., 2015)</ref>. The set of PGM input panels was treated as a set of separate greyscale input feature maps for the CNN. The convolved output was passed through a two-layer, fully connected MLP using a ReLU non-linearity between linear layers and dropout of 0.5 on the penultimate layer. Note that this is the type of model applied to Raven-style sequential reasoning questions by <ref type="bibr" target="#b12">Hoshen &amp; Werman (2017)</ref>.</p><p>ResNet: We used a standard implementation of the ResNet-50 architecture as described in <ref type="bibr" target="#b8">He et al. (2016)</ref>.</p><p>As before, each of the context panels and multiple-choice panels was treated as an input feature map. We also trained a selection of ResNet variants, including ResNet-101, ResNet-152, and several custom-built smaller ResNets. The best performing model was ResNet-50.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>LSTM:</head><p>We implemented a standard LSTM module <ref type="bibr" target="#b11">(Hochreiter &amp; Schmidhuber, 1997)</ref>, based on <ref type="bibr" target="#b31">Zaremba et al. (2014)</ref>. Since LSTMs are designed to process inputs sequentially, we first passed each panel (context panels and multiple choice panels) sequentially and independently through a small 4-layer CNN, tagged the CNN's output with a onehot label indicating the panel's position (the top left PGM panel is tagged with label 1, the top-middle PGM panel is tagged with label 2 etc.), and passed the resulting sequence of labelled embeddings to the LSTM. The final hidden state of the LSTM was passed through a linear layer to produce logits for the softmax cross entropy loss. The network was trained using batch normalization after each convolutional layer and drop-out was applied to the LSTM hidden state.</p><p>Wild Relation Network (WReN): Our novel WReN model ( <ref type="figure">fig. 3</ref>) applied a Relation Network module (Santoro et al., 2017) multiple times to infer the inter-panel relationships.</p><p>The model output a 1-d score s k for a given candidate multiple-choice panel, with label k ∈ <ref type="bibr">[1,</ref><ref type="bibr">8]</ref>. The choice with the highest score was selected as the answer a using a softmax function σ across all scores:</p><formula xml:id="formula_4">a = σ([s 1 , . . . , s 8 ]).</formula><p>The score of a given multiple-choice panel was evaluated using a Relation Network (RN):</p><formula xml:id="formula_5">s k = RN(X k ) = f φ y,z∈X k g θ (y, z) ,<label>(1)</label></formula><p>where</p><formula xml:id="formula_6">X k = {x 1 , x 2 , ..., x 8 } {c k }, c</formula><p>k is the vector representation of the multiple choice panel k, and x i the representation of context panel i. The input vector representations were produced by processing each panel independently through a small CNN and tagging it with a panel label, similar to the LSTM processing described above, followed by a linear projection. The functions f φ and g θ are MLPs.</p><p>The structure of the WReN model is well matched to the problem of abstract reasoning, because it forms representations of pair-wise relations (using g θ ), in this case, between each context panel and a given multiple choice candidate, and between context panels themselves. The function f φ integrates information about context-context relations and context-multiple-choice relations to provide a score. Also the WReN model calculates a score for each multiple-choice candidate independently, allowing the network to exploit weight-sharing across multiple-choice candidates.</p><p>Wild-ResNet: We also implemented a novel variant of the ResNet architecture in which one multiple-choice candidate panel, along with the eight context panels were provided as input, instead of providing all eight multiple-choices and eight context panels as input as in the standard ResNet. In + sigmoid <ref type="figure">Figure 3</ref>. WReN model A CNN processes each context panel and an individual answer choice panel independently to produce 9 vector embeddings. This set of embeddings is then passed to an RN, whose output is a single sigmoid unit encoding the "score" for the associated answer choice panel. 8 such passes are made through this network (here we only depict 2 for clarity), one for each answer choice, and the scores are put through a softmax function to determine the model's predicted answer.</p><p>this way, the Wild-ResNet is designed to provide a score for each candidate panel, independent of the other candidates. The candidate with the highest score is the output answer. This is similar to the WReN model described above, but using a ResNet instead of a Relation Network for computing a candidate score.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Context-blind ResNet:</head><p>A fully-blind model should be at chance performance level, which for the PGM task is 12.5%. However, sufficiently strong models can learn to exploit statistical regularities in multiple-choice problems using the choice inputs alone, without considering the context <ref type="bibr" target="#b15">(Johnson et al., 2017)</ref>. To understand the extent to which this was possible, we trained a ResNet-50 model with only the eight multiple-choice panels as input.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1.">Training on auxiliary information</head><p>We explored auxiliary training as a means to improve generalisation performance. We hypothesized that a model trained to predict the relevant relation, object and attribute types involved in each PGM might develop representations that were more amenable to generalisation. To test this, we constructed "meta-targets" encoding the relation, object and attribute types present in PGMs as a binary string. The strings were of length 12, with elements following the syntax: (shape, line, color, number, position, size, type, progression, XOR, OR, AND, consistent union). We encoded each triple in this binary form, then performed an OR operation across all binary-encoded triple to produce the metatarget. That is, OR([101000010000], [100100010000]) = [101100010000]. The models then predicted these labels using a sigmoid unit for each element, trained with cross entropy. A scaling factor β determined the influence of this loss relative to the loss computed for the answer panel targets: L total = L target + βL meta-target . We set β to a non-zero value when we wish to explore the impact of auxiliary meta-target training.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">Experiments</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.">Comparing models on PGM questions</head><p>We first compared all models on the Neutral train/test split, which corresponds most closely to traditional supervised learning regimes. Perhaps surprisingly given their effectiveness as powerful image processors, CNN models failed almost completely at PGM reasoning problems <ref type="table">(Table 1)</ref>, achieving performance marginally better than our baselinethe context-blind ResNet model which is blind to the context and trained on only the eight candidate answers. The ability of the LSTM to consider individual candidate panels in sequence yielded a small improvement relative to the CNN. The best performing ResNet variant was ResNet-50, which outperformed the LSTM. ResNet-50 has significantly more convolutional layers than our simple CNN model, and hence has a greater capacity for reasoning about its input features. The best performing model was the WReN model. This strong performance may be partly due to the Relation Network module, which was was designed explicitly for reasoning about the relations between objects, and partly due to the scoring structure. Note that the scoring structure is not sufficient to explain the improved performance as  the WReN model substantially outperformed the best Wild-ResNet model, which also had a scoring structure.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.">Performance on different question types</head><p>Questions involving a single [r, o, a] triple were easier than those involving multiple triples. Interestingly, PGMs with three triples proved more difficult than those with four. Although the problem is apparently more complex with four triples, there is also more available evidence for any solution. Among PGMs involving a single triple, OR (64.7%) proved to be an easier relation than XOR (53.2%). PGMs with structures involving lines (78.3%) were easier than those involving shapes (46.2%) and those involving shape-number were much easier (80.1%) than those involving shape-size (26.4%).This suggests that the model struggled to discern fine-grained differences in size compared to more salient changes such as the absence or presence of lines, or the quantity of shapes. For more details of performance by question type, see Appendix <ref type="table">Tables 7, 8</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3.">Effect of distractors</head><p>The results reported thus far were on questions that included distractor attribute values (see <ref type="figure" target="#fig_3">Fig. 4</ref>). The WReN model performed notably better when these distractors were removed (79.3% on the validation and 78.3% on the test set, compared with 63.0% and 62.6% with distractors).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.4.">Generalisation</head><p>We compared the best performing WReN model on each of the generalisation regimes <ref type="table">(Table 1)</ref>, and observed notable differences in the ability of the model to generalise. Interpo-lation was the least problematic regime (generalisation error 14.6%). Note that performance on both the Interpolation and Extrapolation training sets was higher than on the neutral training set because certain attributes (size, colour) have half as many values in those cases, which reduces the complexity of the task. 3</p><p>After Interpolation, the model generalised best in regimes where the test questions involved novel combinations of otherwise familiar [r, o, a] triples (Held-out Attribute Pairs and Held-out Triple Pairs). This indicates that the model learned to combine relations and attributes, and did not simply memorize combinations of triples as distinct structures in their own right. However, worse generalisation in the case of Held-out Triples suggests that the model was less able to induce the meaning of unfamiliar triples from its knowledge of their constituent components. Moreover, it could not understand relations instantiated on entirely novel attributes (Heldout line-type , Held-out shape-colour). The worst generalisation was observed on the Extrapolation regime. Given that these questions have the same abstract semantic structure as interpolation questions, the failure to generalise may stem from the model's failure to perceive inputs outside of the range of its prior experience.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.5.">Effect of auxiliary training</head><p>We then explored the impact of auxiliary training on abstract reasoning and generalisation by training our models with symbolic meta targets as described in Section 3.1. In the neutral regime, we found that auxiliary training led to a 13.9% improvement in test accuracy. Critically, this improvement in the overall ability of the model to capture the data also applied to other generalisation regimes. The difference was clearest in the cases where the model was required to recombine familiar triples into novel combinations: (56.3% accuracy on Held-out triple pairs, up from 41.9%, and 51.7% accuracy on Held-out attribute pairs, up from 27.2%). Thus, the pressure to represent abstract semantic principles such that they can be decoded simply into discrete symbolic explanations seems to improve the ability of the model to productively compose its knowledge. This finding aligns with previous observations about the benefits of discrete channels for knowledge representation <ref type="bibr" target="#b0">(Andreas et al., 2016)</ref> and the benefit of inducing explanations or rationales <ref type="bibr" target="#b19">(Ling et al., 2017)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.6.">Analysis of auxiliary training</head><p>In addition to improving performance, training with metatargets provides a means to measure which shapes, attributes,  <ref type="table">Table 1</ref>. Performance of all models on the neutral split (left), and generalisation performance of the WReN model (right) with generalisation regimes ordered according to generalisation error for β = 0. Context-blind ResNet generalisation test performances for all regimes is given in <ref type="table">Table 9</ref> of the Appendix. (Diff: difference between test and validation performance, H.O:"Held-out") and relations the model believes are present in a given PGM, providing insight into the model's decisions. Using these predictions, we asked how the WReN model's accuracy varied as a function of its meta-target predictions. Unsurprisingly, the WReN model achieved a test accuracy of 87.4% when its meta-target predictions were correct, compared to only 34.8% when its predictions were incorrect.</p><p>The meta-target prediction can be broken down into predictions of object, attribute, and relation types. We leveraged these fine-grained predictions to ask how the WReN model's accuracy varied as a function of its predictions on each of these properties independently. The model accuracy increased somewhat when the shape meta-target prediction was correct (78.2%) compared to being incorrect (62.2%), and when attribute meta-target prediction was correct (79.5%) compared to being incorrect (49.0%). However, for the relation property, the difference between a correct and incorrect meta-target prediction was substantial (86.8% vs. 32.1%). This result suggests that predicting the relation property correctly is most critical to task success.</p><p>The model's prediction certainty, defined as the mean absolute difference of the meta-target predictions from 0.5, was predictive of the model's performance, suggesting that the meta-target prediction certainty is an accurate measure of the model's confidence in an answer choice ( <ref type="figure">Figure 5</ref>; qualitatively similar for sub-targets; Appendix <ref type="figure">Figures 6-8</ref>).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.">Related work</head><p>Various computational models for solving RPMs have been proposed in the cognitive science literature (see <ref type="bibr" target="#b20">(Lovett &amp; Forbus, 2017)</ref> for a thorough review). The emphasis in these studies is on understanding the operations and comparisons commonly applied by humans. They typically factor out raw perception in favour of symbolic inputs, and hard-code strategies described by cognitive theories. In contrast, we <ref type="figure">Figure 5</ref>. Relationship between answer accuracy and metatarget prediction certainty for the WReN model (β = 10). The WReN model is more accurate when it is more confident about its meta-target predictions. Certainty was defined as the mean absolute difference of the meta-target predictions from 0.5.</p><p>consider models that process input from raw pixels and study how they infer, from knowledge of the correct answer, the processes and representations necessary to resolve the task. Much as we do, <ref type="bibr" target="#b12">Hoshen &amp; Werman (2017)</ref> trained neural networks to complete the rows or columns of Ravenstyle matrices from raw pixels. They found that a CNNbased model induced visual relations such as rotation or reflection, but they did not address the problem of resolving complete RPMs. Our experiments showed that such models perform poorly on full RPM questions. Moreover, Hoshen &amp; Werman (2017) do not study generalisation to questions that differ substantively from their training data. <ref type="bibr" target="#b30">Wang &amp; Su (2015)</ref> present a method for automatically generating Ravenstyle matrices and verify their generator on humans, but do not attempt any modelling. Our method for automatically generating RPM-style questions borrowed extensively from the insights in that work.</p><p>There is prior work emphasising both the advantages <ref type="bibr" target="#b3">(Clark &amp; Etzioni, 2016)</ref> and limitations <ref type="bibr" target="#b4">(Davis, 2014)</ref> of apply-ing standardized tests in AI (see <ref type="bibr" target="#b22">Marcus et al. (2016)</ref> and contributed articles for a review). Approaches based on standardized testing generally focus on measuring the general knowledge of systems, while we focus on models' abilities to generalize learned information.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.">Discussion</head><p>One of the long-standing goals of artificial intelligence is to develop machines with abstract reasoning capabilities that equal or better those of humans. Though there has also been substantial progress in both reasoning and abstract representation learning in neural nets <ref type="bibr" target="#b1">(Botvinick et al., 2017;</ref><ref type="bibr" target="#b18">LeCun et al., 2015;</ref><ref type="bibr" target="#b9">Higgins et al., 2016;</ref>, the extent to which these models exhibit anything like general abstract reasoning is the subject of much debate <ref type="bibr" target="#b7">(Garnelo et al., 2016;</ref><ref type="bibr" target="#b17">Lake &amp; Baroni, 2017;</ref><ref type="bibr" target="#b21">Marcus, 2018)</ref>. The research presented here was therefore motivated by two main goals. (1) To understand whether, and (2) to understand how, deep neural networks might be able to solve abstract visual reasoning problems.</p><p>Our answer to (1) is that, with important caveats, neural networks can indeed learn to infer and apply abstract reasoning principles. Our best performing model learned to solve complex visual reasoning questions, and to do so, it needed to induce and detect from raw pixel input the presence of abstract notions such as logical operations and arithmetic progressions, and apply these principles to never-before observed stimuli. Importantly, we found that the architecture of the model made a critical difference to its ability to learn and execute such processes. While standard visualprocessing models such as CNNs and ResNets performed poorly, a model that promoted the representation of, and comparison between parts of the stimuli performed very well. We found ways to improve this performance via additional supervision: the training outcomes and the model's ability to generalise were improved if it was required to decode its representations into symbols corresponding to the reason behind the correct answer.</p><p>When considering (2), it is important to note that our models were solving a very different problem from that solved by human subjects taking Raven-style IQ tests. The model's world was highly constrained, and its experience consisted of a small number of possible relations instantiated in finite sets of attributes and values across hundreds of thousands of examples. It is highly unlikely that the model's solutions match those applied by successful humans. This difference becomes clear when we study the ability of the model to generalise. Unlike humans, who must transfer knowledge distilled from their experience in everyday life to the unfamiliar setting of visual reasoning problems, our models exhibited transfer across question sets with a high degree of perceptual and structural uniformity. When required to interpolate between known attribute values, and also when applying known abstract content in unfamiliar combinations, the models generalised notably well. Even within this constrained domain, however, they performed strikingly poorly when required to extrapolate to inputs beyond their experience, or to deal with entirely unfamiliar attributes.</p><p>In this latter behaviour, the model differs in a crucial way from humans; a human that could apply a relation such as XOR to the colour of lines would almost certainly have no trouble applying it to the colour of shapes. On the other hand, even the human ability to extend apparently welldefined principles to novel objects has limits; this is precisely why RPMs are such an effective discriminator of human IQ. For instance, a human subject might be uncertain what it means to apply XOR to the size or shape of sets of objects, even if he or she had learned to do so perfectly in the case of colors.</p><p>An important contribution of this work is the introduction of the PGM dataset, as a tool for studying both abstract reasoning and generalisation in models. Generalisation is a multi-faceted phenomenon; there is no single, objective way in which models can or should generalise beyond their experience. The PGM dataset provides a means to measure the generalization ability of models in different ways, each of which may be more or less interesting to researchers depending on their intended training setup and applications.</p><p>Designing and instantiating meaningful train/test distinctions to study generalisation in the PGM dataset was simplified by the objective semantics of the underlying generative model. Similar principles could be applied to more naturalistic data, particularly with crowdsourced human input. For instance, image processing models could be trained to identify black horses and tested on whether they can detect white horses, or trained to detect flying seagulls, flying sparrows and nesting seagulls, and tested on the detection of nesting sparrows. This approach was taken for one particular generalisation regime by <ref type="bibr" target="#b23">Ramakrishnan et al. (2017)</ref>, who tested VQA models on images containing objects that were not observed in the training data. The PGM dataset extends and formalises this approach, with regimes that focus not only on how models could respond to novel factors or classes in the data, but also novel combinations of known factors etc.</p><p>In the next stage of this research, we will explore strategies for improving generalisation, such as meta-learning, and will further explore the use of richly structured, yet generally applicable, inductive biases. We also hope to develop a deeper understanding of the solutions learned by the WReN model when solving Raven-style matrices. Finally, we wish to end by inviting our colleagues across the machine learning community to participate in our new abstract reasoning challenge.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 .</head><label>1</label><figDesc>International Conference on Machine Learning, Stockholm, Sweden, PMLR 80, 2018. Copyright 2018 by the author(s). Raven-style Progressive Matrices.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 4 .</head><label>4</label><figDesc>The effect of distraction. In both PGMs, the underlying structure S is[[shape, colour, consistent  union]], but (b) includes distraction on shape-number, shape-type, line-color, and line-type.</figDesc></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="1">Consistent union is a relation wherein the three panels contain elements from some common set, e.g., shape types {square, circle, triangle }. The ordering of the panels containing the elements does not matter.</note>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="2">Certain triples, such as [progression, shape, number] and [progression, shape, XOR] cannot occur together in the same PGM</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>ACKNOWLEDGMENTS</head><p>We would like to thank Daniel Zoran, Murray Shanahan, Sergio Gomez, Yee Whye Teh and Daan Wierstra for helpful discussions and all the DeepMind team for their support.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<title level="m" type="main">Modular multitask reinforcement learning with policy sketches</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Andreas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Klein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Levine</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1611.01796</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<monogr>
+		<title level="m" type="main">Building machines that learn and think for themselves</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Botvinick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Barrett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Battaglia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>De Freitas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Kumaran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Leibo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Lillicrap</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Modayil</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mohamed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Rabinowitz</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1711.08378</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">What one intelligence test measures: a theoretical account of the processing in the raven progressive matrices test</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">A</forename><surname>Carpenter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">A</forename><surname>Just</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Shell</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Psychological review</title>
+		<imprint>
+			<biblScope unit="volume">97</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page">404</biblScope>
+			<date type="published" when="1990" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<monogr>
+		<title level="m" type="main">My computer is an honor studentbut how intelligent is it? standardized tests as a measure of ai</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Clark</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Etzioni</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="volume">37</biblScope>
+			<biblScope unit="page" from="5" to="12" />
+			<pubPlace>AI Magazine</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<monogr>
+		<title level="m" type="main">The limitations of standardized science tests as benchmarks for artificial intelligence research: Position paper</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Davis</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1411.1629</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Comparing machines and humans on a visual categorization test</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Fleuret</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Dubout</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">K</forename><surname>Wampler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Yantis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Geman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Proceedings of the National Academy of Sciences</title>
+		<imprint>
+			<biblScope unit="volume">108</biblScope>
+			<biblScope unit="issue">43</biblScope>
+			<biblScope unit="page" from="17621" to="17625" />
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Massive iq gains in 14 nations: What iq tests really measure</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">R</forename><surname>Flynn</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Psychological bulletin</title>
+		<imprint>
+			<biblScope unit="volume">101</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page">171</biblScope>
+			<date type="published" when="1987" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Garnelo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Arulkumaran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Shanahan</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1609.05518</idno>
+		<title level="m">Towards deep symbolic reinforcement learning</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Deep residual learning for image recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the IEEE conference on computer vision and pattern recognition</title>
+		<meeting>the IEEE conference on computer vision and pattern recognition</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="770" to="778" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Higgins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Matthey</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Pal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Burgess</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Glorot</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Botvinick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mohamed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lerchner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Betavae</surname></persName>
+		</author>
+		<title level="m">Learning basic visual concepts with a constrained variational framework</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Higgins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Sonnerat</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Matthey</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Pal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">P</forename><surname>Burgess</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Botvinick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Hassabis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lerchner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Scan</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1707.03389</idno>
+		<title level="m">learning abstract hierarchical compositional visual concepts</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Long short-term memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Hochreiter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schmidhuber</surname></persName>
+		</author>
+		<idno type="DOI">10.1162/neco.1997.9.8.1735</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Neural Comput</title>
+		<imprint>
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="issue">8</biblScope>
+			<biblScope unit="page" from="1735" to="1780" />
+			<date type="published" when="1997-11" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Hoshen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Werman</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1710.01692</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Improving fluid intelligence with training on working memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">M</forename><surname>Jaeggi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Buschkuehl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Jonides</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><forename type="middle">J</forename><surname>Perrig</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Proceedings of the National Academy of Sciences</title>
+		<imprint>
+			<biblScope unit="volume">105</biblScope>
+			<biblScope unit="issue">19</biblScope>
+			<biblScope unit="page" from="6829" to="6833" />
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<monogr>
+		<title level="m" type="main">Measuring the tendency of cnns to learn surface statistical regularities</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Jo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1711.11561</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Clevr: A diagnostic dataset for compositional language and elementary visual reasoning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Johnson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Hariharan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Van Der Maaten</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Fei-Fei</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">L</forename><surname>Zitnick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Girshick</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Computer Vision and Pattern Recognition (CVPR), 2017 IEEE Conference on</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="1988" to="1997" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Ba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Adam</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.6980</idno>
+		<title level="m">A method for stochastic optimization</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<title level="m" type="main">Still not systematic after all these years: On the compositional skills of sequence-to-sequence recurrent networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">M</forename><surname>Lake</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Baroni</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1711.00350</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<monogr>
+		<title level="m" type="main">Deep learning. nature</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="volume">521</biblScope>
+			<biblScope unit="page">436</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<title level="m" type="main">Program induction by rationale generation: Learning to solve and explain algebraic word problems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Ling</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Yogatama</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Dyer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Blunsom</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1705.04146</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Modeling visual problem solving as analogical reasoning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lovett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Forbus</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Psychological review</title>
+		<imprint>
+			<biblScope unit="volume">124</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page">60</biblScope>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<monogr>
+		<title level="m" type="main">Deep learning: A critical appraisal</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Marcus</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1801.00631</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<monogr>
+		<title level="m" type="main">Beyond the turing test</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Marcus</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Rossi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Veloso</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="volume">37</biblScope>
+			<biblScope unit="page" from="3" to="4" />
+			<pubPlace>Ai Magazine</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<monogr>
+		<title level="m" type="main">An empirical evaluation of visual question answering for novel objects</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">K</forename><surname>Ramakrishnan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Pal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Sharma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Mittal</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1704.02516</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<monogr>
+		<title level="m" type="main">Discovering objects and their relations from entangled scene representations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Raposo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Santoro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Barrett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Lillicrap</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Battaglia</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Raven&apos;s progressive matrices</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">C</forename><surname>Raven</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Western Psychological Services</title>
+		<imprint>
+			<date type="published" when="1938" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">A simple neural network module for relational reasoning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Santoro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Raposo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">G</forename><surname>Barrett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Malinowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Battaglia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Lillicrap</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="4974" to="4983" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">The topography of ability and learning correlations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">E</forename><surname>Snow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">C</forename><surname>Kyllonen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Marshalek</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in the psychology of human intelligence</title>
+		<imprint>
+			<date type="published" when="1984" />
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page">103</biblScope>
+		</imprint>
+	</monogr>
+	<note>S 47</note>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Szegedy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Zaremba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Bruna</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Erhan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Goodfellow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Fergus</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename></persName>
+		</author>
+		<idno type="arXiv">arXiv:1312.6199</idno>
+		<title level="m">Intriguing properties of neural networks</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Practice and coaching on iq tests: Quite a lot of g</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Te Nijenhuis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><forename type="middle">F</forename><surname>Voskuijl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><forename type="middle">B</forename><surname>Schijve</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">International Journal of Selection and Assessment</title>
+		<imprint>
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="issue">4</biblScope>
+			<biblScope unit="page" from="302" to="308" />
+			<date type="published" when="2001" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Automatic generation of ravens progressive matrices</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Su</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Twenty-Fourth International Joint Conference on Artificial Intelligence</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Zaremba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Vinyals</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1409.2329</idno>
+		<title level="m">Recurrent neural network regularization</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<monogr>
+		<title level="m" type="main">Understanding deep learning requires rethinking generalization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Hardt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Recht</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Vinyals</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1611.03530</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

@@ -1,0 +1,595 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Variational Dropout and the Local Reparameterization Trick</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Diederik</forename><forename type="middle">P</forename><surname>Kingma</surname></persName>
+							<email>d.p.kingma@uva.nl</email>
+							<affiliation key="aff0">
+								<orgName type="laboratory">Machine Learning Group</orgName>
+								<orgName type="institution">University of Amsterdam ⇥ Algoritmica † University of California</orgName>
+								<address>
+									<settlement>Irvine</settlement>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tim</forename><surname>Salimans</surname></persName>
+							<email>salimans.tim@gmail.com</email>
+							<affiliation key="aff0">
+								<orgName type="laboratory">Machine Learning Group</orgName>
+								<orgName type="institution">University of Amsterdam ⇥ Algoritmica † University of California</orgName>
+								<address>
+									<settlement>Irvine</settlement>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Max</forename><surname>Welling</surname></persName>
+							<email>m.welling@uva.nl</email>
+							<affiliation key="aff0">
+								<orgName type="laboratory">Machine Learning Group</orgName>
+								<orgName type="institution">University of Amsterdam ⇥ Algoritmica † University of California</orgName>
+								<address>
+									<settlement>Irvine</settlement>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Variational Dropout and the Local Reparameterization Trick</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:46+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>We investigate a local reparameterizaton technique for greatly reducing the variance of stochastic gradients for variational Bayesian inference (SGVB) of a posterior over model parameters, while retaining parallelizability. This local reparameterization translates uncertainty about global parameters into local noise that is independent across datapoints in the minibatch. Such parameterizations can be trivially parallelized and have variance that is inversely proportional to the minibatch size, generally leading to much faster convergence. Additionally, we explore a connection with dropout: Gaussian dropout objectives correspond to SGVB with local reparameterization, a scale-invariant prior and proportionally fixed posterior variance. Our method allows inference of more flexibly parameterized posteriors; specifically, we propose variational dropout, a generalization of Gaussian dropout where the dropout rates are learned, often leading to better models. The method is demonstrated through several experiments.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>Deep neural networks are a flexible family of models that easily scale to millions of parameters and datapoints, but are still tractable to optimize using minibatch-based stochastic gradient ascent. Due to their high flexibility, neural networks have the capacity to fit a wide diversity of nonlinear patterns in the data. This flexbility often leads to overfitting when left unchecked: spurious patterns are found that happen to fit well to the training data, but are not predictive for new data. Various regularization techniques for controlling this overfitting are used in practice; a currently popular and empirically effective technique being dropout <ref type="bibr" target="#b9">[10]</ref>. In <ref type="bibr" target="#b21">[22]</ref> it was shown that regular (binary) dropout has a Gaussian approximation called Gaussian dropout with virtually identical regularization performance but much faster convergence. In section 5 of <ref type="bibr" target="#b21">[22]</ref> it is shown that Gaussian dropout optimizes a lower bound on the marginal likelihood of the data. In this paper we show that a relationship between dropout and Bayesian inference can be extended and exploited to greatly improve the efficiency of variational Bayesian inference on the model parameters. This work has a direct interpretation as a generalization of Gaussian dropout, with the same fast convergence but now with the freedom to specify more flexibly parameterized posterior distributions.</p><p>Bayesian posterior inference over the neural network parameters is a theoretically attractive method for controlling overfitting; exact inference is computationally intractable, but efficient approximate schemes can be designed. Markov Chain Monte Carlo (MCMC) is a class of approximate inference methods with asymptotic guarantees, pioneered by <ref type="bibr" target="#b15">[16]</ref> for the application of regularizing neural networks. Later useful refinements include <ref type="bibr" target="#b22">[23]</ref> and <ref type="bibr" target="#b0">[1]</ref>.</p><p>An alternative to MCMC is variational inference <ref type="bibr" target="#b10">[11]</ref> or the equivalent minimum description length (MDL) framework. Modern variants of stochastic variational inference have been applied to neural networks with some succes <ref type="bibr" target="#b7">[8]</ref>, but have been limited by high variance in the gradients. Despite their theoretical attractiveness, Bayesian methods for inferring a posterior distribution over neural network <ref type="bibr">weights</ref> have not yet been shown to outperform simpler methods such as dropout. Even a new crop of efficient variational inference algorithms based on stochastic gradients with minibatches of data <ref type="bibr" target="#b13">[14,</ref><ref type="bibr" target="#b16">17,</ref><ref type="bibr" target="#b18">19]</ref> have not yet been shown to significantly improve upon simpler dropout-based regularization.</p><p>In section 2 we explore an as yet unexploited trick for improving the efficiency of stochastic gradientbased variational inference with minibatches of data, by translating uncertainty about global parameters into local noise that is independent across datapoints in the minibatch. The resulting method has an optimization speed on the same level as fast dropout <ref type="bibr" target="#b21">[22]</ref>, and indeed has the original Gaussian dropout method as a special case. An advantage of our method is that it allows for full Bayesian analysis of the model, and that it's significantly more flexible than standard dropout. The approach presented here is closely related to several popular methods in the literature that regularize by adding random noise; these relationships are discussed in section 4.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Efficient and Practical Bayesian Inference</head><p>We consider Bayesian analysis of a dataset D, containing a set of N i.i.d. observations of tuples (x, y), where the goal is to learn a model with parameters or weights w of the conditional probability p(y|x, w) (standard classification or regression) <ref type="bibr" target="#b0">1</ref> . Bayesian inference in such a model consists of updating some initial belief over parameters w in the form of a prior distribution p(w), after observing data D, into an updated belief over these parameters in the form of (an approximation to) the posterior distribution p(w|D). Computing the true posterior distribution through Bayes' rule p(w|D) = p(w)p(D|w)/p(D) involves computationally intractable integrals, so good approximations are necessary. In variational inference, inference is cast as an optimization problem where we optimize the parameters of some parameterized model q (w) such that q (w) is a close approximation to p(w|D) as measured by the Kullback-Leibler divergence D KL (q (w)||p(w|D)). This divergence of our posterior q (w) to the true posterior is minimized in practice by maximizing the so-called variational lower bound L( ) of the marginal likelihood of the data:</p><formula xml:id="formula_0">L( ) = D KL (q (w)||p(w)) + L D ( )<label>(1)</label></formula><p>where</p><formula xml:id="formula_1">L D ( ) = X (x,y)2D E q (w) [log p(y|x, w)]<label>(2)</label></formula><p>We'll call L D ( ) the expected log-likelihood. The bound L( ) plus D KL (q (w)||p(w|D)) equals the (conditional) marginal log-likelihood P (x,y)2D log p(y|x). Since this marginal log-likelihood is constant w.r.t. , maximizing the bound w.r.t. will minimize D KL (q (w)||p(w|D)).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1">Stochastic Gradient Variational Bayes (SGVB)</head><p>Various algorithms for gradient-based optimization of the variational bound (eq. (1)) with differentiable q and p exist. See section 4 for an overview. A recently proposed efficient method for minibatch-based optimization with differentiable models is the stochastic gradient variational Bayes (SGVB) method introduced in <ref type="bibr" target="#b13">[14]</ref> (especially appendix F) and <ref type="bibr" target="#b16">[17]</ref>. The basic trick in SGVB is to parameterize the random parameters w ⇠ q (w) as: w = f (✏, ) where f (.) is a differentiable function and ✏ ⇠ p(✏) is a random noise variable. In this new parameterisation, an unbiased differentiable minibatch-based Monte Carlo estimator of the expected log-likelihood can be formed:</p><formula xml:id="formula_2">L D ( ) ' L SGVB D ( ) = N M M X i=1 log p(y i |x i , w = f (✏, )),<label>(3)</label></formula><p>where</p><formula xml:id="formula_3">(x i , y i ) M i=1</formula><p>is a minibatch of data with M random datapoints (x i , y i ) ⇠ D, and ✏ is a noise vector drawn from the noise distribution p(✏). We'll assume that the remaining term in the variational lower bound, D KL (q (w)||p(w)), can be computed deterministically, but otherwise it may be approximated similarly. The estimator (3) is differentiable w.r.t. and unbiased, so its gradient is also unbiased:</p><formula xml:id="formula_4">r L D ( ) ' r L SGVB D ( ).</formula><p>We can proceed with variational Bayesian inference by randomly initializing and performing stochastic gradient ascent on L( ) (1).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">Variance of the SGVB estimator</head><p>The theory of stochastic approximation tells us that stochastic gradient ascent using (3) will asymptotically converge to a local optimum for an appropriately declining step size and sufficient weight updates <ref type="bibr" target="#b17">[18]</ref>, but in practice the performance of stochastic gradient ascent crucially depends on the variance of the gradients. If this variance is too large, stochastic gradient descent will fail to make much progress in any reasonable amount of time. Our objective function consists of an expected log likelihood term that we approximate using Monte Carlo, and a KL divergence term D KL (q (w)||p(w)) that we assume can be calculated analytically and otherwise be approximated with Monte Carlo with similar reparameterization.</p><p>Assume that we draw minibatches of datapoints with replacement; see appendix F for a similar analysis for minibatches without replacement. Using L i as shorthand for log p(y i |x i , w = f (✏ i , )), the contribution to the likelihood for the i-th datapoint in the minibatch, the Monte Carlo estimator (3) may be rewritten as</p><formula xml:id="formula_5">L SGVB D ( ) = N M P M i=1 L i , whose variance is given by Var ⇥ L SGVB D ( ) ⇤ = N 2 M 2 ⇣ M X i=1 Var [L i ] + 2 M X i=1 M X j=i+1 Cov [L i , L j ] ⌘ (4) =N 2 ⇣ 1 M Var [L i ] + M 1 M Cov [L i , L j ] ⌘ ,<label>(5)</label></formula><p>where the variances and covariances are w.r.t. both the data distribution and</p><formula xml:id="formula_6">✏ distribution, i.e. Var [L i ] = Var ✏,x i ,y i ⇥ log p(y i |x i , w = f (✏, )) ⇤</formula><p>, with x i , y i drawn from the empirical distribution defined by the training set. As can be seen from (5), the total contribution to the variance by Var [L i ] is inversely proportional to the minibatch size M . However, the total contribution by the covariances does not decrease with M . In practice, this means that the variance of L SGVB D ( ) can be dominated by the covariances for even moderately large M .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.3">Local Reparameterization Trick</head><p>We therefore propose an alternative estimator for which we have Cov [L i , L j ] = 0, so that the variance of our stochastic gradients scales as 1/M . We then make this new estimator computationally efficient by not sampling ✏ directly, but only sampling the intermediate variables f (✏) through which ✏ influences L SGVB D ( ). By doing so, the global uncertainty in the weights is translated into a form of local uncertainty that is independent across examples and easier to sample. We refer to such a reparameterization from global noise to local noise as the local reparameterization trick. Whenever a source of global noise can be translated to local noise in the intermediate states of computation (✏ ! f (✏)), a local reparameterization can be applied to yield a computationally and statistically efficient gradient estimator.</p><p>Such local reparameterization applies to a fairly large family of models, but is best explained through a simple example: Consider a standard fully connected neural network containing a hidden layer consisting of 1000 neurons. This layer receives an M ⇥ 1000 input feature matrix A from the layer below, which is multiplied by a 1000 ⇥ 1000 weight matrix W, before a nonlinearity is applied, i.e. B = AW. We then specify the posterior approximation on the weights to be a fully factorized Gaussian, i.e. q (w i,j ) = N (µ i,j , 2 i,j ) 8w i,j 2 W, which means the weights are sampled as</p><formula xml:id="formula_7">w i,j = µ i,j + i,j ✏ i,j , with ✏ i,j ⇠ N (0, 1).</formula><p>In this case we could make sure that Cov [L i , L j ] = 0 by sampling a separate weight matrix W for each example in the minibatch, but this is not computationally efficient: we would need to sample M million random numbers for just a single layer of the neural network. Even if this could be done efficiently, the computation following this step would become much harder: Where we originally performed a simple matrix-matrix product of the form B = AW, this now turns into M separate local vector-matrix products. The theoretical complexity of this computation is higher, but, more importantly, such a computation can usually not be performed in parallel using fast device-optimized BLAS (Basic Linear Algebra Subprograms). This also happens with other neural network architectures such as convolutional neural networks, where optimized libraries for convolution cannot deal with separate filter matrices per example.</p><p>Fortunately, the weights (and therefore ✏) only influence the expected log likelihood through the neuron activations B, which are of much lower dimension. If we can therefore sample the random activations B directly, without sampling W or ✏, we may obtain an efficient Monte Carlo estimator at a much lower cost. For a factorized Gaussian posterior on the weights, the posterior for the activations (conditional on the input A) is also factorized Gaussian:</p><formula xml:id="formula_8">q (w i,j ) = N (µ i,j , 2 i,j ) 8w i,j 2 W =) q (b m,j |A) = N ( m,j , m,j ), with m,j = 1000 X i=1 a m,i µ i,j , and m,j = 1000 X i=1 a 2 m,i 2 i,j .<label>(6)</label></formula><p>Rather than sampling the Gaussian weights and then computing the resulting activations, we may thus sample the activations from their implied Gaussian distribution directly, using</p><formula xml:id="formula_9">b m,j = m,j + p m,j ⇣ m,j , with ⇣ m,j ⇠ N (0, 1).</formula><p>Here, ⇣ is an M ⇥ 1000 matrix, so we only need to sample M thousand random variables instead of M million: a thousand fold savings.</p><p>In addition to yielding a gradient estimator that is more computationally efficient than drawing separate weight matrices for each training example, the local reparameterization trick also leads to an estimator that has lower variance. To see why, consider the stochastic gradient estimate with respect to the posterior parameter <ref type="bibr" target="#b1">2</ref> i,j for a minibatch of size M = 1. Drawing random weights W, we get</p><formula xml:id="formula_10">@L SGVB D @ 2 i,j = @L SGVB D @b m,j ✏ i,j a m,i i,j .<label>(7)</label></formula><p>If, on the other hand, we form the same gradient using the local reparameterization trick, we get</p><formula xml:id="formula_11">@L SGVB D @ 2 i,j = @L SGVB D @b m,j ⇣ m,j a 2 m,i p m,j .<label>(8)</label></formula><p>Here, there are two stochastic terms: The first is the backpropagated gradient @L SGVB D /@b m,j , and the second is the sampled random noise (✏ i,j or ⇣ m,j ). Estimating the gradient with respect to 2 i,j then basically comes down to estimating the covariance between these two terms. This is much easier to do for ⇣ m,j as there are much fewer of these: individually they have higher correlation with the backpropagated gradient @L SGVB D /@b m,j , so the covariance is easier to estimate. In other words, measuring the effect of ⇣ m,j on @L SGVB D /@b m,j is easy as ⇣ m,j is the only random variable directly influencing this gradient via b m,j . On the other hand, when sampling random weights, there are a thousand ✏ i,j influencing each gradient term, so their individual effects get lost in the noise. In appendix D we make this argument more rigorous, and in section 5 we show that it holds experimentally.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">Variational Dropout</head><p>Dropout is a technique for regularization of neural network parameters, which works by adding multiplicative noise to the input of each layer of the neural network during optimization. Using the notation of section 2.3, for a fully connected neural network dropout corresponds to:</p><formula xml:id="formula_12">B = (A ⇠)✓, with ⇠ i,j ⇠ p(⇠ i,j )<label>(9)</label></formula><p>where A is the M ⇥ K matrix of input features for the current minibatch, ✓ is a K ⇥ L weight matrix, and B is the M ⇥ L output matrix for the current layer (before a nonlinearity is applied). The symbol denotes the elementwise (Hadamard) product of the input matrix with a M ⇥ K matrix of independent noise variables ⇠. By adding noise to the input during training, the weight parameters ✓ are less likely to overfit to the training data, as shown empirically by previous publications. Originally, <ref type="bibr" target="#b9">[10]</ref> proposed drawing the elements of ⇠ from a Bernoulli distribution with probability 1 p, with p the dropout rate. Later it was shown that using a continuous distribution with the same relative mean and variance, such as a Gaussian N (1, ↵) with ↵ = p/(1 p), works as well or better <ref type="bibr" target="#b19">[20]</ref>.</p><p>Here, we re-interpret dropout with continuous noise as a variational method, and propose a generalization that we call variational dropout. In developing variational dropout we provide a firm Bayesian justification for dropout training by deriving its implicit prior distribution and variational objective. This new interpretation allows us to propose several useful extensions to dropout, such as a principled way of making the normally fixed dropout rates p adaptive to the data.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">Variational dropout with independent weight noise</head><p>If the elements of the noise matrix ⇠ are drawn independently from a Gaussian N (1, ↵), the marginal distributions of the activations b m,j 2 B are Gaussian as well:</p><formula xml:id="formula_13">q (b m,j |A) = N ( m,j , m,j ), with m,j = K X i=1 a m,i ✓ i,j , and m,j = ↵ K X i=1 a 2 m,i ✓ 2 i,j .<label>(10)</label></formula><p>Making use of this fact, <ref type="bibr" target="#b21">[22]</ref> proposed Gaussian dropout, a regularization method where, instead of applying (9), the activations are directly drawn from their (approximate or exact) marginal distributions as given by <ref type="bibr" target="#b9">(10)</ref>. <ref type="bibr" target="#b21">[22]</ref> argued that these marginal distributions are exact for Gaussian noise ⇠, and for Bernoulli noise still approximately Gaussian because of the central limit theorem. This ignores the dependencies between the different elements of B, as present using (9), but <ref type="bibr" target="#b21">[22]</ref> report good results nonetheless.</p><p>As noted by <ref type="bibr" target="#b21">[22]</ref>, and explained in appendix B, this Gaussian dropout noise can also be interpreted as arising from a Bayesian treatment of a neural network with weights W that multiply the input to give B = AW, where the posterior distribution of the weights is given by a factorized Gaussian with q (w i,j ) = N (✓ i,j , ↵✓ 2 i,j ). From this perspective, the marginal distributions (10) then arise through the application of the local reparameterization trick, as introduced in section 2.3. The variational objective corresponding to this interpretation is discussed in section 3.3.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">Variational dropout with correlated weight noise</head><p>Instead of ignoring the dependencies of the activation noise, as in section 3.1, we may retain the dependencies by interpreting dropout (9) as a form of correlated weight noise:</p><formula xml:id="formula_14">B = (A ⇠)✓, ⇠ i,j ⇠ N (1, ↵) () b m = a m W, with W = (w 0 1 , w 0 2 , . . . , w 0 K ) 0 , and w i = s i ✓ i , with q (s i ) = N (1, ↵),<label>(11)</label></formula><p>where a m is a row of the input matrix and b m a row of the output. The w i are the rows of the weight matrix, each of which is constructed by multiplying a non-stochastic parameter vector ✓ i by a stochastic scale variable s i . The distribution on these scale variables we interpret as a Bayesian posterior distribution. The weight parameters ✓ i (and the biases) are estimated using maximum likelihood. The original Gaussian dropout sampling procedure (9) can then be interpreted as arising from a local reparameterization of our posterior on the weights W.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">Dropout's scale-invariant prior and variational objective</head><p>The posterior distributions q (W) proposed in sections 3.1 and 3.2 have in common that they can be decomposed into a parameter vector ✓ that captures the mean, and a multiplicative noise term determined by parameters ↵. Any posterior distribution on W for which the noise enters this multiplicative way, we will call a dropout posterior. Note that many common distributions, such as univariate Gaussians (with nonzero mean), can be reparameterized to meet this requirement.</p><p>During dropout training, ✓ is adapted to maximize the expected log likelihood E q↵ [L D (✓)]. For this to be consistent with the optimization of a variational lower bound of the form in (2), the prior on the weights p(w) has to be such that D KL (q (w)||p(w)) does not depend on ✓. In appendix C we show that the only prior that meets this requirement is the scale invariant log-uniform prior:</p><formula xml:id="formula_15">p(log(|w i,j |)) / c,</formula><p>i.e. a prior that is uniform on the log-scale of the weights (or the weight-scales s i for section 3.2). As explained in appendix A, this prior has an interesting connection with the floating point format for storing numbers: From an MDL perspective, the floating point format is optimal for communicating numbers drawn from this prior. Conversely, the KL divergence D KL (q (w)||p(w)) with this prior has a natural interpretation as regularizing the number of significant digits our posterior q stores for the weights w i,j in the floating-point format.</p><p>Putting the expected log likelihood and KL-divergence penalty together, we see that dropout training maximizes the following variatonal lower bound w.r.t. ✓:</p><formula xml:id="formula_16">E q↵ [L D (✓)] D KL (q ↵ (w)||p(w)),<label>(12)</label></formula><p>where we have made the dependence on the ✓ and ↵ parameters explicit. The noise parameters ↵ (e.g. the dropout rates) are commonly treated as hyperparameters that are kept fixed during training. For the log-uniform prior this then corresponds to a fixed limit on the number of significant digits we can learn for each of the weights w i,j . In section 3.4 we discuss the possibility of making this limit adaptive by also maximizing the lower bound with respect to ↵.</p><p>For the choice of a factorized Gaussian approximate posterior with q (w i,j ) = N (✓ i,j , ↵✓ 2 i,j ), as discussed in section 3.1, the lower bound (12) is analyzed in detail in appendix C. There, it is shown that for this particular choice of posterior the negative KL-divergence D KL (q ↵ (w)||p(w)) is not analytically tractable, but can be approximated extremely accurately using</p><formula xml:id="formula_17">D KL [q (w i )|p(w i )] ⇡ constant + 0.5 log(↵) + c 1 ↵ + c 2 ↵ 2 + c 3 ↵ 3 , with c 1 = 1.16145124, c 2 = 1.50204118, c 3 = 0.58629921.</formula><p>The same expression may be used to calculate the corresponding term D KL (q ↵ (s)||p(s)) for the posterior approximation of section 3.2.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4">Adaptive regularization through optimizing the dropout rate</head><p>The noise parameters ↵ used in dropout training (e.g. the dropout rates) are usually treated as fixed hyperparameters, but now that we have derived dropout's variational objective <ref type="bibr" target="#b11">(12)</ref>, making these parameters adaptive is trivial: simply maximize the variational lower bound with respect to ↵. We can use this to learn a separate dropout rate per layer, per neuron, of even per separate weight. In section 5 we look at the predictive performance obtained by making ↵ adaptive.</p><p>We found that very large values of ↵ correspond to local optima from which it is hard to escape due to large-variance gradients. To avoid such local optima, we found it beneficial to set a constraint ↵  1 during training, i.e. we maximize the posterior variance at the square of the posterior mean, which corresponds to a dropout rate of 0.5.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Related Work</head><p>Pioneering work in practical variational inference for neural networks was done in <ref type="bibr" target="#b7">[8]</ref>, where a (biased) variational lower bound estimator was introduced with good results on recurrent neural network models. In later work <ref type="bibr" target="#b13">[14,</ref><ref type="bibr" target="#b16">17]</ref> it was shown that even more practical estimators can be formed for most types of continuous latent variables or parameters using a (non-local) reparameterization trick, leading to efficient and unbiased stochastic gradient-based variational inference. These works focused on an application to latent-variable inference; extensive empirical results on inference of global model parameters were reported in <ref type="bibr" target="#b5">[6]</ref>, including succesful application to reinforcement learning. These earlier works used the relatively high-variance estimator (3), upon which we improve. Variable reparameterizations have a long history in the statistics literature, but have only recently found use for efficient gradient-based machine learning and inference <ref type="bibr" target="#b3">[4,</ref><ref type="bibr" target="#b12">13,</ref><ref type="bibr" target="#b18">19]</ref>. Related is also probabilistic backpropagation <ref type="bibr" target="#b8">[9]</ref>, an algorithm for inferring marginal posterior probabilities; however, it requires certain tractabilities in the network making it insuitable for the type of models under consideration in this paper.</p><p>As we show here, regularization by dropout <ref type="bibr" target="#b19">[20,</ref><ref type="bibr" target="#b21">22]</ref> can be interpreted as variational inference. DropConnect <ref type="bibr" target="#b20">[21]</ref> is similar to dropout, but with binary noise on the weights rather than hidden units. DropConnect thus has a similar interpretation as variational inference, with a uniform prior over the weights, and a mixture of two Dirac peaks as posterior. In <ref type="bibr" target="#b1">[2]</ref>, standout was introduced, a variation of dropout where a binary belief network is learned for producing dropout rates. Recently, <ref type="bibr" target="#b14">[15]</ref> proposed another Bayesian perspective on dropout. In recent work <ref type="bibr" target="#b2">[3]</ref>, a similar reparameterization is described and used for variational inference; their focus is on closed-form approximations of the variational bound, rather than unbiased Monte Carlo estimators. <ref type="bibr" target="#b14">[15]</ref> and <ref type="bibr" target="#b6">[7]</ref> also investigate a Bayesian perspective on dropout, but focus on the binary variant. <ref type="bibr" target="#b6">[7]</ref> reports various encouraging results on the utility of dropout's implied prediction uncertainty.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Experiments</head><p>We compare our method to standard binary dropout and two popular versions of Gaussian dropout, which we'll denote with type A and type B. With Gaussian dropout type A we denote the pre-linear Gaussian dropout from <ref type="bibr" target="#b19">[20]</ref>; type B denotes the post-linear Gaussian dropout from <ref type="bibr" target="#b21">[22]</ref>. This way, the method names correspond to the matrix names in section 2 (A or B) where noise is injected. Models were implemented in Theano <ref type="bibr" target="#b4">[5]</ref>, and optimization was performed using Adam <ref type="bibr" target="#b11">[12]</ref> with default hyper-parameters and temporal averaging.</p><p>Two types of variational dropout were included. Type A is correlated weight noise as introduced in section 3.2: an adaptive version of Gaussian dropout type A. Variational dropout type B has independent weight uncertainty as introduced in section 3.1, and corresponds to Gaussian dropout type B.</p><p>A de facto standard benchmark for regularization methods is the task of MNIST hand-written digit classification. We choose the same architecture as <ref type="bibr" target="#b19">[20]</ref>: a fully connected neural network with 3 hidden layers and rectified linear units (ReLUs). We follow the dropout hyper-parameter recommendations from these earlier publications, which is a dropout rate of p = 0.5 for the hidden layers and p = 0.2 for the input layer. We used early stopping with all methods, where the amount of epochs to run was determined based on performance on a validation set.</p><p>Variance. We start out by empirically comparing the variance of the different available stochastic estimators of the gradient of our variational objective. To do this we train the neural network described above for either 10 epochs (test error 3%) or 100 epochs (test error 1.3%), using variational dropout with independent weight noise. After training, we calculate the gradients for the weights of the top and bottom level of our network on the full training set, and compare against the gradient estimates per batch of M = 1000 training examples. Appendix E contains the same analysis for the case of variational dropout with correlated weight noise. <ref type="table">Table 1</ref> shows that the local reparameterization trick yields the lowest variance among all variational dropout estimators for all conditions, although it is still substantially higher compared to not having any dropout regularization. The 1/M variance scaling achieved by our estimator is especially important early on in the optimization when it makes the largest difference (compare weight sample per minibatch and weight sample per data point). 2.8 ⇥ 10 3 5.9 ⇥ 10 1 1.3 ⇥ 10 2 9.0 ⇥ 10 0 <ref type="table">Table 1</ref>: Average empirical variance of minibatch stochastic gradient estimates (1000 examples) for a fully connected neural network, regularized by variational dropout with independent weight noise.</p><p>Speed. We compared the regular SGVB estimator, with separate weight samples per datapoint with the efficient estimator based on local reparameterization, in terms of wall-clock time efficiency. With our implementation on a modern GPU, optimization with the naïve estimator took 1635 seconds per epoch, while the efficient estimator took 7.4 seconds: an over 200 fold speedup.</p><p>Classification error. <ref type="figure">Figure 1</ref> shows test-set classification error for the tested regularization methods, for various choices of number of hidden units. Our adaptive variational versions of Gaussian dropout perform equal or better than their non-adaptive counterparts and standard dropout under all tested conditions. The difference is especially noticable for the smaller networks. In these smaller networks, we observe that variational dropout infers dropout rates that are on average far lower than the dropout rates for larger networks. This adaptivity comes at negligable computational cost.  <ref type="figure">Figure 1</ref>: Best viewed in color. (a) Comparison of various dropout methods, when applied to fullyconnected neural networks for classification on the MNIST dataset. Shown is the classification error of networks with 3 hidden layers, averaged over 5 runs. he variational versions of Gaussian dropout perform equal or better than their non-adaptive counterparts; the difference is especially large with smaller models, where regular dropout often results in severe underfitting. (b) Comparison of dropout methods when applied to convolutional net a trained on the CIFAR-10 dataset, for different settings of network size k. The network has two convolutional layers with each 32k and 64k feature maps, respectively, each with stride 2 and followed by a softplus nonlinearity. This is followed by two fully connected layers with each 128k hidden units.</p><p>We found that slightly downscaling the KL divergence part of the variational objective can be beneficial. Variational (A2) in figure 1 denotes performance of type A variational dropout but with a KL-divergence downscaled with a factor of 3; this small modification seems to prevent underfitting, and beats all other dropout methods in the tested models.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6">Conclusion</head><p>Efficiency of posterior inference using stochastic gradient-based variational Bayes (SGVB) can often be significantly improved through a local reparameterization where global parameter uncertainty is translated into local uncertainty per datapoint. By injecting noise locally, instead of globally at the model parameters, we obtain an efficient estimator that has low computational complexity, can be trivially parallelized and has low variance. We show how dropout is a special case of SGVB with local reparameterization, and suggest variational dropout, a straightforward extension of regular dropout where optimal dropout rates are inferred from the data, rather than fixed in advance. We report encouraging empirical results.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head></head><label></label><figDesc>(a) Classification error on the MNIST dataset (b) Classification error on the CIFAR-10 dataset</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head></head><label></label><figDesc>The additional variance reduction obtained by our estimator through drawing fewer random numbers (section 2.3) is about a factor of 2, and this remains relatively stable as training progresses (compare local reparameterization and weight sample per data point).</figDesc><table><row><cell></cell><cell>top layer</cell><cell>top layer</cell><cell cols="2">bottom layer bottom layer</cell></row><row><cell>stochastic gradient estimator</cell><cell cols="3">10 epochs 100 epochs 10 epochs</cell><cell>100 epochs</cell></row><row><cell cols="2">local reparameterization (ours) weight sample per data point (slow) weight sample per minibatch (standard) 4.9 ⇥ 10 4 7.8 ⇥ 10 3 1.4 ⇥ 10 4 no dropout noise (minimal var.)</cell><cell>1.2 ⇥ 10 3 2.6 ⇥ 10 3 4.3 ⇥ 10</cell><cell>1.9 ⇥ 10 2 4.3 ⇥ 10 2 8.5 ⇥ 10 2</cell><cell>1.1 ⇥ 10 2 2.5 ⇥ 10 2 3.3 ⇥ 10 2</cell></row></table><note></note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="1">Note that the described method is not limited to classification or regression and is straightforward to apply to other modeling settings like unsupervised models and temporal models.</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgments</head><p>We thank the reviewers and Yarin Gal for valuable feedback. Diederik Kingma is supported by the Google European Fellowship in Deep Learning, Max Welling is supported by research grants from Google and Facebook, and the NWO project in Natural AI (NAI.14.108).</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<title level="m" type="main">Bayesian posterior sampling via stochastic gradient Fisher scoring</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ahn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Korattikara</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Welling</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1206.6380</idno>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Adaptive dropout for training deep neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Ba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Frey</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="3084" to="3092" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Bayer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Karol</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Korhammer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Van Der</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Smagt</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1507.05331</idno>
+		<title level="m">Fast adaptive weight noise</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<monogr>
+		<title level="m" type="main">Estimating or propagating gradients through stochastic neurons</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1305.2982</idno>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Theano: a CPU and GPU math expression compiler</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Bergstra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Breuleux</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Bastien</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Lamblin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Desjardins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Turian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Warde-Farley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Python for Scientific Computing Conference (SciPy)</title>
+		<meeting>the Python for Scientific Computing Conference (SciPy)</meeting>
+		<imprint>
+			<date type="published" when="2010" />
+			<biblScope unit="volume">4</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Blundell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Cornebise</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wierstra</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1505.05424</idno>
+		<title level="m">Weight uncertainty in neural networks</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Gal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Ghahramani</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1506.02142</idno>
+		<title level="m">Dropout as a Bayesian approximation: Representing model uncertainty in deep learning</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Practical variational inference for neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Graves</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="2348" to="2356" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">M</forename><surname>Hernández-Lobato</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">P</forename><surname>Adams</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1502.05336</idno>
+		<title level="m">Probabilistic backpropagation for scalable learning of Bayesian neural networks</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<monogr>
+		<title level="m" type="main">Improving neural networks by preventing co-adaptation of feature detectors</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Srivastava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">R</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1207.0580</idno>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Keeping the neural networks simple by minimizing the description length of the weights</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Van Camp</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the sixth annual conference on Computational learning theory</title>
+		<meeting>the sixth annual conference on Computational learning theory</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="1993" />
+			<biblScope unit="page" from="5" to="13" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Adam: A method for stochastic optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Ba</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the International Conference on Learning Representations</title>
+		<meeting>the International Conference on Learning Representations</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<title level="m" type="main">Fast gradient-based inference with continuous latent variable models in auxiliary form</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Kingma</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1306.0733</idno>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Auto-encoding variational Bayes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Welling</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2nd International Conference on Learning Representations</title>
+		<meeting>the 2nd International Conference on Learning Representations</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Maeda</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.7003</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">A Bayesian encourages dropout. arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<monogr>
+		<title level="m" type="main">Bayesian learning for neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">M</forename><surname>Neal</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1995" />
+		</imprint>
+		<respStmt>
+			<orgName>University of Toronto</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">PhD thesis</note>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Stochastic backpropagation and approximate inference in deep generative models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Rezende</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mohamed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wierstra</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 31st International Conference on Machine Learning (ICML-14)</title>
+		<meeting>the 31st International Conference on Machine Learning (ICML-14)</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="1278" to="1286" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">A stochastic approximation method</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Robbins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Monro</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">The Annals of Mathematical Statistics</title>
+		<imprint>
+			<biblScope unit="volume">22</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="400" to="407" />
+			<date type="published" when="1951" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Fixed-form variational posterior approximation through stochastic linear regression</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Salimans</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">A</forename><surname>Knowles</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Bayesian Analysis</title>
+		<imprint>
+			<biblScope unit="volume">8</biblScope>
+			<biblScope unit="issue">4</biblScope>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Dropout: A simple way to prevent neural networks from overfitting</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Srivastava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">The Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">15</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="1929" to="1958" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Regularization of neural networks using dropconnect</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Wan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Zeiler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><forename type="middle">L</forename><surname>Cun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Fergus</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 30th International Conference on Machine Learning (ICML-13)</title>
+		<meeting>the 30th International Conference on Machine Learning (ICML-13)</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="1058" to="1066" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Fast dropout training</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Manning</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 30th International Conference on Machine Learning (ICML-13)</title>
+		<meeting>the 30th International Conference on Machine Learning (ICML-13)</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="118" to="126" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Bayesian learning via stochastic gradient Langevin dynamics</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Welling</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><forename type="middle">W</forename><surname>Teh</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 28th International Conference on Machine Learning (ICML-11)</title>
+		<meeting>the 28th International Conference on Machine Learning (ICML-11)</meeting>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="681" to="688" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

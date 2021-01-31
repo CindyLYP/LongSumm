@@ -1,0 +1,1540 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Compress Objects, Not Cache Lines: An Object-Based Compressed Memory Hierarchy</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Po-An</forename><surname>Tsai</surname></persName>
+							<email>poantsai@csail.mit.edu</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daniel</forename><surname>Sanchez</surname></persName>
+							<email>sanchez@csail.mit.edu</email>
+						</author>
+						<title level="a" type="main">Compress Objects, Not Cache Lines: An Object-Based Compressed Memory Hierarchy</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+					<idno type="DOI">10.1145/3297858.3304006</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:44+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<textClass>
+				<keywords>
+					<term>cache</term>
+					<term>memory</term>
+					<term>object-based</term>
+					<term>compression</term>
+				</keywords>
+			</textClass>
+			<abstract>
+				<p>Existing cache and main memory compression techniques compress data in small fixed-size blocks, typically cache lines. Moreover, they use simple compression algorithms that focus on exploiting redundancy within a block. These techniques work well for scientific programs that are dominated by arrays. However, they are ineffective on object-based programs because objects do not fall neatly into fixed-size blocks and have a more irregular layout. We present the first compressed memory hierarchy designed for object-based applications. We observe that (i) objects, not cache lines, are the natural unit of compression for these programs, as they traverse and operate on object pointers; and (ii) though redundancy within each object is limited, redundancy across objects of the same type is plentiful. We exploit these insights through Zippads, an object-based compressed memory hierarchy, and COCO, a cross-object-compression algorithm. Building on a recent object-based memory hierarchy, Zippads transparently compresses variable-sized objects and stores them compactly. As a result, Zippads consistently outperforms a state-of-theart compressed memory hierarchy: on a mix of array-and object-dominated workloads, Zippads achieves 1.63× higher compression ratio and improves performance by 17%. CCS Concepts • Computer systems organization → Processors and memory architectures.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>Compression has become an attractive technique to improve the performance and efficiency of modern memory hierarchies. Ideally, compressing data at a level of the memory hierarchy (e.g., main memory or the last-level cache) brings two key benefits. First, it increases the effective capacity of that level (e.g., reducing page faults or cache misses). Second, it reduces bandwidth demand to that level, as each access fetches a smaller amount of compressed data. Because accesses to off-chip memory or large on-chip caches are slow and expensive, the benefits of compression justify its overheads. Therefore, prior work has proposed compressed main memory <ref type="bibr" target="#b16">[17,</ref><ref type="bibr" target="#b24">25,</ref><ref type="bibr" target="#b33">34,</ref><ref type="bibr" target="#b50">51]</ref> and cache <ref type="bibr" target="#b0">[1,</ref><ref type="bibr" target="#b21">22,</ref><ref type="bibr" target="#b29">30,</ref><ref type="bibr" target="#b40">41,</ref><ref type="bibr" target="#b41">42]</ref> architectures, as well as specialized compression algorithms <ref type="bibr" target="#b3">[4,</ref><ref type="bibr" target="#b4">5,</ref><ref type="bibr" target="#b23">24,</ref><ref type="bibr" target="#b34">35]</ref>.</p><p>Unfortunately, hardware memory hierarchy compression techniques must contend with a key challenge: supporting random, fine-grained memory accesses. Whereas classic compression techniques work best on large blocks of data, many programs access small amounts of data (words or cache lines) at a time, so compressing data in large chunks would be inefficient. The need for random accesses introduces three interrelated problems. First, it limits memory hierarchy compression techniques to use small blocks, on the order of a cache line (64ś128 B). Second, because the startup latency of decompressing and compressing a block cannot be amortized across large blocks, it limits these techniques to use simple compression algorithms optimized for latency rather than throughput. Third, compressed blocks have variable size, requiring an extra level of indirection to translate uncompressed addresses into compressed blocks. Depending on the implementation, this extra level of indirection either requires significant metadata (e.g., extra cache or TLB state) or causes internal fragmentation. These problems limit compression ratio and thus the overall value of the techniques.</p><p>Prior work has addressed these issues within the context of cache hierarchies, and thus focuses on compressing cache lines. For example, compression algorithms like BDI <ref type="bibr" target="#b34">[35]</ref> and BPC <ref type="bibr" target="#b23">[24]</ref> achieve low latency by exploiting redundancy within words of a cache line, and compressed main-memory organizations like LCP <ref type="bibr" target="#b33">[34]</ref> achieve low access latency at the expense of lower compression ratios by forcing most cache lines in a page to have the same compressed size. These approaches work well on array-based applications, such as scientific workloads, where most data follows a regular layout and uses homogeneous data types.</p><p>By contrast, existing compressed hierarchy techniques are ineffective on object-based applications, i.e., those where most data is stored in objects. These applications do not have a regular memory layout: each object has fields of different types and compressibilities; objects of different types are interleaved in memory; and objects are not aligned to the fixed-size cache lines that compression techniques work with. For these reasons, the evaluations of these techniques show small improvements on object-heavy applications.</p><p>We present the first object-based compressed memory hierarchy. We leverage two key insights. First, we observe that objects, not cache lines, are the natural unit of compression for object-based programs. Objects are small, typically on the order of a cache line. And object-based applications follow a disciplined access pattern: they always access data within an object and dereference object pointers to access other objects. Therefore, compressing variable-size objects instead of fixed-size cache lines and pointing directly to compressed objects can avoid the extra level of indirection and layout issues of existing compressed main memories. Second, we observe that there is significant redundancy (i.e., commonality or value locality <ref type="bibr" target="#b39">[40]</ref>) across objects of the same type. Exploiting this redundancy, which current algorithms do not leverage, can enable high compression ratios.</p><p>We present two contributions that leverage the above insights to compress object-based applications effectively:</p><p>• Zippads is a novel compressed object-based memory hierarchy. Zippads transfers objects (rather than cache lines) across levels and transparently compresses them when appropriate. Unlike prior designs, Zippads does not add a level of translation between compressed and uncompressed addresses. Instead, Zippads directly rewrites pointers to objects as it moves objects across hierarchy levels. To achieve this, Zippads builds on Hotpads <ref type="bibr" target="#b18">[19,</ref><ref type="bibr" target="#b51">52]</ref>, a recent objectbased memory hierarchy. Though they are not our focus, Zippads also works well on array-based applications. • Cross-object-compression (COCO) is a novel compression algorithm that exploits redundancy across objects cheaply. COCO chooses a small number of base objects, and stores only the bytes that differ from an object's base. While Zippads can use other compression algorithms (e.g., BDI), using COCO increases compression ratio substantially.</p><p>We evaluate these techniques in simulation and prototype COCO in RTL. Our evaluation shows that, across a mix of array-based and object-based workloads, these techniques substantially outperform a combination of a state-of-theart compressed last-level cache and compressed main memory <ref type="bibr" target="#b32">[33]</ref>: Zippads alone increases compression ratio by 1.37× on average and by up to 1.54×, and Zippads+COCO increases compression ratio by 1.63× on average and by up to 2×. As a result, Zippads+COCO reduces main memory traffic by 56% and improves performance by 17% on average, while incurring only 3.2% storage overhead.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Background and motivation</head><p>We first review related work in compressed memory hierarchies, then illustrate the challenges and opportunities of compressed hierarchies in object-based programs.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1">Related work in compressed hierarchies</head><p>Much prior work has focused on compressed memory hierarchies to reduce data movement. While compression is too onerous to be used in small private caches, it is sensible to implement in main memory and the large last-level cache (LLC). Prior techniques thus can be broadly classified into three domains: (i) compression algorithms, (ii) compressed memory architectures, and (iii) compressed cache architectures.</p><p>Compression algorithms aim to reduce the number of bits required to represent a data chunk (e.g., a cache line). Since decompression latency adds delay to the critical path of a memory access, unlike general compression algorithms, memory hierarchy compression favors simpler algorithms that achieve low decompression latency and area overhead, even if they achieve a lower compression ratio. Moreover, since programs issue fine-grained memory accesses, prior hardware-based compression techniques focus on compressing cache lines, matching the natural data transfer granularity of the LLC and main memory.</p><p>Frequent pattern compression (FPC) <ref type="bibr" target="#b1">[2]</ref> recognizes repeated patterns or small-value integers and uses a static encoding to compress every 32-bit data chunk in a cache line. Base-Delta-Immediate (BDI) <ref type="bibr" target="#b34">[35]</ref> observes that values in a cache line usually have a small dynamic range, so BDI compresses a cache line by representing it with a base value and per-word deltas. SC <ref type="bibr" target="#b4">[5]</ref> uses Huffman coding to compress cache lines, and recomputes the dictionary infrequently, leveraging the observation that frequent values change rarely. Because recomputing the dictionary requires recompressing all the data, SC is suitable for caches but less attractive for main memory. FP-H <ref type="bibr" target="#b3">[4]</ref> is tailored to compress floatingpoint values. HyComp <ref type="bibr" target="#b3">[4]</ref> combines multiple compression algorithms in a single system and dynamically selects the appropriate algorithm. Bit-Plane Compression (BPC) <ref type="bibr" target="#b23">[24]</ref> targets homogeneous arrays in GPGPUs and improves compression ratio over BDI by compressing the deltas better.</p><p>These techniques add few cycles to each memory access. However, they usually exploit redundancy within a single block, a very fine-grained size. They work well for arraybased programs with homogeneous data types. But as we will see later, object-based programs have lower redundancy across nearby words, making these techniques less effective.</p><p>Compressed main memory architectures are faced with one key challenge: choosing a memory layout that adds little latency while enabling good compression ratios.</p><p>MXT <ref type="bibr" target="#b50">[51]</ref> compresses 1 KB data chunks with a heavyweight compression algorithm. While it achieves a high compression ratio, its decompression latency is very high (64 cycles). To locate the compressed data, MXT adds a TLB-like translation table to translate chunk addresses, which adds even more latency and requires significant state.</p><p>Robust Memory Compression (RMC) <ref type="bibr" target="#b16">[17]</ref> and Linearly Compressed Pages (LCP) <ref type="bibr" target="#b33">[34]</ref> trade off lower compression ratios for lower latency overheads. They compress smaller (64-byte) cache lines and leverage the virtual memory system, which they modify to translate from uncompressed virtual pages to compressed physical pages. To keep translation mechanisms simple, each physical page is restricted to be power-of-two-sized. This incurs internal fragmentation, which reduces the compression ratio (e.g., a page that compresses to slightly more than 1 KB must use a 2 KB frame).</p><p>RMC and LCP differ in the layout of compressed pages. RMC compresses each cache line to one of four possible sizes. Each page table entry is extended to track the sizes of all the lines (64×2=128 bits). To compute the address of a compressed cache line, the system must add up the sizes of all preceding cache lines, a non-trivial computation <ref type="bibr" target="#b33">[34]</ref>.</p><p>By contrast, LCP requires cache lines to compress to the same size. This makes the compressed cache line address trivial to compute in the common case (a simple shift). LCP stores the non-fitting cache lines uncompressed after all the compressed blocks and chooses the page's compression ratio to minimize the final compressed size.</p><p>Other prior work builds on these architectures and improves over them. For example, DMC <ref type="bibr" target="#b24">[25]</ref> combines LCP and MXT by applying LCP to hot pages and MXT to cold pages. Compresso <ref type="bibr" target="#b14">[15]</ref> introduces techniques to reduce metadata accesses, limit overflows, and improve spatial locality.</p><p>Compressed cache architectures have more flexibility than compressed main memory, as their associative structure offers more design choices than main memory's directly addressed layout. The key challenge in compressed caches is tracking compressed lines with small tag array overheads and high data array utilization. These architectures typically perform serial tag and data array accesses, and require extra tag entries (usually 2×, about 6% area overhead) to track more compressed cache lines than uncompressed caches.</p><p>VSC <ref type="bibr" target="#b0">[1]</ref> divides the cache into sets like in a conventional cache, but lets each set store a variable number of variablysized, compressed cache lines. Each tag has a pointer to identify the line's location within the set. Cache architectures with decoupled tag and data stores, such as the indirectindexed cache <ref type="bibr" target="#b21">[22]</ref> and V-Way cache <ref type="bibr" target="#b36">[37]</ref>, use a longer forward pointer and can store compressed cache lines anywhere in the data array, reducing fragmentation. Meanwhile, DCC <ref type="bibr" target="#b41">[42]</ref>, SCC <ref type="bibr" target="#b40">[41]</ref>, and DISH <ref type="bibr" target="#b29">[30]</ref> leverage decoupled sector caches to track multiple compressed lines per sector.</p><p>These compressed caches still compress each cache line individually; prior work that exploits redundancy across lines incurs large overheads <ref type="bibr" target="#b28">[29]</ref> and is practical only on throughput-oriented processors with high latency tolerance.  <ref type="figure">Figure 1</ref>. Fraction of the heap consumed by objects and arrays for several Java benchmarks.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">Opportunities for object-based programs</head><p>Array-dominated applications, common in scientific computing, provide many opportunities for compression because nearby words share data types and are likely to have similar byte patterns. Prior techniques like BDI <ref type="bibr" target="#b34">[35]</ref> and FP-H <ref type="bibr" target="#b3">[4]</ref> are effective on these programs. However, many applications are dominated by objects, which have a more irregular layout: nearby words correspond to different fields and are unlikely to have similar values. Prior compression techniques are less effective on object-heavy applications. Object-heavy applications are common. <ref type="figure">Fig. 1</ref> shows the footprint composition of eight Java benchmarks. Only the first two benchmarks, which implement common scientific kernels (fft and spmv), are array-dominated. The remaining six benchmarks, which include databases, graph analytics, and a key-value store, have at least 40% and up to 75% of the heap footprint allocated to objects. More than 90% of those objects are small (&lt; 128 B <ref type="bibr" target="#b7">[8]</ref>). Therefore, prior algorithms that leverage similarities among nearby words are unlikely to compress well on these applications because a large portion of their footprint is small objects, not homogeneous arrays.</p><p>Fortunately, object-based applications provide new opportunities for compressed memory hierarchies. First, objectbased applications perform memory accesses within objects and always follow pointers to other objects. Therefore, objects, and not cache lines, are the right compression unit. Second, though nearby words have low redundancy, similarities exist across objects of the same type.</p><p>We now illustrate these two insights with a simple B-tree Java microbenchmark, BTree. <ref type="figure">Fig. 2</ref> shows the three main object types in BTree: Node, Entry[], and Entry, and their in-memory layouts. We show the layout in Maxine <ref type="bibr" target="#b53">[54]</ref>, the Java Virtual Machine (JVM) we use in our evaluation, but other JVMs like HotSpot <ref type="bibr" target="#b48">[49]</ref> and Jikes <ref type="bibr" target="#b2">[3]</ref> use a similar layout. Red arrows denote pointers (references) across objects. <ref type="figure" target="#fig_2">Fig. 3a</ref> shows the memory layout of a 4-entry B-tree node. <ref type="figure" target="#fig_2">Fig. 3b</ref> shows an example of applying LCP to BTree. LCP uses hybrid BDI+FPC compression (see Sec. 7.1 for details). In this example, each 64B line is compressed into a fixed-size 32B chunk. A few blocks can be compressed beyond 32B, but the remaining space (shown hatched) is left unused due to LCP's design. The total size of this compressed page is then rounded up to the closest power-of-2 page size, which often ref Entry <ref type="bibr" target="#b0">[1]</ref> ref Entry <ref type="bibr" target="#b1">[2]</ref> ref Entry <ref type="bibr" target="#b2">[3]</ref> Memory layout for object Entry <ref type="bibr" target="#b3">[4]</ref>  Entry <ref type="bibr" target="#b0">[1]</ref> Entry <ref type="bibr" target="#b1">[2]</ref> Entry <ref type="bibr" target="#b2">[3]</ref>    <ref type="bibr" target="#b1">[2]</ref> ∆Entry <ref type="bibr" target="#b2">[3]</ref> Node' causes more unused space, limiting efficiency. For BTree, LCP achieves only 10% compression ratio <ref type="table">(Table 1)</ref>, because in addition to layout inefficiencies, the compression algorithm cannot compress many of the objects effectively. <ref type="figure" target="#fig_2">Fig. 3c</ref> shows the compressed memory layout if we compress objects instead of cache lines. Compressed objects are stored contiguously, with no space left unused. Moreover, each pointer (red arrow) directly points to the compressed object. This approach removes the need to translate between compressed and uncompressed address spaces, and it is safe because programs may access objects only through pointers. This disciplined access pattern removes the fragmentation caused by the tradeoff between compression ratio and fast address calculation in prior work. With this compression technique, we can achieve a compression ratio of 1.56×.</p><p>Moreover, there is still an opportunity to improve compression ratio in object-oriented programs. We find that objects of the same type usually have similar contents. For example, many of the bytes in Entry[0] and Entry <ref type="bibr" target="#b0">[1]</ref> are identical. Therefore, it is better to compress across objects instead of across nearby words in a cache line. Compression ratio 1.00 1.10 1.56 1.95 <ref type="table">Table 1</ref>. Compression ratios of different schemes on BTree. <ref type="figure" target="#fig_2">Fig. 3d</ref> shows an example of cross-object compression. Instead of storing all Entry objects, we store one base object (Entry[0]). For other Entry objects, we only store the bytes that differ (∆Entry) between those objects and the base object. This further reduces footprint over <ref type="figure" target="#fig_2">Fig. 3c</ref>, achieving an even higher compression ratio of 1.95×.</p><p>However, to realize these insights, hardware needs to access data at object granularity and must have control over pointers between objects, as we explain next.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Baseline system: Hotpads</head><p>Zippads and COCO compress objects instead of cache lines. Thus, they are better suited to an object-based memory hierarchy than a conventional cache hierarchy. We implement them on top of Hotpads, a recent object-based hierarchy. We now describe the principles and relevant features of Hotpads; please see prior work <ref type="bibr" target="#b18">[19,</ref><ref type="bibr" target="#b51">52]</ref> for details.</p><p>Modern languages like Java and Go adopt an object-based memory model and hide the memory layout from the programmer. This prevents many classes of errors and enables automatic memory management. Hotpads extends the same insight to the memory hierarchy: It hides the memory layout from software and dispenses with the conventional flat address space interface. Instead, Hotpads adopts an objectbased interface. Hotpads leverages this interface to efficiently transfer and manage variable-sized objects instead of fixedsize cache lines. Hotpads also provides hardware support for memory allocation, unifies hierarchical garbage collection and data placement, and avoids most associative lookups.</p><p>Hotpads is not specific to particular languages, and it is not just a way to accelerate garbage collection or other managedlanguage features. Rather, Hotpads achieves a more efficient memory system by leveraging the principles behind garbage collection and matching them to the structure of the memory hierarchy. As a result, Hotpads can also accelerate applications in low-level unmanaged languages. These applications can use Hotpads's object-based model selectively, as Hotpads includes a legacy mode to support a flat address space. As we will see in Sec. 7.5, Hotpads and Zippads outperform high-performance allocators on two C/C++ benchmarks.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">Hotpads overview</head><p>Hotpads is a hardware-managed hierarchy of scratchpad-like memories called pads. Pads are designed to store variablesized objects efficiently. Hotpads transfers objects across pad levels implicitly, in response to memory accesses. <ref type="figure">Fig. 5</ref> shows an example Hotpads hierarchy with three levels of pads, but Hotpads can use any number of levels. <ref type="figure">Fig. 6</ref> shows the structure of a pad. Most space is devoted to the data array, which is managed as a circular buffer. The  <ref type="figure">Figure 5</ref>. Hotpads is a hierarchical memory system with multiple levels of pads.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Canonical Tags</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Data Array</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Objects</head><p>Free space Metadata (word/object) <ref type="figure">Figure 6</ref>. Pad organization.</p><p>data array has a contiguous block of allocated objects followed by a block of free space. Hotpads uses simple bump pointer allocation: fetched or newly allocated objects are placed at the end of the allocated region. Pads have two auxiliary structures: (i) the canonical tag (c-tag) array, which is a decoupled tag store that a fraction of the accesses use to find a resident copy of an object; and (ii) the metadata array, which tracks information of objects stored in the data array.</p><p>Unlike caches, pads have separate addresses from memory and can act as the backing store of some objects. This enables an efficient object flow: objects are first allocated in the L1 pad and move up the hierarchy as they become cold and are evicted. Short-lived objects are garbage-collected before they reach main memory, which greatly reduces memory traffic and footprint. An object's canonical level is the largest hierarchy level an object it has reached. The canonical level acts as the object's backing store. <ref type="figure" target="#fig_7">Fig. 4</ref> illustrates the main features of Hotpads through a simple example showing a single-core system with two levels of pads (we use a single-core setup for simplicity, but Hotpads supports multi-core systems <ref type="bibr" target="#b51">[52]</ref>). This example uses only one type of object, ListNode, with two members, an integer value and a pointer to another ListNode.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">Hotpads example</head><p>shows the initial state of the system: the core's register file holds a pointer to object A in the L2 pad, and A points to object B in main memory. The L1 and L2 pads also hold other objects (shown in solid orange) that are not relevant here.</p><p>In this example, A's canonical level (i.e., its backing store) is the L2: A does not exist in main memory and does not have a main memory address. B's canonical level is main memory.</p><p>1 shows the state of the system after the program accesses A's value. A is copied into the L1 pad, taking some free space at the end of the allocated region. Then, the pointer in register r1 is rewritten to point to this L1 copy. This way, subsequent dereferences of r1 access the L1 copy directly.</p><p>Programs can also access objects by dereferencing pointers to them. shows the state of the system after the core dereferences A's pointer to B. B is copied into the L1 pad, and A's pointer to B is rewritten to point to its L1 copy.</p><p>Since programs may have multiple pointers to the same object, pads must have a way to find copies of objects from higher levels. This is the role of the c-tag array, which, for each object copy, stores the object's canonical address (i.e., its address at its canonical level). For example, when A is copied into the L1 pad, the c-tag array inserts a translation from A's L2 address to the copy's L1 address. Thanks to pointer rewriting, only pointers to higher levels need to check the c-tag array. This eliminates most associative lookups.</p><p>shows the state of the system after the program creates a new object C. C is allocated directly in the L1 pad's free space and requires no backing storage in main memory.</p><p>When a pad runs out of free space, it triggers a collectioneviction (CE) process to free up space. In 4 the L1 pad has filled up, so the pad starts a CE to free L1 space. Similarly to garbage collection (GC), a CE walks the data array to detect live vs. dead objects. In addition to GC, a CE evicts live but non-recently accessed objects to the next-level pad. In this example, C is dead (i.e., unreferenced) and a new object D is referenced from A, and thus live. Note that A's L1 copy has been modified, so the L2 data is now stale. Only B has been accessed recently in the L1.</p><p>5 shows the state after the L1 CE. First, C has been collected. Second, A and D have been evicted to the L2 pad. Since A was originally copied from the L2 pad, the modified    This always-moving-up object flow is critical for Zippads, as objects start their lifetime uncompressed and move to compressed levels only when they become cold and are evicted. This move changes the object's original address and requires updating all the pointers to the object. Zippads leverages this to point directly to the compressed object, avoiding uncompressed-to-compressed address translation (Sec. 4.1).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">Hotpads implementation details</head><p>Next, we discuss the implementation details of Hotpads that are relevant to Zippads and COCO.</p><p>ISA: Hotpads modifies the ISA to support an object-based memory model. These ISA changes are transparent to application programmers, but require runtime and compiler modifications. <ref type="table" target="#tab_3">Table 2</ref> shows a subset of the ISA to support object accesses and to convey pointer information to Hotpads. Pointers may be dereferenced or compared, but their raw contents cannot be accessed. This lets Hotpads control their contents. Hotpads uses base+offset addressing modes, where the base register always holds an object pointer. The offset can be an immediate (base + displacement mode) or a register (base + index mode). Data load/store instructions are used for non-pointer data ( ); pointer load/store instructions are used to access pointer data ( 2 ); and the alloc instruction allocates a new object ( 3 ).</p><p>Pointer format: Hotpads controls and manipulates pointers within pads. <ref type="figure" target="#fig_9">Fig. 7</ref> shows the format of Hotpads pointers. This format is a microarchitectural choice, as pointers are opaque to software. The lower 48 bits contain the object's address and always point to the first word of the object. The  upper 14 bits contain the object's size (in words), and the other bits store metadata that is not relevant to Zippads. All objects are word-aligned. Storing the object's size in the pointer simplifies reading objects: fetching size words from the starting address yields the entire object. Zippads extends this pointer format to store compression metadata.</p><p>Collection-evictions: CEs occur entirely in hardware, and are much faster than software GC because pads are small. To make CEs efficient, Hotpads enforces an important invariant:</p><p>Objects at a particular level may only point to objects at the same or higher levels. In this way, CEs at smaller pads (e.g., L1) will not involve larger pads (L2, L3) because those pads have no pointers to the L1 pad. This makes CE cost proportional to pad size. CEs enable Hotpads's object flow: evicting an object from its original canonical level to the next level requires updating all the pointers to the object (e.g., D from to ). This would be impractically expensive to do for a single object, requiring a scan of the evicting pad and all smaller ones. But CEs amortize this scan across all evicted objects, making updating pointers cheap. Zippads thus piggybacks on CEs to point to compressed objects directly <ref type="figure" target="#fig_2">(Fig. 3c</ref>).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Zippads: An object-based compressed memory hierarchy</head><p>Zippads leverages Hotpads to (i) manipulate and compress objects rather than cache lines, and (ii) avoid the extra level of indirection in conventional compressed main memories by pointing directly to compressed objects. Zippads is agnostic to the compression algorithm used, and can use conventional algorithms like BDI or FPC, but works best with the COCO compression algorithm. We first describe Zippads, then explain COCO in the next section. <ref type="figure" target="#fig_10">Fig. 8</ref> shows an example Zippads hierarchy. The last-level pad and main memory are compressed, while the core-private L1 and L2 pads are not. Other Zippads hierarchies are possible, e.g., there could be multiple levels of compressed pads, or only main memory could be compressed. Once a level uses compression, it is sensible for larger levels to remain compressed, though Zippads does not require this. Zippads transfers compressed objects directly between compressed levels. To simplify our explanation, we first assume objects are always small (&lt; 128 B). We discuss how Zippads handles larger objects in Sec. 4.3. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Compressing objects</head><p>Zippads aims to store compressed objects compactly, with no unused space between them to maximize compression ratio. Objects move from uncompressed to compressed storage for two reasons: newly moved objects and dirty writebacks.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Case 1. Newly moved objects:</head><p>As explained in Sec. 3, Hotpads performs in-hierarchy memory management: objects start their lifetime at the L1 pad, and are moved into larger pads and main memory when they have not been recently used. Hotpads leverages this object flow to minimize the impact of dead objects, collecting them as soon as possible. Zippads further leverages this to facilitate compression: objects start their lifetime uncompressed, and when they become not-recently used, they are evicted into the last-level pad and compressed there. This is a key difference from conventional hierarchies, where objects are mapped to a main memory address to begin with, forcing the problem of translating from uncompressed to compressed addresses.</p><p>Newly moved objects are the easiest case to handle: Zippads simply compresses the object and then stores it at the beginning of the available space (with bump-pointer allocation). <ref type="figure">Fig. 9</ref> illustrates this process. This leaves no space between compressed objects (however, compressed objects are still word-aligned and may have a few unused bytes). The object's new canonical address is now in compressed memory, and all pointers to the object are updated to this new canonical address, as explained in Sec. 3.2.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Case 2. Dirty writebacks:</head><p>An object can reach to a compressed level, then be fetched into the L1 and modified. This object is then eventually written back to the compressed level. This dirty writeback is more complex than the initial move, because the object's compressed size may change. And since other objects in this level may have pointers to this object, Zippads cannot simply move it. <ref type="figure">Fig. 10</ref> shows how Zippads handles dirty writebacks. If the compressed object's new size is the same or smaller than its old size, the object is stored in the old location. If the new size is smaller, this wastes some space, which is left unused.</p><p>However, if the compressed object's new size is larger than its old size, the object cannot be stored at its old location. We call this an overflow. Zippads allocates a new location for the compressed object (using bump-pointer allocation as usual). Because other pointers to the old location may still exist, Zippads turns the old location into a forwarding thunk: it stores the new pointer in the first word of the object. Further accesses to the old location follow the forwarding thunk to find the object. As we will see, overflows are rare (Sec. 7.6).</p><p>Periodic compaction: Although dirty writebacks that change the size of an object are rare, they introduce storage inefficiencies, either leaving some unused space or causing forwarding thunks. However, these inefficiencies are temporary: in compressed pads, the collection-eviction (CE) process compacts all the live objects into a contiguous region. Zippads modifies the compaction step of CEs to handle recompressed objects: it eliminates both the unused space at the end of smaller recompressed objects and the forwarding thunks caused by overflows. Like Hotpads, Zippads performs mainmemory garbage collection in software. Zippads enhances the garbage collection algorithm to work on compressed objects and to perform these compaction optimizations.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Encoding compression information in pointers</head><p>Most compressed cache architectures employ a common optimization: they use the cache tag to encode information about the compressed cache line needed to perform accesses and decompression, such as the compressed size or the type of compression algorithm it uses. Leveraging the tags is more efficient than encoding this information in the data array itself, as the cache immediately knows how much data to access and what decompression algorithm to use.</p><p>Zippads cannot use this optimization, most importantly because main memory has no cache tags, but also because not all pad objects may have a canonical tag. Instead, Zippads encodes compression information directly in pointers. This is possible because pointers are opaque to software and we can change their format without changing the ISA. This approach yields all the benefits of encoding information in tags because all accesses start from a pointer. <ref type="figure">Fig. 11</ref> shows Zippads's pointer format. First, the size field now encodes the object's compressed size. Second, Zippads devotes a few extra bits to store algorithm-specific compression information (e.g., the compression format used). This way, when transferring objects between levels, hardware knows how much data to fetch and which decompression algorithm to use. Moreover, this encoding enables using different compression schemes for different objects.</p><p>Algorithm-specific compression information slightly reduces the address width. This is acceptable because Zippads uses word (i.e., 8-byte) addresses. For example, when Zippads uses the BDI algorithm, which requires bits per pointer, 44-bit word addresses allow almost the same address space as conventional 48-bit byte addresses in x86-64.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">Compressing large objects</head><p>So far, we have assumed that all objects are small (&lt;128B). However, programs can allocate larger objects. In Hotpads, large objects and arrays are fetched as subobjects in 64B chunks to avoid overfetching (e.g., if only one element is used in a 1KB array). Zippads also needs to handle large objects; otherwise, decompressing a large object for just one element would incur a very high latency.</p><p>Zippads thus breaks large objects to smaller subobjects and compresses them individually. This way, when the core only accesses part of a large object, Zippads need not decompress the whole object. Specifically, when allocating a large object (&gt;128B in our implementation), Zippads does not reserve the full capacity for it. Instead, it first allocates an array of pointers, which we call the index array. Each pointer in the index array points to a 64B subobject. All pointers are initially null, and the space for a subobject is allocated when an access to a particular subobject occurs (i.e., allocate-on-access). <ref type="figure">Fig. 12</ref> shows an example of allocating and accessing a large object. At 1 , the program allocates a 256B object, so Zippads allocates an index array with 4 elements. At 2 , the core accesses the element at a 72-byte offset, which belongs to the second subobject. Zippads then allocates a subobject and modifies the pointer in the index array. At and , the core updates the value and writes it back to the location. Zippads first accesses the index array to find the subobject pointer and traverses this pointer to update the field.</p><p>The index array is a microarchitecture optimization invisible to software. Subobjects are also compressed when their canonical addresses change. Pointers in the index array are updated as normal objects in Hotpads. Compressing at subobject granularity also avoids moving large objects for overflows. One drawback is that the footprint of large objects increases by 8 , but this is a small overhead compared to the benefit of low decompression latency and a more compact layout. Evaluation results show that Zippads offsets this overhead (Sec. 7.2).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">COCO: Cross-object-compression algorithm</head><p>Zippads works with any compression algorithm. But there is limited redundancy within each object, so existing algorithms like BDI yield limited benefits. We thus propose COCO (Cross-Object COmpression), a new compression algorithm that exploits redundancy across objects. COCO achieves high compression ratios and is cheap to implement.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1">COCO compression format</head><p>COCO is a differential compression algorithm: it compresses an object by storing only the bytes that differ from a different base object. Specifically, the compressed object format has three elements: 1. The base object id, an integer (32 bits in our implementation) that uniquely identifies the base object. 2. A diff bitmap with one bit per byte of the object. The i th bit is set iff the object's i th byte differs from the base object. 3. A string of byte diffs containing the bytes that are different from the base object's. <ref type="figure" target="#fig_2">Fig. 13</ref> shows an example COCO-compressed object. The uncompressed object has the same values in the first and second words, a 2-byte difference in the third, and a 4-byte difference in the fourth. Therefore, the compressed object stores only the six differing bytes in addition to the header.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2">Compression and decompression circuits</head><p>COCO compression/decompression circuits are simple to implement and only require narrow comparators and multiplexers. Our implementations compress/decompress one word (8 bytes) per cycle. This provides sufficient throughput for our purposes. The compression circuit compares the base object and the uncompressed object word by word. Each cycle, it produces one byte of the diff bitmap and a chunk of delta bytes. The decompression circuit takes the base object, bitmap, and delta bytes as inputs and produces one word of the decompressed object per cycle.</p><p>We have written the RTL for these circuits and synthesized them at 45nm using yosys <ref type="bibr" target="#b54">[55]</ref> and the FreePDK45 standard cell library <ref type="bibr" target="#b22">[23]</ref>. The compression circuit requires an area equivalent to 810 NAND2 gates at a 2.8 GHz frequency. The decompression circuit requires an area equivalent to 592 NAND2 gates at a 3.4 GHz frequency. These frequencies are much higher than typical uncore frequencies (1ś2 GHz), and a more recent fabrication process would yield faster circuits.</p><p>Finally, COCO area overheads are much smaller than prior techniques, such as BPC (68K NAND2 gates <ref type="bibr" target="#b23">[24]</ref>) or C-pack (40K NAND2 gates <ref type="bibr" target="#b12">[13]</ref>). This result shows that COCO is practical and simple to implement in hardware.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3">Building the base object collection</head><p>COCO allocates extra space in main memory to store base objects. We empirically find that statically assigning one base object per type id works well: same-type objects have the same layout and often share many values. This approach also makes compression faster: instead of trying multiple base objects to decide which base object to use, COCO simply selects the base object using the object type id (the first word of the uncompressed object).</p><p>We find that COCO is largely insensitive to the choice of base object, so our implementation simply uses the first object of each type that it sees (i.e., the first object that is evicted to a compressed level) as the base object. It may be beneficial to dynamically update the base object or to have multiple base objects per type; we leave this to future work.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.4">Caching base objects</head><p>Compressing and decompressing objects require fast access to the base object. If COCO had to access the base object from the last-level pad or main memory on each decompression, this would significantly increase decompression latency and bandwidth consumption.</p><p>Instead, we serve base objects from a small and fast base object cache, 8 KB in our implementation. This cache stores the most frequently used base objects, and is indexed with the base object id. We find that a small cache suffices because the popularity of object types is highly skewed. <ref type="figure" target="#fig_7">Fig. 14</ref> shows the distribution of accesses over the most popular object types for four selected apps. Tens of object type ids account for most of the accesses.</p><p>This overhead is similar to prior dictionary-based compression algorithms, such as SC 2 or FP-H (4 KB dictionary <ref type="bibr" target="#b3">[4,</ref><ref type="bibr" target="#b4">5]</ref>). COCO only needs to fetch the base object content when it misses in the base object cache.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6">Integrating Zippads and COCO</head><p>We have so far discussed Zippads independently from the compression algorithm, and COCO independently from Zippads. As discussed earlier, objects and arrays have different types of redundancy, and Zippads should compress both objects and arrays well. Therefore, Zippads uses different compression algorithms for each: COCO for objects, and a conventional hybrid algorithm, BDI+FPC, for arrays. To this end, our Zippads+COCO implementation adds 4 bits of compression metadata to each pointer, as shown in <ref type="table" target="#tab_5">Table 3</ref>. The first bit denotes whether the data is an array compressed with BDI+FPC, and the remaining 3 bits are used by BDI+FPC compression. If it is not a compressed array, the second bit   indicates whether it is an object compressed with COCO. If it is also not a COCO-compressed object, the third bit indicates whether it is an object or an array, which is required for Zippads+COCO to compress data during CEs. We also extend the ISA to distinguish objects and arrays at allocation time: Zippads adds a new alloc_array instruction, as shown in <ref type="table" target="#tab_6">Table 4</ref>, used to allocate arrays, and leaves the original alloc to allocate objects. Both instructions are identical, except that alloc_array sets the array bit in the new pointer, whereas alloc does not.</p><p>Arrays use hybrid BDI+FPC compression, in the same style as HyComp <ref type="bibr" target="#b3">[4]</ref>. We use 3 bits in the pointer to select the right decompression algorithm, and replace one choice in the original BDI encoding (Base2-∆1) to represent FPC compression.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Non-COCO Zippads variant:</head><p>To better understand the benefits of Zippads and COCO, we also evaluate Zippads-BF, a variant of Zippads that does not use COCO. Zippads-BF instead uses hybrid BDI+FPC for all objects and arrays. As we will see, Zippads-BF outperforms existing compressed hierarchies due to its more compact layout.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.1">Discussion</head><p>Although we have integrated COCO with Zippads in this work, in principle COCO should be usable with other compressed architectures. However, these architectures should somehow convey object boundaries to COCO, which would require runtime and hardware changes. For example, one solution could be to use type-segregated object pools, where each region of memory is dedicated to storing objects of a particular type, instead of bump-pointer allocation; however, this makes object allocation slower, may hurt spatial locality, and requires significant metadata to map pools to object types. Another approach could be to align all objects to cache line boundaries. This could achieve good performance on the compressed cache and memory, but excessive padding would use uncompressed caches (L1 and L2) poorly.</p><p>In the end, because retrofitting an object-based compression algorithm into a cache-based hierarchy faces significant hurdles and Zippads already demonstrates significant improvements over prior techniques even without COCO, we choose to not implement COCO outside of Zippads.  <ref type="table">Table 5</ref>. Configuration of the simulated system.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7">Evaluation</head><p>We evaluate Zippads and COCO on a mix of array-based and object-based workloads. We evaluate on Java workloads because Java is a memory-safe language that aligns well with our baseline system, Hotpads. To show that Zippads is not specific to Java or memory-safe languages, we also evaluate on two C/C++ benchmarks in Sec. 7.5.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.1">Methodology</head><p>We evaluate Zippads using MaxSim <ref type="bibr" target="#b37">[38]</ref>, a simulation platform that combines ZSim <ref type="bibr" target="#b38">[39]</ref>, a Pin-based <ref type="bibr" target="#b26">[27]</ref> simulator, and Maxine <ref type="bibr" target="#b53">[54]</ref>, a 64-bit metacircular research JVM.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.1.1">Hardware</head><p>We compare the following techniques:</p><p>Uncompressed: Our baseline uses a three-level cache hierarchy without compression, with parameters shown in <ref type="table">Table 5</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Compressed memory hierarchy (CMH):</head><p>We implement a state-of-the-art compressed memory hierarchy that compresses both the LLC and main memory. We use HyCompstyle hybrid BDI+FPC compression (Sec. 6). The compressed LLC uses the VSC <ref type="bibr" target="#b0">[1]</ref> design with 2× tag array entries and uses the CAMP compression-aware replacement policy <ref type="bibr" target="#b31">[32]</ref>. The compressed main memory uses LCP <ref type="bibr" target="#b33">[34]</ref>, which we idealize by assuming a perfect metadata cache that always hits.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Hotpads:</head><p>We configure Hotpads as in prior work <ref type="bibr" target="#b18">[19,</ref><ref type="bibr" target="#b51">52]</ref>, with three levels of uncompressed pads.</p><p>Zippads: Zippads uses a compressed last-level pad with 2× the canonical tag array entries, similar to the VSC LLC in the compressed memory hierarchy design. We also use an 8KB base object cache to store frequently-used base objects. Zippads uses COCO for objects and BDI+FPC for arrays; we also evaluate a variant of Zippads, Zippads-BF, that always uses BDI+FPC for objects and arrays, like the CMH design.  <ref type="table">Table 6</ref>. Workloads and inputs used.</p><p>Cache scrubbing: Modern languages like Java incur memory overheads due to garbage collection <ref type="bibr" target="#b55">[56]</ref>. Therefore, we also implement cooperative cache scrubbing <ref type="bibr" target="#b43">[44]</ref>, which adds instructions to zero and scrub (i.e., undirty) cache lines and use them in the JVM for both the uncompressed and compressed cache hierarchies to reduce memory traffic due to object allocation and recycling. Scrubbing does not improve compression ratio, but it improves the performance of garbage-collected languages with simple mechanisms. Workloads: We study eight Java workloads from different domains. We select workloads with heap sizes larger than 100 MB, so that they exercise main memory. We use two scientific workloads, fft and spmv from the Scimark2 <ref type="bibr" target="#b35">[36]</ref> suite; two database workloads, h2 from the Dacapo [8] suite <ref type="bibr" target="#b0">1</ref> and SPECjbb2005 <ref type="bibr" target="#b47">[48]</ref>; two graph processing workloads, PageRank and Coloring from JgraphT <ref type="bibr" target="#b27">[28]</ref>, a popular Java graph library; GuavaCache, a key-value store from Google Core Libraries for Java <ref type="bibr" target="#b20">[21]</ref>, and BTree, the example we saw in Sec. 2, from the JDBM <ref type="bibr" target="#b25">[26]</ref> database. <ref type="table">Table 6</ref> describes their input sets. We fast-forward JVM initialization and warm up the JIT compiler like prior work <ref type="bibr" target="#b7">[8]</ref> by running the same workload multiple times before starting simulation. We run all workloads to completion to avoid sampling bias in compression ratio <ref type="bibr" target="#b15">[16]</ref>. For each workload, we first find the smallest heap size that does not crash, and use 2× that size. This is standard methodology <ref type="bibr" target="#b8">[9,</ref><ref type="bibr" target="#b43">44]</ref>.</p><p>In addition to Java workloads, we also study two C/C++ workloads. GCBench <ref type="bibr" target="#b9">[10]</ref> is a C benchmark that creates, traverses, and destroys binary trees. GCBench's default input incurs only a 16MB active memory footprint, so we scale the input to incur a 512MB active memory footprint, which stresses main memory. Silo <ref type="bibr" target="#b52">[53]</ref> is a C++ in-memory OLTP database, configured to run the TPC-C benchmark. Both the baseline and CMH use high-performance allocators (tcmalloc <ref type="bibr" target="#b19">[20]</ref> for GCBench and jemalloc <ref type="bibr" target="#b17">[18]</ref> for Silo). For Hotpads and Zippads, we modify these workloads to use the Hotpads and Zippads ISAs to allocate and access objects.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Metrics:</head><p>We report the average compression ratio, sampled every 100M cycles, of different schemes. We also report total memory traffic (in bytes) and performance (inverse of execution time). All metrics are normalized to the baseline system without compression. <ref type="figure" target="#fig_15">Fig. 15</ref> shows the compression ratio of the five memory hierarchies we compare. Each group of bars shows results for a different application. Compressed hierarchies have their bars hatched; uncompressed hierarchies are shown unhatched. CMH compresses memory footprint effectively for arraydominated scientific workloads fft and spmv, achieving compression ratios of 1.67 and 1.53, respectively. Zippads also compresses these two workloads well and achieves slightly higher compression ratios than CMH, 1.97 and 1.79, because it better compresses non-heap data (e.g., code and JVM state), which is not array-based. There is no difference between Zippads-BF and Zippads because these two workloads are dominated by arrays, which Zippads always compresses with hybrid BDI+FPC.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.2">Zippads improves compression ratio</head><p>The other workloads are object-dominated, and differences across techniques are larger. CMH only compresses around 10% of the total footprint and has compression ratios between 1.06 to 1.27. By contrast, Zippads achieves high compression ratios. The difference in compression ratio between CMH and Zippads correlates well with the ratio of object footprint shown in <ref type="figure">Fig. 1</ref>. For example, guavacache has the highest ratio for objects in the main memory footprint, and the difference between CMH and Zippads is also the highest: Zippads compresses 2× better than CMH. Meanwhile, specjbb has the lowest ratio of objects (around 40%) in the heap footprint, so the difference in compression ratio between CMH and Zippads is also the lowest among these workloads.</p><p>There is also a large difference between Zippads-BF and Zippads in these applications. Owing to its more compact layout, Zippads-BF achieves compression ratios of 1.56ś1.78 in these applications, significantly higher than CMH, despite only using BDI+FPC. By contrast, Zippads uses COCO for objects, which increases compression ratios to 1.82ś2.24.</p><p>On average, CMH achieves a compression ratio of only 1.24, while Zippads-BF and Zippads achieve ratios of 1.70 and 2.01, i.e., 1.37× and 1.63× better than CMH. These results show that compressing objects rather than cache lines and adopting an object-specific compression algorithm are both important contributions to the effectiveness of Zippads. <ref type="figure">Fig. 16</ref> shows the memory traffic of all schemes, measured in total bytes read and written, normalized to Uncompressed. In addition to schemes we saw above, <ref type="figure">Fig. 16</ref> also reports the Scrubbing variants of Uncompressed and CMH (CMH+S).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.3">Zippads reduces main memory traffic</head><p>We find that CMH reduces main memory traffic for many applications for two main reasons. First, the compressed LLC has a higher effective capacity, and thus higher cache hit rate. This helps cache-capacity sensitive applications, in particular h2, specjbb, and btree. Second, the compressed main memory (LCP) lets the system fetch consecutive cache lines in a single 64-byte burst, which helps applications with high spatial locality. This is the case for spmv, coloring, and pagerank. On average, CMH reduces main memory traffic by 15% over Uncompressed.</p><p>Scrubbing helps the allocation-heavy database workloads, reducing their traffic by 60%. But Scrubbing is not as effective for others, especially for scientific workloads that only allocate once. On average, Scrubbing reduces main memory traffic by 15%. CMH and Scrubbing (CMH+S) yield additive benefits since they are orthogonal techniques. CMH+S saves 30% of main memory traffic on average.</p><p>Hotpads does not reduce traffic for scientific workloads, but it saves memory traffic significantly for object-based workloads because of its object-friendly features: object-gra-nularity data movement, in-pad allocation, and hardwarebased in-pad garbage collection. These features especially help h2, specjbb, and guavacache. On average, Hotpads reduces main memory traffic by 66%.</p><p>Zippads improves over Hotpads by adding the benefits of high compression ratios. In workloads where CMH saves significant traffic, such as spmv, h2, and btree, Zippads also yields significant benefits over Hotpads. Like Hotpads, Zippads also benefits guavacache significantly, whereas other techniques yield little benefit. On average, Zippads reduces main memory traffic by 2× over the baseline, by 56% over CMH+S, and by 22% over Hotpads. <ref type="figure" target="#fig_9">Fig. 17</ref> shows the end-to-end performance of the different memory hierarchies. The performance improvement of different schemes correlates well with their memory traffic reduction. For example, CMH reduces the memory traffic for spmv, and it also improves performance by 12%. Scrubbing reduces memory traffic the most for database workloads and thus improves performance the most for them.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.4">Zippads improves system performance</head><p>Hotpads's object-level operation and in-pad memory management provide large benefits across all object-based programs. Zippads again adds the benefits of memory compression over Hotpads, helping spmv, h2, and btree.</p><p>On average, CMH improves performance by 5%, Scrubbing by 6%, CMH+S by 11%, and Hotpads by 24%. Zippads improves performance over Uncompressed by 30%. This represents a 5% improvement over Hotpads and a 17% improvement over CMH+S. Overall, these results show that Zippads incurs small compression overheads, so compression consistently improves performance.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.5">Zippads is effective on C/C++ benchmarks</head><p>Zippads is not specific to Java workloads, and also helps object-based programs in unmanaged languages. To show this, <ref type="figure" target="#fig_10">Fig. 18</ref> compares the compression ratio, normalized main memory traffic, and performance of the different schemes on two object-heavy C/C++ workloads. Small objects occupy over 95% of the memory footprint in these workloads, so trends are similar to those of object-heavy Java workloads.</p><p>First, CMH achieves negligible memory footprint reductions for these workloads. By contrast, Zippads-BF achieves high compression ratios for these workloads, 1.61 and 1.23, thanks to its compact layout; and Zippads achieves even higher compression ratios, 2.01 and 1.70, thanks to COCO.</p><p>Second, all compression techniques reduce main memory traffic. CMH's reduced memory traffic stem from accesses to freshly allocated pages. These pages are zeroed and thus compress well. Thus, CMH reduces main memory traffic by 47% even though it does not compress the data produced by these workloads. Hotpads reduces main memory traffic by 57%, and Zippads-BF and Zippads reduce traffic further, by 85% and 2.2×, by effectively compressing main memory. (c) Performance. <ref type="figure" target="#fig_10">Figure 18</ref>. Results for C/C++ benchmarks.</p><p>Finally, CMH achieves a 20% speedup over the uncompressed baseline in GCbench due to its reduced memory traffic. Hotpads and Zippads are both 2.7× faster than the baseline. These speedups stem from Hotpads features, including in-hierarchy allocation and collection-evictions. Zippads preserves Hotpads's high performance while achieving a high compression ratio. Silo is neither memory-intensive nor allocation-intensive, so memory hierarchy compression has modest performance benefits: CMH only improves performance by 4%, Zippads-BF by 6%, and Zippads by 10%.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.6">Zippads analysis</head><p>Base object cache misses: <ref type="figure" target="#fig_18">Fig. 19</ref> shows the number of misses per kilo-cycle (MPKC) in the COCO base object cache. Most workloads have fewer than 0.001 MPKC. The database workloads have slightly more misses, but are still around 0.01 MPKC. These misses reduce performance by less than 0.1%. Moreover, a 16KB base object cache does not help much. We thus conclude that a small base object cache is effective.</p><p>Overflow frequency: <ref type="figure" target="#fig_19">Fig. 20</ref> shows the rate of overflows due to dirty writebacks, in overflows per thousand cycles. Overflows are rare across all workloads we evaluate. They happen most frequently in guavacache, but still at a low frequency of 0.4 overflows per Kcycle. For other workloads, overflows happen less than 0.01 times per Kcycle. <ref type="table">Table 7</ref> shows the total storage per last-level cache or pad of different schemes. Hotpads adds 6.5% storage over the baseline for the pad metadata and canonical tag entries. CMH adds 12.7% over the baseline due to 2× tags, encoding bits in tag entries, and a 32KB metadata    <ref type="table">Table 7</ref>. On-chip storage (KB) per last-level cache/pad bank. cache. Similarly, Zippads adds 9.2% over Hotpads due to doubling the number of canonical tags (to track more objects) and the 8KB base object cache. This is only 3.2% extra storage over the CMH LLC and 16.3% over the baseline. Overall, this shows similar on-chip storage requirements as prior compressed caches. These overheads are uniformly offset by the high compression ratios that Zippads achieves. Moreover, most overheads stem from the larger tag array, which can be removed if only compressed main memory (2x smaller memory footprint) is needed.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Hardware overhead analysis:</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="8">Additional related work</head><p>Prior work on software techniques to reduce the memory footprint of managed languages has also considered objectlevel compression. They compress objects by removing zeros <ref type="bibr" target="#b11">[12,</ref><ref type="bibr" target="#b44">45]</ref> or frequent field values <ref type="bibr" target="#b10">[11]</ref>. COCO is inspired by these techniques. However, prior software techniques must be simple and must be used selectively to limit overheads. By contrast, COCO can be used to compress all objects.</p><p>Discontiguous array designs <ref type="bibr" target="#b11">[12,</ref><ref type="bibr" target="#b42">43]</ref> divide arrays into indexed chunks to avoid fragmentation. Zippads's subobject compression shares the same motivation.</p><p>Prior work in hardware deduplication <ref type="bibr" target="#b13">[14,</ref><ref type="bibr" target="#b46">47,</ref><ref type="bibr" target="#b49">50</ref>] also seeks to reduce memory footprint. However, deduplication techniques work well only when applications have coarsegrained redundancy, with large chunks of identical data. COCO can be seen as a byte-level deduplication technique.</p><p>Some prior work in compression has also considered bandwidth usage and link utilization. MemZip <ref type="bibr" target="#b45">[46]</ref> places compressed cache lines and their metadata for address translation next to each other to reduce bandwidth usage. Toggle-aware compression <ref type="bibr" target="#b30">[31]</ref> considers the extra dynamic energy consumed by on-chip and off-chip links due to the more frequent toggling caused by compression. Zippads can be combined with these techniques (e.g., data bus inversion) to further reduce the energy consumed by links.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Conclusion</head><p>Conventional compressed hierarchies focus on compressing cache lines, which limits compression efficiency and adds substantial overheads. In this paper, we leverage two insights about object-based programs to improve compressed hierarchies. First, these programs perform object-level accesses, so objects are the right unit of compression. Second, there is significant redundancy across objects. Using these insights, we propose Zippads, the first object-based compressed memory hierarchy, and COCO, a new, cross-object-compression algorithm. Zippads+COCO improves compression ratio over a combination of state-of-the-art techniques by up to 2× and by 1.63× on average. It also reduces memory traffic by 56% and improves performance by 17%.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 3 .</head><label>3</label><figDesc>Different compression techniques applied to BTree.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head></head><label></label><figDesc>Program code: v = A.next.value; Example object: class ListNode { int value; ListNode next; } 2 Core allocates new object C. now full, triggering a CE. an L1 CE: D has an L2 address. A's pointer to D is also an pointer to the L2 pad. Before an L1 CE: D has an L1 address. CE moves objects in bulk and updates pointers.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_7"><head>Figure 4 .</head><label>4</label><figDesc>Example showing Hotpads's main features.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_9"><head>Figure 7 .</head><label>7</label><figDesc>Hotpads pointer format.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_10"><head>Figure 8 .</head><label>8</label><figDesc>Example Zippads hierarchy with a compressed last-level pad and main memory.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_11"><head>Figure 9 .Figure 10 .</head><label>910</label><figDesc>Compressing newly moved objects. Compressing objects on dirty writebacks.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_12"><head>Figure 11 . 4 Figure 12 .</head><label>11412</label><figDesc>Zippads pointer format. Compression information is encoded in the pointer. Zippads breaks large objects into subobjects.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_13"><head>Figure 13 .</head><label>13</label><figDesc>Example COCO-compressed object.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_14"><head>Figure 14 .</head><label>14</label><figDesc>CDF of accesses to most popular object ids.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_15"><head>Figure 15 .</head><label>15</label><figDesc>Compression ratio of different schemes.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_16"><head>Figure 16 .Figure 17 .</head><label>1617</label><figDesc>Normalized main memory traffic of different schemes. c jb b p a g e ra n k c o lo ri n g b tr e e g u a v a c a c h e g Performance of different schemes.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_18"><head>Figure 19 .</head><label>19</label><figDesc>c jb b p a g e r a n k c o lo r in g b t r e e g u a v a c a c h e8KB16KB Rate of base object cache misses (in misses per Kcycle, log scale).</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_19"><head>Figure 20 .</head><label>20</label><figDesc>c jb b p a g e r a n k c o lo r in g b t r e e g u a v a c a c h e Rate of dirty writeback overflows (in overflows per Kcycle, log scale).</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head></head><label></label><figDesc>Objects and their memory layout in BTree.</figDesc><table><row><cell>class Entry {</cell></row><row><cell>Object key;</cell></row><row><cell>Object value;</cell></row><row><cell>Node next;</cell></row><row><cell>}</cell></row><row><cell>……</cell></row><row><cell>(56B)</cell></row><row><cell>Figure 2. Node</cell></row><row><cell>Entry[]</cell></row><row><cell>Entry[0]</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_3"><head>Table 2 .</head><label>2</label><figDesc>Pointer Load ldptr rp, disp(rb) rp &lt;-Mem[EffAddr]   Pointer Store stptr rp, disp(rb) Mem[EffAddr] &lt;-rp Hotpads ISA. rd/rs denote dst/src registers that hold data; rp/rb hold pointers. All accesses use base+offset addressing. copy is written back to A's L2 location. By contrast, D is moved up to the L2 pad and thus has a new canonical address, an L2 address. Third, B has been kept in the L1 and moved to the start of the array.As in compacting GC, during CEs, live objects are compacted into a contiguous region to simplify free space management. Moreover, CEs also update pointers in the system (register file, pointers in pads) to point to the new location. For example, both a register (r3) and the pointer in A are updated to D's new canonical address.</figDesc><table><row><cell>Instruction</cell><cell>Format</cell><cell>Operation</cell></row><row><cell>Data Load</cell><cell>ld rd, disp(rb)</cell><cell>rd &lt;-Mem[EffAddr]</cell></row><row><cell>Data Store</cell><cell>st rd, disp(rb)</cell><cell>Mem[EffAddr] &lt;-rd</cell></row><row><cell cols="3">Allocation alloc rp, rs1, rs2 NewAddr &lt;-Alloc(rs1);</cell></row><row><cell></cell><cell>(rs1 = size)</cell><cell>Mem[NewAddr] &lt;-rs2;</cell></row><row><cell></cell><cell>(rs2 = type id)</cell><cell>rp &lt;-NewAddr;</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_4"><head></head><label></label><figDesc>Uncomp. Object Uncomp. Array Comp. Object Comp. Array</figDesc><table><row><cell>Code</cell><cell>000X</cell><cell>001X</cell><cell>01XX</cell><cell>1CCC</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_5"><head>Table 3 .</head><label>3</label><figDesc>Zippads+COCO in-pointer compression information. X denotes the bit does not matter, and Cs denote the bits used by hybrid BDI+FPC encoding.</figDesc><table><row><cell>Instruction</cell><cell>Format</cell><cell>Operation</cell></row><row><cell cols="3">Allocate alloc_array rp, rs1, rs2 Same as alloc, but</cell></row><row><cell>Array</cell><cell>(rs1 = size)</cell><cell>sets the array bit</cell></row><row><cell></cell><cell>(rs2 = type id)</cell><cell>in rp.</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_6"><head>Table 4 .</head><label>4</label><figDesc>alloc_array lets Zippads distinguish arrays and objects.</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_7"><head></head><label></label><figDesc>Corex86-64 ISA, 3.6 GHz, Westmere-like OOO<ref type="bibr" target="#b38">[39]</ref>: 16B-wide ifetch; 2-level bpred with 2k×10-bit BHSRs + 4k×2-bit PHT, 4-wide issue, 36-entry IQ, 128-entry ROB, 32-entry LQ/SQ Caches L1 64 KB, 8-way set-associative, split D/I caches, 64 B lines L2 512 KB private per-core, 8-way set-associative LLC 4 banks, 2 MB/bank, 16-way set-associative, LRU</figDesc><table><row><cell></cell><cell cols="2">Mem 2 DDR3-1600 channels</cell></row><row><cell>CMH</cell><cell cols="2">HyComp-style hybrid [4]: BDI [35] (1-cycle latency) and FPC [2] (5-cycle latency) LLC 2× tag array, VSC [1] cache, CAMP [32] replacement policy Algo Mem LCP [34] with perfect, 32KB metadata cache</cell></row><row><cell>Hotpads</cell><cell cols="2">L1D 64 KB data array, 1K ctag entries L1I 64 KB cache, 8-way set-associative, 64 B lines L2 512 KB data array, 8K ctag entries LLP 4×2 MB data array, 4×32K ctag entries</cell></row><row><cell cols="2">Zippads</cell><cell>L3: 4×64K ctag array, 8 KB base object cache, COCO compression (1-cycle latency) and hybrid BDI+FPC</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_10"><head></head><label></label><figDesc>Tag Data Extra Total (KB) Increased by (%)</figDesc><table><row><cell>Baseline 160 2048</cell><cell>0</cell><cell>2208</cell><cell>0%</cell></row><row><cell>Hotpads 208 2048</cell><cell>96</cell><cell>2352</cell><cell>6.5%</cell></row><row><cell>CMH 408 2048</cell><cell>32</cell><cell>2488</cell><cell>12.7%</cell></row><row><cell cols="2">Zippads 416 2048 96 + 8</cell><cell>2568</cell><cell>16.3%</cell></row><row><cell></cell><cell cols="3">9.2% over Hotpads 3.2% over CMH</cell></row></table><note></note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="1">We evaluate Java workloads with large footprints (&gt;100MB min heap size); h2 is the only such one from DaCapo.</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgments</head><p>We sincerely thank Maleen Abeydeera, Joel Emer, Mark Jeffrey, Anurag Mukkara, Suvinay Subramanian, Victor Ying, and the anonymous reviewers for their feedback. We thank Nathan Beckmann for sharing his compressed cache and CAMP implementation <ref type="bibr" target="#b5">[6,</ref><ref type="bibr" target="#b6">7]</ref>, and Gennady Pekhimenko for sharing his BDI and FPC implementations. This work was supported in part by NSF grant CAREER-1452994 and by a grant from the Qatar Computing Research Institute.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Adaptive cache compression for high-performance processors</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David A</forename><surname>Alaa R Alameldeen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Wood</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ISCA-31</title>
+		<meeting>ISCA-31</meeting>
+		<imprint>
+			<date type="published" when="2004" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Frequent pattern compression: A significance-based compression scheme for L2 caches</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David A</forename><surname>Alaa R Alameldeen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Wood</surname></persName>
+		</author>
+		<idno>1500</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Dept. Comp. Sci</title>
+		<imprint>
+			<date type="published" when="2004" />
+		</imprint>
+		<respStmt>
+			<orgName>Univ. Wisconsin-Madison</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">Technical Report</note>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">The Jikes research virtual machine project: Building an open-source research community</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Steve</forename><surname>Bowen Alpern</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Augart</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Stephen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Maria</forename><surname>Blackburn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Anthony</forename><surname>Butrico</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Perry</forename><surname>Cocchi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Julian</forename><surname>Cheng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Stephen</forename><surname>Dolby</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Fink</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Grove</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Hind</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IBM Systems Journal</title>
+		<imprint>
+			<biblScope unit="volume">44</biblScope>
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">HyComp: A hybrid cache compression method for selection of data-type-specific compression methods</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Angelos</forename><surname>Arelakis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Fredrik</forename><surname>Dahlgren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Per</forename><surname>Stenstrom</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. MICRO-48</title>
+		<meeting>MICRO-48</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">SC2: A statistical compression cache scheme</title>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ISCA-41</title>
+		<meeting>ISCA-41</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note>Angelos Arelakis and Per Stenstrom</note>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<monogr>
+		<title level="m" type="main">Bridging Theory and Practice in Cache Replacement</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nathan</forename><surname>Beckmann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daniel</forename><surname>Sanchez</surname></persName>
+		</author>
+		<idno>MIT-CSAIL-TR-2015- 034</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+		<respStmt>
+			<orgName>Massachusetts Institute of Technology</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">Technical Report</note>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Maximizing Cache Performance Under Uncertainty</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nathan</forename><surname>Beckmann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daniel</forename><surname>Sanchez</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. HPCA-23</title>
+		<meeting>HPCA-23</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">The DaCapo benchmarks: Java benchmarking development and analysis</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Stephen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Robin</forename><surname>Blackburn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chris</forename><surname>Garner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Hoffmann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Asjad</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kathryn</forename><forename type="middle">S</forename><surname>Khang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rotem</forename><surname>Mckinley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Amer</forename><surname>Bentzur</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daniel</forename><surname>Diwan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daniel</forename><surname>Feinberg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Frampton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Samuel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><surname>Guyer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Antony</forename><surname>Hirzel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Hosking</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. OOPSLA</title>
+		<editor>Stefanovic, Thomas VanDrunen, Daniel von Dincklage, and Ben Wiedermann</editor>
+		<meeting>OOPSLA<address><addrLine>Maria Jump, Han Lee, J Eliot B Moss, Aashish Phansalkar</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Immix: A markregion garbage collector with space efficiency, fast collection, and mutator performance</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Stephen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kathryn</forename><forename type="middle">S</forename><surname>Blackburn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Mckinley</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. PLDI</title>
+		<meeting>PLDI</meeting>
+		<imprint>
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<monogr>
+		<title level="m" type="main">An artificial garbage collection benchmark</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">-J</forename><surname>Hans</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Boehm</surname></persName>
+		</author>
+		<ptr target="https://perma.cc/Y4BY-7RN4" />
+		<imprint>
+			<date type="published" when="2002" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Exploiting frequent field values in Java objects for reducing heap memory requirements</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Guangyu</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mahmut</forename><surname>Kandemir</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mary</forename><forename type="middle">J</forename><surname>Irwin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">VEE</title>
+		<imprint>
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Heap compression for memory-constrained Java environments</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Guangyu</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Narayanan</forename><surname>Kandemir</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mary</forename><forename type="middle">Jane</forename><surname>Vijaykrishnan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bernd</forename><surname>Irwin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mario</forename><surname>Mathiske</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Wolczko</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. OOPSLA</title>
+		<meeting>OOPSLA</meeting>
+		<imprint>
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">C-Pack: A high-performance microprocessor cache compression algorithm</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xi</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lei</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Robert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Li</forename><surname>Dick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Haris</forename><surname>Shang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Lekatsas</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE transactions on very large scale integration (VLSI) systems</title>
+		<imprint>
+			<date type="published" when="2010" />
+			<biblScope unit="volume">18</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">HICAMP: Architectural support for efficient concurrency-safe shared structured data access</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Cheriton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Amin</forename><surname>Firoozshahian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Solomatnikov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>John</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Omid</forename><surname>Stevenson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Azizi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ASPLOS-XVII</title>
+		<meeting>ASPLOS-XVII</meeting>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Compresso: Pragmatic main memory compression</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Esha</forename><surname>Choukse</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mattan</forename><surname>Erez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alaa</forename><surname>Alameldeen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. MICRO-51</title>
+		<meeting>MICRO-51</meeting>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Compress-Points: An evaluation methodology for compressed memory systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Esha</forename><surname>Choukse</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mattan</forename><surname>Erez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alaa</forename><surname>Alameldeen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Computer Architecture Letters</title>
+		<imprint>
+			<biblScope unit="volume">17</biblScope>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">A robust main-memory compression scheme</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Magnus</forename><surname>Ekman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Per</forename><surname>Stenstrom</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ISCA-32</title>
+		<meeting>ISCA-32</meeting>
+		<imprint>
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jason</forename><surname>Evans</surname></persName>
+		</author>
+		<ptr target="http://jemalloc.net/" />
+		<imprint>
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<monogr>
+		<title level="m" type="main">Redesigning the memory hierarchy for memory-safe programming languages</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yee</forename><surname>Ling Gan</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+		<respStmt>
+			<orgName>Massachusetts Institute of Technology</orgName>
+		</respStmt>
+	</monogr>
+	<note>Master&apos;s thesis</note>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sanjay</forename><surname>Ghemawat</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Paul</forename><surname>Menage</surname></persName>
+		</author>
+		<ptr target="http://goog-perftools.sourceforge.net/doc/tcmalloc.html" />
+		<title level="m">TCMalloc: Thread-Caching Malloc</title>
+		<imprint>
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<monogr>
+		<title level="m" type="main">Guava: Google Core Libraries for Java</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Google</surname></persName>
+		</author>
+		<ptr target="https://github.com/google/guava" />
+		<imprint>
+			<date type="published" when="2004" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">A unified compressed memory hierarchy</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Erik</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Hallnor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Steven</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Reinhardt</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. HPCA-11</title>
+		<meeting>HPCA-11</meeting>
+		<imprint>
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<monogr>
+		<title level="m" type="main">The NanGate 45nm Open Cell Library</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nangate</forename><surname>Inc</surname></persName>
+		</author>
+		<ptr target="http://www.nangate.com/?page_id=2325" />
+		<imprint>
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Bit-plane compression: Transforming data for better compression in many-core architectures</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jungrae</forename><surname>Kim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Sullivan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Esha</forename><surname>Choukse</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mattan</forename><surname>Erez</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ISCA-43</title>
+		<meeting>ISCA-43</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">Transparent dual memory compression architecture</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Seikwon</forename><surname>Kim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Seonyoung</forename><surname>Lee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Taehoon</forename><surname>Kim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jaehyuk</forename><surname>Huh</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. PACT-26</title>
+		<meeting>PACT-26</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<monogr>
+		<title level="m" type="main">JDBM: A simple transactional persistent engine for Java</title>
+		<ptr target="http://jdbm.sourceforge.net/" />
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Pin: Building customized program analysis tools with dynamic instrumentation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chi-Keung</forename><surname>Luk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Robert</forename><surname>Cohn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Robert</forename><surname>Muth</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Harish</forename><surname>Patil</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Artur</forename><surname>Klauser</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geoff</forename><surname>Lowney</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Steven</forename><surname>Wallace</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Vijay</forename><forename type="middle">Janapa</forename><surname>Reddi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kim</forename><surname>Hazelwood</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. PLDI</title>
+		<meeting>PLDI</meeting>
+		<imprint>
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Barak</forename><surname>Naveh</surname></persName>
+		</author>
+		<ptr target="http://jgrapht.org" />
+		<imprint>
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">MORC: A manycore-oriented compressed cache</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Tri</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Nguyen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Wentzlaff</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. MICRO-48</title>
+		<meeting>MICRO-48</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Dictionary sharing: An efficient cache compression scheme for compressed caches</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Biswabandan</forename><surname>Panda</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">André</forename><surname>Seznec</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. MICRO-49</title>
+		<meeting>MICRO-49</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">A case for toggle-aware compression for GPU systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Gennady</forename><surname>Pekhimenko</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Evgeny</forename><surname>Bolotin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nandita</forename><surname>Vijaykumar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Onur</forename><surname>Mutlu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Todd</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Stephen</forename><forename type="middle">W</forename><surname>Mowry</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Keckler</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. HPCA-22</title>
+		<meeting>HPCA-22</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">Exploiting compressed block size as an indicator of future reuse</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Gennady</forename><surname>Pekhimenko</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tyler</forename><surname>Huberty</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rui</forename><surname>Cai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Onur</forename><surname>Mutlu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Phillip</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Gibbons</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Michael</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Todd C</forename><surname>Kozuch</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Mowry</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. HPCA-21</title>
+		<meeting>HPCA-21</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<monogr>
+		<title level="m" type="main">Linearly compressed pages: A low-complexity, low-latency main memory compression framework</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Gennady</forename><surname>Pekhimenko</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Vivek</forename><surname>Seshadri</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoongu</forename><surname>Kim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hongyi</forename><surname>Xin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Onur</forename><surname>Mutlu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Phillip</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Gibbons</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Michael</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Todd C</forename><surname>Kozuch</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Mowry</surname></persName>
+		</author>
+		<idno>SAFARI 2012-002</idno>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+		<respStmt>
+			<orgName>Carnegie Mellon University</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">Technical Report</note>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<analytic>
+		<title level="a" type="main">Linearly compressed pages: a low-complexity, low-latency main memory compression framework</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Gennady</forename><surname>Pekhimenko</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Vivek</forename><surname>Seshadri</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoongu</forename><surname>Kim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hongyi</forename><surname>Xin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Onur</forename><surname>Mutlu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Phillip</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Gibbons</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Michael</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Todd C</forename><surname>Kozuch</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Mowry</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. MICRO-46</title>
+		<meeting>MICRO-46</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">Base-delta-immediate compression: Practical data compression for on-chip caches</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Gennady</forename><surname>Pekhimenko</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Vivek</forename><surname>Seshadri</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Onur</forename><surname>Mutlu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Phillip</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Gibbons</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Michael</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Todd C</forename><surname>Kozuch</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Mowry</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. PACT-21</title>
+		<meeting>PACT-21</meeting>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Roldan</forename><surname>Pozo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bruce</forename><surname>Miller</surname></persName>
+		</author>
+		<ptr target="https://math.nist.gov/scimark2/" />
+		<imprint>
+			<date type="published" when="2004" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<analytic>
+		<title level="a" type="main">The V-Way cache: Demand based associativity via global replacement</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Moinuddin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Qureshi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yale</forename><forename type="middle">N</forename><surname>Thompson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Patt</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ISCA-32</title>
+		<meeting>ISCA-32</meeting>
+		<imprint>
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">MaxSim: A simulation platform for managed applications</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrey</forename><surname>Rodchenko</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christos</forename><surname>Kotselidis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andy</forename><surname>Nisbet</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Antoniu</forename><surname>Pop</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mikel</forename><surname>Luján</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ISPASS</title>
+		<meeting>ISPASS</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<analytic>
+		<title level="a" type="main">ZSim: Fast and accurate microarchitectural simulation of thousand-core systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daniel</forename><surname>Sanchez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christos</forename><surname>Kozyrakis</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ISCA-40</title>
+		<meeting>ISCA-40</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">A primer on compression in the memory hierarchy</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Somayeh</forename><surname>Sardashti</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Angelos</forename><surname>Arelakis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Per</forename><surname>Stenström</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David A</forename><surname>Wood</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Synthesis Lectures on Computer Architecture</title>
+		<imprint>
+			<biblScope unit="volume">10</biblScope>
+			<biblScope unit="page">5</biblScope>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<analytic>
+		<title level="a" type="main">Skewed compressed caches</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Somayeh</forename><surname>Sardashti</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">André</forename><surname>Seznec</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David A</forename><surname>Wood</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. MICRO-47</title>
+		<meeting>MICRO-47</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<analytic>
+		<title level="a" type="main">Decoupled compressed cache: Exploiting spatial locality for energy-optimized compressed caching</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Somayeh</forename><surname>Sardashti</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>David</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Wood</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. MICRO-46</title>
+		<meeting>MICRO-46</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<analytic>
+		<title level="a" type="main">Z-rays: divide arrays and conquer speed and flexibility</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Jennifer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Sartor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Stephen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daniel</forename><surname>Blackburn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><surname>Frampton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kathryn</forename><forename type="middle">S</forename><surname>Hirzel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Mckinley</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. PLDI</title>
+		<meeting>PLDI</meeting>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<analytic>
+		<title level="a" type="main">Cooperative cache scrubbing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Jennifer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Wim</forename><surname>Sartor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Heirman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Stephen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lieven</forename><surname>Blackburn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kathryn</forename><forename type="middle">S</forename><surname>Eeckhout</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Mckinley</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. PACT-23</title>
+		<meeting>PACT-23</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<analytic>
+		<title level="a" type="main">No bit left behind: The limits of heap data compression</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Jennifer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><surname>Sartor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kathryn</forename><forename type="middle">S</forename><surname>Hirzel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Mckinley</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ISMM</title>
+		<meeting>ISMM</meeting>
+		<imprint>
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<analytic>
+		<title level="a" type="main">MemZip: Exploring unconventional benefits from memory compression</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ali</forename><surname>Shafiee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Meysam</forename><surname>Taassori</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rajeev</forename><surname>Balasubramonian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Al</forename><surname>Davis</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. HPCA-20</title>
+		<meeting>HPCA-20</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b46">
+	<analytic>
+		<title level="a" type="main">Page-Forge: A near-memory content-aware page-merging architecture</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dimitrios</forename><surname>Skarlatos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nam</forename><forename type="middle">Sung</forename><surname>Kim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Josep</forename><surname>Torrellas</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. MICRO-50</title>
+		<meeting>MICRO-50</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b47">
+	<analytic>
+		<title level="a" type="main">Standard Performance Evaluation Corporation</title>
+		<ptr target="https://www.spec.org/jbb2005/" />
+	</analytic>
+	<monogr>
+		<title level="j">Java Server Benchmark</title>
+		<imprint>
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b48">
+	<monogr>
+		<title level="m" type="main">Memory management in the Java HotSpot virtual machine</title>
+		<ptr target="http://www.oracle.com/technetwork/java/javase/memorymanagement-whitepaper-150215.pdf" />
+		<imprint>
+			<date type="published" when="2006" />
+		</imprint>
+		<respStmt>
+			<orgName>Sun Microsystems</orgName>
+		</respStmt>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b49">
+	<analytic>
+		<title level="a" type="main">Last-level cache deduplication</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yingying</forename><surname>Tian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Samira</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Khan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Daniel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Gabriel H</forename><surname>Jiménez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Loh</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ICS&apos;16</title>
+		<meeting>ICS&apos;16</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b50">
+	<analytic>
+		<title level="a" type="main">IBM memory expansion technology (MXT)</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Brett Tremaine</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Peter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><forename type="middle">T</forename><surname>Franaszek</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Charles</forename><forename type="middle">O</forename><surname>Robinson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Schulz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><forename type="middle">E</forename><surname>Smith</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P Maurice</forename><surname>Wazlowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bland</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IBM Journal of Research and Development</title>
+		<imprint>
+			<date type="published" when="2001" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b51">
+	<analytic>
+		<title level="a" type="main">Rethinking the memory hierarchy for modern languages</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Po-An</forename><surname>Tsai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yee</forename><forename type="middle">Ling</forename><surname>Gan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daniel</forename><surname>Sanchez</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. MICRO-51</title>
+		<meeting>MICRO-51</meeting>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b52">
+	<analytic>
+		<title level="a" type="main">Speedy transactions in multicore in-memory databases</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Stephen</forename><surname>Tu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Wenting</forename><surname>Zheng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Eddie</forename><surname>Kohler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Barbara</forename><surname>Liskov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Samuel</forename><surname>Madden</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. SOSP-24</title>
+		<meeting>SOSP-24</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b53">
+	<analytic>
+		<title level="a" type="main">Maxine: An approachable virtual machine for, and in</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christian</forename><surname>Wimmer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Haupt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Michael L Van De</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mick</forename><surname>Vanter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Laurent</forename><surname>Jordan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Douglas</forename><surname>Daynès</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Simon</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Java. ACM Transactions on Architecture and Code Optimization (TACO)</title>
+		<imprint>
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="page">4</biblScope>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b54">
+	<monogr>
+		<title level="m" type="main">Yosys Open Synthesis Suite</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Clifford</forename><surname>Wolf</surname></persName>
+		</author>
+		<ptr target="http://www.clifford.at/yosys/" />
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b55">
+	<analytic>
+		<title level="a" type="main">Allocation wall: A limiting factor of Java applications on emerging multi-core platforms</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yi</forename><surname>Zhao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jin</forename><surname>Shi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kai</forename><surname>Zheng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Haichuan</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Haibo</forename><surname>Lin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ling</forename><surname>Shao</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. OOPSLA</title>
+		<meeting>OOPSLA</meeting>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

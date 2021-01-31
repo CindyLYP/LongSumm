@@ -21,6 +21,7 @@ def impose_max_length(summary_text, max_tokens=600):
     tokens = tokens[0:min(max_tokens, len(tokens))]
     return " ".join(tokens)
 
+
 def evaluate_rouge(test_annotation_file, user_submission_file):
     metrics = ['rouge1', 'rouge2', 'rougeL']
     with open(test_annotation_file) as f1:

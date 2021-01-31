@@ -4,7 +4,7 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from torchsummary import summary
 import tensorflow as tf
 import tensorflow_datasets as tfds
-from utils.gen_train_data import gen_training_data
+from utils.build_data import gen_training_data
 
 
 tokenizer = AutoTokenizer.from_pretrained("./pretrain_model/pegasus")

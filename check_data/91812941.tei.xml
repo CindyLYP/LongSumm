@@ -1,0 +1,1489 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Assessing Generalization in Deep Reinforcement Learning</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author role="corresp">
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Charles</forename><surname>Packer</surname></persName>
+							<email>&lt;cpacker@berkeley.edu&gt;</email>
+							<affiliation key="aff0">
+								<orgName type="department">Equal contribution</orgName>
+							</affiliation>
+							<affiliation key="aff1">
+								<orgName type="institution">University of California Berkeley</orgName>
+								<address>
+									<addrLine>Berke-ley</addrLine>
+									<region>California</region>
+									<country key="US">USA</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Katelyn</forename><surname>Gao</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="department">Equal contribution</orgName>
+							</affiliation>
+							<affiliation key="aff2">
+								<orgName type="institution">Intel Labs</orgName>
+								<address>
+									<addrLine>Santa Clara</addrLine>
+									<region>California</region>
+									<country key="US">USA</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jernej</forename><surname>Kos</surname></persName>
+							<affiliation key="aff3">
+								<orgName type="institution" key="instit1">National University of Singapore</orgName>
+								<orgName type="institution" key="instit2">Singapore University of Texas Austin</orgName>
+								<address>
+									<settlement>Austin</settlement>
+									<region>Texas</region>
+									<country key="US">USA</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Philipp</forename><surname>Krähenbühl</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Vladlen</forename><surname>Koltun</surname></persName>
+							<affiliation key="aff2">
+								<orgName type="institution">Intel Labs</orgName>
+								<address>
+									<addrLine>Santa Clara</addrLine>
+									<region>California</region>
+									<country key="US">USA</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dawn</forename><surname>Song</surname></persName>
+							<affiliation key="aff1">
+								<orgName type="institution">University of California Berkeley</orgName>
+								<address>
+									<addrLine>Berke-ley</addrLine>
+									<region>California</region>
+									<country key="US">USA</country>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Assessing Generalization in Deep Reinforcement Learning</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:42+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Deep reinforcement learning (RL) has achieved breakthrough results on many tasks, but agents often fail to generalize beyond the environment they were trained in. As a result, deep RL algorithms that promote generalization are receiving increasing attention. However, works in this area use a wide variety of tasks and experimental setups for evaluation. The literature lacks a controlled assessment of the merits of different generalization schemes. Our aim is to catalyze communitywide progress on generalization in deep RL. To this end, we present a benchmark and experimental protocol, and conduct a systematic empirical study. Our framework contains a diverse set of environments, our methodology covers both indistribution and out-of-distribution generalization, and our evaluation includes deep RL algorithms that specifically tackle generalization. Our key finding is that &quot;vanilla&quot; deep RL algorithms generalize better than specialized schemes that were proposed specifically to tackle generalization.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.">Introduction</head><p>Deep reinforcement learning (RL) has emerged as an important family of techniques that may support the development of intelligent systems that learn to accomplish goals in a variety of complex real-world environments <ref type="bibr" target="#b27">(Mnih et al., 2015;</ref><ref type="bibr" target="#b1">Arulkumaran et al., 2017)</ref>. A desirable characteristic of such intelligent systems is the ability to function in diverse environments, including ones that have never been encountered before. Yet deep RL algorithms are commonly trained and evaluated on a fixed environment. That is, the algorithms are evaluated in terms of their ability to optimize a policy in a complex environment, rather than their ability to learn a representation that generalizes to previously unseen circum-stances. The dangers of overfitting to a specific environment have been noted in the literature <ref type="bibr" target="#b49">(Whiteson et al., 2011)</ref> and the sensitivity of deep RL to even subtle changes in the environment has been noted in recent work <ref type="bibr" target="#b35">(Rajeswaran et al., 2017b;</ref><ref type="bibr" target="#b15">Henderson et al., 2018;</ref><ref type="bibr" target="#b51">Zhang et al., 2018)</ref>.</p><p>Generalization is often regarded as an essential characteristic of advanced intelligent systems and a central issue in AI research <ref type="bibr" target="#b21">(Lake et al., 2017;</ref><ref type="bibr" target="#b25">Marcus, 2018;</ref><ref type="bibr" target="#b10">Dietterich, 2017)</ref>. It includes both interpolation to environments similar to those seen during training and extrapolation outside the training distribution. The latter is particularly challenging but is crucial to the deployment of systems in the real world as they must be able to handle unforseen situations.</p><p>Generalization in deep RL has been recognized as an important problem and is under active investigation <ref type="bibr" target="#b48">(Wang et al., 2016;</ref><ref type="bibr" target="#b13">Duan et al., 2016b;</ref><ref type="bibr" target="#b34">Rajeswaran et al., 2017a;</ref><ref type="bibr" target="#b33">Pinto et al., 2017;</ref><ref type="bibr" target="#b14">Finn et al., 2017;</ref><ref type="bibr" target="#b18">Kansky et al., 2017;</ref><ref type="bibr" target="#b50">Yu et al., 2017;</ref><ref type="bibr" target="#b42">Sung et al., 2017;</ref><ref type="bibr" target="#b22">Leike et al., 2017;</ref><ref type="bibr" target="#b0">Al-Shedivat et al., 2018;</ref><ref type="bibr" target="#b7">Clavera et al., 2018;</ref><ref type="bibr" target="#b39">Saemundsson et al., 2018)</ref>. However, each work uses a different set of environments, variations, and experimental protocols. For example, <ref type="bibr" target="#b18">Kansky et al. (2017)</ref> propose a graphical model architecture, evaluating on variations of the Atari game Breakout where the positions of the paddle, balls, and obstacles (if any) change. <ref type="bibr" target="#b34">Rajeswaran et al. (2017a)</ref> propose training on a distribution of environments in a risk-averse manner and evaluate on two robot locomotion environments where variations in the robot body are considered. <ref type="bibr" target="#b13">Duan et al. (2016b)</ref> aim to learn a policy that automatically adapts to the environment dynamics and evaluate on bandits, tabular Markov decision processes, and maze navigation environments where the goal position changes. <ref type="bibr" target="#b14">Finn et al. (2017)</ref> train a policy that at test time can be quickly updated to the test environment and evaluate on navigation and locomotion.</p><p>What appears to be missing is a systematic empirical study of generalization in deep RL with a clearly defined set of environments, metrics, and baselines. In fact, there is no common testbed for evaluating generalization in deep RL. Such testbeds have proven to be effective catalysts of concerted community-wide progress in other fields <ref type="bibr" target="#b11">(Donoho, 2015)</ref>. Only by conducting systematic evaluations on reliable testbeds can we fairly compare and contrast the merits of different algorithms and accurately assess progress. arXiv:1810.12282v2 <ref type="bibr">[cs.</ref>LG] 15 Mar 2019</p><p>Our contribution is an empirical evaluation of the generalization performance of deep RL algorithms. In doing so, we also establish a reproducible framework for investigating generalization in deep RL with the hope that it will catalyze progress on this problem. Like <ref type="bibr" target="#b18">Kansky et al. (2017)</ref>, <ref type="bibr" target="#b34">Rajeswaran et al. (2017a)</ref>, and others, we focus on generalization to environmental changes that affect the system dynamics instead of the goal or rewards. We select a diverse set of environments that have been widely used in previous work on generalization in deep RL, comprising classic control problems and MuJoCo locomotion tasks, built on top of OpenAI Gym for ease of adoption. The environmental changes that affect the system dynamics are implemented by selecting degrees of freedom (parameters) along which the environment specifications can be varied. Significantly, we test generalization in two regimes: interpolation and extrapolation. Interpolation implies that agents should perform well in test environments where parameters are similar to those seen during training. Extrapolation requires agents to perform well in test environments where parameters are different from those seen during training.</p><p>To provide the community with a set of clear baselines, we first evaluate two popular state-of-the-art deep RL algorithms under different combinations of training and testing regimes. We choose one algorithm from each of the two major families: A2C from the actor-critic family and PPO from the policy gradient family. Under the same experimental protocol, we also evaluate two recently-proposed schemes for tackling generalization in deep RL: EPOpt, which learns a policy that is robust to environment changes by maximizing expected reward over the most difficult of a distribution of environment parameters, and RL , which learns a policy that can adapt to the environment at hand by learning environmental characteristics from the trajectory it sees on-the-fly. Because each scheme is constructed based on existing deep RL algorithms, our evaluation is of four algorithms: EPOpt-A2C, EPOpt-PPO, RL 2 -A2C, and RL 2 -PPO. We analyze the results, devising simple metrics for generalization in terms of both interpolation and extrapolation and drawing conclusions that can guide future work on generalization in deep RL. The experiments confirm that extrapolation is more difficult than interpolation.</p><p>However, surprisingly, the vanilla deep RL algorithms, A2C and PPO, generalized better than their EPOpt and RL 2 variants; they were able to interpolate fairly successfully. That is, simply training on a set of environments with variations can yield agents that can generalize to environments with similar variations. EPOpt was able to improve generalization (both interpolation and extrapolation) but only when combined with PPO on environments with continuous action spaces and only one of the two policy/value function architectures we consider. RL -A2C and RL 2 -PPO proved to be difficult to train and were unable to reach the level of performance of the other algorithms given the same amount of training resources. We discuss lines of inquiry that are opened by these observations.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">Related work</head><p>Generalization in RL. There are two main approaches to generalization in RL: learning policies that are robust to environment variations and learning policies that adapt to such variations. A popular approach to learn a robust policy is to maximize a risk-sensitive objective, such as the conditional value at risk <ref type="bibr" target="#b45">(Tamar et al., 2015)</ref>, over a distribution of environments. From a control theory perspective, <ref type="bibr" target="#b30">Morimoto &amp; Doya (2001)</ref> maximize the minimum reward over possible disturbances to the system model, proposing robust versions of the actor-critic and value gradient methods. This maximin objective is utilized by others in the context where environment changes are modeled by uncertainties in the transition probability distribution function of a Markov decision process. <ref type="bibr" target="#b32">Nilim &amp; Ghaoui (2004)</ref> assume that the set of possible transition probability distribution functions are known, while <ref type="bibr" target="#b23">Lim et al. (2013)</ref> and <ref type="bibr" target="#b36">Roy et al. (2017)</ref> estimate it using sampled trajectories from the distribution of environments of interest. A recent representative of this approach applied to deep RL is the EPOpt algorithm <ref type="bibr" target="#b34">(Rajeswaran et al., 2017a)</ref>, which maximizes the conditional value at risk, i.e. expected reward over the subset of environments with lowest expected reward. EPOpt has the advantage that it can be used in conjunction with any RL algorithm. Adversarial training has also been proposed to learn a robust policy; for MuJoCo locomotion tasks, <ref type="bibr" target="#b33">Pinto et al. (2017)</ref> train an adversary that tries to destabilize the agent while it trains.</p><p>A robust policy may sacrifice performance on many environment variants in order to not fail on a few. Thus, an alternative, recently popular approach to generalization in RL is to learn an agent that can adapt to the environment at hand <ref type="bibr" target="#b50">(Yu et al., 2017)</ref>. To do so, a number of algorithms learn an embedding for each environment variant using trajectories sampled from that environment, which is utilized by the agent. Then, at test time, the current trajectory can be used to compute an embedding for the current environment, enabling automatic adaptation of the agent. <ref type="bibr" target="#b13">Duan et al. (2016b)</ref>, <ref type="bibr" target="#b48">Wang et al. (2016)</ref>, <ref type="bibr" target="#b42">Sung et al. (2017)</ref>, and <ref type="bibr" target="#b26">Mishra et al. (2018)</ref>, which differ mainly in the way embeddings are computed, consider model-free RL by letting the embedding be input into a policy and/or value function. <ref type="bibr" target="#b7">Clavera et al. (2018)</ref> consider model-based RL, in which the embedding is input into a dynamics model and actions are selected using model predictive control. Under a similar setup, <ref type="bibr" target="#b39">Saemundsson et al. (2018)</ref> utilize probabilistic dynamics models and inference.</p><p>The above approaches do not require updating the learned policy or model at test time, but there has also been work on generalization in RL that utilize such updates, primarily under the umbrellas of transfer learning, multi-task learning, and meta-learning. <ref type="bibr" target="#b46">Taylor &amp; Stone (2009)</ref> survey transfer learning in RL where a fixed test environment is considered, with <ref type="bibr" target="#b38">Rusu et al. (2016)</ref> being an example of recent work on that problem using deep networks. Ruder (2017) provides a survey of multi-task learning in general, which, different from our problem of interest, considers a fixed finite population of tasks. Finn et al. (2017) present a meta-learning formulation of generalization in RL, training a policy that can be updated with good data efficiency for each test environment; Al-Shedivat et al. (2018) extend it for continuous adaptation in non-stationary environments.</p><p>Empirical methodology in deep RL. Shared open-source software infrastructure, which enables reproducible experiments, has been crucial to the success of deep RL. The deep RL research community uses simulation frameworks, including OpenAI Gym <ref type="bibr" target="#b6">(Brockman et al., 2016</ref>) (which we build upon), the Arcade Learning Environment <ref type="bibr" target="#b5">(Bellemare et al., 2013;</ref><ref type="bibr" target="#b24">Machado et al., 2017)</ref>, DeepMind Lab <ref type="bibr" target="#b4">(Beattie et al., 2016)</ref>, and VizDoom <ref type="bibr" target="#b19">(Kempka et al., 2016)</ref>. The MuJoCo physics simulator <ref type="bibr" target="#b47">(Todorov et al., 2012)</ref> has been influential in standardizing a number of continuous control tasks. <ref type="bibr" target="#b22">Leike et al. (2017)</ref> introduce a set of two-dimensional grid environments for RL, each designed to test specific safety properties of a trained agent, including in response to shifts in the distribution of test environments. Recently OpenAI released benchmarks for generalization in RL based on playing new levels of video games, both allowing finetuning at test time <ref type="bibr" target="#b31">(Nichol et al., 2018)</ref> and not <ref type="bibr" target="#b8">(Cobbe et al., 2018)</ref>. Both <ref type="bibr" target="#b8">Cobbe et al. (2018)</ref> and <ref type="bibr" target="#b17">Justesen et al. (2018)</ref> (who also consider video games) use principled procedural generation of training and test levels based on difficulty. In contrast to the above works, we focus on control tasks with no visual input.</p><p>Our work also follows in the footsteps of a number of empirical studies of reinforcement learning algorithms, which have primarily focused on the case where the agent is trained and tested on a fixed environment. <ref type="bibr" target="#b15">Henderson et al. (2018)</ref> investigate reproducibility in deep RL and conclude that care must be taken not to overfit during training. On four MuJoCo tasks, the results of state-of-the-art algorithms may be quite sensitive to hyperparameter settings, initializations, random seeds, and other implementation details. The problem of overfitting in RL was recognized earlier by <ref type="bibr" target="#b49">Whiteson et al. (2011)</ref>, who propose an evaluation methodology based on training and testing on multiple environments sampled from some distribution and experiment with three classic control environments and a form of tabular Q-learning. <ref type="bibr" target="#b12">Duan et al. (2016a)</ref> present a benchmark suite of continuous control tasks and conduct a systematic evaluation of reinforcement learning algorithms on those tasks; they consider interpolation performance on a subset of their tasks. <ref type="bibr" target="#b22">Leike et al. (2017)</ref> test generalization to unseen environment configurations at test time (referred to as 'distributional shift') by varying the position of obstacles in a gridworld environment. In contrast to these works, we consider a greater variety of tasks, extrapolation as well as interpolation, and algorithms for generalization in deep RL.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">Notation</head><p>In RL, environments are formulated in terms of Markov Decision Processes (MDPs) <ref type="bibr" target="#b44">(Sutton &amp; Barto, 2017)</ref>. An MDP M is defined by the tuple (S, A, p, r, γ, ρ , T ) where S is the set of possible states, A is the set of actions, p : S ×A×S → R ≥0 is the transition probability distribution function, r : S ×A → R is the reward function, γ is the discount factor, ρ 0 : S → R ≥0 is the initial state distribution at the beginning of each episode, and T is the time horizon per episode.</p><p>Let s t and a t be the state and action taken at time t. At the beginning of each episode, s 0 ∼ ρ 0 (•). Under a policy π stochastically mapping a sequence of states to actions, Algorithms that are designed to build RL agents that generalize often assume that there is a distribution of environments q(M ). Then, they aim to learn a policy that maximizes the expected reward over the distribution,</p><formula xml:id="formula_0">a t ∼ π(a t | s t , • • • , s 0 ) and s t+1 ∼ p(s t+1 | a t ), giving a trajectory {s t , a t , r(s t , a t )}, t = 0, 1, • • •. RL algorithms, taking the MDP as fixed, learn π to maximize the expected reward (per episode) J M (π) = E π T t=0 γ t r t , where r t = r(s t , a t ).</formula><formula xml:id="formula_1">E π M ∼q [J M (π)].</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">Algorithms</head><p>We first evaluate two popular state-of-the-art vanilla deep RL algorithms from different families, A2C <ref type="bibr" target="#b28">(Mnih et al., 2016)</ref> from the actor-critic family of algorithms and PPO (Schulman et al., 2017) from the policy gradient family. 1 These algorithms are oblivious to changes in the environment. Second, we consider two recently-proposed algorithms designed to train agents that generalize to environment variations. We select one each from the two main types of approaches discussed in Section 2: EPOpt <ref type="bibr" target="#b34">(Rajeswaran et al., 2017a)</ref> from the robust category of approaches and RL 2 (Duan et al., 2016b) from the adaptive category. Both methods are built on top of vanilla deep RL algorithms, so for completeness we evaluate a Cartesian product of the Preliminary experiments on other deep RL algorithms including A3C, TRPO, and ACKTR gave qualitatively similar results. algorithms for generalization and the vanilla algorithms: EPOpt-A2C, EPOpt-PPO, RL 2 -A2C, and RL 2 -PPO. Next we briefly summarize A2C, PPO, EPOpt, and RL 2 , using the notation in Section 3.</p><p>Advantage Actor-Critic (A2C). A2C involves the interplay of two optimizations; a critic learns a parametric value function, while an actor utilizes that value function to learn a parametric policy that maximizes expected reward. At each iteration, trajectories are generated using the current policy, with the environment and hidden states of the value function and policy reset at the end of each episode. Then, the policy and value function parameters are updated using RMSProp <ref type="bibr" target="#b16">(Hinton et al., 2012)</ref>, with an entropy term added to the policy objective function in order to encourage exploration. We use an implementation from OpenAI Baselines <ref type="bibr" target="#b9">(Dhariwal et al., 2017)</ref>.</p><p>Proximal Policy Optimization (PPO). PPO aims to learn a sequence of monotonically improving parametric policies by maximizing a surrogate for the expected reward via gradient ascent, cautiously bounding the improvement at each iteration. At iteration i, trajectories are generated using the current policy π θi , with the environment and hidden states of the policy reset at the end of each episode. The following objective is then maximized with respect to θ using Adam <ref type="bibr" target="#b20">(Kingma &amp; Ba, 2015)</ref>:</p><formula xml:id="formula_2">E s∼ρ θ i ,a∼π θ i min θ (a, s)A π θ i (s, a), m θ (a, s)A π θ i (s, a)</formula><p>where ρ θi are the expected visitation frequencies under</p><formula xml:id="formula_3">π θi , θ (a, s) = π θ (a | s)/π θi (a | s), m θ equals θ (a, s)</formula><p>clipped to the interval [1 − δ, 1 + δ] with δ ∈ (0, 1), and</p><formula xml:id="formula_4">A π θ i (s, a) = Q π θ i M (s, a) − v π θ i M (s).</formula><p>We use an implementation from OpenAI Baselines, PPO2.</p><p>Ensemble Policy Optimization (EPOpt). In order to obtain a policy that is robust to possibly out-of-distribution environments, EPOpt maximizes the expected reward over the ∈ (0, 1] fraction of environments with worst expected reward:</p><formula xml:id="formula_5">E π M ∼q [J M (π) ≤ y] where P M ∼q (J M (π) ≤ y) = .</formula><p>At each iteration, the algorithm generates L complete episodes according to the current policy, where at the end of each episode, a new environment is sampled from q and reset and the hidden states of the policy and value function are reset. It keeps the fraction of episodes with lowest reward and uses them to update the policy via a vanilla RL algorithm (TRPO <ref type="bibr" target="#b40">(Schulman et al., 2015)</ref> in the paper). We use A2C and PPO, implementing EPOpt on top of them.</p><p>RL 2 . In order to maximize the expected reward over a distribution of environments, RL tries to train an agent that can adapt to the dynamics of the environment at hand. RL 2 models the policy and value functions as a recurrent neural network (RNN) with the current trajectory as input, not just the sequence of states. The hidden states of the RNN may be viewed as an environment embedding. Specifically, for the RNN the inputs at time t are s t , a t−1 , r t−1 , and d t−1 , where d t−1 is a Boolean variable indicating whether the episode ended after taking action a t−1 ; the output is a t and the hidden states are updated. Like the other algorithms, at each iteration trajectories are generated using the current policy with the environment state reset at the end of each episode. However, unlike the other algorithms, a new environment is sampled from q only at the end of every N episodes, which we call a trial. The generated trajectories are then input into a model-free RL algorithm, maximizing expected reward in a trial; the paper uses TRPO, while we use A2C and PPO. As with EPOpt, our implementation of RL 2 is built on top of those of A2C and PPO.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.">Environments</head><p>Our environments are modified versions of four environments from the classic control problems in OpenAI Gym <ref type="bibr" target="#b6">(Brockman et al., 2016</ref>) (CartPole, MountainCar, Acrobot, and Pendulum) and two environments from OpenAI Roboschool <ref type="bibr" target="#b41">(Schulman et al., 2017</ref>) (HalfCheetah and Hopper) that are based on the corresponding MuJoCo <ref type="bibr" target="#b47">(Todorov et al., 2012)</ref> environments. We alter the implementations to allow control of several environment parameters that affect the system dynamics, i.e. transition probability distribution functions of the corresponding MDPs. Similar environments have been used in experiments in the generalization for RL literature, see for instance <ref type="bibr" target="#b34">(Rajeswaran et al., 2017a)</ref>, <ref type="bibr" target="#b33">(Pinto et al., 2017)</ref>, and <ref type="bibr" target="#b50">(Yu et al., 2017)</ref>. Each of the six environments has three versions, with d parameters allowed to vary. <ref type="figure" target="#fig_1">Figure 1</ref> is a schematic of the parameter ranges in D, R, and E when d = 2.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.">Deterministic (D):</head><p>The parameters of the environment are fixed at the default values in the implementations from Gym and Roboschool. That is, every time the environment is reset, only the state is reset.</p><p>2. Random (R): Every time the environment is reset, the parameters are uniformly sampled from a ddimensional box containing the default values. This is done by independently sampling each parameter uniformly from an interval containing the default value.</p><p>3. Extreme (E): Every time the environment is reset, its parameters are uniformly sampled from 2 d ddimensional boxes anchored at the vertices of the box in R. This is done by independently sampling each parameter uniformly from the union of two intervals that straddle the corresponding interval in R.</p><p>The structure of the three versions was designed to mirror the process of training an RL agent on a real-world task. D symbolizes the fixed environment used in the classic RL setting, and R represents the distribution of environments from which it is feasible and sensible to obtain training data. With more extreme parameters, E corresponds to edge cases, those unusual environments that are not seen during training but must be handled in deployment. CartPole <ref type="bibr" target="#b3">(Barto et al., 1983)</ref>. A pole is attached to a cart that moves on a frictionless track. For at most time steps, the agent pushes the cart either left or right in order to keep the pole upright. There is a reward of for each time step the pole is upright, with the episode ending when the angle of the pole from vertical is too large. Three environment parameters can be varied: (1) push force magnitude, (2) pole length, and (3) pole mass.</p><p>MountainCar <ref type="bibr" target="#b29">(Moore, 1990)</ref>. The goal is to move a car to the top of a hill within time steps. At each time step, the agent pushes a car left or right, with a reward of −1. Two environment parameters can be varied: (1) push force magnitude and (2) car mass.</p><p>Acrobot <ref type="bibr" target="#b43">(Sutton, 1995)</ref>. The acrobot is a two-link pendulum attached to a bar with an actuator at the joint between the two links. For at most time steps, the agent applies torque (to the left, to the right, or not at all) to the joint in order to swing the end of the second link above the bar to a height equal to the length of the link. The reward structure is the same as that of MountainCar. Three parameters of the links can be varied: (1) length, (2) mass, and (3) moment of inertia, which are the same for each link.</p><p>Pendulum. The goal is to, for 200 time steps, apply a continuous-valued force to a pendulum in order to keep it at a vertical position. The reward at each time step is a decreasing function of the pendulum's angle from vertical, the speed of the pendulum, and the magnitude of the applied force. Two environment parameters can be varied, the pendulum's (1) length and (2) mass.</p><p>HalfCheetah. The half-cheetah is a bipedal robot with eight links and six actuated joints corresponding to the thighs, shins, and feet. The goal is for the robot to learn to walk on a track without falling over by applying continuousvalued forces to its joints. The reward at each time step is a combination of the progress made and the costs of the movements, e.g., electricity and penalties for collisions, with a maximum of 1000 time steps. Three environment parameters can be varied: (1) power, a factor by which the forces are multiplied before application, (2) torso density, and (3) sliding friction of the joints.</p><p>Hopper. The hopper is a monopod robot with four links arranged in a chain corresponding to a torso, thigh, shin, and foot and three actuated joints. The goal, reward structure, and varied parameters are the same as those of HalfCheetah.</p><p>In all environments, the difficulty may depend on the values of the parameters; for example, in CartPole, a very light and long pole would be more difficult to balance. By sampling parameters from boxes surrounding the default values, R and E include environments of various difficulties. The actual ranges of the parameters for each environment, shown in <ref type="table" target="#tab_0">Table 1</ref>, were chosen by hand so that a policy trained on D struggles in environments in R and fails in E.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1.">Performance metrics</head><p>The traditional performance metric used in the RL literature is the average total reward achieved by the policy in an episode. In the spirit of the definition of an RL agent as goal-seeking <ref type="bibr" target="#b44">(Sutton &amp; Barto, 2017)</ref>, we compute the percentage of episodes in which a certain goal is successfully completed, the success rate. We define the goals of each environment as follows: (1) CartPole: balance for at least time steps, (2) MountainCar: get to the hilltop within time steps, (3) Acrobot: swing the end of the second link to the desired height within 80 time steps, (4) Pendulum: keep the angle of the pendulum at most π/3 radians from vertical for the last 100 time steps of a trajectory with length 200, and (5) HalfCheetah and Hopper: walk for meters. The goals for CartPole, MountainCar, and Acrobot are based on the definition of success for those environments given by OpenAI Gym.</p><p>The binary success rate is clear and interpretable and has multiple advantages. First, it is independent of reward shaping, the common practice of modifying an environment's reward functions to help an agent to learn desired behaviors. Moreover, separate implementations of the same environment, e.g. HalfCheetah in Roboschool and rllab <ref type="bibr" target="#b12">(Duan et al., 2016a)</ref>, may have different reward functions which are hidden in the code and not easily understood. Second, it allows fair comparisons across various environment param- </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.">Experimental methodology</head><p>We benchmark six algorithms (A2C, PPO, EPOpt-A2C, EPOpt-PPO, RL 2 -A2C, RL 2 -PPO) and six environments (CartPole, MountainCar, Acrobot, Pendulum, HalfCheetah, Hopper). With each pair of algorithm and environment, we consider nine training-testing scenarios: training on D, R, and E and testing on D, R, and E. We refer to each scenario using the two-letter abbreviation of the training and testing environment versions, e.g., DR for training on D and testing on R. For A2C, PPO, EPOpt-A2C, and EPOpt-PPO, we train for 15000 episodes and test on 1000 episodes. For RL 2 -A2C and RL 2 -PPO, we train for 7500 trials of 2 episodes each, equivalent to 15000 episodes, and test on the last episodes of 1000 trials; this allows us to evaluate the ability of the policies to adapt to the environment in the current trial. Note that this is a fair protocol as policies without memory of previous episodes are expected to have the same performance in any episode of a trial. We do a thorough sweep of hyperparameters, and for the sake of fairness, we randomly generate random seeds and report results over several runs of the entire sweep. In the following paragraphs we describe the network architectures for the policy and value functions, our hyperparameter search, and the performance metrics we use for evaluation.</p><p>Evaluation metrics. For each algorithm, architecture, and environment, we compute three numbers that distill the nine success rates into simple metrics for generalization performance: (1) Default: success percentage on DD, (2) Interpolation: success percentage on RR, and (3) Extrapolation: geometric mean of the success percentages on DR, DE, and RE.</p><p>Default is the classic RL setting and thus provides a baseline for comparison. Because R represents the set of environments seen during training in a real-world RL problem, the success rate on RR, or Interpolation, measures the generalization performance to environments similar to those seen during training. In DR, DE, and RE the training distribution of environments does not overlap with the test distribution. Therefore, their success rates are combined to obtain Extrapolation, which measures the generalization performance to environments different from those seen during training.</p><p>Policy and value function parameterization. To have equitable evaluations, we consider two network architectures for the policy and value functions for all algorithms and environments. In the first, following others in the literature including <ref type="bibr" target="#b15">Henderson et al. (2018)</ref>, the policy and value functions are multi-layer perceptrons (MLPs) with two hidden layers of 64 units each and hyperbolic tangent activations; there is no parameter sharing. We refer to this architecture as FF (feed-forward). In the second, 2 the policy and value functions are the outputs of two separate fully-connected layers on top of a one-hidden-layer RNN with long short-Based on personal communication with authors of <ref type="bibr" target="#b13">Duan et al. (2016b)</ref>. term memory (LSTM) cells of 256 units. The RNN itself is on top of a MLP with two hidden layers of units each, which we call the feature network. Again, hyperbolic tangent activations are used throughout; we refer to this architecture as RC (recurrent). For A2C, PPO, EPOpt-A2C, and EPOpt-PPO, we evaluate both architectures (where the inputs are the environment states), while for RL -A2C and RL 2 -PPO, we evaluate only the second architecture (where the input is a tuple of states, actions, rewards, and Booleans as discussed in Section 4). In all cases, for discrete action spaces policies sample actions by taking a softmax function over the policy network output layer; for continuous action spaces actions are sampled from a Gaussian distribution with mean the policy network output and diagonal covariance matrix whose entries are learned along with the policy and value function network parameters.</p><p>Hyperparameters. During training, for each algorithm and each version of each environment, we performed grid search over a set of hyperparameters used in the optimizers, and selected the value with the highest success probability when tested on the same version of the environment. That set of hyperparameters includes the learning rate for all algorithms and the length of the trajectory generated at each iteration for A2C, PPO, RL 2 -A2C, and RL 2 -PPO. They also include the coefficient of the policy entropy in the objective for A2C, EPOpt-A2C, and RL 2 -A2C and the coefficient of the KL divergence between the previous policy and current policy for RL 2 -PPO. The grid values are listed in the supplement. Other hyperparameters, such as the discount factor, were fixed at the default values in OpenAI Baselines, or in the case of EPOpt-A2C and EPOpt-PPO, L = 100 and = 1.0 for 100 iterations and then = 0.1.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.">Results and discussion</head><p>We highlight some of the key findings and present a summary of the experimental results in <ref type="table" target="#tab_1">Table 2</ref>. The supplement contains analogous tables for each environment, which also informs the following discussion.</p><p>A2C and PPO. We first consider the results under the FF architecture. The two vanilla deep RL algorithms are usually successful in the classic RL setting of training and testing on a fixed environment, as evidenced by the high values for Default in <ref type="table" target="#tab_1">Table 2</ref>. However, when those agents trained on the fixed environment D are tested, we observed that they usually suffer from a significant drop in performance in R and an even further drop in E. Fortunately, based on the performance in RR, we see that simply training on a distribution of environments, without adding any special mechanism for generalization, results in agents that can perform fairly well in similar environments. 3 For example, PPO, for which <ref type="bibr">3</ref> We have also found that sometimes the performance in RD is Default equals 78.22, has Interpolation equal to 70.57. Nevertheless, as expected in general they are less successful at extrapolation; PPO has Extrapolation equal to 48.37. With the RC architecture, A2C has similar behavior as with the FF architecture while PPO had difficulty training on the fixed environment D and did not generalize well. For example, on all the environments except CartPole and Pendulum the FF architecture was necessary for PPO to be successful even in the classic RL setting.</p><p>The pattern of declining performance from Default to Interpolation to Extrapolation also appears when looking at each environment individually. The magnitude of decrease depends on the combination of algorithm, architecture, and environment. For instance, on CartPole, A2C interpolates and extrapolates successfully, where Interpolation equals 100.00 and Extrapolation equals 93.63 with the FF architecture and 83.00 with the RC architecture; this behavior is also shown for PPO with the FF architecture. On the other hand, on Hopper, PPO with the FF architecture has 85.54% success rate in the classic RL setting but struggles to interpolate (Interpolation equals 39.68) and fails to extrapolate (Extrapolation equals 10.36). This indicates that our choices of environments and their parameter ranges lead to a variety of difficulty in generalization.</p><p>EPOpt. Again, we start with the results under the FF architecture. Overall EPOpt-PPO improved both interpolation and extrapolation performance over PPO, as shown in Table 2. Looking at specific environments, on Hopper EPOpt-PPO has nearly twice the interpolation performance and significantly improved extrapolation performance compared to PPO. Such an improvement also appears for Pendulum and HalfCheetah. However, the generalization performance of EPOpt-PPO was worse than that of PPO on the other three environments. EPOpt did not demonstrate the same performance gains when combined with A2C; in fact, it generally failed to train even in the fixed environment D. With the RC architecture, EPOpt-PPO, like PPO, also had difficulties training on environment D. EPOpt-A2C was able to find limited success on CartPole but failed to learn a working policy in environment D for the other environments. The effectiveness of EPOpt when combined with PPO but not A2C and then only on Pendulum, Hopper, and HalfCheetah indicates that a continuous action space is important for its success.</p><p>RL 2 . RL 2 -A2C and RL 2 -PPO proved to be difficult to train and data inefficient. On most environments, the Default numbers are low, indicating that a working policy was not found in the classic RL setting of training and testing on a fixed environment. As a result, they also have low Inbetter than that in DD. That is, adding variation to a fixed environment can help to stabilize training enough that the algorithm finds a better policy for the original environment. terpolation and Extrapolation numbers. This suggests that additional structure must be injected into the policy in order to learn useful environmental characteristics from the trajectories. The difficulty in training may also be partially due to the recurrent architecture, as PPO with the RC architecture does not find a successful policy in the classic RL setting as shown in <ref type="table" target="#tab_1">Table 2</ref>. Thus, using a Temporal Convolution Network may offer improvements, as they have been shown to outperform RNNs in many sequence modeling tasks <ref type="bibr" target="#b2">(Bai et al., 2018)</ref>. The same qualitative observations also hold for other values of the number of episodes per trial; see the supplement for specifics.</p><p>In a few environments, such as RL -PPO on CartPole and RL 2 -A2C on HalfCheetah, a working policy was found in the classic RL setting, but the algorithm struggled to interpolate or extrapolate. The one success story is RL -A2C on Pendulum, where we have nearly 100% success rate in DD, interpolate extremely well (Interpolation is 99.82), and extrapolate fairly well (Extrapolation is 81.79). We observed that the partial success of these algorithms on the environments appears to be dependent on two implementation choices: the feature network in the RC architecture and the nonzero coefficient of the KL divergence between the previous policy and current policy in RL -PPO, which is intended to help stabilize training.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="8.">Conclusion</head><p>We presented an empirical study of generalization in deep RL. We evaluated two state-of-the-art deep RL algorithms, A2C and PPO, and two algorithms that explicitly tackle the problem of generalization in different ways: EPOpt, which aims to be robust to environment variations, and RL , which aims to automatically adapt to them. In order to do this, we introduced a new testbed and experimental protocol to measure the ability of RL algorithms to generalize to environments both similar to and different from those seen during training. A common testbed and protocol, which were missing from previous work, enable us to compare the relative merits of algorithms for building generalizable RL agents. Our code is available online 4 and we hope that it will support future research on generalization in deep RL.</p><p>Overall, the vanilla deep RL algorithms have better generalization performance than their more complex counterparts, being able to interpolate quite well with some extrapolation success. In other words, vanilla deep RL algorithms trained with environmental stochasticity may be more effective for generalization than specialized algorithms; the same conclusion was also suggested by the results of the OpenAI Retro contest <ref type="bibr" target="#b31">(Nichol et al., 2018)</ref> and the CoinRun benchmark <ref type="bibr" target="#b8">(Cobbe et al., 2018)</ref> in environments with visual input. When combined with PPO under the FF architecture, EPOpt is able to outperform PPO, in particular for the environments with continuous action spaces; however, it does not generalize in the other cases and often fails to train even on the Default environments. RL 2 is difficult to train, and in its success cases provides no clear generalization advantage over the vanilla deep RL algorithms or EPOpt.</p><p>The sensitivity of the effectiveness of EPOpt and RL to the base algorithm, architecture, and environment presents an avenue for future work, as EPOpt and RL were presented as general-purpose techniques. We have considered modelfree RL algorithms in our evaluation; another direction for future work is to further investigate model-based RL algorithms, such as the recent work of <ref type="bibr" target="#b39">Saemundsson et al. (2018)</ref> and <ref type="bibr" target="#b7">Clavera et al. (2018)</ref>. Because model-based RL explicitly learns the system dynamics and is generally more data efficient, it could be better leveraged by adaptive techniques for generalization.</p><p>http://www.github.com/sunblaze-ucb/rl-generalization</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>A. Training Hyperparameters</head><p>The grid values we search over for each hyperparameter and each algorithm are listed below. In sum, the search space contains 183 unique hyperparameter configurations for all algorithms on a single training environment (3, 294 training configurations), and each trained agent is evaluated on test settings (9, 882 total train/test configurations). We report results for 5 runs of the full grid search, a total of 49, 410 experiments.</p><p>• Learning rate: • Length of the trajectory generated at each iteration:</p><formula xml:id="formula_6">-A2C,</formula><p>-A2C and RL 2 -A2C: [5, 10, 15] -PPO and RL 2 -PPO: <ref type="bibr">[128,</ref><ref type="bibr">256,</ref><ref type="bibr">512]</ref> • Policy entropy coefficient: [1e−2, 1e−3, 1e−4, 1e−5]</p><p>• KL divergence coefficient:</p><formula xml:id="formula_7">[0.3, 0.2, 0.0]</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>B. Detailed Experimental Results</head><p>In order to elucidate the generalization behavior of each algorithm, here we present the quantities in <ref type="table">Table of</ref> the paper for each environment.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>C. Behavior of MountainCar</head><p>On MountainCar, several of the algorithms, including A2C with both architectures and PPO with the FF architecture, have greater success on Extrapolation than Interpolation, which is itself sometimes greater than Default (see <ref type="table">Table 5</ref>). At first glance, this is unexpected because Extrapolation combines the success rates of DR, DE, and RE, with E containing more extreme parameter settings, while Interpolation is the success rate of RR. To explain this phenomenon, we hypothesize that compared to R, E is dominated by easy parameter settings, e.g., those where the car is light but the force of the push is strong, allowing the agent to reach the top of the hill in only a few steps. In order to test this hypothesis, we create heatmaps of the rewards achieved by A2C with both architectures and PPO with the FF architecture trained on D and tested on R and E. We show only the heatmap for A2C with the FF architecture, in <ref type="figure" target="#fig_3">Figure 2</ref>; the other two are qualitatively similar. Referring to the description of the environments in the main paper, we see that the reward achieved by the policy is higher in the regions corresponding to E. Indeed, it appears that the largest regions of E are those with a large force, which enables the trained policy to push the car up the hill in much less than time steps, achieving the goal defined in Section 6 of the paper. (Note that the reward is the negative of the number of time steps taken to push the car up the hill.)</p><p>On the other hand, <ref type="figure" target="#fig_4">Figure 3</ref> shows a similar heatmap for A2C with the FF architecture on Pendulum, in which Interpolation is greater than Extrapolation. In this case, the policy trained on D struggles more on environments from E than on those from R. This special case demonstrates the importance of considering a wide variety of environments when assessing the generalization performance of an algorithm; each environment may have idiosyncrasies that cause performance to be correlated with parameters.   </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>D. Varying N in RL 2</head><p>We test the sensitivity of the results for RL -A2C and RL 2 -PPO to the hyperparameter of the number of episodes per trial, N . We consider N = 1 and N = 5, to determine whether it was too difficult to train a RNN over trajectories of N = 2 episodes or more episodes were needed for adaptation. <ref type="table">Table 9</ref> contains the results for N = 1 on each environment (and averaged); <ref type="table" target="#tab_0">Table 10</ref> is a similar table for N = 5.</p><p>It appears that increasing N usually degrades generalization performance, indicating that the increasing trajectory length does make training more difficult. Nevertheless, there are two special cases where generalization performance improves as N increases, on Acrobot with RL 2 -A2C and Pendulum with RL 2 -PPO.</p><p>Note that when N = 1, RL 2 -A2C is the same as A2C with the RC architecture but with the actions, rewards, and done flags input in addition to the states; the same is true of RL 2 -PPO and PPO with the RC architecture. However, on average its generalization performance is not as good; for example Interpolation is 66.83 for RL 2 -A2C but 72.22 for A2C with the RC architecture. This suggests that RL is unable to effectively utilize the information contained in the trajectories to learn about the environment dynamics and a different policy architecture from a simple RNN is needed.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>E. Training Curves</head><p>To investigate the effect of EPOpt and RL and the different environment versions on training, we plotted the training curves for PPO, EPOpt-PPO, and RL 2 -PPO on each version of each environment, averaged over the five experiment runs and showing error bands based on the standard deviation over the runs. Training curves for all algorithms and environments are available at the following link: https://drive.google.com/drive/folders/1H5aBv-Lex6WQzKI-a LCgJUER-UQzKF4. We observe that in the majority of cases training appears to be stabilized by the increased randomness in the environments in R and E, including situations where successful policies are found. This behavior is particularly apparent for CartPole, whose training curves are shown in <ref type="figure" target="#fig_6">Figure 4</ref> and in which all algorithms above are able to find at least partial success. We see that especially towards the end of the training period, the error bands for training on E are narrower than those for training on D or R. Except for EPOpt-PPO with the FF architecture, the error bands for training on D appear to be the widest. In particular, RL 2 -PPO is very unstable when trained on D, possibly because the more expressive policy network overfits to the generated trajectories.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>F. Videos of trained agents</head><p>The above link also contains videos of the trained agents of one run of the experiments for all environments and algorithms. Using HalfCheetah as a case study, we describe some particularly interesting behavior we see.</p><p>A trend we noticed across several algorithms were similar changes in the cheetah's gait that seem to be correlated with the difficulty of the environment. The cheetah's gait became forward-leaning when trained on the Random and Extreme environments, and remained relatively flat in the agents trained on the Deterministic environment (see figures 5 and 6). We hypothesize that the forward-leaning gait developed to counteract conditions in the R and E settings. The agents with the forward-learning gait were able to recover from face planting (as seen in the second row of figure 5), as well as maintain balance after violent leaps likely caused by settings with unexpectedly high power. In addition to becoming increasingly forward-leaning, the agents' gait also tended to become stiffer in the more extreme settings, developing a much shorter, twitching stride. Though it reduces the agents' speed, a shorter, stiffer stride appears to make the agent more resistant to adverse settings that would cause an agent with a longer stride to fall. This example illustrates how training on a range of different environment configurations may encourage policies that are more robust to changes in system dynamics at test time.  . Training curves for the PPO-based algorithms on CartPole, all three environment versions. Note that the decrease in mean episode reward at 10000 episodes in the two EPOpt-PPO plots is due to the fact that it transitions from being computed using all generated episodes ( = 1) to only the 10% with lowest reward ( = 0.1).  </p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head></head><label></label><figDesc>They often utilize the concepts of a value function v π M (s), the expected reward conditional on s 0 = s and a state-action value function Q π M (s, a), the expected reward conditional on s 0 = s and a 0 = a.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 1 .</head><label>1</label><figDesc>Schematic of the three versions of an environment.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 2 .</head><label>2</label><figDesc>MountainCar: heatmap of the rewards achieved by A2C with the FF architecture on DR and DE. The axes are the two environment parameters varied in R and E.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Figure 3 .</head><label>3</label><figDesc>Pendulum: heatmap of the rewards achieved by A2C with the FF architecture on DR and DE. The axes are the two environment parameters varied in R and E.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_6"><head>Figure 4</head><label>4</label><figDesc>Figure 4. Training curves for the PPO-based algorithms on CartPole, all three environment versions. Note that the decrease in mean episode reward at 10000 episodes in the two EPOpt-PPO plots is due to the fact that it transitions from being computed using all generated episodes ( = 1) to only the 10% with lowest reward ( = 0.1).</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_7"><head>Figure 5 .</head><label>5</label><figDesc>Video frames of agents trained with A2C on HalfCheetah, trained in the Deterministic (D), Random (R), and Extreme (E) settings (from top to bottom). All agents evaluated in the D setting.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_8"><head>Figure 6 .</head><label>6</label><figDesc>Video frames of agents trained with PPO on HalfCheetah, trained in the Deterministic (D), Random (R), and Extreme (E) settings (from top to bottom). All agents evaluated in the D setting.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head>Table 1 .</head><label>1</label><figDesc>Ranges of parameters for each version of each environment, using set notation.</figDesc><table><row><cell>Environment</cell><cell>Parameter</cell><cell>D</cell><cell>R</cell><cell>E</cell></row><row><cell>CartPole</cell><cell>Force</cell><cell>10</cell><cell>[5,15]</cell><cell>[1,5]∪[15,20]</cell></row><row><cell></cell><cell>Length</cell><cell>0.5</cell><cell>[0.25,0.75]</cell><cell>[0.05,0.25]∪[0.75,1.0]</cell></row><row><cell></cell><cell>Mass</cell><cell>0.1</cell><cell>[0.05,0.5]</cell><cell>[0.01,0.05]∪[0.5,1.0]</cell></row><row><cell>MountainCar</cell><cell>Force</cell><cell>0.001</cell><cell>[0.0005,0.005]</cell><cell>[0.0001,0.0005]∪[0.005,0.01]</cell></row><row><cell></cell><cell>Mass</cell><cell>0.0025</cell><cell>[0.001,0.005]</cell><cell>[0.0005,0.001]∪[0.005,0.01]</cell></row><row><cell>Acrobot</cell><cell>Length</cell><cell>1</cell><cell>[0.75,1.25]</cell><cell>[0.5,0.75]∪[1.25,1.5]</cell></row><row><cell></cell><cell>Mass</cell><cell>1</cell><cell>[0.75,1.25]</cell><cell>[0.5,0.75]∪[1.25,1.5]</cell></row><row><cell></cell><cell>MOI</cell><cell>1</cell><cell>[0.75,1.25]</cell><cell>[0.5,0.75]∪[1.25,1.5]</cell></row><row><cell>Pendulum</cell><cell>Length</cell><cell>1</cell><cell>[0.75,1.25]</cell><cell>[0.5,0.75]∪[1.25,1.5]</cell></row><row><cell></cell><cell>Mass</cell><cell>1</cell><cell>[0.75,1.25]</cell><cell>[0.5,0.75]∪[1.25,1.5]</cell></row><row><cell>HalfCheetah</cell><cell>Power</cell><cell>0.90</cell><cell>[0.70,1.10]</cell><cell>[0.50,0.70]∪[1.10,1.30]</cell></row><row><cell></cell><cell>Density</cell><cell>1000</cell><cell>[750,1250]</cell><cell>[500,750]∪[1250,1500]</cell></row><row><cell></cell><cell>Friction</cell><cell>0.8</cell><cell>[0.5,1.1]</cell><cell>[0.2,0.5]∪[1.1,1.4]</cell></row><row><cell>Hopper</cell><cell>Power</cell><cell>0.75</cell><cell>[0.60,0.90]</cell><cell>[0.40,0.60]∪[0.90,1.10]</cell></row><row><cell></cell><cell>Density</cell><cell>1000</cell><cell>[750,1250]</cell><cell>[500,750]∪[1250,1500]</cell></row><row><cell></cell><cell>Friction</cell><cell>0.8</cell><cell>[0.5,1.1]</cell><cell>[0.2,0.5]∪[1.1,1.4]</cell></row></table><note>eters. For example, a slightly heavier torso in HalfCheetah and Hopper would change the energy consumption of the robot and thus the reward function in Roboschool but would not change the definition of success in terms of walking a certain distance.</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>Table 2 .</head><label>2</label><figDesc>Generalization performance (in % success) of each algorithm, averaged over all environments (mean and standard deviation over five runs).</figDesc><table><row><cell>Algorithm</cell><cell>Architecture</cell><cell>Default</cell><cell cols="2">Interpolation Extrapolation</cell></row><row><cell>A2C</cell><cell>FF</cell><cell>78.14 ± 6.07</cell><cell>76.63 ± 1.48</cell><cell>63.72 ± 2.08</cell></row><row><cell></cell><cell>RC</cell><cell>81.25 ± 3.48</cell><cell>72.22 ± 2.95</cell><cell>60.76 ± 2.80</cell></row><row><cell>PPO</cell><cell>FF</cell><cell>78.22 ± 1.53</cell><cell>70.57 ± 6.67</cell><cell>48.37 ± 3.21</cell></row><row><cell></cell><cell>RC</cell><cell>26.51 ± 9.71</cell><cell>41.03 ± 6.59</cell><cell>21.59 ± 10.08</cell></row><row><cell>EPOpt-A2C</cell><cell>FF</cell><cell>2.46 ± 2.86</cell><cell>7.68 ± 0.61</cell><cell>2.35 ± 1.59</cell></row><row><cell></cell><cell>RC</cell><cell>9.91 ± 1.12</cell><cell>20.89 ± 1.39</cell><cell>5.42 ± 0.24</cell></row><row><cell>EPOpt-PPO</cell><cell>FF</cell><cell>85.40 ± 8.05</cell><cell>85.15 ± 6.59</cell><cell>59.26 ± 5.81</cell></row><row><cell></cell><cell>RC</cell><cell>5.51 ± 5.74</cell><cell>15.40 ± 3.86</cell><cell>9.99 ± 7.39</cell></row><row><cell>RL 2 -A2C</cell><cell>RC</cell><cell>45.79 ± 6.67</cell><cell>46.32 ± 4.71</cell><cell>33.54 ± 4.64</cell></row><row><cell>RL 2 -PPO</cell><cell>RC</cell><cell>22.22 ± 4.46</cell><cell>29.93 ± 8.97</cell><cell>21.36 ± 4.41</cell></row></table><note></note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgments</head><p>This material is in part based upon work supported by the National Science Foundation under Grant No. TWC-1409915, DARPA under FA8750-17-2-0091, and Berkeley Deep Drive. Any opinions, findings, and conclusions or recommendations expressed in this material are those of the authors and do not necessarily reflect the views of the National Science Foundation.</p></div>
+			</div>
+
+			<div type="annex">
+<div xmlns="http://www.tei-c.org/ns/1.0" />			</div>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Continuous adaptation via metalearning in nonstationary and competitive environments</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Al-Shedivat</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Bansal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Burda</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Mordatch</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Abbeel</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Learning Representations (ICLR)</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Deep reinforcement learning: A brief survey</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Arulkumaran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">P</forename><surname>Deisenroth</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Brundage</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">A</forename><surname>Bharath</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Signal Processing Magazine</title>
+		<imprint>
+			<biblScope unit="volume">34</biblScope>
+			<biblScope unit="issue">6</biblScope>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<title level="m" type="main">An empirical evaluation of generic convolutional and recurrent networks for sequence modeling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Bai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">Z</forename><surname>Kolter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Koltun</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1803.01271</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Neuronlike adaptive elements that can solve difficult learning control problems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">G</forename><surname>Barto</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">S</forename><surname>Sutton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Anderson</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">W</forename></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Systems, Man, and Cybernetics</title>
+		<imprint>
+			<biblScope unit="volume">13</biblScope>
+			<biblScope unit="issue">5</biblScope>
+			<date type="published" when="1983" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Beattie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">Z</forename><surname>Leibo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Teplyashin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Ward</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Wainwright</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Küttler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lefrancq</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Green</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1612.03801</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">The arcade learning environment: An evaluation platform for general agents</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">G</forename><surname>Bellemare</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Naddaf</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Veness</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Bowling</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Artificial Intelligence Research</title>
+		<imprint>
+			<biblScope unit="page">47</biblScope>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Brockman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Cheung</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Pettersson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schneider</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schulman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Tang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><forename type="middle">Openai</forename><surname>Zaremba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Gym</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1606.01540</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<title level="m" type="main">Learning to adapt: Meta-learning for model-based control</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Clavera</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Nagabandi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">S</forename><surname>Fearing</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Abbeel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Levine</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Finn</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1803.11347</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<monogr>
+		<title level="m" type="main">Quantifying generalization in reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Cobbe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Klimov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Hesse</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Kim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schulman</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1812.02341</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dhariwal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Hesse</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Plappert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Radford</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schulman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Sidor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><forename type="middle">Openai</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Baselines</surname></persName>
+		</author>
+		<ptr target="https://github.com/openai/baselines" />
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Steps toward robust artificial intelligence</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">G</forename><surname>Dietterich</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">AI Magazine</title>
+		<imprint>
+			<biblScope unit="volume">38</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">50 years of data science</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Donoho</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Tukey Centennial Workshop</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Benchmarking deep reinforcement learning for continuous control</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Duan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Houthooft</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schulman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Abbeel</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Duan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schulman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">L</forename><surname>Bartlett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Abbeel</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1611.02779</idno>
+		<title level="m">Fast reinforcement learning via slow reinforcement learning</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="volume">2</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Model-agnostic metalearning for fast adaptation of deep networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Finn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Abbeel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Levine</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Deep reinforcement learning that matters</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Henderson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Islam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Bachman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Pineau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Precup</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Meger</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">AAAI Conference on Artificial Intelligence (AAAI)</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<monogr>
+		<title level="m" type="main">Neural networks for machine learning lecture 6</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Srivastava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Swersky</surname></persName>
+		</author>
+		<ptr target="https://www.cs.toronto.edu/˜tijmen/csc321/slides/lecture_slides_lec6.pdf" />
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Justesen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">R</forename><surname>Torrado</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Bontrager</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Khalifa</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Togelius</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Risi</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1806.10729</idno>
+		<title level="m">Procedural level generation improves generality of deep reinforcement learning</title>
+		<meeting>edural level generation improves generality of deep reinforcement learning</meeting>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Schema networks: Zero-shot transfer with a generative causal model of intuitive physics</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kansky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Silver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">A</forename><surname>Mély</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Eldawy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Lázaro-Gredilla</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Lou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Dorfman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Sidor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">S</forename><surname>Phoenix</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">George</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">ViZDoom: A Doom-based AI research platform for visual reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Kempka</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Wydmuch</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Runc</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Toczek</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Jaśkowski</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE Conference on Computational Intelligence and Games</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">A method for stochastic optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Ba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Adam</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Learning Representations (ICLR)</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Building machines that learn and think like people</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">M</forename><surname>Lake</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">D</forename><surname>Ullman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">B</forename><surname>Tenenbaum</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">J</forename><surname>Gershman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Behavioral and Brain Sciences</title>
+		<imprint>
+			<biblScope unit="page">40</biblScope>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Leike</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Martic</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Krakovna</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">A</forename><surname>Ortega</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Everitt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lefrancq</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Orseau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Legg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Gridworlds</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1711.09883</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Reinforcement learning in robust Markov decision processes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">H</forename><surname>Lim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Xu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mannor</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Neural Information Processing Systems (NIPS)</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<monogr>
+		<title level="m" type="main">Revisiting the arcade learning environment: Evaluation protocols and open problems for general agents</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">C</forename><surname>Machado</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">G</forename><surname>Bellemare</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Talvitie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Veness</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">J</forename><surname>Hausknecht</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Bowling</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1709.06009</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<monogr>
+		<title level="m" type="main">Deep learning: A critical appraisal</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Marcus</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1801.00631</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">A simple neural attentive meta-learner</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Mishra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Rohaninejad</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Abbeel</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Learning Representations (ICLR)</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Human-level control through deep reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Mnih</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Silver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">A</forename><surname>Rusu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Veness</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">G</forename><surname>Bellemare</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Graves</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Riedmiller</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">K</forename><surname>Fidjeland</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Ostrovski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Petersen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Beattie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Sadik</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nature</title>
+		<imprint>
+			<biblScope unit="volume">518</biblScope>
+			<biblScope unit="issue">7540</biblScope>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">Asynchronous methods for deep reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Mnih</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">P</forename><surname>Badia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Mirza</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Graves</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">P</forename><surname>Lillicrap</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Harley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Silver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<monogr>
+		<title level="m" type="main">Efficient memory-based learning for robot control</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">W</forename><surname>Moore</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1990" />
+		</imprint>
+		<respStmt>
+			<orgName>University of Cambridge Computer Laboratory</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">Technical report</note>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Robust reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Morimoto</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Doya</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Neural Information Processing Systems (NIPS)</title>
+		<imprint>
+			<date type="published" when="2001" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Nichol</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Pfau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Hesse</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Klimov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schulman</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1804.03720</idno>
+		<title level="m">Gotta learn fast: A new benchmark for generalization in RL</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Robustness in Markov decision problems with uncertain transition matrices</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Nilim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">E</forename><surname>Ghaoui</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Neural Information Processing Systems (NIPS)</title>
+		<imprint>
+			<date type="published" when="2004" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<analytic>
+		<title level="a" type="main">Robust adversarial reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Pinto</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Davidson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Sukthankar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Gupta</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">Learning robust neural network policies using model ensembles</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Rajeswaran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ghotra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Ravindran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Levine</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Epopt</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Learning Representations (ICLR)</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<analytic>
+		<title level="a" type="main">Towards generalization and simplicity in continuous control</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Rajeswaran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Lowrey</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">V</forename><surname>Todorov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">M</forename><surname>Kakade</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Neural Information Processing Systems (NIPS)</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<analytic>
+		<title level="a" type="main">Reinforcement learning under model mismatch</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Roy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Xu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Pokutta</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Neural Information Processing Systems (NIPS)</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">An overview of multi-task learning in</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ruder</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1706.05098</idno>
+	</analytic>
+	<monogr>
+		<title level="m">deep neural networks</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<analytic>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">A</forename><surname>Rusu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><forename type="middle">C</forename><surname>Rabinowitz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Desjardins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Soyer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Kirkpatrick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Hadsell</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1606.04671</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Progressive neural networks</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">Meta reinforcement learning with latent variable Gaussian processes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Saemundsson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Hofmann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">P</forename><surname>Deisenroth</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Conference on Uncertainty in Artificial Intelligence (UAI)</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<analytic>
+		<title level="a" type="main">Trust region policy optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schulman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Levine</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Abbeel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">I</forename><surname>Jordan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Moritz</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schulman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Wolski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dhariwal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Radford</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Klimov</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1707.06347</idno>
+		<title level="m">Proximal policy optimization algorithms</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<monogr>
+		<title level="m" type="main">Learning to learn: Meta-critic networks for sample efficient learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Sung</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Xiang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Hospedales</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yang</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename></persName>
+		</author>
+		<idno type="arXiv">arXiv:1706.09529</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<analytic>
+		<title level="a" type="main">Generalization in reinforcement learning: Successful examples using sparse coarse coding</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">S</forename><surname>Sutton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Neural Information Processing Systems (NIPS)</title>
+		<imprint>
+			<date type="published" when="1995" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<monogr>
+		<title level="m" type="main">Reinforcement Learning: An Introduction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">S</forename><surname>Sutton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">G</forename><surname>Barto</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2017" />
+			<publisher>MIT Press</publisher>
+		</imprint>
+	</monogr>
+	<note>2nd edition</note>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<analytic>
+		<title level="a" type="main">Optimizing the CVaR via sampling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Tamar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Glassner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mannor</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">AAAI Conference on Artificial Intelligence (AAAI)</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b46">
+	<analytic>
+		<title level="a" type="main">Transfer learning for reinforcement learning domains: A survey</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">E</forename><surname>Taylor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Stone</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="page">10</biblScope>
+			<date type="published" when="2009" />
+			<publisher>JMLR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b47">
+	<analytic>
+		<title level="a" type="main">MuJoCo: A physics engine for model-based control</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Todorov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Erez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Tassa</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Intelligent Robots and Systems (IROS)</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b48">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">X</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Kurth-Nelson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Tirumala</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Soyer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">Z</forename><surname>Leibo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Munos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Blundell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Kumaran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Botvinick</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1611.05763</idno>
+		<title level="m">Learning to reinforcement learn</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b49">
+	<analytic>
+		<title level="a" type="main">Protecting against evaluation overfitting in empirical reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Whiteson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Tanner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">E</forename><surname>Taylor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Stone</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE Symposium on Adaptive Dynamic Programming And Reinforcement Learning</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b50">
+	<analytic>
+		<title level="a" type="main">Preparing for the unknown: Learning a universal policy with online system identification</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Yu</surname></persName>
+			<affiliation>
+				<orgName type="collaboration">RSS</orgName>
+			</affiliation>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Tan</surname></persName>
+			<affiliation>
+				<orgName type="collaboration">RSS</orgName>
+			</affiliation>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">K</forename><surname>Liu</surname></persName>
+			<affiliation>
+				<orgName type="collaboration">RSS</orgName>
+			</affiliation>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Turk</surname></persName>
+			<affiliation>
+				<orgName type="collaboration">RSS</orgName>
+			</affiliation>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Robotics: Science and Systems</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b51">
+	<monogr>
+		<title level="m" type="main">A dissection of overfitting and generalization in continuous reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Ballas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Pineau</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1806.07937</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

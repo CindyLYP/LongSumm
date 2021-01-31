@@ -1,0 +1,935 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Learning from Demonstration in the Wild</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2018-11-08">8 Nov 2018</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Feryal</forename><surname>Behbahani</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kyriacos</forename><surname>Shiarlis</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xi</forename><surname>Chen</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Vitaly</forename><surname>Kurin</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sudhanshu</forename><surname>Kasewa</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ciprian</forename><surname>Stirbu</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">João</forename><surname>Gomes</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Supratik</forename><surname>Paul</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Frans</forename><forename type="middle">A</forename><surname>Oliehoek</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">João</forename><surname>Messias</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Shimon</forename><surname>Whiteson</surname></persName>
+						</author>
+						<title level="a" type="main">Learning from Demonstration in the Wild</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2018-11-08">8 Nov 2018</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1811.03516v1[cs.LG]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:45+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Learning from demonstration (LfD) is useful in settings where hand-coding behaviour or a reward function is impractical. It has succeeded in a wide range of problems but typically relies on artificially generated demonstrations or specially deployed sensors and has not generally been able to leverage the copious demonstrations available in the wild: those that capture behaviour that was occurring anyway using sensors that were already deployed for another purpose, e.g., traffic camera footage capturing demonstrations of natural behaviour of vehicles, cyclists, and pedestrians. We propose video to behaviour (ViBe), a new approach to learning models of road user behaviour that requires as input only unlabelled raw video data of a traffic scene collected from a single, monocular, uncalibrated camera with ordinary resolution. Our approach calibrates the camera, detects relevant objects, tracks them through time, and uses the resulting trajectories to perform LfD, yielding models of naturalistic behaviour. We apply ViBe to raw videos of a traffic intersection and show that it can learn purely from videos, without additional expert knowledge.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>I. INTRODUCTION</head><p>Learning from demonstration (LfD) is a machine learning technique that can learn complex behaviours from a dataset of expert trajectories, called demonstrations. LfD is particularly useful in settings where hand-coding behaviour, or engineering a suitable reward function, is too difficult or labour intensive. While LfD has succeeded in a wide range of problems <ref type="bibr" target="#b0">[1]</ref>, <ref type="bibr" target="#b1">[2]</ref>, <ref type="bibr" target="#b2">[3]</ref>, nearly all methods rely on either artificially generated demonstrations (e.g., from laboratory subjects) or those collected by specially deployed sensors (e.g., MOCAP). These restrictions greatly limit the practical applicability of LfD, which to date has largely not been able to leverage the copious demonstrations available in the wild: those that capture behaviour that was occurring anyway using sensors that were already deployed for other purposes.</p><p>For example, consider the problem of training autonomous vehicles to navigate in the presence of human road users. Since physical road tests are expensive and dangerous, simulation is an essential part of the training process. However, such training requires a realistic simulator which, in turn, requires realistic models of other agents, e.g., vehicles, cyclists, and pedestrians, that the autonomous vehicle interacts with. Hand-coded models of road users are labour intensive to create, do not generalise to new settings, and do not capture the diversity of behaviours produced by humans. LfD is an attractive alternative. In principle, subjects could be recruited to demonstrate such behaviour or existing road users could be augmented with sensors to record their trajectories. However, doing so would be expensive and yield only limited datasets. A more effective way would be to use the abundance of relevant demonstrations available in the wild, such as traffic camera footage. Unfortunately, there are currently no LfD methods that can learn from such sources of traffic demonstrations.</p><p>In this paper, we propose video to behaviour (ViBe), a new approach to learning models of road user behaviour that requires as input only unlabelled raw video data of a traffic scene collected from a single, monocular, uncalibrated camera with ordinary resolution. Our approach, illustrated in <ref type="figure" target="#fig_0">Figure 1</ref>, works by calibrating the camera, detecting the relevant objects, and tracking them through time. Each trajectory, together with the static and dynamic context of that road user at each moment in time, is then fed as a demonstration to our LfD system, which learns robust behaviour models for road users. The resulting models are then used to populate a simulation of the scene built using the Unity game engine.</p><p>The contributions of this paper are two-fold: First, we present a vision pipeline that can track different road users and map their tracked trajectories to 3D space and is competitive with the state-of-the art approaches for image space tracking. Second, we extend generative adversarial imitation learning (GAIL) <ref type="bibr" target="#b3">[4]</ref>, a state-of-the-art LfD method, with a novel curriculum-based training regime that enables our agents to gradually learn to mimic temporally extended expert demonstrations and successfully generalise to unseen situations. We evaluate our method against several baselines, including behavioural cloning (BC) and state-of-the-art variants of GAIL. Using a number of metrics, we show that our method can better imitate the observed demonstrations and results in more stable learning.</p><p>While this paper focuses on traffic applications, ViBe is general and could be extended to other applications where large amounts of video data containing demonstrations in the wild are available.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>II. RELATED WORK</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>A. Computer Vision</head><p>In recent years, neural network approaches have significantly advanced the state of the art in computer vision tasks such as classification <ref type="bibr" target="#b4">[5]</ref> and object detection <ref type="bibr" target="#b5">[6]</ref>. Object detection is usually performed using region-based object detectors such as Fast R-CNN <ref type="bibr" target="#b6">[7]</ref>, Faster R-CNN <ref type="bibr" target="#b7">[8]</ref>, or Mask R-CNN <ref type="bibr" target="#b8">[9]</ref>. Such methods are usually slower but more accurate than single-object detectors such as SSD <ref type="bibr" target="#b9">[10]</ref>, YOLO <ref type="bibr" target="#b10">[11]</ref>, RetinaNet <ref type="bibr" target="#b11">[12]</ref>, and hence more appropriate for the application considered here.</p><p>When tracking multiple objects, tracking by detection, in which objects are first detected, then associated into tracks, is usually preferred. State-of-the art tracking methods employ deep features <ref type="bibr" target="#b12">[13]</ref>, <ref type="bibr" target="#b13">[14]</ref> often generated by Siamese networks <ref type="bibr" target="#b14">[15]</ref>, <ref type="bibr" target="#b15">[16]</ref> alongside image space motion models <ref type="bibr" target="#b16">[17]</ref> and intersection over union (IOU) trackers <ref type="bibr" target="#b17">[18]</ref>.</p><p>Our work employs a number of techniques for robust detection and tracking. However, unlike most vision pipelines, ours maps detections to 3D space, and makes extensive use of 3D information while tracking. Recent work <ref type="bibr" target="#b18">[19]</ref> explores a similar application and uses the resulting 3D trajectories to estimate car velocities and detect traffic anomalies. By contrast, we use the trajectories as input to LfD.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>B. Learning from Demonstration</head><p>ViBe's LfD component extends GAIL <ref type="bibr" target="#b3">[4]</ref> which is inspired by inverse reinforcement learning <ref type="bibr" target="#b19">[20]</ref>, <ref type="bibr" target="#b20">[21]</ref>, <ref type="bibr" target="#b21">[22]</ref> and is discussed further in Section III. A wide range of LfD techniques have been developed using supervised, unsupervised, or reinforcement learning <ref type="bibr" target="#b1">[2]</ref>. However, most methods <ref type="bibr" target="#b2">[3]</ref>, <ref type="bibr" target="#b22">[23]</ref>, <ref type="bibr" target="#b23">[24]</ref>, even when using raw video as sensory input <ref type="bibr" target="#b24">[25]</ref>, rely on either artificially generated demonstrations or those collected by specially deployed sensors, limiting their application in realistic domains.</p><p>By contrast, ViBe leverages demonstrations of behaviour that was occurring naturally. The same idea has been used to imitate basketball teams <ref type="bibr" target="#b25">[26]</ref>, predict taxi driver behaviour <ref type="bibr" target="#b26">[27]</ref>, and control complex animations <ref type="bibr" target="#b27">[28]</ref>. However, all these methods still rely on sensors (or manual labelling) that provide ground truth information about the observed demonstrations, whereas ViBe extracts trajectories directly from raw, unlabelled videos.</p><p>Related to ViBe are several existing LfD methods that learn road and pedestrian behaviour <ref type="bibr" target="#b28">[29]</ref>, <ref type="bibr" target="#b29">[30]</ref>, <ref type="bibr" target="#b30">[31]</ref>. Most relevant is learning highway merging behaviour <ref type="bibr" target="#b31">[32]</ref>, <ref type="bibr" target="#b32">[33]</ref> from NGSIM <ref type="bibr" target="#b33">[34]</ref>, a publicly available dataset of vehicle trajectories. However, these methods again rely on manual labelling or specialised equipment to obtain the trajectories, while ViBe learns from raw, unlabelled videos.</p><p>Recent work proposed a method that can learn to play ATARI games by observing YouTube videos <ref type="bibr" target="#b34">[35]</ref>. Like ViBe, this method requires only raw videos, and leverages existing publicly available data. However, it trains only a single agent operating in 2D space, whereas ViBe learns to control multiple agents in 3D space.</p><p>Concurrently to our work, Peng et al. <ref type="bibr" target="#b35">[36]</ref> proposed a similar approach in the context of character animation. An off-the-shelf vision module extracts 3D poses from unstructured YouTube videos of single agents performing acrobatic motions. A simple LfD approach then rewards behaviour that matches waypoints in individual demonstrations. By contrast, we consider a more challenging setting with multiple agents, occlusions, and complex interactions between agents. Consequently, behaviour detection, reconstruction, and imitation are more difficult. In particular, interactions between agents preclude a waypoint-matching approach, as there is no unique set of waypoints for an agent to match that would be robust to changes in other agents' behaviour.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>III. BACKGROUND</head><p>To realistically model the traffic environment of an autonomous vehicle, we need to simulate multiple agents interacting in the same environment. Unfortunately, due to the large number of road users that may populate a traffic scenario, learning a centralized policy to control all agents simultaneously is impractical. The size of the joint action space of such a policy grows exponentially in the number of agents, leading to poor scalability in learning. Furthermore, it is crucial to model variable numbers of agents (e.g., cars routinely enter and leave an intersection), to which such joint policies are poorly suited (each agent typically has a fixed agent index).</p><p>To this end, we take an approach similar to that of independent Q-learning (IQL) <ref type="bibr" target="#b36">[37]</ref>, where each agent learns its own policy, conditioned only on its own observations. The other actors are effectively treated as part of the environment.</p><p>We can then treat the problem as one of single-agent learning and share the parameters of the policy across multiple agents. Parameter sharing <ref type="bibr" target="#b37">[38]</ref> avoids the exponential growth of the joint action space and elegantly handles variable numbers of agents. It also avoids instabilities associated with decentralised learning by essentially performing centralised learning with only one policy.</p><p>We model the problem as a Markov decision process (MDP). The MDP is defined by the tuple (S, A, P, R). S represents the set of environment states, A the set of actions, P (s t+1 |s t , a t ) the transition function, and R(s t , a t ) the reward function. We use π for the stochastic policy learnt by our agent and π E for the expert policy which we can access only through a dataset D E . The agent does not have access to R(s t , a t ) and instead must mimic the expert's demonstrated behaviour. Given a dataset D E , we denote sample trajectories as τ E . They consist of sequences of observation-action pairs generated by the expert</p><formula xml:id="formula_0">τ E = {(s E 1 , a E 1 ), . . . , (s E T , a E T )}.</formula><p>Similarly, we denote trajectories generated by our agent as τ = {(s 1 , a 1 ), . . . , (s T , a T )}. In our case, D E is obtained from raw videos, via the process described in Section IV.</p><p>The simplest form of LfD is behavioural cloning (BC) <ref type="bibr" target="#b38">[39]</ref>, <ref type="bibr" target="#b39">[40]</ref>, which trains a regressor (i.e., a policy) to replicate the expert's behaviour given an expert state. BC works well for states covered by the training distribution but generalises poorly due to compounding errors in the actions, a problem also known as covariate shift <ref type="bibr" target="#b40">[41]</ref>. By contrast, GAIL <ref type="bibr" target="#b3">[4]</ref> avoids covariate shift by learning via interaction with the environment, similar to inverse reinforcement learning <ref type="bibr" target="#b19">[20]</ref> methods.</p><p>GAIL, aims to learn a deep neural network policy π θ that cannot be distinguished from the expert policy π E . To this end, it trains a discriminator D φ , also a deep neural network, to distinguish between state-action pairs coming from expert and agent. GAIL optimises π θ to make it difficult for the discriminator to make this distinction. Formally, the GAIL objective is:</p><formula xml:id="formula_1">min θ max φ E π θ [log(D φ (s, a))] + E π E log(1 − D φ (s E , a E )) .</formula><p>Here, D φ outputs the probability that (s, a) originated from π. As the agent interacts with the environment using π θ , (s, a) pairs are collected and used to train D φ . Then, GAIL alternates between a gradient step on φ to increase the objective function with respect to D, and an RL step on θ to decrease it with respect to π. Optimisation of π can be done with any RL algorithm using a reward function of the form R(s, a) = − log(D φ (s, a)). Typically, GAIL uses policy gradient methods that approximate the gradient with Monte Carlo rollouts <ref type="bibr" target="#b41">[42]</ref> or a critic <ref type="bibr" target="#b42">[43]</ref>. Optimisation of D φ minimises a cross entropy loss function.</p><p>Early in training, the state-action pairs visited by the policy are quite different from those in the demonstrations, which can yield unreliable and sparse rewards from D φ , making it difficult to learn π E . We will show how we address this problem by introducing a novel curriculum in Section IV-C. In multi-agent situations, GAIL agents trained in a singleagent setting can fail to generalise to multi-agent settings <ref type="bibr" target="#b32">[33]</ref>. PS-GAIL <ref type="bibr" target="#b32">[33]</ref> is an extension to GAIL that addresses this issue by gradually increasing the number of agents controlled by the policy during training. We compare to PS-GAIL experimentally in Section V. However, it is complementary to the Horizon GAIL method we propose in Section IV-C and future work can focus on using them in conjunction.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>IV. VIBE: VIDEO TO BEHAVIOUR</head><p>In this section, we describe ViBe, which learns road behaviour policies from raw traffic camera videos (see <ref type="figure" target="#fig_0">Figure 1</ref>). We first describe how trajectories are extracted from these videos. We then describe how they are used to create a simulation of the scene. Finally, we detail how the trajectories and the simulator are used to learn realistic road behaviour policies via our novel LfD approach.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>A. Extracting Demonstrations</head><p>This section describes our vision pipeline, whose main steps are detection, calibration, and tracking.</p><p>Our detector uses the bounding box output of a pre-trained model of Mask R-CNN <ref type="bibr" target="#b8">[9]</ref> [6] based on ResNet-101 <ref type="bibr" target="#b4">[5]</ref> architecture, pre-trained on the COCO dataset <ref type="bibr" target="#b43">[44]</ref>. Since we are only interested in the traffic information, we remove all classes except car, bus, truck, pedestrian, and bicycle.</p><p>The next step is calibration. As traffic cameras tend to have a large field of view, the camera images tend to be highly distorted. Due to being unable to calibrate the camera using traditional methods (e.g., using a checkboard) <ref type="bibr" target="#b44">[45]</ref>. Instead, we obtain a top-down satellite image of the scene from Google Maps and add landmark points to both camera and satellite images. We then undistort the camera image and use the landmark points to calculate the camera matrix. Given the camera calibration, we map the detected bounding boxes into 3D by assuming that the detected object is a fixed height above the ground, with the height depending on its class.</p><p>The final step is tracking multiple objects in unstructured environments. Our multiple object tracking (MOT) module is similar to that of Deep SORT <ref type="bibr" target="#b13">[14]</ref>, which makes heavy use of an appearance model to make associations. For each scene, we train an appearance model using a Siamese network (SN) <ref type="bibr" target="#b14">[15]</ref>. We first run our object detector over the whole video, followed by an IOU tracker. This yields short tracks that we call tracklets. Objects in the same tracklets form positive pairs, and objects from different tracklets form negative pairs used to train the SN. To avoid the possibility of similar objects appearing in negative pairs, we form these pairs using tracklets with a large temporal difference. The SN is trained using a cosine distance metric and a contrastive loss.</p><p>Our MOT pipeline then processes the detected objects through several steps. Track initialisation occurs when a simple IOU tracker associates more than five consecutive detections. The initialised track is mapped to 3D space, where a Kalman filter predicts the next position of the object. Next, objects in the next frame within the vicinity of this prediction are compared with the current track using the features generated by SN. An association is made if this comparison yields a cosine distance in the feature space below a certain threshold. If no such association is made, the tracker attempts to associate detections using IOU. If association still fails, a final attempt is made using nearest neighbour association in 3D space. <ref type="figure" target="#fig_1">Figure 2</ref> shows an example output of our tracking pipeline in both 2D and 3D space.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>B. Simulation</head><p>Our vision pipeline outputs timestamped trajectories of different road users. However, a simulator also requires a reliable representation of the static elements of the scene such as pavements and zebra crossings. To this end, we use Google Maps as a reference to build a simulation of the scene in Unity. Building the static elements of the simulation is straightforward and significantly easier than realistically modeling the dynamic elements of the scene. In this paper, we simulate a roundabout intersection in Purmerend, a city in the Netherlands that provided the traffic video data used in our experiments. <ref type="figure" target="#fig_1">Figure 2</ref> shows how the scene along with some tracks from our vision pipeline is recreated in our simulator.</p><p>Section IV-C describes our LfD approach, which requires a state representation for the agent. Our simulator generates such a representation based on both the static and dynamic context. Pseudo-LiDAR readings, similar to those in <ref type="bibr" target="#b32">[33]</ref>, are used to represent different aspects of the static (e.g., zebra crossings and roads) and dynamic (e.g., distance and velocity of other agents) context of the agent. In addition, we provide information such as the agent's heading, distance from goal, and velocity. Our simulator uses a simple linear motion model, which we found sufficient for learning, though in the future individual motion models for each road entity could be considered.</p><p>Given a start frame in the dataset, our simulator plays back tracked trajectories from that frame onwards, produces observations and accepts actions from agents controlled by neural network policies. In other words, it provides exactly the environment needed to both perform LfD on the extracted trajectories, and evaluate the resulting learnt policies.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>C. Learning</head><p>Given the trajectories extracted by the vision processing from Section IV-A, ViBe uses the simulator from Section IV-B to learn a policy that matches those trajectories. Learning is based on GAIL, which leverages the simulator to train the agent's behaviour for states beyond those in the demonstrations, avoiding the compounding errors of BC. However, in the original GAIL method, this interaction with the simulator means that the agent has control over the visited states from the beginning of learning. Consequently, it is likely to take bad actions that lead it to undesirable states, far from those visited by the expert, which in turn yields sparse rewards from the discriminator and slow agent learning.</p><p>To address this problem, we propose Horizon GAIL, which, like BC, bootstraps learning from the expert's states, in this case to ensure a reliable reward signal from the discriminator. To prevent compounding errors, we use a novel horizon curriculum that slowly increases the number of timesteps for which the agent interacts with the simulator. Thus, only at the end of the curriculum does the agent have the full control over visited states that the original GAIL agent has from the beginning. This curriculum also encourages the discriminator to learn better representations early on.</p><p>In each episode, the agent is initialised from a random expert state, s E t and must act for H steps, where H is the length of the horizon. Once the horizon is reached, the simulation ends but the episode is not considered terminated. Instead, </p><formula xml:id="formula_2">E (sm,am)∈χ [∇ φ log(D φ (s m , a m ))] + E (s E m ,a E m )∈χ E ∇ φ log(1 − D φ (s E m , a E m ))</formula><p>Compute reward ∀(s m , a m ) ∈ χ using the discriminator:</p><formula xml:id="formula_3">r m = − log(1 − D φi+1 (s m , a m ))</formula><p>Take a policy step from θ i to θ i+1 , with any policy optimisation method end for Horizon GAIL uses an actor-critic approach, with the actor following a gradient estimated from an n-step return, with n = H, bootstrapping from a critic V ψ when the horizon is reached. This prevents the agent from learning myopic behaviour when H is small. Hence, while GAIL is agnostic about the policy gradient method it uses, Horizon GAIL commits to an actor-critic approach in order to bootstrap beyond the simulated horizon.</p><p>When H = 1, Horizon GAIL is similar to BC. In fact, pretraining GAIL with BC is known to be beneficial <ref type="bibr" target="#b31">[32]</ref>, <ref type="bibr" target="#b45">[46]</ref>, <ref type="bibr" target="#b46">[47]</ref>, <ref type="bibr" target="#b47">[48]</ref>. However, even with H = 1, a crucial difference remains (see <ref type="figure" target="#fig_2">Figure 3)</ref>. BC does not interact with a simulator, as the agent simply learns to predict the expert's action given its state. By contrast, when H = 1, the Horizon GAIL agent's action is fed back into the simulator, which generates s t+1 and the policy gradient estimate bootstraps with V ψ (s t+1 ).</p><p>When H = 2, the agent, initialised from s E t , acts for two steps in the simulator before being terminated. H is increased during training according to a schedule. When H = ∞, Horizon GAIL is equivalent to GAIL. See Algorithm 1 for a complete overview of our training scheme.</p><p>Gradually moving from single step state-action pairs to more difficult multi-step trajectories helps stabilise learning. It allows the generator and discriminator to jointly learn to generalise to longer sequences of behaviour and match the expert data more closely while ensuring the discriminator does not collapse early in training.</p><p>We found that Horizon GAIL was critical to successfully reproduce naturalistic behaviour in our complex traffic inter-section problem, as we show in Section V-B.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>V. EXPERIMENTAL RESULTS</head><p>We evaluate ViBe on a complex multi-agent traffic scene involving a roundabout in Purmerend (Section IV-B). The input data consists of 850 minutes of video at 15 Hz from the traffic camera observing the roundabout.</p><p>Our vision pipeline identifies all the agents in the scene (e.g. cars, pedestrians and cyclists), and tracks their trajectories through time, resulting in around 10000 car trajectories. Before any learning, these trajectories are filtered and pruned. Specifically, any trajectories that result in collisions or very large velocities are considered artifacts of the tracking process and are not used during training. We split the resulting dataset into training, validation, and test sets such that there is no temporal overlap, i.e., no test trajectories occur at the same time as training trajectories. The validation set is used to tune hyper-parameters and choose the best performing model (for all baselines) in evaluation. As discussed in Section IV-B, we can use our simulator to play back these trajectories at any point in time (see <ref type="figure" target="#fig_0">Figure 1)</ref>.</p><p>When training with Horizon GAIL, in each episode the agent is initialised at a point sampled from an expert trajectory. The sampled point determines the full initial state of the simulator, including position, velocity, and heading of all agents in the scene. We use our policy to simulate the agent for H steps. The agent is also assigned a goal corresponding to the last state of the expert trajectory. The episode terminates if the agent collides with an object or another agent, or reaches its goal.</p><p>We compare Horizon GAIL to a number of baselines: BC, GAIL <ref type="bibr" target="#b3">[4]</ref> and PS-GAIL <ref type="bibr" target="#b32">[33]</ref>, using the same dataset and observation and action spaces to train all methods. We show results using the best hyper-parameters we found after tuning them separately for each method.</p><p>Policies, π θ , take as input 64 dimensional pseudo-LiDAR observations with a field of view of 2π radians, generated by our simulator as described in Section IV-B. These LiDAR observations are stacked together and processed in two layers of 1x1 convolutions of 15 and 3 channels respectively. These convolutions act as channel mixing operations but maintain the spatial information of the original signal. The output then passes through a series of fully connected layers and is concatenated with the agent's orientation, distance from the goal, and a one-hot encoding of the target roundabout exit. The network outputs displacements in Cartesian coordinates, used by the simulator to update the agent's location.  <ref type="figure">Fig. 4</ref>. Results of evaluation across 4 independent 4000 timesteps of multi-agent simulations across different metrics: Jensen-Shannon divergence between joint velocity-occupancy, speed and occupancy distributions of ground truth and simulated agents. The collision probability, either with other agents or the environment. Probability of failing to reach the correct exit.</p><p>We use identical core architectures for the discriminator D φ and value function V ψ . Contrary to <ref type="bibr" target="#b32">[33]</ref> we do not represent the policy using a recurrent neural network, thus assuming that the state is fully observable. We did not find this assumption to pose a significant obstacle to our performance, and thus leave its assessment for future work.</p><p>We train π θ with proximal policy optimisation (PPO) with a clipping objective <ref type="bibr" target="#b42">[43]</ref>, an actor-critic method known to perform well for long-horizon problems <ref type="bibr" target="#b48">[49]</ref>. We train each model for 5000 epochs, each containing 1024 environment interactions. For Horizon GAIL, the horizon schedule starts with H = 1 and increments by 1 every 100 epochs. However, performance is quite robust to this hyperparameter: varying the schedule from 50 to 200 epochs and did not create any significant performance differences.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>A. Performance Metrics</head><p>To evaluate the ViBe vision module, we measure the reliability of the tracks it generates using the metrics introduced by Ristani et al. <ref type="bibr" target="#b49">[50]</ref>: number of tracked trajectories (NT), identity F1 score (IDF1), identity precision (IDP) and identity recall (IDR). These metrics are suitable because they reflect the key qualities of reliably tracked trajectories.</p><p>To evaluate our policies, we chose a 4000 timestep window of the test data and simulate all the cars within that interval. These windows do not overlap for each evaluation run. Pedestrians and other road users are played back from the dataset. In contrast to training, during evaluation we do not terminate the agents upon collision, so as to assess how well each method models long term behaviour.</p><p>Unlike in reinforcement learning, where the true reward function is known, performance evaluation in LfD is not straightforward and typically no single metric suffices. Several researchers have proposed metrics for LfD, which are often task specific <ref type="bibr" target="#b31">[32]</ref>, <ref type="bibr" target="#b50">[51]</ref>, <ref type="bibr" target="#b46">[47]</ref>. We take a similar approach, using a suite of metrics, each comparing a different aspect of the generated behaviour to that of human behaviour.</p><p>During evaluation we record the positions and velocities of all simulated agents. Using kernel density estimation, we estimate probability distributions for speed and 2D space occupancy (i.e locations in 2D space) as well as a joint distribution of velocities and space occupancy. The same distributions are computed for the ground truth data. We then measure the Jensen-Shannon divergence (JSD) between the data and the respective model generated distributions for these three quantities. We also measure how often the simulated agents collide with objects or other agents in the environment, i.e. the collision rate. Finally, we measure how often the agents fail to reach their goal.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>B. Results</head><p>To validate the ViBe vision module, we manually label 43 trajectories from the dataset and then compare its performance against two baselines, a simple IOU <ref type="bibr" target="#b17">[18]</ref> tracker and Deep SORT <ref type="bibr" target="#b12">[13]</ref>, <ref type="bibr" target="#b13">[14]</ref>, a state-of-the-art MOT pipeline. We replace Deep SORT's appearance model with our own, as it is specifically trained for this scene.</p><p>The results in <ref type="table">Table V</ref> show that the ViBe vision module outperforms both baselines. In particular, ViBe's higher IDF1 score gives confidence that the trajectories provided are of sufficient quality for LfD. The most substantial difference between Deep SORT and ViBe is that ViBe performs Kalman filtering in 3D space, which likely explains the performance difference. Even for ViBe, the number of tracked trajectories (NT) is substantially higher than ground truth <ref type="bibr" target="#b42">(43)</ref>. However, this is not caused by false positives but merely by the tracker treating a single trajectory as two separate ones. This in turn implies that ViBe produces longer tracks than the baseline methods.</p><p>The results of our LfD evaluation can be seen in the following figures: <ref type="figure">Figure 4</ref> shows performance with respect to the evaluation metrics discussed in Section V-A for 4 independent 4000 timesteps of multi-agent simulations. <ref type="figure">Figure 5</ref> shows the trajectories generated by a single such simulation by each method. The first observation is that Horizon GAIL outperforms all baselines and produces trajectories that more closely resemble the data. GAIL and PS-GAIL perform relatively poorly, failing to capture the data distribution. It is worth noting that these results represent the best training epoch out of the 5000 performed during training, as we BC GAIL PS-GAIL Horizon GAIL Expert data <ref type="figure">Fig. 5</ref>. Top views of the trajectories taken by the agents, when trying to replicate the expert trajectories shown on the right-most column. These trajectories are produced across 4000 timesteps of multi-agent simulation. <ref type="figure">Fig. 6</ref>. Progression of Speed, Occupancy and Joint velocity-occupancy JSD metrics through training, indicating difference in stability between our method (Horizon GAIL) and other GAIL baselines across 3 random seeds.</p><p>observed that both baseline GAIL methods exhibit quite unstable training dynamics. This can be further observed from <ref type="figure">Figure 6</ref> where we plot the speed, occupancy and joint velocity-occupancy JSD metrics across the training epochs for a multi-agent evaluation of 4000 timesteps across 3 random seeds. We can see that Horizon GAIL is noticeably more stable across both metrics. With respect to PS-GAIL, we observed that the curriculum parameter was relatively hard to tune. For example, adding agents too soon causes the discriminator to learn too quickly that these agents are not real. Another notable observation is that BC performs well when compared to both baseline GAIL methods. This result can be attributed to the abundance of data available for training. From <ref type="figure">Figure 5</ref> however we can see that the qualitative performance of these policies is relatively poor when compared to Horizon GAIL. As expected, the BC baseline quickly diverges from plausible trajectories, as minor errors compound over time. The long evaluation times exacerbate this effect. Horizon GAIL avoids compounding error problems associated with BC through interaction with the environment. It also avoids unstable training related with GAIL through the gradually increasing horizon. This yields stable, plausible trajectories with fewer collisions than any other method 1 .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>VI. CONCLUSION</head><p>This paper presented a novel method for learning from demonstration in the wild that can leverage abundance of freely available videos of natural behaviour. In particular, we proposed ViBe, a new approach to learning models of road user behaviour that requires as input only unlabelled raw video data of a traffic scene collected from a single, monocular, uncalibrated camera with ordinary resolution. ViBe calibrates the camera, detects relevant objects, tracks them reliably through time, and uses the resulting trajectories to learn driver policies via a novel LfD method. The learned policies are finally deployed in a simulation of the scene developed using the Unity game engine. According to several metrics our LfD method exhibits better and more stable learning than baselines such as GAIL and BC.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Fig. 1 .</head><label>1</label><figDesc>Schematic of the ViBe approach</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Fig. 2 .</head><label>2</label><figDesc>Example of how ViBe's vision module tracks cars (blue) and pedestrians (red). The tracks are projected to 3D space using a reference satellite image from Google Maps. The tracks are played back in a simulation of the scene developed in Unity.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Fig. 3 .</head><label>3</label><figDesc>Schematic of Horizon GAIL for different values of the horizon H, compared to BC. When H = ∞, Horizon GAIL matches original GAIL.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head></head><label></label><figDesc>Algorithm Horizon Curriculum for GAILInitialise policy π θ , discriminator D φ , expert demonstrations D E for h = 1 . . . T do Sample expert trajectory: τ E ∼ D E for t = 0, h, 2h, .. . , T − h do Use expert observation s E t to initialise the agent and initialise the environment to its corresponding state at time t Sample an agent's trajectory of length h: τ ∼ π θi end for Sample M observation-action pairs χ ∼ τ and M pairs χ E ∼ τ E Update the discriminator parameters from φ i to φ i+1 with the gradient:</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>TABLE I COMPARISON</head><label>I</label><figDesc>OF VIBE VISION MODULE TO BASELINE TRACKERS</figDesc><table><row><cell></cell><cell>NT</cell><cell>IDF1</cell><cell>IDP</cell><cell>IDR</cell></row><row><cell>IOU</cell><cell>400</cell><cell>51.1%</cell><cell>50.3%</cell><cell>51.8%</cell></row><row><cell>Deep SORT</cell><cell>129</cell><cell>68.1%</cell><cell>66.6%</cell><cell>69.7%</cell></row><row><cell>ViBe</cell><cell>97</cell><cell>70.5%</cell><cell>68.1%</cell><cell>73.1%</cell></row></table><note></note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="1">Latent Logic, Oxford, England 2 University of Oxford, Oxford, England 3 Delft University of Technology, Delft, Netherlands</note>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="1">A video presenting ViBe and showcasing the learned behaviour can be found here: https://www.youtube.com/watch?v=K8ugVsW3Gm4</note>
+		</body>
+		<back>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<title level="m" type="main">Deep imitation learning for complex manipulation tasks from virtual reality teleoperation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Zhang</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1710.04615</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">An algorithmic perspective on imitation learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Osa</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Foundations and Trends R in Robotics</title>
+		<imprint>
+			<biblScope unit="volume">7</biblScope>
+			<biblScope unit="issue">1-2</biblScope>
+			<biblScope unit="page" from="1" to="179" />
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">A survey of robot learning from demonstration</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">D</forename><surname>Argall</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Robotics and autonomous systems</title>
+		<imprint>
+			<biblScope unit="volume">57</biblScope>
+			<biblScope unit="issue">5</biblScope>
+			<biblScope unit="page" from="469" to="483" />
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Generative adversarial imitation learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Ho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ermon</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="4565" to="4573" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Deep residual learning for image recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>He</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="770" to="778" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<monogr>
+		<title level="m" type="main">Detectron</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Girshick</surname></persName>
+		</author>
+		<ptr target="https://github.com/facebookresearch/detectron" />
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Fast R-CNN</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Girshick</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the International Conference on Computer Vision (ICCV)</title>
+		<meeting>the International Conference on Computer Vision (ICCV)</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Faster R-CNN: Towards real-time object detection with region proposal networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ren</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Neural Information Processing Systems (NIPS)</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Mask R-CNN</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>He</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the International Conference on Computer Vision (ICCV)</title>
+		<meeting>the International Conference on Computer Vision (ICCV)</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Ssd: Single shot multibox detector</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Liu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ECCV</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Yolov3: An incremental improvement</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Redmon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Farhadi</surname></persName>
+		</author>
+		<idno>abs/1804.02767</idno>
+		<ptr target="http://arxiv.org/abs/1804.02767" />
+	</analytic>
+	<monogr>
+		<title level="j">CoRR</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Focal loss for dense object detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Lin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE International Conference on Computer Vision</title>
+		<meeting><address><addrLine>Venice, Italy</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2017-10-22" />
+			<biblScope unit="page" from="2999" to="3007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Simple online and realtime tracking with a deep association metric</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Wojke</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2017 IEEE International Conference on Image Processing (ICIP)</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="3645" to="3649" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Deep cosine metric learning for person re-identification</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Wojke</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bewley</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2018 IEEE Winter Conference on Applications of Computer Vision (WACV)</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2018" />
+			<biblScope unit="page" from="748" to="756" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Learning by tracking: Siamese cnn for robust target association</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Leal-Taixé</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2016 IEEE Conference on Computer Vision and Pattern Recognition Workshops (CVPRW)</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="418" to="425" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Fully-convolutional siamese networks for object tracking</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Bertinetto</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ECCV Workshops</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Simple online and realtime tracking</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bewley</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2016 IEEE International Conference on Image Processing</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="3464" to="3468" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">High-speed tracking-by-detection without using image information</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Bochinski</surname></persName>
+		</author>
+		<ptr target="http://elvera.nue.tu-berlin.de/files/1517Bochinski2017.pdf" />
+	</analytic>
+	<monogr>
+		<title level="m">International Workshop on Traffic and Street Surveillance for Safety and Security at IEEE AVSS 2017</title>
+		<meeting><address><addrLine>Lecce, Italy</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2017-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Video analytics in smart transportation for the aic18 challenge</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M.-C</forename><surname>Chang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR Workshop (CVPRW) on the AI City Challenge</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Algorithms for inverse reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">Y</forename><surname>Ng</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Icml</title>
+		<imprint>
+			<date type="published" when="2000" />
+			<biblScope unit="page" from="663" to="670" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Maximum entropy inverse reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">D</forename><surname>Ziebart</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">AAAI</title>
+		<meeting><address><addrLine>Chicago, IL, USA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2008" />
+			<biblScope unit="volume">8</biblScope>
+			<biblScope unit="page" from="1433" to="1438" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Apprenticeship learning via inverse reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Abbeel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">Y</forename><surname>Ng</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the twenty-first international conference on Machine learning</title>
+		<meeting>the twenty-first international conference on Machine learning</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2004" />
+			<biblScope unit="page">1</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">One-shot imitation learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Duan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="1087" to="1098" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Guided cost learning: Deep inverse optimal control via policy optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Finn</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="49" to="58" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<monogr>
+		<title level="m" type="main">Imitation from observation: Learning to imitate behaviors from raw video via context translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Liu</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1707.03374</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<monogr>
+		<title level="m" type="main">Generative multi-agent behavioral cloning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Zhan</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1803.07612</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Navigate like a cabbie: Probabilistic reasoning from observed context-aware behavior</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">D</forename><surname>Ziebart</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 10th international conference on Ubiquitous computing</title>
+		<meeting>the 10th international conference on Ubiquitous computing</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2008" />
+			<biblScope unit="page" from="322" to="331" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<monogr>
+		<title level="m" type="main">Deepmimic: Example-guided deep reinforcement learning of physics-based character skills</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><forename type="middle">B</forename><surname>Peng</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1804.02717</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">Inverse reinforcement learning algorithms and features for robot navigation in crowds: an experimental comparison</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Vasquez</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE-RSJ Int. Conf. on Intelligent Robots and Systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="1341" to="1346" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Desire: Distant future prediction in dynamic scenes with interacting agents</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Lee</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition</title>
+		<meeting>the IEEE Conference on Computer Vision and Pattern Recognition</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="336" to="345" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Learning to navigate through crowded environments</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Henry</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Robotics and Automation (ICRA)</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="981" to="986" />
+		</imprint>
+	</monogr>
+	<note>2010 IEEE International Conference on</note>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">Imitating driver behavior with generative adversarial networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kuefler</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Intelligent Vehicles Symposium</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="204" to="211" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<monogr>
+		<title level="m" type="main">Multi-agent imitation learning for driving simulation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">P</forename><surname>Bhattacharyya</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1803.01044</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<monogr>
+		<title level="m" type="main">Federal Highway Administration (FHWA)</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Colyar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Halkias</surname></persName>
+		</author>
+		<idno>FHWA-HRT-07-030</idno>
+		<imprint>
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Tech. Rep.</note>
+	<note>Us highway 101 dataset</note>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<monogr>
+		<title level="m" type="main">Playing hard exploration games by watching youtube</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Aytar</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1805.11592</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<monogr>
+		<title level="m" type="main">Sfv: Reinforcement learning of physical skills from videos</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><forename type="middle">B</forename><surname>Peng</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1810.03599</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<analytic>
+		<title level="a" type="main">Multi-agent reinforcement learning: Independent vs. cooperative agents</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Tan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the tenth international conference on machine learning</title>
+		<meeting>the tenth international conference on machine learning</meeting>
+		<imprint>
+			<date type="published" when="1993" />
+			<biblScope unit="page" from="330" to="337" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">Cooperative multi-agent control using deep reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">K</forename><surname>Gupta</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Autonomous Agents and Multiagent Systems</title>
+		<imprint>
+			<publisher>Springer</publisher>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="66" to="83" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<analytic>
+		<title level="a" type="main">Alvinn: An autonomous land vehicle in a neural network</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">A</forename><surname>Pomerleau</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="1989" />
+			<biblScope unit="page" from="305" to="313" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">A reduction of imitation learning and structured prediction to no-regret online learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ross</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the fourteenth international conference on artificial intelligence and statistics</title>
+		<meeting>the fourteenth international conference on artificial intelligence and statistics</meeting>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="627" to="635" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<analytic>
+		<title level="a" type="main">Efficient reductions for imitation learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ross</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Bagnell</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the thirteenth international conference on artificial intelligence and statistics</title>
+		<meeting>the thirteenth international conference on artificial intelligence and statistics</meeting>
+		<imprint>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="661" to="668" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<analytic>
+		<title level="a" type="main">Trust region policy optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schulman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="1889" to="1897" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schulman</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1707.06347</idno>
+		<title level="m">Proximal policy optimization algorithms</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<monogr>
+		<title level="m" type="main">Microsoft coco: Common objects in context</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T.-Y</forename><surname>Lin</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note>in k</note>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">G R</forename><surname>Bradski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kaehler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Learning</forename><surname>Opencv</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2008" />
+			<publisher>Reilly Media, Inc</publisher>
+		</imprint>
+	</monogr>
+	<note>1st Edition. 1st ed. O&apos;</note>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<analytic>
+		<title level="a" type="main">Infogail: Interpretable imitation learning from visual demonstrations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Li</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="3812" to="3822" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b46">
+	<analytic>
+		<title level="a" type="main">Robust imitation of diverse behaviors</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Wang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="5320" to="5329" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b47">
+	<monogr>
+		<title level="m" type="main">Multi-agent generative adversarial imitation learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Song</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv</note>
+</biblStruct>
+
+<biblStruct xml:id="b48">
+	<monogr>
+		<title level="m" type="main">Openai five</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Openai</surname></persName>
+		</author>
+		<ptr target="https://blog.openai.com/openai-five/" />
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b49">
+	<analytic>
+		<title level="a" type="main">Performance measures and a data set for multitarget, multi-camera tracking</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Ristani</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ECCV Workshops</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b50">
+	<analytic>
+		<title level="a" type="main">Inverse reinforcement learning from failure</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Shiarlis</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2016 International Conference on Autonomous Agents &amp; Multiagent Systems</title>
+		<meeting>the 2016 International Conference on Autonomous Agents &amp; Multiagent Systems</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="1060" to="1068" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

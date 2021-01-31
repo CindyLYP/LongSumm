@@ -1,0 +1,818 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Dueling Network Architectures for Deep Reinforcement Learning</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ziyu</forename><surname>Wang</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tom</forename><surname>Schaul</surname></persName>
+							<email>schaul@google.com</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Matteo</forename><surname>Hessel</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marc</forename><surname>Lanctot</surname></persName>
+							<email>lanctot@google.com</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Google</forename><surname>Deepmind</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><roleName>UK</roleName><surname>London</surname></persName>
+						</author>
+						<title level="a" type="main">Dueling Network Architectures for Deep Reinforcement Learning</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:41+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>In recent years there have been many successes of using deep representations in reinforcement learning. Still, many of these applications use conventional architectures, such as convolutional networks, LSTMs, or auto-encoders. In this paper, we present a new neural network architecture for model-free reinforcement learning. Our dueling network represents two separate estimators: one for the state value function and one for the state-dependent action advantage function. The main benefit of this factoring is to generalize learning across actions without imposing any change to the underlying reinforcement learning algorithm. Our results show that this architecture leads to better policy evaluation in the presence of many similar-valued actions. Moreover, the dueling architecture enables our RL agent to outperform the state-of-the-art on the Atari 2600 domain.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.">Introduction</head><p>Over the past years, deep learning has contributed to dramatic advances in scalability and performance of machine learning <ref type="bibr" target="#b9">(LeCun et al., 2015)</ref>. One exciting application is the sequential decision-making setting of reinforcement learning (RL) and control. Notable examples include deep Q-learning <ref type="bibr" target="#b13">(Mnih et al., 2015)</ref>, deep visuomotor policies <ref type="bibr" target="#b10">(Levine et al., 2015)</ref>, attention with recurrent networks <ref type="bibr" target="#b0">(Ba et al., 2015)</ref>, and model predictive control with embeddings <ref type="bibr">(Watter et al., 2015)</ref>. Other recent successes include massively parallel frameworks <ref type="bibr" target="#b14">(Nair et al., 2015)</ref> and expert move prediction in the game of Go <ref type="bibr" target="#b12">(Maddison et al., 2015)</ref>, which produced policies matching those of Monte Carlo tree search programs, and squarely beaten a professional player when combined with search <ref type="bibr" target="#b17">(Silver et al., 2016)</ref>.</p><p>In spite of this, most of the approaches for RL use standard neural networks, such as convolutional networks, MLPs, LSTMs and autoencoders. The focus in these recent advances has been on designing improved control and RL algorithms, or simply on incorporating existing neural network architectures into RL methods. Here, we take an alternative but complementary approach of focusing primarily on innovating a neural network architecture that is better suited for model-free RL. This approach has the benefit that the new network can be easily combined with existing and future algorithms for RL. That is, this paper advances a new network <ref type="figure">(Figure 1</ref>), but uses already published algorithms.</p><p>The proposed network architecture, which we name the dueling architecture, explicitly separates the representation of state values and (state-dependent) action advantages. The dueling architecture consists of two streams that represent the value and advantage functions, while sharing a common <ref type="figure">Figure 1</ref>. A popular single stream Q-network (top) and the dueling Q-network (bottom). The dueling network has two streams to separately estimate (scalar) state-value and the advantages for each action; the green output module implements equation <ref type="formula">9</ref>to combine them. Both networks output Q-values for each action. arXiv:1511.06581v3 <ref type="bibr">[cs.</ref>LG] 5 Apr 2016 convolutional feature learning module. The two streams are combined via a special aggregating layer to produce an estimate of the state-action value function Q as shown in <ref type="figure">Figure 1</ref>. This dueling network should be understood as a single Q network with two streams that replaces the popular single-stream Q network in existing algorithms such as Deep Q-Networks (DQN; <ref type="bibr" target="#b13">Mnih et al., 2015)</ref>. The dueling network automatically produces separate estimates of the state value function and advantage function, without any extra supervision.</p><p>Intuitively, the dueling architecture can learn which states are (or are not) valuable, without having to learn the effect of each action for each state. This is particularly useful in states where its actions do not affect the environment in any relevant way. To illustrate this, consider the saliency maps shown in <ref type="figure">Figure 2</ref> 1 . These maps were generated by computing the Jacobians of the trained value and advantage streams with respect to the input video, following the method proposed by <ref type="bibr" target="#b18">Simonyan et al. (2013)</ref>. (The experimental section describes this methodology in more detail.) The figure shows the value and advantage saliency maps for two different time steps. In one time step (leftmost pair of images), we see that the value network stream pays attention to the road and in particular to the horizon, where new cars appear. It also pays attention to the score. The advantage stream on the other hand does not pay much attention to the visual input because its action choice is practically irrelevant when there are no cars in front. However, in the second time step (rightmost pair of images) the advantage stream pays attention as there is a car immediately in front, making its choice of action very relevant.</p><p>In the experiments, we demonstrate that the dueling architecture can more quickly identify the correct action during policy evaluation as redundant or similar actions are added to the learning problem.</p><p>We also evaluate the gains brought in by the dueling architecture on the challenging Atari 2600 testbed. Here, an RL agent with the same structure and hyper-parameters must be able to play 57 different games by observing image pixels and game scores only. The results illustrate vast improvements over the single-stream baselines of <ref type="bibr" target="#b13">Mnih et al. (2015) and</ref><ref type="bibr">van Hasselt et al. (2015)</ref>. The combination of prioritized replay <ref type="bibr" target="#b15">(Schaul et al., 2016)</ref> with the proposed dueling network results in the new state-of-the-art for this popular domain.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.1.">Related Work</head><p>The notion of maintaining separate value and advantage functions goes back to <ref type="bibr" target="#b1">Baird (1993)</ref>. In Baird's original https://www.youtube.com/playlist?list= PLVFXyCSfS2Pau0gBh0mwTxDmutywWyFBP VALUE ADVANTAGE VALUE ADVANTAGE <ref type="figure">Figure 2</ref>. See, attend and drive: Value and advantage saliency maps (red-tinted overlay) on the Atari game Enduro, for a trained dueling architecture. The value stream learns to pay attention to the road. The advantage stream learns to pay attention only when there are cars immediately in front, so as to avoid collisions.</p><p>advantage updating algorithm, the shared Bellman residual update equation is decomposed into two updates: one for a state value function, and one for its associated advantage function. Advantage updating was shown to converge faster than Q-learning in simple continuous time domains in <ref type="bibr" target="#b8">(Harmon et al., 1995)</ref>. Its successor, the advantage learning algorithm, represents only a single advantage function <ref type="bibr" target="#b7">(Harmon &amp; Baird, 1996)</ref>.</p><p>The dueling architecture represents both the value V (s) and advantage A(s, a) functions with a single deep model whose output combines the two to produce a state-action value Q(s, a). Unlike in advantage updating, the representation and algorithm are decoupled by construction. Consequently, the dueling architecture can be used in combination with a myriad of model free RL algorithms.</p><p>There is a long history of advantage functions in policy gradients, starting with <ref type="bibr" target="#b21">(Sutton et al., 2000)</ref>. As a recent example of this line of work, <ref type="bibr" target="#b16">Schulman et al. (2015)</ref> estimate advantage values online to reduce the variance of policy gradient algorithms. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">Background</head><p>We consider a sequential decision making setup, in which an agent interacts with an environment E over discrete time steps, see <ref type="bibr" target="#b20">Sutton &amp; Barto (1998)</ref> for an introduction. In the Atari domain, for example, the agent perceives a video s t consisting of M image frames:</p><formula xml:id="formula_0">s t = (x t−M +1 , . . . , x t ) ∈</formula><p>S at time step t. The agent then chooses an action from a discrete set a t ∈ A = {1, . . . , |A|} and observes a reward signal r t produced by the game emulator.</p><p>The agent seeks maximize the expected discounted return, where we define the discounted return as</p><formula xml:id="formula_1">R t = ∞ τ =t γ τ −t r τ . In this formulation, γ ∈ [0, 1]</formula><p>is a discount factor that trades-off the importance of immediate and future rewards.</p><p>For an agent behaving according to a stochastic policy π, the values of the state-action pair (s, a) and the state s are defined as follows</p><formula xml:id="formula_2">Q π (s, a) = E [ R t | s t = s, a t = a, π] , and V π (s) = E a∼π(s) [Q π (s, a)] .<label>(1)</label></formula><p>The preceding state-action value function (Q function for short) can be computed recursively with dynamic programming:</p><formula xml:id="formula_3">Q π (s, a) = E s r + γE a ∼π(s ) [Q π (s , a )] | s, a, π .</formula><p>We define the optimal Q * (s, a) = max π Q π (s, a). Under the deterministic policy a = arg max a ∈A Q * (s, a ), it follows that V * (s) = max a Q * (s, a). From this, it also follows that the optimal Q function satisfies the Bellman equation:</p><formula xml:id="formula_4">Q * (s, a) = E s r + γ max a Q * (s , a ) | s, a . (2)</formula><p>We define another important quantity, the advantage function, relating the value and Q functions:</p><formula xml:id="formula_5">A π (s, a) = Q π (s, a) − V π (s).<label>(3)</label></formula><p>Note that E a∼π(s) [A π (s, a)] = 0. Intuitively, the value function V measures the how good it is to be in a particular state s. The Q function, however, measures the the value of choosing a particular action when in this state. The advantage function subtracts the value of the state from the Q function to obtain a relative measure of the importance of each action.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1.">Deep Q-networks</head><p>The value functions as described in the preceding section are high dimensional objects. To approximate them, we can use a deep Q-network: Q(s, a; θ) with parameters θ. To estimate this network, we optimize the following sequence of loss functions at iteration i:</p><formula xml:id="formula_6">L i (θ i ) = E s,a,r,s y DQN i − Q(s, a; θ i ) 2 ,<label>(4)</label></formula><p>with</p><formula xml:id="formula_7">y DQN i = r + γ max a Q(s , a ; θ − ),<label>(5)</label></formula><p>where θ − represents the parameters of a fixed and separate target network. We could attempt to use standard Qlearning to learn the parameters of the network Q(s, a; θ) online. However, this estimator performs poorly in practice. A key innovation in <ref type="bibr" target="#b13">(Mnih et al., 2015)</ref> was to freeze the parameters of the target network Q(s , a ; θ − ) for a fixed number of iterations while updating the online network Q(s, a; θ i ) by gradient descent. (This greatly improves the stability of the algorithm.) The specific gradient update is</p><formula xml:id="formula_8">∇ θi L i (θ i ) = E s,a,r,s y DQN i − Q(s, a; θ i ) ∇ θi Q(s, a; θ i )</formula><p>This approach is model free in the sense that the states and rewards are produced by the environment. It is also offpolicy because these states and rewards are obtained with a behavior policy (epsilon greedy in DQN) different from the online policy that is being learned.</p><p>Another key ingredient behind the success of DQN is experience replay <ref type="bibr" target="#b11">(Lin, 1993;</ref><ref type="bibr" target="#b13">Mnih et al., 2015)</ref>. During learning, the agent accumulates a dataset D t = {e 1 , e 2 , . . . , e t } of experiences e t = (s t , a t , r t , s t+1 ) from many episodes. When training the Q-network, instead only using the current experience as prescribed by standard temporaldifference learning, the network is trained by sampling mini-batches of experiences from D uniformly at random. The sequence of losses thus takes the form</p><formula xml:id="formula_9">L i (θ i ) = E (s,a,r,s )∼U (D) y DQN i − Q(s, a; θ i ) 2 .</formula><p>Experience replay increases data efficiency through re-use of experience samples in multiple updates and, importantly, it reduces variance as uniform sampling from the replay buffer reduces the correlation among the samples used in the update.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2.">Double Deep Q-networks</head><p>The previous section described the main components of DQN as presented in <ref type="bibr" target="#b13">(Mnih et al., 2015)</ref>. In this paper, we use the improved Double DQN (DDQN) learning algorithm of van <ref type="bibr">Hasselt et al. (2015)</ref>. In Q-learning and DQN, the max operator uses the same values to both select and evaluate an action. This can therefore lead to overoptimistic value estimates (van Hasselt, 2010). To mitigate this problem, DDQN uses the following target:</p><formula xml:id="formula_10">y DDQN i = r + γQ(s , arg max a Q(s , a ; θ i ); θ − ). (6)</formula><p>DDQN is the same as for DQN (see <ref type="bibr" target="#b13">Mnih et al. (2015)</ref>), but with the target</p><formula xml:id="formula_11">y DQN i replaced by y DDQN i .</formula><p>The pseudocode for DDQN is presented in Appendix A.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.3.">Prioritized Replay</head><p>A recent innovation in prioritized experience replay <ref type="bibr" target="#b15">(Schaul et al., 2016)</ref> built on top of DDQN and further improved the state-of-the-art. Their key idea was to increase the replay probability of experience tuples that have a high expected learning progress (as measured via the proxy of absolute TD-error). This led to both faster learning and to better final policy quality across most games of the Atari benchmark suite, as compared to uniform experience replay.</p><p>To strengthen the claim that our dueling architecture is complementary to algorithmic innovations, we show that it improves performance for both the uniform and the prioritized replay baselines (for which we picked the easier to implement rank-based variant), with the resulting prioritized dueling variant holding the new state-of-the-art.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">The Dueling Network Architecture</head><p>The key insight behind our new architecture, as illustrated in <ref type="figure">Figure 2</ref>, is that for many states, it is unnecessary to estimate the value of each action choice. For example, in the Enduro game setting, knowing whether to move left or right only matters when a collision is eminent. In some states, it is of paramount importance to know which action to take, but in many other states the choice of action has no repercussion on what happens. For bootstrapping based algorithms, however, the estimation of state values is of great importance for every state.</p><p>To bring this insight to fruition, we design a single Qnetwork architecture, as illustrated in <ref type="figure">Figure 1</ref>, which we refer to as the dueling network. The lower layers of the dueling network are convolutional as in the original DQNs <ref type="bibr" target="#b13">(Mnih et al., 2015)</ref>. However, instead of following the convolutional layers with a single sequence of fully connected layers, we instead use two sequences (or streams) of fully connected layers. The streams are constructed such that they have they have the capability of providing separate estimates of the value and advantage functions. Finally, the two streams are combined to produce a single output Q function. As in <ref type="bibr" target="#b13">(Mnih et al., 2015)</ref>, the output of the network is a set of Q values, one for each action.</p><p>Since the output of the dueling network is a Q function, it can be trained with the many existing algorithms, such as DDQN and SARSA. In addition, it can take advantage of any improvements to these algorithms, including better replay memories, better exploration policies, intrinsic motivation, and so on.</p><p>The module that combines the two streams of fullyconnected layers to output a Q estimate requires very thoughtful design.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>From the expressions for advantage</head><formula xml:id="formula_12">Q π (s, a) = V π (s) + A π (s, a) and state-value V π (s) = E a∼π(s) [Q π (s, a)], it follows that E a∼π(s) [A π (s, a)] = 0.</formula><p>Moreover, for a deterministic policy, a * = arg max a ∈A Q(s, a ), it follows that Q(s, a * ) = V (s) and hence A(s, a * ) = 0.</p><p>Let us consider the dueling network shown in <ref type="figure">Figure 1</ref>, where we make one stream of fully-connected layers output a scalar V (s; θ, β), and the other stream output an |A|dimensional vector A(s, a; θ, α). Here, θ denotes the parameters of the convolutional layers, while α and β are the parameters of the two streams of fully-connected layers.</p><p>Using the definition of advantage, we might be tempted to construct the aggregating module as follows:</p><formula xml:id="formula_13">Q(s, a; θ, α, β) = V (s; θ, β) + A(s, a; θ, α),<label>(7)</label></formula><p>Note that this expression applies to all (s, a) instances; that is, to express equation (7) in matrix form we need to replicate the scalar, V (s; θ, β), |A| times.</p><p>However, we need to keep in mind that Q(s, a; θ, α, β) is only a parameterized estimate of the true Q-function. Moreover, it would be wrong to conclude that V (s; θ, β) is a good estimator of the state-value function, or likewise that A(s, a; θ, α) provides a reasonable estimate of the advantage function.</p><p>Equation <ref type="formula" target="#formula_13">7</ref>is unidentifiable in the sense that given Q we cannot recover V and A uniquely. To see this, add a constant to V (s; θ, β) and subtract the same constant from A(s, a; θ, α). This constant cancels out resulting in the same Q value. This lack of identifiability is mirrored by poor practical performance when this equation is used directly.</p><p>To address this issue of identifiability, we can force the advantage function estimator to have zero advantage at the chosen action. That is, we let the last module of the network implement the forward mapping</p><formula xml:id="formula_14">Q(s, a; θ, α, β) = V (s; θ, β) + A(s, a; θ, α) − max a ∈|A| A(s, a ; θ, α) . (8)</formula><p>Now, for a * = arg max a ∈A Q(s, a ; θ, α, β) = arg max a ∈A A(s, a ; θ, α), we obtain Q(s, a * ; θ, α, β) = V (s; θ, β). Hence, the stream V (s; θ, β) provides an estimate of the value function, while the other stream produces an estimate of the advantage function.</p><p>An alternative module replaces the max operator with an average: <ref type="figure">s, a ; θ, α)</ref> . <ref type="formula">9</ref>On the one hand this loses the original semantics of V and A because they are now off-target by a constant, but on the other hand it increases the stability of the optimization: with (9) the advantages only need to change as fast as the mean, instead of having to compensate any change to the optimal action's advantage in (8). We also experimented with a softmax version of equation <ref type="formula">8</ref>, but found it to deliver similar results to the simpler module of equation <ref type="formula">9</ref>. Hence, all the experiments reported in this paper use the module of equation <ref type="formula">9</ref>.</p><formula xml:id="formula_15">Q(s, a; θ, α, β) = V (s; θ, β) + A(s, a; θ, α) − 1 |A| a A(</formula><p>Note that while subtracting the mean in equation <ref type="formula">9</ref>helps with identifiability, it does not change the relative rank of the A (and hence Q) values, preserving any greedy orgreedy policy based on Q values from equation <ref type="formula" target="#formula_13">7</ref>. When acting, it suffices to evaluate the advantage stream to make decisions.</p><p>It is important to note that equation <ref type="formula">9</ref>is viewed and implemented as part of the network and not as a separate algorithmic step. Training of the dueling architectures, as with standard Q networks (e.g. the deep Q-network of Mnih et al. (2015)), requires only back-propagation. The estimates V (s; θ, β) and A(s, a; θ, α) are computed automatically without any extra supervision or algorithmic modifications.</p><p>As the dueling architecture shares the same input-output interface with standard Q networks, we can recycle all learning algorithms with Q networks (e.g., <ref type="bibr">DDQN and SARSA)</ref> to train the dueling architecture.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">Experiments</head><p>We now show the practical performance of the dueling network. We start with a simple policy evaluation task and then show larger scale results for learning policies for general Atari game-playing.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.">Policy evaluation</head><p>We start by measuring the performance of the dueling architecture on a policy evaluation task. We choose this par-ticular task because it is very useful for evaluating network architectures, as it is devoid of confounding factors such as the choice of exploration strategy, and the interaction between policy improvement and policy evaluation.</p><p>In this experiment, we employ temporal difference learning (without eligibility traces, i.e., λ = 0) to learn Q values. More specifically, given a behavior policy π, we seek to estimate the state-action value Q π (•, •) by optimizing the sequence of costs of equation <ref type="formula" target="#formula_6">4</ref>, with target</p><formula xml:id="formula_16">y i = r + γE a ∼π(s ) [Q(s , a ; θ i )] .</formula><p>The above update rule is the same as that of Expected SARSA <ref type="bibr">(van Seijen et al., 2009)</ref>. We, however, do not modify the behavior policy as in Expected SARSA.</p><p>To evaluate the learned Q values, we choose a simple environment where the exact Q π (s, a) values can be computed separately for all (s, a) ∈ S × A. This environment, which we call the corridor is composed of three connected corridors. A schematic drawing of the corridor environment is shown in <ref type="figure" target="#fig_1">Figure 3</ref>, The agent starts from the bottom left corner of the environment and must move to the top right to get the largest reward. A total of actions are available: go up, down, left, right and no-op. We also have the freedom of adding an arbitrary number of no-op actions. In our setup, the two vertical sections both have 10 states while the horizontal section has 50.</p><p>We use an -greedy policy as the behavior policy π, which chooses a random action with probability or an action according to the optimal Q function arg max a∈A Q * (s, a) with probability 1 − . In our experiments, is chosen to be 0.001.</p><p>We compare a single-stream Q architecture with the dueling architecture on three variants of the corridor environment with 5, 10 and 20 actions respectively. The 10 and 20 action variants are formed by adding no-ops to the original environment. We measure performance by Squared Error (SE) against the true state values: s∈S,a∈A (Q(s, a; θ) − Q π (s, a)) 2 . The single-stream architecture is a three layer MLP with 50 units on each hidden layer. The dueling architecture is also composed of three layers. After the first hidden layer of 50 units, however, the network branches off into two streams each of them a two layer MLP with 25 hidden units. The results of the comparison are summarized in <ref type="figure" target="#fig_1">Figure 3</ref>.</p><p>The results show that with actions, both architectures converge at about the same speed. However, when we increase the number of actions, the dueling architecture performs better than the traditional Q-network. In the dueling network, the stream V (s; θ, β) learns a general value that is shared across many similar actions at s, hence leading to faster convergence. This is a very promising result be-  cause many control tasks with large action spaces have this property, and consequently we should expect that the dueling network will often lead to much faster convergence than a traditional single stream network. In the following section, we will indeed see that the dueling network results in substantial gains in performance in a wide-range of Atari games.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.">General Atari Game-Playing</head><p>We perform a comprehensive evaluation of our proposed method on the Arcade Learning Environment <ref type="bibr" target="#b2">(Bellemare et al., 2013)</ref>, which is composed of 57 Atari games. The challenge is to deploy a single algorithm and architecture, with a fixed set of hyper-parameters, to learn to play all the games given only raw pixel observations and game rewards. This environment is very demanding because it is both comprised of a large number of highly diverse games and the observations are high-dimensional.</p><p>We follow closely the setup of van Hasselt et al. (2015) and compare to their results using single-stream Q-networks. We train the dueling network with the DDQN algorithm as presented in Appendix A. At the end of this section, we incorporate prioritized experience replay <ref type="bibr" target="#b15">(Schaul et al., 2016)</ref>.</p><p>Our network architecture has the same low-level convolutional structure of DQN <ref type="bibr" target="#b13">(Mnih et al., 2015;</ref><ref type="bibr">van Hasselt et al., 2015)</ref>. There are 3 convolutional layers followed by fully-connected layers. The first convolutional layer has 32 8 × 8 filters with stride 4, the second 64 4 × 4 filters with stride 2, and the third and final convolutional layer consists 3 × 3 filters with stride 1. As shown in <ref type="figure">Figure 1</ref>, the dueling network splits into two streams of fully connected layers. The value and advantage streams both have a fullyconnected layer with 512 units. The final hidden layers of the value and advantage streams are both fully-connected with the value stream having one output and the advantage as many outputs as there are valid actions . We combine the value and advantage streams using the module described by Equation (9). Rectifier non-linearities <ref type="bibr" target="#b5">(Fukushima, 1980)</ref> are inserted between all adjacent layers.</p><p>We adopt the optimizers and hyper-parameters of van <ref type="bibr">Hasselt et al. (2015)</ref>, with the exception of the learning rate which we chose to be slightly lower (we do not do this for double DQN as it can deteriorate its performance). Since both the advantage and the value stream propagate gradients to the last convolutional layer in the backward pass, we rescale the combined gradient entering the last convolutional layer by 1/ √ 2. This simple heuristic mildly increases stability. In addition, we clip the gradients to have their norm less than or equal to 10. This clipping is not standard practice in deep RL, but common in recurrent network training <ref type="bibr" target="#b4">(Bengio et al., 2013)</ref>.</p><p>To isolate the contributions of the dueling architecture, we re-train DDQN with a single stream network using exactly the same procedure as described above. Specifically, we apply gradient clipping, and use 1024 hidden units for the first fully-connected layer of the network so that both architectures (dueling and single) have roughly the same number of parameters. We refer to this re-trained model as Single Clip, while the original trained model of van Hasselt et al. (2015) is referred to as Single.</p><p>As in <ref type="bibr">(van Hasselt et al., 2015)</ref>, we start the game with up to 30 no-op actions to provide random starting positions for the agent. To evaluate our approach, we measure improvement in percentage (positive or negative) in score over the better of human and baseline agent scores:</p><formula xml:id="formula_17">Score Agent − Score Baseline max{Score Human , Score Baseline } − Score Random .<label>(10)</label></formula><p>We took the maximum over human and baseline agent scores as it prevents insignificant changes to appear as</p><p>The number of actions ranges between 3-18 actions in the ALE environment.  large improvements when neither the agent in question nor the baseline are doing well. For example, an agent that achieves 2% human performance should not be interpreted as two times better when the baseline agent achieves 1% human performance. We also chose not to measure performance in terms of percentage of human performance alone because a tiny difference relative to the baseline on some games can translate into hundreds of percent in human performance difference.</p><p>The results for the wide suite of 57 games are summarized in <ref type="table" target="#tab_2">Table 1</ref>. Detailed results are presented in the Appendix.</p><p>Using this 30 no-ops performance measure, it is clear that the dueling network (Duel Clip) does substantially better than the Single Clip network of similar capacity. It also does considerably better than the baseline (Single) of van   <ref type="bibr">(2015)</ref>. Again, we seen that the improvements are often very dramatic.</p><p>As shown in <ref type="table" target="#tab_2">Table 1</ref>, Single Clip performs better than Single. We verified that this gain was mostly brought in by gradient clipping. For this reason, we incorporate gradient clipping in all the new approaches. Robustness to human starts. One shortcoming of the 30 no-ops metric is that an agent does not necessarily have to generalize well to play the Atari games. Due to the deterministic nature of the Atari environment, from an unique starting point, an agent could learn to achieve good performance by simply remembering sequences of actions.</p><p>To obtain a more robust measure, we adopt the methodology of <ref type="bibr" target="#b14">Nair et al. (2015)</ref>. Specifically, for each game, we use 100 starting points sampled from a human expert's trajectory. From each of these points, an evaluation episode is launched for up to 108,000 frames. The agents are evaluated only on rewards accrued after the starting point. We refer to this metric as Human Starts.</p><p>As shown in <ref type="table" target="#tab_2">Table 1</ref>, under the Human Starts metric, Duel Clip once again outperforms the single stream variants. In particular, our agent does better than the Single baseline on 70.2% (40 out of 57) games and on games of actions, Duel Clip is 83.3% better (25 out of 30).</p><p>Combining with Prioritized Experience Replay. The dueling architecture can be easily combined with other algorithmic improvements. In particular, prioritization of the experience replay has been shown to significantly improve performance of Atari games <ref type="bibr" target="#b15">(Schaul et al., 2016)</ref>. Furthermore, as prioritization and the dueling architecture address very different aspects of the learning process, their combination is promising. So in our final experiment, we investigate the integration of the dueling architecture with prioritized experience replay. We use the prioritized variant of DDQN (Prior. Single) as the new baseline algorithm, which replaces with the uniform sampling of the experi-  <ref type="figure">Figure 5</ref>. Improvements of dueling architecture over Prioritized DDQN baseline, using the same metric as <ref type="figure" target="#fig_2">Figure 4</ref>. Again, the dueling architecture leads to significant improvements over the single-stream baseline on the majority of games.</p><p>ence tuples by rank-based prioritized sampling. We keep all the parameters of the prioritized replay as described in <ref type="bibr" target="#b15">(Schaul et al., 2016)</ref>, namely a priority exponent of 0.7, and an annealing schedule on the importance sampling exponent from 0.5 to 1. We combine this baseline with our dueling architecture (as above), and again use gradient clipping (Prior. Duel Clip).</p><p>Note that, although orthogonal in their objectives, these extensions (prioritization, dueling and gradient clipping) interact in subtle ways. For example, prioritization interacts with gradient clipping, as sampling transitions with high absolute TD-errors more often leads to gradients with higher norms. To avoid adverse interactions, we roughly re-tuned the learning rate and the gradient clipping norm on a subset of 9 games. As a result of rough tuning, we settled on 6.25 × 10 −5 for the learning rate and 10 for the gradient clipping norm (the same as in the previous section).</p><p>When evaluated on all 57 Atari games, our prioritized dueling agent performs significantly better than both the prioritized baseline agent and the dueling agent alone. The full mean and median performance against the human performance percentage is shown in <ref type="table" target="#tab_2">Table 1</ref>. When initializing the games using up to 30 no-ops action, we observe mean and median scores of 591% and 172% respectively. The direct comparison between the prioritized baseline and prioritized dueling versions, using the metric described in Equation 10, is presented in <ref type="figure">Figure 5</ref>.</p><p>The combination of prioritized replay and the dueling network results in vast improvements over the previous stateof-the-art in the popular ALE benchmark.</p><p>Saliency maps. To better understand the roles of the value and the advantage streams, we compute saliency maps <ref type="bibr" target="#b18">(Simonyan et al., 2013)</ref>. More specifically, to visualize the salient part of the image as seen by the value stream, we compute the absolute value of the Jacobian of V with respect to the input frames: |∇ s V (s; θ)|. Similarly, to visualize the salient part of the image as seen by the advantage stream, we compute |∇ s A(s, arg max a A(s, a ); θ)|. Both quantities are of the same dimensionality as the input frames and therefore can be visualized easily alongside the input frames.</p><p>Here, we place the gray scale input frames in the green and blue channel and the saliency maps in the red channel. All three channels together form an RGB image. <ref type="figure">Figure 2</ref> depicts the value and advantage saliency maps on the Enduro game for two different time steps. As observed in the introduction, the value stream pays attention to the horizon where the appearance of a car could affect future performance. The value stream also pays attention to the score. The advantage stream, on the other hand, cares more about cars that are on an immediate collision course.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.">Discussion</head><p>The advantage of the dueling architecture lies partly in its ability to learn the state-value function efficiently. With every update of the Q values in the dueling architecture, the value stream V is updated -this contrasts with the updates in a single-stream architecture where only the value for one of the actions is updated, the values for all other actions remain untouched. This more frequent updating of the value stream in our approach allocates more resources to V , and thus allows for better approximation of the state values, which in turn need to be accurate for temporaldifference-based methods like Q-learning to work <ref type="bibr" target="#b20">(Sutton &amp; Barto, 1998)</ref>. This phenomenon is reflected in the experiments, where the advantage of the dueling architecture over single-stream Q networks grows when the number of actions is large.</p><p>Furthermore, the differences between Q-values for a given state are often very small relative to the magnitude of Q. For example, after training with DDQN on the game of Seaquest, the average action gap (the gap between the Q values of the best and the second best action in a given state) across visited states is roughly 0.04, whereas the average state value across those states is about 15. This difference in scales can lead to small amounts of noise in the updates can lead to reorderings of the actions, and thus make the nearly greedy policy switch abruptly. The dueling ar-chitecture with its separate advantage stream is robust to such effects.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.">Conclusions</head><p>We introduced a new neural network architecture that decouples value and advantage in deep Q-networks, while sharing a common feature learning module. The new dueling architecture, in combination with some algorithmic improvements, leads to dramatic improvements over existing approaches for deep RL in the challenging Atari domain.</p><p>The results presented in this paper are the new state-of-theart in this popular domain. arXiv:1509.06461, 2015.</p><p>van Seijen, H., van Hasselt, H., Whiteson, S., and Wiering, M. A theoretical and empirical analysis of Expected Sarsa. In IEEE Symposium on Adaptive Dynamic Programming and Reinforcement <ref type="bibr">Learning, pp. 177-184. 2009</ref>.</p><p>Watter, M., Springenberg, J. T., Boedecker, J., and Riedmiller, M. A. Embed to control: A locally linear latent dynamics model for control from raw images. In NIPS, 2015. </p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head></head><label></label><figDesc>There have been several attempts at playing Atari with deep reinforcement learning, including Mnih et al. (2015); Guo et al. (2014); Stadie et al. (2015); Nair et al. (2015); van Hasselt et al. (2015); Bellemare et al. (2016) and Schaul et al. (2016). The results of<ref type="bibr" target="#b15">Schaul et al. (2016)</ref> are the current published state-of-the-art.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 3 .</head><label>3</label><figDesc>(a) The corridor environment. The star marks the starting state. The redness of a state signifies the reward the agent receives upon arrival. The game terminates upon reaching either reward state. The agent's actions are going up, down, left, right and no action. Plots (b), (c) and (d) shows squared error for policy evaluation with 5, 10, and 20 actions on a log-log scale. The dueling network (Duel) consistently outperforms a conventional single-stream network (Single), with the performance gap increasing with the number of actions.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 4 .</head><label>4</label><figDesc>Improvements of dueling architecture over the baseline Single network of van Hasselt et al.(2015), using the metric described in Equation (10). Bars to the right indicate by how much the dueling network outperforms the single-stream network.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head></head><label></label><figDesc>Hasselt et al. (2015). For comparison we also show results for the deep Q-network of<ref type="bibr" target="#b13">Mnih et al. (2015)</ref>, referred to as Nature DQN.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Figure 4</head><label>4</label><figDesc>shows the improvement of the dueling network over the baseline Single network of van Hasselt et al.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_2"><head>Table 1 .</head><label>1</label><figDesc>Mean and median scores across all 57 Atari games, measured in percentages of human performance.</figDesc><table><row><cell></cell><cell cols="2">30 no-ops</cell><cell cols="2">Human Starts</cell></row><row><cell></cell><cell cols="2">Mean Median</cell><cell cols="2">Mean Median</cell></row><row><cell cols="2">Prior. Duel Clip 591.9%</cell><cell cols="2">172.1% 567.0%</cell><cell>115.3%</cell></row><row><cell>Prior. Single</cell><cell>434.6%</cell><cell cols="2">123.7% 386.7%</cell><cell>112.9%</cell></row><row><cell>Duel Clip</cell><cell>373.1%</cell><cell cols="2">151.5% 343.8%</cell><cell>117.1%</cell></row><row><cell>Single Clip</cell><cell>341.2%</cell><cell cols="2">132.6% 302.8%</cell><cell>114.1%</cell></row><row><cell>Single</cell><cell>307.3%</cell><cell cols="2">117.8% 332.9%</cell><cell>110.9%</cell></row><row><cell>Nature DQN</cell><cell>227.9%</cell><cell cols="2">79.1% 219.6%</cell><cell>68.5%</cell></row><row><cell cols="5">Duel Clip does better than Single Clip on 75.4% of the</cell></row><row><cell cols="5">games (43 out of 57). It also achieves higher scores com-</cell></row><row><cell cols="5">pared to the Single baseline on 80.7% (46 out of 57) of the</cell></row><row><cell cols="5">games. Of all the games with actions, Duel Clip is better</cell></row><row><cell cols="5">86.6% of the time (26 out of 30). This is consistent with the</cell></row><row><cell cols="5">findings of the previous section. Overall, our agent (Duel</cell></row><row><cell cols="5">Clip) achieves human level performance on 42 out of 57</cell></row><row><cell cols="5">games. Raw scores for all the games, as well as measure-</cell></row><row><cell cols="5">ments in human performance percentage, are presented in</cell></row><row><cell>the Appendix.</cell><cell></cell><cell></cell><cell></cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_4"><head>Table 2 .</head><label>2</label><figDesc>Raw scores across all games. Starting with no-op actions.</figDesc><table><row><cell>GAMES</cell><cell>NO. ACTIONS RANDOM HUMAN</cell><cell>DQN</cell><cell>DDQN</cell><cell>DUEL</cell><cell>PRIOR. PRIOR. DUEL.</cell></row><row><cell>Alien</cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell></row></table><note></note></figure>
+		</body>
+		<back>
+			<div type="annex">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>A. Double DQN Algorithm</head><p>Algorithm 1: Double DQN Algorithm.</p><p>input : D -empty replay buffer; θ -initial network parameters, θ − -copy of θ input : Nr -replay buffer maximum size; N b -training batch size; N − -target network replacement freq. for episode e ∈ {1, 2, . . . , M } do Initialize frame sequence </p></div>			</div>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Multiple object recognition with visual attention</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Ba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Mnih</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICLR</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<monogr>
+		<title level="m" type="main">Advantage updating</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">C</forename><surname>Baird</surname></persName>
+		</author>
+		<idno>WL- TR-93-1146</idno>
+		<imprint>
+			<date type="published" when="1993" />
+			<pubPlace>Wright-Patterson Air Force Base</pubPlace>
+		</imprint>
+	</monogr>
+	<note type="report_type">Technical Report</note>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">The arcade learning environment: An evaluation platform for general agents</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">G</forename><surname>Bellemare</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Naddaf</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Veness</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Bowling</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Artificial Intelligence Research</title>
+		<imprint>
+			<biblScope unit="volume">47</biblScope>
+			<biblScope unit="page" from="253" to="279" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Increasing the action gap: New operators for reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">G</forename><surname>Bellemare</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Ostrovski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Guez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">S</forename><surname>Thomas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Munos</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">AAAI</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note>To appear</note>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Advances in optimizing recurrent networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Boulanger-Lewandowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Pascanu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICASSP</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="8624" to="8628" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Neocognitron: A self-organizing neural network model for a mechanism of pattern recognition unaffected by shift in position</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Fukushima</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Biological Cybernetics</title>
+		<imprint>
+			<biblScope unit="volume">36</biblScope>
+			<biblScope unit="page" from="193" to="202" />
+			<date type="published" when="1980" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Deep learning for real-time Atari game play using offline Monte-Carlo tree search planning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Guo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Singh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Lee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">L</forename><surname>Lewis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Wang</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="3338" to="3346" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<title level="m" type="main">Multi-player residual advantage learning with general function approximation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">E</forename><surname>Harmon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">C</forename><surname>Baird</surname></persName>
+		</author>
+		<idno>WL-TR-1065</idno>
+		<imprint>
+			<date type="published" when="1996" />
+			<pubPlace>Wright-Patterson Air Force Base</pubPlace>
+		</imprint>
+	</monogr>
+	<note type="report_type">Technical Report</note>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Advantage updating applied to a differential game</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">E</forename><surname>Harmon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">C</forename><surname>Baird</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">H</forename><surname>Klopf</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<editor>G. Tesauro, D.S. Touretzky and Leen, T.K.</editor>
+		<imprint>
+			<date type="published" when="1995" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<monogr>
+		<title level="m" type="main">Deep learning. Nature</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="volume">521</biblScope>
+			<biblScope unit="page" from="436" to="444" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<monogr>
+		<title level="m" type="main">End-toend training of deep visuomotor policies</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Levine</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Finn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Darrell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Abbeel</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1504.00702</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<monogr>
+		<title level="m" type="main">Reinforcement learning for robots using neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">J</forename><surname>Lin</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1993" />
+		</imprint>
+		<respStmt>
+			<orgName>School of Computer Science, Carnegie Mellon University</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">PhD thesis</note>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Move Evaluation in Go Using Deep Convolutional Neural Networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">J</forename><surname>Maddison</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Silver</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICLR</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Human-level control through deep reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Mnih</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Silver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">A</forename><surname>Rusu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Veness</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">G</forename><surname>Bellemare</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Graves</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Riedmiller</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">K</forename><surname>Fidjeland</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Ostrovski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Petersen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Beattie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Sadik</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Antonoglou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>King</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Kumaran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wierstra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Legg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Hassabis</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nature</title>
+		<imprint>
+			<biblScope unit="volume">518</biblScope>
+			<biblScope unit="issue">7540</biblScope>
+			<biblScope unit="page" from="529" to="533" />
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Massively parallel methods for deep reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Nair</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Srinivasan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Blackwell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Alcicek</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Fearon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Maria</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>De</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Panneershelvam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Suleyman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Beattie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Petersen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Legg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Mnih</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Silver</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Deep Learning Workshop, ICML</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Prioritized experience replay</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Schaul</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Quan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Antonoglou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Silver</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICLR</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<monogr>
+		<title level="m" type="main">High-dimensional continuous control using generalized advantage estimation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schulman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Moritz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Levine</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">I</forename><surname>Jordan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Abbeel</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1506.02438</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Mastering the game of go with deep neural networks and tree search</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Silver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">J</forename><surname>Maddison</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Guez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Sifre</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Van Den Driessche</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schrittwieser</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Antonoglou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Panneershelvam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Lanctot</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Dieleman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Grewe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Nham</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Kalchbrenner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Lillicrap</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Leach</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Graepel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Hassabis</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nature</title>
+		<imprint>
+			<biblScope unit="volume">529</biblScope>
+			<biblScope unit="issue">7587</biblScope>
+			<biblScope unit="page" from="484" to="489" />
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Simonyan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Vedaldi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Zisserman</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1312.6034</idno>
+		<title level="m">Deep inside convolutional networks: Visualising image classification models and saliency maps</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<title level="m" type="main">Incentivizing exploration in reinforcement learning with deep predictive models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">C</forename><surname>Stadie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Levine</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Abbeel</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1507.00814</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<monogr>
+		<title level="m" type="main">Introduction to reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">S</forename><surname>Sutton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">G</forename><surname>Barto</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1998" />
+			<publisher>MIT Press</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Policy gradient methods for reinforcement learning with function approximation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">S</forename><surname>Sutton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Mcallester</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Singh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Mansour</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Van Hasselt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Guez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Silver</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<editor>Hasselt, H. Double Q-learning. NIPS</editor>
+		<imprint>
+			<date type="published" when="2000" />
+			<biblScope unit="volume">23</biblScope>
+			<biblScope unit="page" from="2613" to="2621" />
+		</imprint>
+	</monogr>
+	<note>Deep reinforcement learning with double Q-learning. arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title/>
+		<idno>324.0</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Atlantis</title>
+		<imprint>
+			<biblScope unit="volume">12</biblScope>
+		</imprint>
+	</monogr>
+	<note>850.0 29,028.1 279,987.0 106,056.0 382,572.0 357</note>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<monogr>
+		<title level="m" type="main">Dueling Network Architectures for Deep Reinforcement Learning Table 3. Raw scores across all games</title>
+		<imprint/>
+	</monogr>
+	<note>Starting with Human starts. GAMES NO. ACTIONS RANDOM HUMAN DQN DDQN DUEL PRIOR. PRIOR. DUEL</note>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title/>
+		<idno>647.0</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Atlantis</title>
+		<imprint>
+			<biblScope unit="volume">13</biblScope>
+		</imprint>
+	</monogr>
+	<note>463.0 26,575.0 292,491.0 319,688.0 445,360.0 330</note>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<monogr>
+		<title level="m" type="main">Solaris 2,047.2 11</title>
+		<imprint>
+			<biblScope unit="page" from="32" to="38" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Normalized scores across all games. Starting with 30 no-op actions</title>
+	</analytic>
+	<monogr>
+		<title level="j">GAMES DQN DDQN DUEL PRIOR. PRIOR. DUEL. Alien</title>
+		<imprint>
+			<biblScope unit="volume">20</biblScope>
+			<biblScope unit="page">2</biblScope>
+		</imprint>
+	</monogr>
+	<note>Table 4.</note>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title/>
+		<idno>1651.2% 576.1% 2285.3% 2129.3%</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Atlantis</title>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<idno>1% 14.5% 21.8% 19.3% 11.1% Amidar 10.9% 10.3% 10.5% 7.7% 14.8% Assault 719.2% 1275.9% 828.6% 1381.5%</idno>
+	</analytic>
+	<monogr>
+		<title level="m">Table 5. Normalized scores across all games. Starting with Human Starts</title>
+		<imprint>
+			<biblScope unit="volume">8</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title/>
+		<idno>2128.0% 2335.5% 3293.9%</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Atlantis</title>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

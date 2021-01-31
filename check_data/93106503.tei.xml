@@ -1,0 +1,767 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Learning Hierarchical Features from Generative Models</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Shengjia</forename><surname>Zhao</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">Stanford University</orgName>
+							</affiliation>
+							<affiliation key="aff0">
+								<orgName type="institution">Stanford University</orgName>
+							</affiliation>
+						</author>
+						<author role="corresp">
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jiaming</forename><surname>Song</surname></persName>
+							<email>jiamingsong&lt;tsong@stanford.edu&gt;</email>
+							<affiliation key="aff0">
+								<orgName type="institution">Stanford University</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Stefano</forename><surname>Ermon</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">Stanford University</orgName>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Learning Hierarchical Features from Generative Models</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:42+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Deep neural networks have been shown to be very successful at learning feature hierarchies in supervised learning tasks. Generative models, on the other hand, have benefited less from hierarchical models with multiple layers of latent variables. In this paper, we prove that hierarchical latent variable models do not take advantage of the hierarchical structure when trained with existing variational methods, and provide some limitations on the kind of features existing models can learn. Finally we propose an alternative architecture that do not suffer from these limitations. Our model is able to learn highly interpretable and disentangled hierarchical features on several natural image datasets with no task specific regularization or prior knowledge.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.">Introduction</head><p>A key property of deep feed-forward networks is that they tend to learn learn increasingly abstract and invariant representations at higher levels in the hierarchy <ref type="bibr" target="#b1">(Bengio, 2009;</ref><ref type="bibr" target="#b25">Zeiler &amp; Fergus, 2014)</ref> In the context of image data, low levels may learn features corresponding to edges or basic shapes, while higher levels learn more abstract features, such as object detectors <ref type="bibr" target="#b25">(Zeiler &amp; Fergus, 2014)</ref>.</p><p>Generative models with a hierarchical structure, where there are multiple layers of latent variables, have been less successful compared to their supervised counterparts <ref type="bibr" target="#b22">(Sønderby et al., 2016)</ref>. In fact, the most successful generative models often use only a single layer of latent variables <ref type="bibr" target="#b18">(Radford et al., 2015;</ref><ref type="bibr" target="#b24">van den Oord et al., 2016)</ref>, and those that use multiple layers only show modest performance increases in quantitative metrics such as loglikelihood <ref type="bibr" target="#b22">(Sønderby et al., 2016;</ref><ref type="bibr" target="#b0">Bachman, 2016)</ref>. Because of the difficulties in evaluating generative models Proceedings of the 34 th International Conference on Machine Learning, Sydney, Australia, PMLR 70, 2017. Copyright 2017 by the author(s).</p><p>insu cient for generation su cient for classi cation <ref type="figure">Figure 1</ref>. Left: Body parts feature detectors only carry a small amount of information about an underlying image, yet, it is sufficient for a confident classification as a face. Right: if a hierarchical generative model attempts to reconstruct an image based on these high-level features, it could generate inconsistent images, even when each part can be perfectly generated. Even though this "face" is clearly absurd, Google cloud platform classification API can identify with 93% confidence that this is a face. <ref type="bibr" target="#b23">(Theis et al., 2015)</ref>, and the fact that adding network layers increases the number of parameters, it is not always clear whether the improvements truly come from the choice of a hierarchical architecture. Furthermore, the capability of learning a hierarchy of increasingly complex and abstract features has only been demonstrated to a limited extent, with feature hierarchies that are not nearly as rich as the ones learned by feed-forward networks <ref type="bibr" target="#b8">(Gulrajani et al., 2016)</ref>.</p><p>Part of the problem is inherent and unavoidable for any generative model. The heart of the matter is that while highly invariant and local features are often sufficient for classification, generative modeling requires preservation of details (as illustrated in <ref type="figure">Figure 1</ref>). In fact, most latent features in a generative model of images cannot even demonstrate scale and translation invariance. The size and location of a sub-part often has to be dependent on the other sub-parts. For example, an eye should only be generated with the same size as the other eye, at symmetric locations with respect to the center of the face, with appropriate distance between them. The inductive biases that are directly encoded into the architecture of convolutional networks is arXiv:1702.08396v2 <ref type="bibr">[cs.</ref>LG] 9 Jun 2017 not sufficient in the context of generative models.</p><p>On the other hand, other problems are associated with specific models or design choices, and may be avoided with deeper understanding and careful design. The goal of this paper is to provide a deeper understanding of the design and performance of common hierarchical latent variable models. We focus on variational models, though most of the conclusions can be generalized to adversarially trained models that support inference <ref type="bibr" target="#b7">(Dumoulin et al., 2016;</ref><ref type="bibr" target="#b6">Donahue et al., 2016)</ref>. In particular, we study two classes of models with a hierarchical structure:</p><p>1) Stacked hierarchy: The first type we study is characterized by recursively stacking generative models on top of each other. Most existing models <ref type="bibr" target="#b22">(Sønderby et al., 2016;</ref><ref type="bibr" target="#b8">Gulrajani et al., 2016;</ref><ref type="bibr" target="#b0">Bachman, 2016;</ref><ref type="bibr" target="#b13">Kingma et al., 2016)</ref>, belong to this class. We show that these models have two limitations. First, we show that if these models can be trained to optimality, then the bottom layer alone contains enough information to reconstruct the data distribution, and the layers above the first one can be ignored. This result holds under fairly general conditions, and does not depend on the specific family of distributions used to define the hierarchy (e.g., Gaussian). Second, we argue that many of the building blocks commonly used to construct hierarchical generative models are unlikely to help us learn disentangled features.</p><p>2) Architectural hierarchy: Motivated by these limitations, we turn our attention to single layer latent variable models. We propose an alternative way to learn disentangled hierarchical features by crafting a network architecture that prefers to place high-level features on certain parts of the latent code, and low-level features in others. We show that this approach, called Variational Ladder Autoencoder, allows us to learn very rich feature hierarchies on natural image datasets such as MNIST, SVHN <ref type="bibr" target="#b16">(Netzer et al., 2011)</ref> and CelebA <ref type="bibr" target="#b15">(Liu et al., 2015)</ref>; in contrast, generative models with a stacked hierarchical structure fail to learn such features.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">Problem Setting</head><p>We consider a family of latent variable models specified by a joint probability distribution p θ (x, z) over a set of observed variables x and latent variables z. The family of models is assumed to be parametrized by θ. Let p θ (x) denote the marginal distribution of x. We wish to maximize the marginal log-likelihood p(x) over a dataset X = {x (1) , . . . , x (N ) } drawn from some unknown underlying distribution p data (x). Formally we would like to maximize</p><formula xml:id="formula_0">log p θ (X) = N n=1 log p θ (x (i) )<label>(1)</label></formula><p>which is non-convex and often intractable for complex generative models, as it involves marginalization over the latent variables z.</p><p>We are especially interested in unsupervised feature learning applications, where by maximizing (1) we hope to discover a meaningful representation for the data x in terms of latent features given by p θ (z|x).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1.">Variational Autoencoders</head><p>A popular solution <ref type="bibr" target="#b11">(Kingma &amp; Welling, 2013;</ref><ref type="bibr" target="#b9">Jimenez Rezende et al., 2014)</ref> for optimizing the intractable marginal likelihood (1) is to optimize the evidence lower bound (ELBO) by introducing an inference model q φ (z|x) parametrized by φ 1 :</p><formula xml:id="formula_1">log p(x) ≥ E q(z|x) [log p(x, z) − log q(z|x)] = E q(z|x) [log p(x|z)] − KL(q(z|x) p(z)) = L(x; θ, φ)<label>(2)</label></formula><p>where KL is the Kullback-Leibler divergence.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2.">Hierarchical Variational Autoencoders</head><p>A hierarchical VAE (HVAE) can be thought of as a series of VAEs stacked on top of each other. It has the following hierarchy of latent variables z = {z 1 , . . . , z L }, in addition to the observed variables x. We use the notation convention that z 1 represents the lowest layer closest to x and z L the top layer. Using chain rule, the joint distribution p(x, z 1 , . . . , z L ) can be factored as follows</p><formula xml:id="formula_2">p(x, z 1 , . . . , z L ) = p(x|z &gt;0 ) L−1 =1 p(z |z &gt; )p(z L ) (3)</formula><p>where</p><formula xml:id="formula_3">z &gt; indicates (z +1 , • • • , z L )</formula><p>, and</p><formula xml:id="formula_4">z &gt;0 = z = (z 1 , . . . , z L ).</formula><p>Note that this factorization via chain-rule is fully general. In particular it accounts for recent models that use shortcut connections <ref type="bibr" target="#b13">(Kingma et al., 2016;</ref><ref type="bibr" target="#b0">Bachman, 2016)</ref>, where each hidden layer z directly depends on all layers above it (z &gt; ). We shall refer to this fully general formulation as autoregressive HVAE.</p><p>Several models assume a Markov independence structure on the hidden variables, leading to the following simpler factorization (Jimenez <ref type="bibr" target="#b9">Rezende et al., 2014;</ref><ref type="bibr" target="#b8">Gulrajani et al., 2016;</ref><ref type="bibr" target="#b10">Kaae Sønderby et al., 2016)</ref> </p><formula xml:id="formula_5">p(x, z) = p(x|z ) L−1 l=1 p(z |z +1 )p(z L )<label>(4)</label></formula><p>We omit the dependency on θ and φ for the remainder of the paper.</p><p>We refer to this common but more restrictive formulation as Markov HVAE.</p><p>For the inference distribution q(z|x) we do not assume any factorized structure to account for complex inference techniques used in recent work <ref type="bibr" target="#b10">(Kaae Sønderby et al., 2016;</ref><ref type="bibr" target="#b0">Bachman, 2016)</ref>. We also denote q(x, z) = p data (x)q(z|x).</p><p>Both p(x|z) and q(z|x) are jointly optimized, as before in Equation <ref type="formula" target="#formula_1">2</ref>, to maximize the ELBO objective</p><formula xml:id="formula_6">L ELBO = E p data (x) E q(z|x) [log p(x|z)]− E p data (x) [KL(q(z|x)||p(z))] = L l=0 E q(z,x) [log p(z l |z &gt;l )] + H(q(z|x)) (5)</formula><p>where we define z 0 ≡ x, z L+1 ≡ 0, and H the entropy of a distribution, and expectation over p data (x) is estimated by the samples in the dataset. This can be interpreted as stacking VAEs on top of each other.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">Limitations of Hierarchical VAEs</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1.">Representational Efficiency</head><p>One of the main reasons deep hierarchical networks are widely used as function approximators is their representational power. It is well known that certain functions can be represented much more compactly with deep networks, requiring exponentially less parameters compared to shallow networks <ref type="bibr" target="#b1">(Bengio et al., 2009)</ref>. However, we show that under ideal optimization of L ELBO , HVAE models do not lead to improved representational power. This is because for a well trained HVAE, a Gibbs chain on the bottom layer, which is a single layer model, can be used to recover p data (x) exactly.</p><p>We first show this formally for Markov HVAE with the following proposition</p><formula xml:id="formula_7">Proposition 1. L ELBO in Eq.(5) is globally maximized as a function of q(z|x) and p(x|z) when L ELBO = −H(p data (x)).</formula><p>If L ELBO is globally maximized for a Markov HVAE, the following Gibbs sampling chain converges to p data (x) if it is ergodic</p><formula xml:id="formula_8">z (t) 1 ∼ q(z 1 |x (t) ) x (t+1) ∼ p(x|z (t) 1 )<label>(6)</label></formula><p>Proof of Proposition 1. We notice that</p><formula xml:id="formula_9">L ELBO = E p data (x)q(z|x) log p(x, z) q(z|x) = E p data (x)q(z|x) log p(z|x) q(z|x) + E p data (x) [log p(x)] = −E p data (x) [KL(q(z|x)||p(z|x))] − KL(p data (x)||p(x)) − H(p data (x))</formula><p>By non-negativity of KL-divergence, and the fact that KL divergence is zero if an only if the two distributions are identical, it can be seen that this is uniquely optimized when p(x) = z p(x, z)dz = p data (x) and ∀x, q(z|x) = p(z|x) and the optimum is</p><formula xml:id="formula_10">L * ELBO = −H(p data (x)) This also implies that ∀x q(x|z 1 ) = q(z 1 |x)p data (x) q(z 1 ) = p(x|z 1 )<label>(7)</label></formula><p>Because the following Gibbs chain converges to p data (x) when it is ergodic</p><formula xml:id="formula_11">z (t) 1 ∼ q(z 1 |x (t) ) x (t+1) ∼ q(x|z (t) 1 )</formula><p>We can replace q(x|z</p><formula xml:id="formula_12">(t) 1 ) with p(x|z (t)</formula><p>1 ) using (7) and the chain still converges to p data (x).</p><p>Therefore under the assumptions of Proposition 1 we can sample from p data (x) without using the latent code We demonstrate that this phenomenon occurs in practice, even though the conditions of Proposition 1 might not be met exactly. We train a factorized three layer VAE in Equation (4) on MNIST by optimizing the ELBO criteria Equation <ref type="formula">5</ref>. We use a model where each conditional distribution is factorized Gaussian p(z |z +1 ) = N (µ (z +1 ), σ (z +1 )) where µ and σ are deep networks. We compare: the samples generated by the Gibbs chain in Equation (6) with samples generated by ancestral sampling with the entire model in <ref type="figure">Figure 2</ref>. We observe that the Gibbs chain generates samples (left panel) with similar visual quality as ancestral sampling with the entire model (right panel), even though the Gibbs chain only used the bottom layer of the model. This problem can be generalized to autoregressive HVAEs. One can sample from p data (x) without using p(z |z &gt; ), 1 ≤ &lt; L at all. We prove this in the Appendix.</p><formula xml:id="formula_13">(z 2 , • • • , z L )</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2.">Feature learning</head><p>Another significant advantage of hierarchical models for supervised learning is that they learn rich and disentangled hierarchies of features. This has been demonstrated for example using various visualization techniques <ref type="bibr" target="#b25">(Zeiler &amp; Fergus, 2014)</ref>. However, we show in this section that typical HVAEs do not enjoy this property.</p><p>Recall that we think of p(z|x) as a (probabilistic) feature detector, and q(z|x) as an approximation to p(z|x). It might therefore be natural to think that q might learn hierarchical features similarly to a feed-forward network</p><formula xml:id="formula_14">x → z → • • • → z L ,</formula><p>where higher layers correspond to higher level features that become increasingly abstract and invariant to nuisance variations. However if q(z &gt; |z ) maps low level features to high level features, then the reverse mapping q(z |z &gt; ) maps high level features to likely low level sub-features. For example, if z L correspond to object classes, then q(z L−1 |z L ) could represent the distribution over object subparts given the object class.</p><p>Suppose we train L ELBO in Equation <ref type="formula">5</ref>to optimality, we would have</p><formula xml:id="formula_15">p(x) = p data (x), q(z|x) = p(z|x) Recall that q(x, z) := p data (x)q(z|x) p(x, z) := p(z)p(x|z) = p(x)p(z|x)</formula><p>Comparing the two we see that</p><formula xml:id="formula_16">p(x, z) = q(x, z)</formula><p>if the joint distributions are identical, then any conditional distribution would also be identical, which implies that for any z &gt; , q(z |z &gt; ) = p(z |z &gt; ).</p><p>For the majority of models the conditional distributions p(z |z &gt; ) belong to a very simple distribution family such as parameterized Gaussians <ref type="bibr" target="#b11">(Kingma &amp; Welling, 2013)</ref> (Jimenez Rezende et al., 2014) (Kaae Sønderby et al., 2016) <ref type="bibr" target="#b13">(Kingma et al., 2016)</ref>. Therefore for a perfectly optimized L ELBO in the Gaussian case, the only type of feature hierarchy we can hope to learn is one under which q(z |z &gt; ) is also Gaussian. This limits the hierarchical representation we can learn. In fact, the hierarchies we observe for feed-forward models <ref type="bibr" target="#b25">(Zeiler &amp; Fergus, 2014)</ref> require complex multimodal distributions to be captured. For example, the distribution over object subparts for an object category is unlikely to be unimodal and cannot be well approximated with a Gaussian distribution.</p><p>More generally, as shown in <ref type="bibr" target="#b26">(Zhao et al., 2017)</ref>, even when L ELBO is not globally optimized, optimizing L ELBO encourages q(z |z &gt; ) and p(z |z &gt; ) to match. Because p(z |z &gt; ) belong to some distribution family, such as Gaussians. This encourages q(z |z &gt; ) to belong to that distribution family as well.</p><p>We experimentally demonstrate these intuitions in <ref type="figure">Figure 3</ref>, where we train a three layer Markov HVAE with factorized Gaussian conditionals p(z |z +1 ) on MNIST and SVHN. Details about the experimental setup are explained in the Appendix. As suggested in <ref type="bibr" target="#b11">(Kingma &amp; Welling, 2013)</ref>, we reparameterize the stochasticity in p(z |z +1 ) using a separate noise variable ∼ N (0, I), and implicitly rewrite the original conditional distribution as</p><formula xml:id="formula_17">z = µ (z +1 ) + σ (z +1 )</formula><p>where indicates element-wise product. We fix the value of k to a random sample from N (0, I) at all layers</p><formula xml:id="formula_18">k = 1, • • • , − 1, + 1, • • •</formula><p>, L except for one, and observe the variations in x generated by randomly sampling . We observe in <ref type="figure">Figure 3</ref> that only very minor variations correspond to lower layers (Left and center panels), and almost all the variation is represented by the top layer (Right panel). More importantly, no notable hierarchical relationship between features is observed.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">Variational Ladder Autoencoders</head><p>Given the limitations of hierarchical architectures described in the previous section, we focus on an alternative approach to learn a hierarchy of disentangled features.</p><p>Our approach is to define a simple distribution with no hierarchical structure over the latent variables</p><formula xml:id="formula_19">p(z) = p(z 1 , • • • , z L ).</formula><p>For example, the joint distribution p(z) can be a white Gaussian. Instead we encourage the latent code z 1 , • • • , z L to learn features with different levels of abstraction by carefully choosing the mappings p(x|z) and q(z|x) between input x and latent code z. Our approach is based on the following intuition:</p><p>Assumption: If z i is more abstract than z j , then the inference mapping q(z i |x) and generative mapping when other layers are fixed p(x|z i , z ¬i = z 0 ¬i ) requires a more expressive network to capture.</p><p>This informal assumption suggests that we should use neural networks of different level of expressiveness to generate the corresponding features; the more abstract features require more expressive networks, and vice versa. We loosely quantify expressiveness with depth of the network. Based on these assumptions we are able to design an architecture that disentangles hierarchical features for many natural image datasets. <ref type="figure">Figure 2</ref>. Left: Samples obtained by running the Gibbs sampling chain in Proposition 1, using only the bottom layer of a 3-layer recursive hierarchical VAE. Right: samples generated by ancestral sampling from the same model. The quality of the samples is comparable, indicating that the bottom layer contains enough information to reconstruct the data distribution. <ref type="figure">Figure 3</ref>. A hierarchical three layer VAE with Gaussian conditional distributions p(z l |z l+1 ) does not learn a meaningful feature hierarchy on MNIST and SVHN when trained with the ELBO objective. Left panel: Samples generated by sampling noise 1 at the bottom layer, while holding 2 and 3 constant. Center panel: Samples generated by sampling noise 2 at the middle layer, while holding 1 and 3 constant. Right panel: Samples generated by sampling noise 3 at the top layer, while holding 1 and 2 constant. For both MNIST and SVHN we observe that the top layer represents essentially all the variation in the data (right panel), leaving only very minor local variations for the lower layers (left and center panels). Compare this with the rich hierarchy learned by our VLAE model, shown in <ref type="figure">Figures 5 and 6</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.">Model Definition</head><p>We decompose the latent code into subparts z = {z 1 , z 2 , . . .}, where z 1 relates to x with a shallow network, and increase network depth up to z L , which relates to x with a deep network. In particular, we share parameters with a ladder-like architecture <ref type="bibr" target="#b24">(Valpola, 2015;</ref><ref type="bibr" target="#b17">Pezeshki et al., 2015)</ref>. Because of this similarity we denote this architecture as Variational Ladder Autoencoder (VLAE). Formally, our model, shown in <ref type="figure">Figure 4</ref> is defined as follows</p><formula xml:id="formula_20">1) Generative Network: p(z) = p(z 1 , • • • , z L )</formula><p>is a simple prior on all latent variables. We choose it as a standard Gaussian N (0, I). The conditional distribution</p><formula xml:id="formula_21">p(x|z 1 , z 2 , . . . , z L ) is defined implicitly as: z L = f L (z L ) (8) z = f (z +1 , z ) = 1, • • • , L − 1 (9) x ∼ r(x; f 0 (z 1 ))<label>(10)</label></formula><p>where f is parametrized as a neural network, andz is an auxiliary variable we use to simplify the notation. r is a distribution family parameterized by f 0 (z 1 ). In our experiments we use the following choice for f :</p><formula xml:id="formula_22">z = u ([z +1 ; v (z )])<label>(11)</label></formula><p>where [•; •] denotes concatenation of two vectors, and v , u are neural networks. We choose r as a fixed variance factored Gaussian with mean given by µ r = f 0 (z 1 ). <ref type="figure">Figure 4</ref>. Inference and generative models for VLAE (left) and LVAE (right). Circles indicate stochastic nodes, and squares are deterministically computed nodes. Solid lines with arrows denote conditional probabilities; solid lines without arrows denote deterministic mappings; dash lines indicates regularization to match the prior p(z). Note that in VLAE, we do not attempt to regularize the distance between h andz.</p><formula xml:id="formula_23">z 2 z 1 x h 1 h 2 z 1 z 2 x z 1 z 2 z 2 z 1 x h 1 h 2 x z 2 z 1</formula><p>2) Inference Network: For the inference network, we choose q(z|x) as</p><formula xml:id="formula_24">h = g (h −1 ) (12) z ∼ N (µ (h ), σ (h ))<label>(13)</label></formula><formula xml:id="formula_25">where = 1, • • • , L, g , µ ,</formula><p>σ are neural networks, and</p><formula xml:id="formula_26">h 0 ≡ x.</formula><p>3) Learning: For learning we use the ELBO criteria as in Equ.(2):</p><formula xml:id="formula_27">L(x) = E q(z|x) [log p(x|z)] − KL(q(z|x) p(z)) (14)</formula><p>where p(z) = N (0, I) denotes the prior for z. This is tractable if r has tractable log likelihood, i.e. when r is a Gaussian.</p><p>This is essentially the inference and learning framework for a one-layer VAE; the hierarchy is only implicitly defined by the network architecture, therefore we call this model flat hierarchy. Motivated by our earlier theoretical results, we do not use additional layers of latent variables.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.">Comparison with Ladder Variational Autoencoders</head><p>Our architecture resembles the ladder variational autoencoder (LVAE) <ref type="bibr" target="#b22">(Sønderby et al., 2016)</ref>. However the two models are very different. The purpose of our architecture is to connect subparts of the latent code with networks of different expressive power (depth); the model is encouraged to place high-level, complex features at the top, and low-level, simple features at the bottom, in order to reach lower reconstruction error with latent codes of the same capacity. Empirically, this allows the network to learn disentangled factors of variation, corresponding to different subparts of the latent code. Meanwhile, because it is essentially a single-layer flat model, our VLAE does not exhibit the problems we have identified with traditional hierarchical VAE described in Section 3.</p><p>Ladder Variational Autoencoders (LVAE) on the other hand, utilize the ladder architecture from the inference/encoding side; its generative model is a standard HVAE. While the ladder inference network performs better than the one used in the original HVAE, ladder variational autoencoders still suffer from the problems we discussed in Section 3. The difference is between our model (VLAE) and LVAE is illustrated in <ref type="figure">Figure 4</ref> An additional advantage over ladder variational autoencoders (and more generally HVAEs) is that our definition of the generative network Equ.(10) allows us to select a much richer family of generative models p. Because for HVAE the L ELBO optimization requires the evaluation of log p(z |z +1 ) shown in Equ.(5), a reparameterized HVAE inject noise into the network in a way that corresponds to a conditional distribution with a tractable log-likelihood. For example, a HVAE can inject noise by</p><formula xml:id="formula_28">z = µ (z +1 ) + σ (z +1 )<label>(15)</label></formula><p>only because this corresponds to Gaussian conditional distributions p(z l |z l+1 ). In comparison, for VLAE we only require evaluation of log</p><formula xml:id="formula_29">p(x|z 1 , • • • , z L )</formula><p>, so except for the bottom layer r we can combine noise by any arbitrary black box function f .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.">Experiments</head><p>We train VLAE over several datasets and visualize the semantic meaning of the latent code. 2 According to our assumptions, complex, high-level information will be learned by latent codes at higher layers, whereas simple, low-level features will be represented by lower layers.</p><p>In <ref type="figure">Figure 5</ref>, we visualize generation results from MNIST, where the model is a 3-layer VLAE with 2 dimensional latent code (z) at each layer. The visualizations are generated by systematically exploring the 2D latent code for one layer, while randomly sampling other layers. From the visualization, we see that the three layers encode stroke width, digit width and tilt and digit identity respectively. Remarkably, the semantic meaning of a particular latent code is stable with respect to the sampled latent codes from other layers. For example, in the second layer, the left side represents narrow digits whereas the right side represents wide digits. Sampling latent codes at other layers will control the digit identity, but have no influence over the width. This is interesting given that width is actually correlated <ref type="figure">Figure 5</ref>. VLAE on MNIST. Generated digits obtained by systematically exploring the 2D latent code from one layer, and randomly sampling from other layers. Left panel: The first (bottom) layer encodes stroke width, Center panel: the second layer encodes digit width and tilt, Right panel: the third layer encodes (mostly) digit identity. Note that the samples are not of state-of-the-art quality only because of the restricted 2-dimensional latent code used to enable visualization. <ref type="figure">Figure 6</ref>. VLAE on SVHN. Each sub-figure corresponds to images generated when fixing latent code on all layers except for one, which we randomly sample from the prior distribution. From left to right the random sampled layer go from bottom layer to top layer. Left panel: The bottom layer represents color schemes; Center-left panel: the second layer represents shape variations of the same digit; Center-right panel: the third layer represents digit identity (interestingly these digits have similar style although having different identities); Right panel: the top layer represents the general structure of the image. with the digit identity; for example, digit 1 is typically thin while digit 0 is mostly wide. Therefore, the model will generate more zeros than ones if the latent code at the second layer corresponds to a wide digit, as displayed in the visualization.</p><p>Next we evaluate VLAE on the Street View House Number <ref type="bibr">(SVHN, Netzer et al. (2011)</ref>) dataset, where it is significantly more challenging to learn interpretable representations since it is relatively noisy, containing certain digits which do not appear in the center. However, as is shown in <ref type="figure">Figure 6</ref>, our model is able to learn highly disentangled features through a 4-layer ladder, which includes color, digit shape, digit context, and general structure. These features are highly disentangled: since the latent code at the bottom layer controls color, modifying the code from other three layers while keeping the bottom layer fixed will generate a set of image which have the same tone in general. Moreover, the latent code learned at the top layer is the most complex one, which captures rich variations lower layers cannot accurately represent.</p><p>Finally, we display compelling results from another challenging dataset, CelebA <ref type="bibr" target="#b15">(Liu et al., 2015)</ref>, which includes 200,000 celebrity images. These images are highly varied in terms of environment and facial expressions. We visualize the generation results in <ref type="figure" target="#fig_1">Figure 7</ref>. As in the SVHN model, the latent code at the bottom layer learns the ambient color of the environment while keeping the personal details intact. Controlling other latent codes will change the other details of the individual, such as skin color, hair color, identity, pose (azimuth); more complicated features are placed at higher levels of the hierarchy.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.">Discussions</head><p>Training hierarchical deep generative models is a very challenging task, and there are two main successful families of methods. One family defines the destruction and reconstruction of data using a pre-defined process. Among them, LapGANs <ref type="bibr" target="#b4">(Denton et al., 2015)</ref> define the process as repeatedly downsampling, and Diffusion Nets (Sohl-Dickstein et al., 2015) defines a forward Markov chain that coverts a complex data distribution to a simple, tractable one. Without having to perform inference, this makes training much easier, but it does not provide latent variables for other downstream tasks (unsupervised learning).</p><p>Another line of work focuses on learning a hierarchy of latent variables by stacking single layer models on top of each other. Many models also use more flexible inference techniques to improve performance <ref type="bibr" target="#b22">(Sønderby et al., 2016;</ref><ref type="bibr" target="#b5">Dinh et al., 2014;</ref><ref type="bibr" target="#b20">Salimans et al., 2015;</ref><ref type="bibr" target="#b19">Rezende &amp; Mohamed, 2015;</ref><ref type="bibr" target="#b14">Li et al., 2016;</ref><ref type="bibr" target="#b13">Kingma et al., 2016)</ref>. However we show that there are limitations to stacked VAEs.</p><p>Our work distinguishes itself from prior work by explicitly discussing the purpose of learning such models: the advantage of learning a hierarchy is not in better representation efficiency, or better samples, but rather in the introduction of structure in the features, such as hierarchy or disentanglement. This motivates our method, VLAE, which justifies our intuition that a reasonable network structure can be, by itself, highly effective at learning structured (disentangled) representations. Contrary to previous efforts on hierarchical models, we do not stack VAEs on top of each other, instead we use a "flat" approach. This can be applied in combination with the stacking approach.</p><p>The results displayed in the experiments resemble those obtained with InfoGAN <ref type="bibr" target="#b3">(Chen et al., 2016)</ref>; both frameworks learn disentangled representations from the data in an unsupervised manner. The InfoGAN objective, however, explicitly maximizes the mutual information between the latent variables and the observation; whereas in VLAE, this is achieved through the reconstruction error objective which encourages the use of latent codes. Furthermore we are able to explicitly disentangle features with different level of abstractness.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.">Conclusions</head><p>In this paper, we discussed the potential practical value of learning a hierarchical generative model over a nonhierarchical one. We show that little can be gained in terms of representation efficiency or sample quality. We further show that traditional HVAE models have trouble learning structured features. Based on these insights, we consider an alternative to learning structured features by leveraging the expressive power of a neural network. Empirical results show that we can learn highly disentangled features.</p><p>One limitation of VLAE is the inability to learn structures other than hierarchical disentanglement. Future work should consider more principled ways of designing architectures that allow for learning features with more complex structures.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head></head><label></label><figDesc>at all. Hence, optimization of the L ELBO objective and efficient representation are conflicting, in the sense that optimality implies some level of redundancy in the representation.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 7 .</head><label>7</label><figDesc>VLAE on CelebA. Each sub-figure corresponds to images generated when fixing latent code on all layers except for one, which we randomly sample from the prior distribution. From left to right the random sampled layer go from bottom layer to top layer. Left panel: The bottom layer represents ambient color; Center-left panel: the second bottom layer represents skin and hair color; Center-right panel: the second top layer represents face identity; Right panel: the top layer presents pose and general structure.</figDesc></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="2">Code is available at https://github.com/ShengjiaZhao/Variational-Ladder-Autoencoder</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="8.">Acknowledgement</head><p>This research was supported by Intel Corporation, NSF (#1649208) and Future of Life Institute (#2016-158687).</p></div>
+			</div>
+
+			<div type="annex">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>A. Additional Results</head><p>Proposition 2. L ELBO for HVAE in Eq.(5) is optimized when L ELBO = −H(p data (x)). If L ELBO is optimized the following Gibbs sampling chain converges to p data (x) if it is ergodic</p><p>Proof of Proposition 2. As in the proof of Proposition 1 when L ELBO is optimized, q(z|x) = p(z|x). Because the following Gibbs chain converges to p data (x)</p><p>We can replace q(x|z (t) ) with p(x|z <ref type="bibr">(t)</ref> ) and the chain still converges to p data (x).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>B. Experimental Details</head><p>B.1. Gaussian HVAE Architecture:</p><p>where W 1 , W 2 are trainable linear transformation matrices, and sigm is sigmoid activation function. f l is a two layer dense network. For l = 0, we let</p><p>where σ is a hyper-parameter that can be specified apriori or trained. f 0 is a two layer convolutional network with 1/2 stride for spatial up-sampling. For inference we use the same architecture as the generator.</p><p>Learning: During training we use the Adam <ref type="bibr" target="#b12">(Kingma &amp; Ba, 2014)</ref> optimizer with learning rate 10 −4 . We also anneal the scale the KL-regularization from 0 to 1 to encourage use of latent feature during early stages of training.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>B.2. VLAE</head><p>For VLAE, we use varying layers of convolution depending on size of input image. However, for the ladder connections we do not use convolution. Because of our argument in introduction and <ref type="figure">Figure 1</ref>, generative models do not benefit from convolutional latent features. Therefore we always flatten convolutional layers and apply linear transformation to reduce dimension for each ladder connection. For implementation details please refer to our code.</p></div>			</div>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">An architecture for deep, hierarchical generative models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Philip</forename><surname>Bachman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances In Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="4826" to="4834" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Learning deep architectures for ai</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<idno type="DOI">10.1561/2200000006</idno>
+		<ptr target="http://dx.doi.org/10.1561/2200000006" />
+	</analytic>
+	<monogr>
+		<title level="j">Found. Trends Mach. Learn</title>
+		<imprint>
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="1" to="127" />
+			<date type="published" when="2009-01" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<title level="m">Learning Hierarchical Features from Generative Models Bengio, Yoshua et al. Learning deep architectures for ai. Foundations and trends R in Machine Learning</title>
+		<imprint>
+			<date type="published" when="2009" />
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page" from="1" to="127" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Infogan: Interpretable representation learning by information maximizing generative adversarial nets</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Duan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Houthooft</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schulman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Abbeel</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="2172" to="2180" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Deep generative image models using a laplacian pyramid of adversarial networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">L</forename><surname>Denton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Chintala</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Fergus</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="1486" to="1494" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<monogr>
+		<title level="m" type="main">Nice: Non-linear independent components estimation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Dinh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Krueger</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1410.8516</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jeff</forename><surname>Donahue</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Philipp</forename><surname>Krähenbühl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Trevor</forename><surname>Darrell</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1605.09782</idno>
+		<title level="m">Adversarial feature learning</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Dumoulin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Vincent</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Belghazi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ishmael</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Poole</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ben</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Lamb</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Arjovsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Martin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Olivier</forename><surname>Mastropietro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aaron</forename><surname>Courville</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1606.00704</idno>
+		<title level="m">Adversarially learned inference</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Gulrajani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ishaan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Kumar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Kundan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ahmed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Faruk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adrien</forename><surname>Taiga</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ali</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Visin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Francesco</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Vázquez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aaron</forename><forename type="middle">C</forename><surname>Courville</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Pixelvae</surname></persName>
+		</author>
+		<idno>abs/1611.05013</idno>
+		<ptr target="http://arxiv.org/abs/1611.05013" />
+		<title level="m">A latent variable model for natural images. CoRR</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<monogr>
+		<title level="m" type="main">Stochastic Backpropagation and Approximate Inference in Deep Generative Models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Jimenez Rezende</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mohamed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wierstra</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2014-01" />
+		</imprint>
+	</monogr>
+	<note>ArXiv e-prints</note>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kaae</forename><surname>Sønderby</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Raiko</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Maaløe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Kaae Sønderby</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Winther</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Ladder Variational Autoencoders</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2016-02" />
+		</imprint>
+	</monogr>
+	<note>ArXiv e-prints</note>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<monogr>
+		<title level="m" type="main">Auto-Encoding Variational Bayes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Welling</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2013-12" />
+		</imprint>
+	</monogr>
+	<note>ArXiv e-prints</note>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Diederik</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jimmy</forename><surname>Ba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Adam</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.6980</idno>
+		<title level="m">A method for stochastic optimization</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Diederik</forename><forename type="middle">P</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tim</forename><surname>Salimans</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Max</forename><surname>Welling</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1606.04934</idno>
+		<title level="m">Improving variational inference with inverse autoregressive flow</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<monogr>
+		<title level="m" type="main">Learning to generate with memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Zhu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Zhang</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1602.07416</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Deep learning face attributes in the wild</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ziwei</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Luo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ping</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xiaogang</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xiaoou</forename><surname>Tang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of International Conference on Computer Vision (ICCV)</title>
+		<meeting>International Conference on Computer Vision (ICCV)</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Reading digits in natural images with unsupervised feature learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yuval</forename><surname>Netzer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Tao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Coates</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Adam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alessandro</forename><surname>Bissacco</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bo</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><forename type="middle">Y</forename><surname>Ng</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS workshop on deep learning and unsupervised feature learning</title>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="volume">2011</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<title level="m" type="main">Deconstructing the ladder network architecture</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mohammad</forename><surname>Pezeshki</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Fan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Linxi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Brakel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Philemon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aaron</forename><surname>Courville</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1511.06430</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<monogr>
+		<title level="m" type="main">Unsupervised representation learning with deep convolutional generative adversarial networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alec</forename><surname>Radford</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Luke</forename><surname>Metz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Chintala</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Soumith</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1511.06434</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Rezende</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mohamed</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1505.05770</idno>
+		<title level="m">Variational inference with normalizing flows</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Markov chain monte carlo and variational inference: Bridging the gap</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Salimans</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Welling</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="1218" to="1226" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sohl-Dickstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">A</forename><surname>Weiss</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Maheswaranathan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ganguli</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1503.03585</idno>
+		<title level="m">Deep unsupervised learning using nonequilibrium thermodynamics</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Ladder variational autoencoders</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">K</forename><surname>Sønderby</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Raiko</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Maaløe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">K</forename><surname>Sønderby</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Winther</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances In Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="3738" to="3746" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<monogr>
+		<title level="m" type="main">A note on the evaluation of generative models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lucas</forename><surname>Theis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aäron</forename><surname>Oord</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Van Den</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Matthias</forename><surname>Bethge</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1511.01844</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">Adv. in Independent Component Analysis and Learning Machines</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Harri</forename><forename type="middle">;</forename><surname>Valpola</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aaron</forename><surname>Van Den Oord</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Kalchbrenner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Espeholt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Lasse</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Oriol</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Graves</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="4790" to="4798" />
+		</imprint>
+	</monogr>
+	<note>Conditional image generation with pixelcnn decoders</note>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Visualizing and understanding convolutional networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Matthew</forename><forename type="middle">D</forename><surname>Zeiler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rob</forename><surname>Fergus</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Computer vision-ECCV 2014</title>
+		<imprint>
+			<publisher>Springer</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="818" to="833" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<monogr>
+		<title level="m" type="main">Towards Deeper Understanding of Variational Autoencoding Models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Zhao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Song</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ermon</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2017-02" />
+		</imprint>
+	</monogr>
+	<note>ArXiv e-prints</note>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

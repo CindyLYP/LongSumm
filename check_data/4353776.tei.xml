@@ -1,0 +1,1102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Asynchronous Methods for Deep Reinforcement Learning</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2016-02-04">4 Feb 2016</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Volodymyr</forename><surname>Mnih</surname></persName>
+							<email>vmnih@google.com</email>
+							<affiliation key="aff0">
+								<orgName type="institution" key="instit1">Montreal Institute for Learning Algorithms (MILA)</orgName>
+								<orgName type="institution" key="instit2">University of Montreal</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mehdi</forename><surname>Mirza</surname></persName>
+							<email>mirzamom@iro.umontreal.ca</email>
+							<affiliation key="aff0">
+								<orgName type="institution" key="instit1">Montreal Institute for Learning Algorithms (MILA)</orgName>
+								<orgName type="institution" key="instit2">University of Montreal</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Graves</surname></persName>
+							<email>gravesa@google.com</email>
+							<affiliation key="aff0">
+								<orgName type="institution" key="instit1">Montreal Institute for Learning Algorithms (MILA)</orgName>
+								<orgName type="institution" key="instit2">University of Montreal</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tim</forename><surname>Harley</surname></persName>
+							<email>tharley@google.com</email>
+							<affiliation key="aff0">
+								<orgName type="institution" key="instit1">Montreal Institute for Learning Algorithms (MILA)</orgName>
+								<orgName type="institution" key="instit2">University of Montreal</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Timothy</forename><forename type="middle">P</forename><surname>Lillicrap</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution" key="instit1">Montreal Institute for Learning Algorithms (MILA)</orgName>
+								<orgName type="institution" key="instit2">University of Montreal</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Silver</surname></persName>
+							<email>davidsilver@google.com</email>
+							<affiliation key="aff0">
+								<orgName type="institution" key="instit1">Montreal Institute for Learning Algorithms (MILA)</orgName>
+								<orgName type="institution" key="instit2">University of Montreal</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Google</forename><surname>Deepmind</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution" key="instit1">Montreal Institute for Learning Algorithms (MILA)</orgName>
+								<orgName type="institution" key="instit2">University of Montreal</orgName>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Asynchronous Methods for Deep Reinforcement Learning</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2016-02-04">4 Feb 2016</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1602.01783v1[cs.LG]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:43+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>We propose a conceptually simple and lightweight framework for deep reinforcement learning that uses asynchronous gradient descent for optimization of deep neural network controllers. We present asynchronous variants of four standard reinforcement learning algorithms and show that parallel actor-learners have a stabilizing effect on training allowing all four methods to successfully train neural network controllers. The best performing method, an asynchronous variant of actor-critic, surpasses the current state-of-the-art on the Atari domain while training for half the time on a single multi-core CPU instead of a GPU. Furthermore, we show that asynchronous actor-critic succeeds on a wide variety of continuous motor control problems as well as on a new task involving finding rewards in random 3D mazes using a visual input.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>Deep neural networks provide rich representations that can enable reinforcement learning (RL) algorithms to perform effectively. However, it was previously thought that the combination of simple online RL algorithms with deep neural networks was fundamentally unstable. Instead, a variety of solutions have been proposed to stabilize the algorithm <ref type="bibr" target="#b20">[Riedmiller, 2005</ref><ref type="bibr" target="#b15">, Mnih et al., 2013</ref><ref type="bibr" target="#b28">, 2015</ref><ref type="bibr" target="#b32">, Van Hasselt et al., 2015</ref><ref type="bibr" target="#b23">, Schulman et al., 2015a</ref>. These approaches share a common idea: the sequence of observed data encountered by an online RL agent is non-stationary, and online RL updates are strongly correlated. By storing the agent's data in an experience replay memory, the data can be batched <ref type="bibr" target="#b20">[Riedmiller, 2005</ref><ref type="bibr" target="#b23">, Schulman et al., 2015a</ref> or randomly sampled <ref type="bibr" target="#b15">[Mnih et al., 2013</ref><ref type="bibr" target="#b28">, 2015</ref><ref type="bibr" target="#b32">, Van Hasselt et al., 2015</ref> from different time-steps. Aggregating over memory in this way reduces nonstationarity and decorrelates updates, but at the same time limits the methods to off-policy reinforcement learning algorithms.</p><p>Deep RL algorithms based on experience replay have achieved unprecedented success in challenging domains such as Atari 2600. However, experience replay has several drawbacks: it uses more memory and more computation per real interaction; and it requires off-policy learning algorithms that can update from data generated by an older policy.</p><p>In this paper we provide a very different paradigm for deep reinforcement learning. Instead of experience replay, we asynchronously execute multiple agents in parallel, on multiple instances of the environment. This parallelism also decorrelates the agents' data into a more stationary process, since at any given time-step the parallel agents will be experiencing a variety of different states. This simple idea enables a much larger spectrum of fundamental on-policy RL algorithms, such as Sarsa, n-step methods, and actor-critic methods, as well as off-policy RL algorithms such as Q-learning, to be applied robustly and effectively using deep neural networks.</p><p>The asynchronous reinforcement learning paradigm also offers practical benefits. Whereas previous approaches to deep reinforcement learning rely heavily on specialized hardware such as GPUs <ref type="bibr" target="#b32">, Van Hasselt et al., 2015</ref><ref type="bibr" target="#b22">, Schaul et al., 2015</ref> or massively distributed architectures <ref type="bibr" target="#b17">[Nair et al., 2015]</ref>, our experiments run on a single machine with a standard multi-core CPU. When applied to a variety of Atari 2600 domains, on many games asynchronous reinforcement learning achieves better results, in far less time than previous GPU-based algorithms, using far less resource than massively distributed approaches. Furthermore, the best of the proposed methods, asynchronous advantage actor-critic (A3C), was also able to master a variety of continuous motor control tasks as well as learn general strategies for exploring 3D mazes purely from visual inputs. We believe that the success of A3C on both 2D and 3D games, discrete and continuous action spaces, as well as its ability to train feedforward and recurrent agents makes it the most general and successful reinforcement learning agent to date.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Related Work</head><p>The General Reinforcement Learning Architecture (Gorila) of <ref type="bibr" target="#b17">Nair et al. [2015]</ref> performs asynchronous training of reinforcement learning agents in a distributed setting. In Gorila, each process contains an actor that acts in its own copy of the environment, a separate replay memory, and a learner that samples data from the replay memory and computes gradients of the DQN loss  with respect to the policy parameters. The gradients are asynchronously sent to a central parameter server which updates a central copy of the model. The updated policy parameters are sent to the actor-learners at fixed intervals. By using 100 separate actor-learner processes and 30 parameter server instances, for a total of 130 CPU cores, Gorila was able to significantly outperform DQN over 49 Atari games. On many games Gorila reached the score achieved by DQN over 20 times faster than DQN. We also note that a similar way of parallelizing DQN was proposed by <ref type="bibr" target="#b3">Chavez et al. [2015]</ref>.</p><p>In earlier work, <ref type="bibr" target="#b12">Li and Schuurmans [2011]</ref> applied the Map Reduce framework to parallelizing batch reinforcement learning methods with linear function approximation. Parallelism was used to speed up large matrix operations but not to parallelize the collection of experience or stabilize learning. <ref type="bibr" target="#b6">Grounds and Kudenko [2008]</ref> proposed a parallel version of the Sarsa algorithm that uses multiple separate actor-learners to accelerate training. Each actor-learner learns separately and periodically sends updates to weights that have changed significantly to the other learners using peer-to-peer communication. <ref type="bibr" target="#b31">Tsitsiklis [1994]</ref> studied convergence properties of Q-learning in the asynchronous optimization setting. These results show that Q-learning is still guaranteed to converge when some of the information is outdated as long as outdated information is always eventually discarded and several other technical assumptions are satisfied. Even earlier, Bertsekas <ref type="bibr">[1982]</ref> studied the related problem of distributed dynamic programming.</p><p>Another related area of work is in evolutionary methods, which are often straightforward to parallelize by distributing fitness evaluations over multiple machines or threads <ref type="bibr" target="#b29">[Tomassini, 1999]</ref>. Such parallel evolutionary approaches have recently been applied to some visual reinforcement learning tasks. In one example, <ref type="bibr" target="#b10">Koutník et al. [2014]</ref> evolved convolutional neural network controllers for the TORCS driving simulator by performing fitness evaluations on 8 CPU cores in parallel.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">Background 3.1 Reinforcement Learning</head><p>We consider the standard reinforcement learning setting where an agent interacts with an environment E over a number of discrete time steps. At each time step t, the agent receives a state s t and selects an action a t from some set of possible actions A according to its policy π, where π is a mapping from states s t to actions a t . In return, the agent receives the next state s t+1 and receives a scalar reward r t . The process continues until the agent reaches a terminal state after which the process restarts. The return R t = ∞ k=0 γ k r t+k is the total accumulated return from time step t with discount factor γ ∈ (0, 1]. The goal of the agent is to maximize the expected return from each state s t .</p><p>The action value Q π (s, a) = E [R t |s t = s, a] is the expected return for selecting action a in state s and following policy π. The optimal value function Q * (s, a) = max π Q π (s, a) gives the maximum action value for state s and action a achievable by any policy. Similarly, the value of state s under policy π is defined as V π (s) = E [R t |s t = s] and is simply the expected return for following policy π from state s.</p><p>In value-based model-free reinforcement learning methods, the action value function is represented using a function approximator, such as a neural network. Let Q(s, a; θ) be an approximate action-value function with parameters θ. The updates to θ can be derived from a variety of reinforcement learning algorithms. One example of such an algorithm is Qlearning, which aims to directly approximate the optimal action value function: Q * (s, a) ≈ Q(s, a; θ). In one-step Q-learning, the parameters θ of the action value function Q(s, a; θ) are learned by iteratively minimizing a sequence of loss functions, where the ith loss function defined as</p><formula xml:id="formula_0">L i (θ i ) = E r + γ max a Q(s , a ; θ i−1 ) − Q(s, a; θ i ) 2 ,<label>(1)</label></formula><p>where s is the state encountered after state s. Alternatively, Sarsa <ref type="bibr" target="#b21">[Rummery and</ref><ref type="bibr">Niranjan, 1994, Sutton and</ref><ref type="bibr" target="#b26">Barto, 1998</ref>] is a widely used on-policy algorithm where the approximate action value function Q is updated by minimizing the following loss function during the ith iteration</p><formula xml:id="formula_1">L i (θ i ) = E r + γQ(s , a ; θ i−1 ) − Q(s, a; θ i ) 2 ,<label>(2)</label></formula><p>where a is the action taken by the agent in state s . In tabular environments, where Q(s, a; θ) is a lookup table, both Q-learning and Sarsa are known to converge to the optimal value function Q * under certain conditions <ref type="bibr" target="#b8">[Jaakkola et al., 1994</ref><ref type="bibr" target="#b31">, Tsitsiklis, 1994</ref><ref type="bibr" target="#b25">, Singh et al., 2000</ref>. We refer to the above methods as one-step Q-learning and one-step Sarsa because they update the action value Q(s, a) toward one-step returns r + γ max a Q(s , a ; θ) and r + γQ(s , a ; θ) respectively. One drawback of using one-step methods is that obtaining a reward r only directly affects the value of the state action pair s, a that led to the reward. The values of other state action pairs are affected only indirectly through the updated value Q(s, a). This can make the learning process slow since many updates are required the propagate a reward to the relevant preceding states and actions.</p><p>One way of propagating rewards faster is by using n-step returns <ref type="bibr">[Watkins, 1989, Peng and</ref><ref type="bibr" target="#b18">Williams, 1996]</ref>. In n-step Q-learning, Q(s, a) is updated toward the n-step return defined as</p><formula xml:id="formula_2">r t + γr t+1 + • • • + γ n−1 r t+n + max a γ n Q(s t+n+1 , a).<label>(3)</label></formula><p>This results in a single reward r directly affecting the values of n preceding state action pairs. This makes the process of propagating rewards to relevant state-action pairs potentially much more efficient. In contrast to value-based methods, policy-based model-free methods directly parameterize the policy π(a|s; θ) and update the parameters θ by performing, typically approximate, gradient ascent on E[R t ]. One example of such a method is the REINFORCE family of algorithms due to <ref type="bibr" target="#b36">Williams [1992]</ref>. Standard REINFORCE updates the policy parameters θ in the direction ∇ θ log π(a t |s t ; θ)R t , which is an unbiased estimate of ∇ θ E[R t ]. It is possible to reduce the variance of this estimate while keeping it unbiased by subtracting a learned function of the state b t (s t ), known as a baseline <ref type="bibr" target="#b36">[Williams, 1992]</ref>, from the return</p><formula xml:id="formula_3">∇ θ log π(a t |s t ; θ) (R t − b t (s t )) .<label>(4)</label></formula><p>A learned estimate of the value function is commonly used as the baseline</p><formula xml:id="formula_4">b t (s t ) ≈ V π (s t )</formula><p>leading to a much lower variance estimate of the policy gradient. When an approximate value function is used as the baseline, the quantity R t − b t used to scale the policy gradient can be seen as an estimate of the advantage of action a t in state s t , or A(a t , s</p><formula xml:id="formula_5">t ) = Q(a t , s t )− V (s t ), because R t is an estimate of Q π (a t , s t ) and b t is an estimate of V π (s t ).</formula><p>This approach can be viewed as an actor-critic architecture where the policy π is the actor and the baseline b t is the critic <ref type="bibr">Barto, 1998, Degris et al., 2012]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">Deep Q Networks</head><p>Temporal difference learning methods, such as Q-learning, have been known to diverge when used with nonlinear function approximators <ref type="bibr" target="#b30">[Tsitsiklis and Roy, 1997]</ref>. The recently introduced variant of Q-learning for training Deep Q Networks ] made use of two techniques for avoiding such divergences in practice. First, an experience replay memory mechanism due to <ref type="bibr" target="#b14">Lin [1993]</ref> was used to perform Q-learning updates on random samples of past experience instead on the most recent samples of experience. Experience replay reduces the correlations between successive updates applied to the network thereby making the training data less non-stationary. Second, the network used for computing Q-learning targets was held fixed for intervals of several thousand updates, after which it would be updated with the current weights of Q(s, a; θ). This technique of employing a target network reduces the correlations between the target and the predicted Q-values, again making the training problem less non-stationary. The loss function minimized by DQN then takes the form</p><formula xml:id="formula_6">L(θ) = E s,a,r,s ∼D r + γ max a Q(s , a ; θ − ) − Q(s, a; θ) 2 ,<label>(5)</label></formula><p>where D is the experience replay memory and θ − are the parameters of the target network. Both experience replay and the target network were empirically shown to be important for obtaining the best policies on a number of Atari games, but as discussed earlier, the replay memory can have substantial memory requirements.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Asynchronous Lock-Free Reinforcement Learning</head><p>We now present multi-threaded asynchronous variants of one-step Sarsa, one-step Q-learning, n-step Q-learning, and advantage actor-critic. The aim in designing these methods was to find RL algorithms that can train deep neural network policies reliably and without large resource requirements. While the underlying RL methods are quite different, with actorcritic being an on-policy policy search method and Q-learning being an off-policy valuebased method, we use two main ideas to make all four algorithms practical given our design goal. First, we use asynchronous actor-learners as proposed in the Gorila framework <ref type="bibr" target="#b17">[Nair et al., 2015]</ref>, but instead of using separate machines and a parameter server, we use multiple threads on a single machine. Keeping the learners on a single machine removes the communication costs incurred by sending gradients and parameters and enables us to use Hogwild! <ref type="bibr" target="#b19">[Recht et al., 2011]</ref> style updates for training the controllers.</p><p>Second, we make the observation that multiple actors-learners running in parallel are likely to be exploring different parts of the environment. Moreover, one can explicitly use different exploration policies in each actor-learner to maximize this diversity. By running different exploration policies in different threads, the overall changes being made to the parameters by multiple actor-learners applying online updates in parallel are likely to be less correlated in time than a single agent applying online updates. Hence, we do not use a replay memory and rely on parallel actors employing different exploration policies to perform the stabilizing role undertaken by experience replay in the DQN training algorithm.</p><p>In addition to stabilizing learning, using multiple parallel actor-learners has multiple practical benefits. First, we obtain a reduction in training time that is roughly linear in the number of parallel actor-learners. Second, since we no longer rely on experience replay for stabilizing learning we are able to use on-policy reinforcement learning methods such as Sarsa and actor-critic to train neural networks in a stable way. We now describe our variants of one-step Q-learning, one-step Sarsa, n-step Q-learning and advantage actorcritic, discussing design choices specific to each algorithm. </p><formula xml:id="formula_7">← dθ + ∂(y−Q(s,a;θ)) 2 ∂θ s = s T ← T + 1 t ← t + 1 if T mod I target == 0 then Update the target network θ − ← θ end if if t mod I AsyncU pdate == 0 or s is terminal then</formula><p>Perform asynchronous update of θ using dθ. Clear gradients dθ ← 0. end if until T &gt; T max</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Asynchronous one-step Q-learning</head><p>Pseudocode for our variant of Q-learning, which we call Asynchronous one-step Q-learning, is shown in Algorithm 1. Each thread interacts with its own copy of the environment and at each step computes a gradient of the Q-learning loss. We use a shared and slowly changing target network in computing the Q-learning loss, as was proposed in the DQN training method. We also accumulate gradients over multiple timesteps before they are applied, which is similar to using minibatches. This reduces the chances of multiple actors learners overwriting each other's updates in the Hogwild! setting. Accumulating updates over several steps also provides some ability to trade off computational efficiency for data efficiency.</p><p>Finally, we found that giving each thread a different exploration policy helps improve robustness. Adding diversity to exploration in this manner also generally improves performance through better exploration. While there are many possible ways of making the exploration policies differ we experiment with using -greedy exploration with that is periodically sampled from some distribution of values by each thread.</p><p>While Algorithm 1 gives the pseudocode for the method used in our experiments, we also experimented with a number of variants. For example, we experimented with using thread-specific target networks instead of using a single shared target network as in Algorithm 1. Another choice is which network is used for selecting actions, the model network with parameters θ or the target network with parameters θ − . However, we found that these modification led to slightly worse results on a subset of games on the Atari domain.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Asynchronous one-step Sarsa</head><p>The asynchronous one-step Sarsa algorithm is the same as asynchronous one-step Q-learning as given in Algorithm 1 except that it uses a different target value for Q(s, a). The target value used by one-step Sarsa is</p><formula xml:id="formula_8">y = r for terminal s r + γQ(s , a ; θ − ) for non-terminal s (6)</formula><p>where a is the action taken in state s <ref type="bibr" target="#b26">[Sutton and Barto, 1998</ref>]. We again use a target network and updates accumulated over multiple timesteps to stabilize learning.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">Asynchronous n-step Q-learning</head><p>Pseudocode for our variant of multi-step Q-learning is shown in Algorithm 2. The algorithm is somewhat unusual because it operates in the forward view by explicitly computing n-step returns, as opposed to the more common backward view used by techniques like eligibility traces <ref type="bibr" target="#b26">[Sutton and Barto, 1998</ref>]. We found that using the forward view is easier when training neural networks with momentum-based methods and backpropagation through time. In order to compute a single update, the algorithm first selects actions using its exploration policy for up to t max steps or until a terminal state is reached. This process results in the agent receiving up to t max rewards from the environment since its last update. The algorithm then computes gradients for n-step Q-learning updates for each of the stateaction pairs encountered since the last update. Each n-step update uses the longest possible n-step return resulting in a one-step update for the last state, a two-step update for the second last state, and so on for a total of up to t max updates. The accumulated updates are then applied in a single gradient step.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.4">Asynchronous advantage actor-critic</head><p>Our asynchronous variant of actor-critic is presented in Algorithm 3. The algorithm, which we call asynchronous advantage actor-critic (A3C), maintains a policy π(a t |s t ; θ) and an estimate of the value function V (s t ; θ v ). Like our variant of n-step Q-learning, our variant of actor-critic also operates in the forward view and uses the same mix of n-step returns to update both the policy and the value-function. The policy and the value function are updated after every t max actions or when a terminal state is reached. The update performed by the algorithm can be seen as</p><formula xml:id="formula_9">∇ θ log π(a t |s t ; θ )A(s t , a t ; θ, θ v ) where A(s t , a t ; θ, θ v )</formula><p>is an estimate of the advantage function given by k−1 i=0</p><formula xml:id="formula_10">γ i r t+i + γ k V (s t+k ; θ v ) − V (s t ; θ v )</formula><p>, where k varies from state to state and is upper-bounded by t max .</p><p>As with the value-based methods we rely on parallel actor-learners and accumulated updates for improving training stability. Note that while the parameters θ of the policy and θ v of the value function are shown as being separate for generality, we always share some Algorithm 2 Asynchronous n-step Q-learning -pseudocode for each actor-learner thread.</p><p>// Assume global shared parameter vector θ. // Assume global shared target parameter vector θ − . // Assume global shared counter T = 0. Initialize thread step counter t ← 1 Initialize target network parameters θ − ← θ Initialize thread-specific parameters θ = θ Initialize network gradients dθ ← 0 repeat Clear gradients dθ ← 0 Synchronize thread-specific parameters θ = θ t start = t Get state s t repeat Take action a t according to the -greedy policy based on Q(s t , a; θ ) Receive reward r t and new state</p><formula xml:id="formula_11">s t+1 t ← t + 1 T ← T + 1 until terminal s t or t − t start == t max R = 0 for terminal s t max a Q(s t , a; θ − ) for non-terminal s t for i ∈ {t − 1, . . . , t start } do R ← r i + γR Accumulate gradients wrt θ : dθ ← dθ + ∂(R−Q(s i ,a i ;θ )) 2 ∂θ end for Perform asynchronous update of θ using dθ. if T mod I target == 0 then θ − ← θ end if until T &gt; T max</formula><p>of the parameters in practice. We typically use a convolutional neural network that has one softmax output for the policy π(a t |s t ; θ) and one linear output for the value function V (s t ; θ v ), with all non-output layers shared.</p><p>We also found that adding the entropy of the policy π to the objective function improved exploration by discouraging premature convergence to suboptimal deterministic policies. This technique was originally proposed by <ref type="bibr" target="#b37">[Williams and Peng, 1991]</ref>, who found that it was particularly helpful on tasks requiring hierarchical behavior. The gradient of the full objective function including the entropy regularization term with respect to the policy parameters takes the form</p><formula xml:id="formula_12">∇ θ log π(a t |s t ; θ )(R t − V (s t ; θ v ) + β∇ θ H(π(s t ; θ ))<label>(7)</label></formula><p>where H is the entropy. The hyperparameter β controls the strength of the entropy regularization term.</p><p>Algorithm 3 Asynchronous advantage actor-critic -pseudocode for each actor-learner thread. // Assume global shared parameter vectors θ and θ v and global shared counter T = 0 // Assume thread-specific parameter vectors θ and θ v Initialize thread step counter t ← 1 repeat Reset gradients: dθ ← and dθ v ← 0. Synchronize thread-specific parameters θ = θ and</p><formula xml:id="formula_13">θ v = θ v t start = t</formula><p>Get state s t repeat Perform a t according to policy π(a t |s t ; θ ) Receive reward r t and new state</p><formula xml:id="formula_14">s t+1 t ← t + 1 T ← T + 1 until terminal s t or t − t start == t max R = 0 for terminal s t V (s t , θ v ) for non-terminal s t // Bootstrap from last state for i ∈ {t − 1, . . . , t start } do R ← r i + γR Accumulate gradients wrt θ : dθ ← dθ + ∇ θ log π(a i |s i ; θ )(R − V (s i ; θ v )) Accumulate gradients wrt θ v : dθ v ← dθ v + ∂ (R − V (s i ; θ v )) 2 /∂θ v end for</formula><p>Perform asynchronous update of θ using dθ and of</p><formula xml:id="formula_15">θ v using dθ v . until T &gt; T max</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.5">Optimization</head><p>We investigated two different optimization algorithms with our asynchronous frameworkstochastic gradient descent and RMSProp. Our implementations of these algorithms do not use any locking in order to maximize throughput when using a large number of threads.</p><p>Momentum SGD: The implementation of SGD in an asynchronous setting is relatively straightforward and well studied <ref type="bibr" target="#b19">[Recht et al., 2011]</ref>. Let θ be the parameter vector that is shared across all threads and let ∆θ i be the accumulated gradients of the loss with respect to parameters θ computed by thread number i. Each thread i independently applies the standard momentum SGD update m i = αm i + (1 − α)∆θ i followed by θ ← θ − ηm i with learning rate η, momentum α and without any locks. Note that in this setting, each thread maintains its own separate gradient and momentum vector.</p><p>RMSProp: While RMSProp <ref type="bibr" target="#b27">[Tieleman and Hinton, 2012]</ref> has been widely used in the deep learning literature, it has not been extensively studied in the asynchronous optimization setting. The standard non-centered RMSProp update is given by</p><formula xml:id="formula_16">g = αg + (1 − α)∆θ 2 (8) θ ← θ − η ∆θ √ g + ,<label>(9)</label></formula><p>where all operations are performed elementwise. In order to apply RMSProp in the asynchronous optimization setting one must decide whether the moving average of elementwise squared gradients g is shared or per-thread. We experimented with two versions of the algorithm. In one version, which we refer to as RMSProp, each thread maintains its own g shown in Equation 8. In the other version, which we call Shared RMSProp, the vector g is shared among threads and is updated asynchronously and without locking. We will show that this way of sharing the statistics greatly improves the stability of the method. Additionally, sharing statistics among threads reduces memory requirements by using one fewer copy of the parameter vector per thread.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Experiments</head><p>We use four different platforms for assessing the properties of the proposed framework. and . The second environment we use is the TORCS car racing simulator <ref type="bibr" target="#b38">[Wymann et al., 2013]</ref>. TORCS is a 3D simulator where the graphics are more realistic compared to Atari and, additionally, understanding the physics of the car is an important component. The third environment we use to report results is the MuJoCo <ref type="bibr" target="#b28">[Todorov, 2015]</ref> physics simulator for evaluating agents on continuous motor control tasks with contact dynamics. The last domain, which was only used to evaluate our best-performing agent, is a new 3D environment called Labyrinth where the agent must learn to find rewards in randomly generated mazes from a visual input. Finally, we have carried out a detailed stability and scalability analysis of the proposed methods.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1">Experimental Setup</head><p>The experiments performed on a subset of Atari games (Figures 1, 6, 7 and <ref type="table">Table 2</ref>) as well as the TORCS experiments ( <ref type="figure">Figure 2</ref>) used the following setup. Each experiment used 16 actor-learner threads running on a single machine and no GPUs. All methods performed updates after every 5 actions (t max = 5 and I U pdate = 5) and shared RMSProp was used for optimization. The three asynchronous value-based methods used a shared target network that was updated every 40000 frames. The Atari experiments used the same input preprocessing as  and an action repeat of 4. The agents used the network architecture from <ref type="bibr" target="#b15">Mnih et al. [2013]</ref>. The network used a convolutional layer with 16 filters of size 8 × with stride 4, followed by a convolutional layer with with 32 filters of size 4 × with stride 2, followed by a fully connected layer with 256 hidden units. All three hidden layers were followed by a rectifier nonlinearity. The value-based methods had a single linear output unit for each action representing the action-value. The model used by actor-critic agents had two set of outputs -a softmax output with one entry per action representing the probability of selecting the action, and a single linear output representing the value function. The value based methods sampled the exploration rate from a distribution taking Space Invaders DQN 1-step Q 1-step SARSA n-step Q A3C <ref type="figure">Figure 1</ref>: Learning speed comparison for DQN and the new asynchronous algorithms on five Atari 2600 games. DQN was trained on a single Nvidia K40 GPU while the asynchronous methods were trained using 16 CPU cores. The plots are averaged over 5 runs. In the case of DQN the runs were for different seeds with fixed hyperparameters. For asynchronous methods we average over the best 5 models from 50 experiments with learning rates sampled from LogU nif orm(10 −4 , 10 −2 ) and all other hyperparameters fixed. three values 1 , 2 , 3 with probabilities 0.4, 0.3, 0.3. The values of 1 , 2 , 3 were annealed from 1 to 0.1, 0.01, 0.5 respectively over the first four million frames. Advantage actor-critic used entropy regularization with a weight β = 0.01 for all Atari and TORCS experiments. We performed a set of 50 experiments for five Atari games and every TORCS level, each using a different random initialization and initial learning rate. The initial learning rate was sampled from a LogU nif orm(10 −4 , 10 −2 ) distribution and annealed to 0 over the course of training. We analyze the sensitivity of the methods to the choice of learning rate in Section 5.3.2. Note that in comparisons to prior work <ref type="table" target="#tab_7">(Tables 1 and 3)</ref> we followed standard evaluation protocol and used fixed hyperparameters.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2">Results</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2.1">Atari 2600 Games</head><p>We first present results on a subset of Atari 2600 games to demonstrate the training speed of the new methods. <ref type="figure">Figure 1</ref> compares the learning speed of the DQN algorithm trained on an Nvidia K40 GPU with the asynchronous methods trained using 16 CPU cores on five Atari 2600 games. The results show that all four asynchronous methods we presented can successfully train neural network controllers on the Atari domain. The asynchronous methods tend to learn faster than DQN, with significantly faster learning on some games, while training on only 16 CPU cores. Additionally, the results suggest that n-step methods do indeed learn faster than one-step methods. Overall, the policy-based advantage actorcritic method significantly outperforms all three value-based methods.</p><p>We then evaluated asynchronous advantage actor-critic on 57 Atari games. In order to compare with the state of the art in Atari game playing, we largely followed the training and evaluation protocol of Van Hasselt et al. <ref type="bibr">[2015]</ref>. Specifically, we tuned hyperparameters</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Method</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Training Time</head><p>Mean Median DQN (from <ref type="bibr" target="#b17">[Nair et al., 2015])</ref> days on GPU 121.9% 47.5% Gorila <ref type="bibr" target="#b17">[Nair et al., 2015]</ref> 4 days, 100 machines 215.2% 71.3% Double <ref type="bibr">DQN [Van Hasselt et al., 2015]</ref> days on GPU 332.9% 110.9% Dueling Double DQN <ref type="bibr" target="#b34">[Wang et al., 2015]</ref> days on GPU 343.8% 117.1% Prioritized DQN <ref type="bibr" target="#b22">[Schaul et al., 2015]</ref> days  <ref type="table" target="#tab_7">Table 3</ref> shows the raw scores for all games.</p><p>(learning rate and amount of gradient norm clipping) using a search on six Atari games (Beamrider, Breakout, Pong, Q*bert, Seaquest and Space Invaders) and used the best hyperparameters for all 57 games. We trained both a feedforward agent with the same architecture as <ref type="bibr" target="#b17">, Nair et al., 2015</ref><ref type="bibr" target="#b32">, Van Hasselt et al., 2015</ref> as well as a recurrent agent with an additional 256 LSTM <ref type="bibr" target="#b7">[Hochreiter and Schmidhuber, 1997]</ref> cells after the final hidden layer. We additionally used the final network weights for evaluation to make the results more comparable to the original results from Bellemare et al. <ref type="bibr">[2012]</ref>. We trained our agents for four days using 16 CPU cores, while the other agents were trained for 8 to days on Nvidia K40 GPUs. <ref type="table">Table 1</ref> shows the average and median human-normalized scores obtained by our agents trained by asynchronous advantage actor-critic (A3C) as well as the current state-of-the art while Table shows the scores on all games. A3C significantly improves on state-of-the-art the average score over 57 games in half the training time of the other methods while using only 16 CPU cores and no GPU. Furthermore, after just one day of training, A3C matches the average human normalized score of Dueling Double DQN as well as the median human normalized score of DQN. We note that many of the improvements that are presented in Double DQN <ref type="bibr" target="#b32">[Van Hasselt et al., 2015]</ref> and Dueling Double DQN <ref type="bibr" target="#b34">[Wang et al., 2015]</ref> can be incorporated to 1-step Q and n-step Q methods presented in this work with similar potential improvements.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2.2">TORCS Car Racing Simulator</head><p>We also compared the four asynchronous methods on the TORCS 3D car racing game <ref type="bibr" target="#b38">[Wymann et al., 2013]</ref>. TORCS not only has more realistic graphics than Atari 2600 games, but also requires the agent to learn the dynamics of the car it is controlling. At each step, an agent received only a visual input in the form of an RGB image of the current frame as well as a reward proportional to the agent's velocity along the center of the track at the agent's current position. This reward structure differs considerably from most Atari games, where the rewards are usually very sparse. We used the same neural network architecture as the one used in the Atari experiments specified in Section 5.1. We performed experiments using four different settings -the agent controlling a slow car with and without opponent bots, and the agent controlling a fast car with and without opponent bots. The  <ref type="figure">Figure 2</ref>: Comparison of algorithms on the TORCS car racing simulator. Four different configurations of car speed and opponent presence or absence are shown. In each plot, all four algorithms (one-step Q, one-step Sarsa, n-step Q and Advantage Actor-Critic) are compared on score vs training time in wall clock hours. Multi-step algorithms achieve better policies much faster than one-step algorithms on all four levels. The curves show averages over the 5 best runs from 50 experiments with learning rates sampled from LogU nif orm(10 −4 , 10 −2 ) and all other hyperparameters fixed. results for the different game configurations comparing all four algorithms are shown in <ref type="figure">Figure 2</ref>. Multi-step algorithms learn much faster and reach better policies on all four configurations. Moreover, the best method, Async Advantage Actor-Critic approached its best performance after roughly 12 hours of training. Its performance reached between roughly 75% and 90% of the score obtained by a human tester on all four game configurations. A video showing the learned driving behavior of the best performing agent can be found at https://youtu.be/0xo1Ldx3L5Q.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2.3">Continuous Action Control Using the MuJoCo Physics Simulator</head><p>Finally, we also examined a set of tasks where the action space is continuous. In particular, we look at a set of rigid body physics domains with contact dynamics where the tasks <ref type="figure">Figure 3</ref>: Performance for the Mujoco continuous action domains. Scatter plot of the best score obtained against learning rates sampled from LogU nif orm(10 −5 , 10 −1 ). For nearly all of the tasks there is a wide range of learning rates that lead to good performance on the task.</p><p>include many examples of manipulation and locomotion. These tasks were simulated in the Mujoco physics engine. The action space for the Atari domains is naturally discrete and for TORCS a small discretization of the action space is straightforward and was found to be successful. However, there are many problems for which discretization of the action space is unlikely to be a good strategy. If, for example, a problem requires controlling a system with 10 independently controlled joint torques, then even very coarse discretization of the action space into 5 values for each joint leads to 5 discrete actions. Because of this fact, the DQN algorithm (or any algorithm that relies on a max operator over actions) cannot easily be applied to continuous control problems with even moderately sized action spaces.</p><p>However, one of the algorithms examined here, the asynchronous advantage actor-critic, is straightforward to apply in continuous action spaces. Since this algorithm does not rely on the max operator over actions, all that is required to apply it to the Mujoco domains is to ensure that the actor network outputs a vector sampled from a continuous distribution in the appropriately sized space. Thus, in the context of the continuous action control problems we examined only the asynchronous advantage actor-critic algorithm. Since most of the design choices for the algorithm were made with discrete control problems in mind, these results serve as a proof-of-concept application and could likely be improved by further adapting the method to continuous control tasks.</p><p>To apply the asynchronous advantage actor-critic algorithm to the Mujoco tasks the necessary setup is nearly identical to that used in the discrete action domains, so here we enumerate only the differences required for the continuous action domains. The essential elements for many of the tasks (i.e. the physics models and task objectives) are near identical to the tasks examined in <ref type="bibr" target="#b13">[Lillicrap et al., 2015]</ref>. However, the rewards and thus performance are not comparable for most of the tasks due to changes made by the developers of Mujoco which altered the contact model. For all the domains we attempted to learn the task using the physical state as input. The physical state consisted of the joint positions and velocities as well as the target position if the task required a target. In addition, for three of the tasks (pendulum, pointmass2D, and gripper) we also examined training directly from RGB pixel inputs. In the low dimensional physical state case, the inputs are mapped to a hidden state using one hidden layer with 200 ReLU units. In the cases where we used pixels, the input was passed through two layers of spatial convolutions without any non-linearity or pooling. In either case, the output of the encoder layers were fed to a single layer of 128 LSTM cells. The most important difference in the architecture is in the the output layer of the policy network. Unlike the discrete action domain where the action output is a Softmax, here the two outputs of the policy network are two real number vectors which we treat as the mean vector µ and scalar variance σ 2 of a multidimensional normal distribution with a spherical covariance. To act, the input is passed through the model to the output layer where we sample from the normal distribution determined by µ and σ 2 . In practice, µ is modeled by a linear layer and σ 2 by a SoftPlus operation, log(1 + exp(x)), as the activation computed as a function of the output of a linear layer. In our experiments with continuous control problems the networks for policy network and value network do not share any parameters, though this detail is unlikely to be crucial. Finally, since the episodes were typically at most several hundred time steps long, we did not use any bootstrapping in the policy or value function updates and batched each episode into a single update.</p><p>As in the discrete action case, we included an entropy cost which encouraged exploration. In the continuous case the we used a cost on the differential entropy of the normal distribution defined by the output of the actor network, − 1 (log(2πσ 2 ) + 1), we used a constant multiplier of 10 −4 for this cost across all of the tasks examined. The asynchronous advantage actor-critic algorithm finds solutions for all the domains. <ref type="figure" target="#fig_2">Figure 4</ref> shows learning curves against wall-clock time, and demonstrates that most of the domains from states can be solved within a few hours. All of the experiments, including those done from pixel based observations, were run on CPU. Even in the case of solving the domains directly from pixel inputs we found that it was possible to reliably discover solutions within 24 hours. <ref type="figure">Figure  shows</ref> scatter plots of the top scores against the sampled learning rates. In most of the domains there is large range of learning rates that consistently achieve good performance on the task.</p><p>Some of the successful policies learned by our agent can be seen in the following video https://youtu.be/Ajjc08-iPx8. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2.4">Labyrinth</head><p>We performed an additional set of experiments with A3C on a new 3D environment called Labyrinth. The specific task we considered involved the agent learning to find rewards in randomly generated mazes. At the beginning of each episode the agent was placed in a new randomly generated maze consisting of rooms and corridors. Each maze contained two types of objects that the agent was rewarded for finding -apples and portals. Picking up the agent lead to a reward of 1. Entering a portal lead to a reward of 10 after which the agent was respawned in a new random location in the maze and all previously collected apples were regenerated. An episode terminated after 60 seconds after which a new episode would begin. The aim of the agent is to collect as many points as possible in the time limit and the optimal strategy involves first finding the portal and then repeatedly going back to it after each respawn. This task is much more challenging than the TORCS driving domain because the agent is faced with a new maze in each episode and must learn a general strategy for exploring random mazes.</p><p>We trained an A3C LSTM agent on this task using only 84 × 84 RGB images as input. <ref type="figure" target="#fig_3">Figure 5</ref> shows an averaged training curve for the best 5 agents we trained. The final average score of around 50 indicates that the agent learned a reasonable strategy for exploring random 3D maxes using only a visual input. A video showing one of the agents exploring previously unseen mazes is included at https://youtu.be/nMR5mjCFZCw.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3">Analysis</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3.1">Scalability and Data Efficiency</head><p>We now analyze the effectiveness of our proposed framework by looking at how the training time and data efficiency changes with the number of parallel actor-learners. When using multiple workers in parallel and updating a shared model, one would expect that in an ideal case, for a given task and algorithm, the total number of training steps to achieve a certain Number of threads Method 4 8 16 1-step Q 1.0 3.0 6.3 13.3 24.1 1-step SARSA 1.0 2.8 5.9 13.1 22.1 n-step Q 1.0 2.7 5.9 10.7 17.2 A3C 1.0 2.1 3.7 6.9 12.5 <ref type="table">Table 2</ref>: The average training speedup for each method and number of threads averaged over seven Atari games. To compute the training speed-up on a single game we measured the time to required reach a fixed reference score using each method and number of threads. The speedup from using n threads on a game was defined as the time required to reach a fixed reference score using one thread divided the time required to reach the reference score using n threads. The table shows the speedups averaged over seven Atari games <ref type="bibr">(Beamrider, Breakout, Enduro, Pong, Q*bert, Seaquest, and Space Invaders)</ref>.</p><p>score would remain the same with varying numbers of workers. Therefore, the advantage would be solely due to the ability of the system to consume more data in the same amount of wall clock time and possibly improved exploration. <ref type="table">Table 2</ref> shows the training speed-up achieved by using increasing numbers of parallel actor-learners averaged over seven Atari games. These results show that all four methods achieve substantial speedups from using multiple worker threads, with 16 threads leading to at least an order of magnitude speedup. This confirms that our proposed framework scales well with the number of parallel workers, making efficient use of resources. Somewhat surprisingly, asynchronous one-step Q-learning and Sarsa algorithms exhibit superlinear speedups that cannot be explained by purely computational gains. These effects are shown more clearly in <ref type="figure" target="#fig_5">Figure 6</ref>, which shows plots of the average score against the total number of training frames for different numbers of actor-learners and training methods on five Atari games, and <ref type="figure" target="#fig_7">Figure 7</ref>, which shows plots of the average score against wall-clock time. <ref type="figure" target="#fig_5">Figure 6</ref> shows that one-step methods (one-step Q and one-step Sarsa) often require less data to achieve a particular score when using more parallel actor-learners. While a similar effect exists for n-step Q-learning it is less dramatic. When these gains in data efficiency are combined with a sublinear computational speedup, n-step Q-learning achieves a linear speedup from using multiple actor-learners while one-step Q-learning and Sarsa achieve superlinear gains shown in <ref type="table">Table 2</ref>. The data efficiency of asynchronous advantage actor-critic seems to be largely unaffected by the number of parallel actor-learners. Nevertheless, asynchronous actor-critic still exhibits a substantial speedup, training over 12 times faster using 16 actor-learners.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3.2">Robustness and Stability</head><p>We first analyze three asynchronous optimization algorithms by inspecting their sensitivity to different learning rates and random network initializations. Stochastic gradient descent is still widely used for training neural networks due to its simplicity and computational efficiency. Although there are many extensions such as ADAGRAD <ref type="bibr" target="#b5">[Duchi et al., 2011]</ref>,        ADADELTA <ref type="bibr" target="#b39">[Zeiler, 2012]</ref>, RMSProp <ref type="bibr" target="#b27">[Tieleman and Hinton, 2012]</ref> and ADAM <ref type="bibr" target="#b9">[Kingma and Ba, 2014]</ref>, there is no consensus as to which method is the best. In <ref type="figure">Figure we</ref> compare three different asynchronous optimization algorithms (Momentum SGD, RMSProp, Shared RMSProp) combined with two different reinforcement learning methods (Async n-step Q and Async Advantage Actor-Critic) on four different tasks (Breakout, Beamrider, Seaquest and Space Invaders). Each curve shows the scores for 50 experiments that correspond to 50 different random learning rates and initializations. The x-axis shows the rank of the model after sorting in descending order by final average score and the y-axis shows the final average score achieved by the corresponding model. In this representation, the algorithm that performs better would achieve higher maximum rewards on the y-axis and the algorithm that is most robust would have its slope closest to horizontal, thus maximizing the area under the curve. RMSProp with shared statistics tends to be more robust than  <ref type="figure">Figure 9</ref>: Scatter plots of final scores achieved by Advantage Actor-Critic on four games (Breakout, Beamrider, Seaquest, Space Invaders) for 50 different entropy regularization penalty coefficients, learning rates, and random initializations. On some games using entropy regularization improves performance.</p><p>RMSProp with per-thread statistics, which is in turn more robust than Momentum SGD.</p><p>Next, we look at the stability and robustness of the asynchronous algorithms. We trained models on five games (Breakout, Beamrider, Pong, Q*bert, Space Invaders) using four different algorithms (one-step Q, one-step Sarsa, n-step Q and Advantage Actor-Critic) using 50 different learning rates and random initializations. Scatter plots of scores are shown for all algorithms and tasks in <ref type="figure">Figure 10</ref>. There is usually a range of learning rates for each method and game combination that leads to a high score, indicating that all methods are quite robust to the choice of learning rate. The fact that there are virtually no points with scores of 0 in regions with good learning rates indicates that the methods are stable and do not collapse or diverge once they are learning. Similarly, in <ref type="figure">Figure 9</ref> we show scatter plots of scores obtained by training Advantage Actor-Critic for 50 combinations of random initialization, learning rate and entropy cost on four games. These results show that using entropy regularization with advantage actor-critic does lead to better scores on some games.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6">Conclusions and Discussion</head><p>We have presented asynchronous versions of four standard reinforcement learning algorithms and showed that they are able to train neural network controllers on a variety of domains in a stable manner. Our results show that in our proposed framework stable training of neural networks through reinforcement learning is possible with both value-based and policy-based methods, off-policy as well as on-policy methods, and in discrete as well as continuous domains. When trained on the Atari domain using 16 CPU cores, the proposed asynchronous algorithms train faster than DQN trained on an Nvidia K40 GPU, with A3C surpassing the current state-of-the-art in half the training time.</p><p>One of our main findings is that using parallel actor-learners to update a shared model had a stabilizing effect on the learning process of the three value-based methods we considered. While this shows that stable online Q-learning is possible without experience replay, which was used for this purpose in DQN, it does not mean that experience replay is not  <ref type="figure">Figure 10</ref>: Scatter plots of scores obtained by four different algorithms (one-step Q, onestep Sarsa, n-step Q and Advantage Actor-Critic) on five games (Beamrider, Breakout, Pong, Q*bert, Space Invaders) for 50 different learning rates and random initializations. All algorithms exhibit some level of robustness to the choice of learning rate. useful. Incorporating experience replay into the asynchronous reinforcement learning framework could substantially improve the data efficiency of these methods by reusing old data. This could in turn lead to much faster training times in domains like TORCS where interacting with the environment is more expensive than updating the model for the architecture we used.</p><p>Combining other existing reinforcement learning methods or recent advances in deep reinforcement learning with our asynchronous framework presents many possibilities for immediate improvements to the methods we presented. While our n-step methods operate in the forward view <ref type="bibr" target="#b26">[Sutton and Barto, 1998</ref>] by using corrected n-step returns directly as targets, it has been more common to use the backward view to implicitly combine different returns through eligibility traces <ref type="bibr" target="#b35">[Watkins, 1989</ref><ref type="bibr" target="#b26">, Sutton and Barto, 1998</ref><ref type="bibr" target="#b18">, Peng and Williams, 1996</ref>. The asynchronous advantage actor-critic method could be potentially improved by using other ways of estimating the advantage function, such as generalized advantage estimation of <ref type="bibr" target="#b24">Schulman et al. [2015b]</ref>. All of the value-based methods we investigated could benefit from different ways of reducing over-estimation bias of Q-values <ref type="bibr" target="#b32">[Van Hasselt et al., 2015</ref><ref type="bibr" target="#b1">, Bellemare et al., 2016</ref>]. Yet another, more speculative, direction is to try and combine the recent work on true online temporal difference methods <ref type="bibr" target="#b33">[van Seijen et al., 2015]</ref> with nonlinear function approximation.</p><p>In addition to these algorithmic improvements, a number of complementary improvements to the neural network architecture are possible. The dueling architecture of <ref type="bibr" target="#b34">Wang et al. [2015]</ref> has been shown to produce more accurate estimates of Q-values by including separate streams for the state value and advantage in the network. The spatial softmax proposed by <ref type="bibr" target="#b11">Levine et al. [2015]</ref> could improve both value-based and policy-based methods by making it easier for the network to represent feature coordinates.   <ref type="bibr" target="#b34">Wang et al. [2015]</ref> and Prioritized scores taken from <ref type="bibr" target="#b22">Schaul et al. [2015]</ref> </p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 4 :</head><label>4</label><figDesc>Score per episode vs wall-clock time plots for the Mujoco domains. Each plot shows error bars for the top 5 experiments.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 5 :</head><label>5</label><figDesc>Training curves for the best 5 Labyrinth agents selected from a search over 50 random learning rates and entropy penalties. Training took approximately 3 days.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>Figure 6 :</head><label>6</label><figDesc>Data efficiency comparison of different numbers of actor-learners for all four asynchronous methods on five Atari games. The x-axis shows the total number of training epochs where an epoch corresponds to four million frames (across all threads). The y-axis shows the average score. Each curve shows the average of the three best performing agents from a search over 50 random learning rates. Single step methods show increased data efficiency with increased numbers of parallel workers.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_7"><head>Figure 7 :</head><label>7</label><figDesc>Training speed comparison of different numbers of actor-learners for all four asynchronous methods on five Atari games. The x-axis shows training time in hours while the y-axis shows the average score. Each curve shows the average of the three best performing agents from a search over 50 random learning rates. All asynchronous methods show significant speedups from using greater numbers of parallel actor-learners. 40</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_8"><head>Figure 8 :</head><label>8</label><figDesc>Comparison of three different optimization methods (Momentum SGD, RM-SProp, Shared RMSProp) tested using two different algorithms (Async n-step Q and Async Advantage Actor-Critic) on four different Atari games (Breakout, Beamrider, Seaquest and Space Invaders). Each curve shows the final scores for 50 experiments sorted in descending order that covers a search over 50 random initializations and learning rates. The top row shows results using Async n-step Q algorithm and bottom row shows results with Async Advantage Actor-Critic. Each individual graph shows results for one of the four games and three different optimization methods. Shared RMSProp tends to be more robust to different learning rates and random initializations than Momentum SGD and RMSProp without sharing.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head></head><label></label><figDesc>Algorithm 1 Asynchronous one-step Q-learning -pseudocode for each actor-learner thread.</figDesc><table><row><cell cols="3">// Assume global shared parameter vector θ.</cell></row><row><cell cols="3">// Assume global shared target parameter vector θ − .</cell></row><row><cell cols="3">// Assume global shared counter T = 0.</cell></row><row><cell cols="2">Initialize thread step counter t ← 0</cell><cell></cell></row><row><cell cols="3">Initialize target network weights θ − ← θ</cell></row><row><cell cols="2">Initialize network gradients dθ ← 0</cell><cell></cell></row><row><cell cols="2">Get initial state s</cell><cell></cell></row><row><cell>repeat</cell><cell></cell><cell></cell></row><row><cell cols="3">Take action a according to the -greedy policy based on Q(s, a; θ)</cell></row><row><cell cols="2">Receive new state s and reward r</cell><cell></cell></row><row><cell>y =</cell><cell>r r + γ max a Q(s , a ; θ − )</cell><cell>for terminal s for non-terminal s</cell></row><row><cell cols="2">Accumulate gradients wrt θ: dθ</cell><cell></cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head></head><label></label><figDesc>First, the Arcade Learning Environment [Bellemare et al., 2012] that provides a simulator for Atari 2600 games. This is one of the most commonly used benchmark environments for RL algorithms. We compare against state of the art results on this environment as reported by Van Hasselt et al.[2015],<ref type="bibr" target="#b34">Wang et al. [2015]</ref>,<ref type="bibr" target="#b22">Schaul et al. [2015]</ref>,<ref type="bibr" target="#b17">Nair et al. [2015]</ref> </figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_7"><head>Table 3 :</head><label>3</label><figDesc>Raw scores for the human start condition (30 minutes emulator time). DQN scores taken from<ref type="bibr" target="#b17">Nair et al. [2015]</ref>. Double DQN scores taken from Van Hasselt et al.</figDesc><table /><note>[2015], Dueling scores from</note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgments</head><p>We thank Thomas Degris, Remi Munos, Marc Lanctot, Sasha Vezhnevets and Joseph Modayil for many helpful discussions, suggestions and comments on the paper. We also thank the DeepMind evaluation team for setting up the environments used to evaluate the agents in the paper.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">The arcade learning environment: An evaluation platform for general agents</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yavar</forename><surname>Marc G Bellemare</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Joel</forename><surname>Naddaf</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Veness</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bowling</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Artificial Intelligence Research</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Increasing the action gap: New operators for reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Marc</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Georg</forename><surname>Bellemare</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Arthur</forename><surname>Ostrovski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Philip</forename><forename type="middle">S</forename><surname>Guez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rémi</forename><surname>Thomas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Munos</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the AAAI Conference on Artificial Intelligence</title>
+		<meeting>the AAAI Conference on Artificial Intelligence</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Distributed dynamic programming. Automatic Control</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dimitri</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bertsekas</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on</title>
+		<imprint>
+			<biblScope unit="volume">27</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="610" to="616" />
+			<date type="published" when="1982" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<monogr>
+		<title level="m" type="main">Distributed deep q-learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kevin</forename><surname>Chavez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yi</forename><surname>Hao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Augustus</forename><surname>Ong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Hong</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015-06" />
+		</imprint>
+		<respStmt>
+			<orgName>Stanford University</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">Technical report</note>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Model-free reinforcement learning with continuous action in practice</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Thomas</forename><surname>Degris</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Patrick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Richard S</forename><surname>Pilarski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Sutton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">American Control Conference (ACC)</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="2177" to="2182" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Adaptive subgradient methods for online learning and stochastic optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><surname>Duchi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Elad</forename><surname>Hazan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoram</forename><surname>Singer</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">The Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">12</biblScope>
+			<biblScope unit="page" from="2121" to="2159" />
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Parallel reinforcement learning with linear function approximation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Matthew</forename><surname>Grounds</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daniel</forename><surname>Kudenko</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 5th, 6th and 7th European Conference on Adaptive and Learning Agents and Multi-agent Systems: Adaptation and Multi-agent Learning</title>
+		<meeting>the 5th, 6th and 7th European Conference on Adaptive and Learning Agents and Multi-agent Systems: Adaptation and Multi-agent Learning</meeting>
+		<imprint>
+			<publisher>Springer-Verlag</publisher>
+			<date type="published" when="2008" />
+			<biblScope unit="page" from="60" to="74" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Long short-term memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sepp</forename><surname>Hochreiter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jürgen</forename><surname>Schmidhuber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural computation</title>
+		<imprint>
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="issue">8</biblScope>
+			<biblScope unit="page" from="1735" to="1780" />
+			<date type="published" when="1997" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">On the convergence of stochastic iterative dynamic programming algorithms</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tommi</forename><surname>Jaakkola</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Michael</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Jordan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Satinder</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Singh</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural computation</title>
+		<imprint>
+			<biblScope unit="volume">6</biblScope>
+			<biblScope unit="issue">6</biblScope>
+			<biblScope unit="page" from="1185" to="1201" />
+			<date type="published" when="1994" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<monogr>
+		<title level="m" type="main">Adam: A method for stochastic optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Diederik</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jimmy</forename><surname>Ba</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.6980</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Evolving deep unsupervised convolutional networks for vision-based reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jan</forename><surname>Koutník</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jürgen</forename><surname>Schmidhuber</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Faustino</forename><surname>Gomez</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2014 conference on Genetic and evolutionary computation</title>
+		<meeting>the 2014 conference on Genetic and evolutionary computation</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="541" to="548" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<monogr>
+		<title level="m" type="main">End-to-end training of deep visuomotor policies</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sergey</forename><surname>Levine</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chelsea</forename><surname>Finn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Trevor</forename><surname>Darrell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pieter</forename><surname>Abbeel</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1504.00702</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Mapreduce for parallel reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yuxi</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dale</forename><surname>Schuurmans</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Recent Advances in Reinforcement Learning -9th European Workshop</title>
+		<meeting><address><addrLine>Athens, Greece</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2011-09-09" />
+			<biblScope unit="page" from="309" to="320" />
+		</imprint>
+	</monogr>
+	<note>Revised Selected Papers</note>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Timothy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonathan</forename><forename type="middle">J</forename><surname>Lillicrap</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alexander</forename><surname>Hunt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nicolas</forename><surname>Pritzel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tom</forename><surname>Heess</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yuval</forename><surname>Erez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Tassa</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daan</forename><surname>Silver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Wierstra</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1509.02971</idno>
+		<title level="m">Continuous control with deep reinforcement learning</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Reinforcement learning for robots using neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Long-Ji</forename><surname>Lin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">DTIC Document</title>
+		<imprint>
+			<date type="published" when="1993" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Technical report</note>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Playing atari with deep reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Volodymyr</forename><surname>Mnih</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Koray</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Silver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Graves</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ioannis</forename><surname>Antonoglou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daan</forename><surname>Wierstra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><surname>Riedmiller</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS Deep Learning Workshop</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Human-level control through deep reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Volodymyr</forename><surname>Mnih</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Koray</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Silver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrei</forename><forename type="middle">A</forename><surname>Rusu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Joel</forename><surname>Veness</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marc</forename><forename type="middle">G</forename><surname>Bellemare</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Graves</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><surname>Riedmiller</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andreas</forename><forename type="middle">K</forename><surname>Fidjeland</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Georg</forename><surname>Ostrovski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Stig</forename><surname>Petersen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Charles</forename><surname>Beattie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Amir</forename><surname>Sadik</surname></persName>
+		</author>
+		<idno type="DOI">10.1038/nature14236</idno>
+		<ptr target="http://dx.doi.org/10.1038/nature14236" />
+	</analytic>
+	<monogr>
+		<title level="j">Ioannis Antonoglou</title>
+		<imprint>
+			<biblScope unit="volume">518</biblScope>
+			<biblScope unit="issue">7540</biblScope>
+			<biblScope unit="page" from="529" to="533" />
+			<date type="published" when="2015-02" />
+		</imprint>
+	</monogr>
+	<note>Nature</note>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Massively parallel methods for deep reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Arun</forename><surname>Nair</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Praveen</forename><surname>Srinivasan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sam</forename><surname>Blackwell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Cagdas</forename><surname>Alcicek</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rory</forename><surname>Fearon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alessandro</forename><forename type="middle">De</forename><surname>Maria</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Vedavyas</forename><surname>Panneershelvam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mustafa</forename><surname>Suleyman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Charles</forename><surname>Beattie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Stig</forename><surname>Petersen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Shane</forename><surname>Legg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Volodymyr</forename><surname>Mnih</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Koray</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Silver</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML Deep Learning Workshop</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Incremental multi-step q-learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jing</forename><surname>Peng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ronald J</forename><surname>Williams</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Machine Learning</title>
+		<imprint>
+			<date type="published" when="1996" />
+			<biblScope unit="volume">22</biblScope>
+			<biblScope unit="page" from="283" to="290" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Hogwild: A lock-free approach to parallelizing stochastic gradient descent</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Benjamin</forename><surname>Recht</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christopher</forename><surname>Re</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Stephen</forename><surname>Wright</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Feng</forename><surname>Niu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="693" to="701" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Neural fitted q iteration-first experiences with a data efficient neural reinforcement learning method</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><surname>Riedmiller</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Machine Learning: ECML 2005</title>
+		<meeting><address><addrLine>Berlin Heidelberg</addrLine></address></meeting>
+		<imprint>
+			<publisher>Springer</publisher>
+			<date type="published" when="2005" />
+			<biblScope unit="page" from="317" to="328" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<monogr>
+		<title level="m" type="main">On-line q-learning using connectionist systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Gavin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mahesan</forename><surname>Rummery</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Niranjan</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1994" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tom</forename><surname>Schaul</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><surname>Quan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ioannis</forename><surname>Antonoglou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Silver</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1511.05952</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Prioritized experience replay. arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Trust region policy optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><surname>Schulman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sergey</forename><surname>Levine</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Philipp</forename><surname>Moritz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pieter</forename><surname>Michael I Jordan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Abbeel</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<monogr>
+		<title level="m" type="main">Highdimensional continuous control using generalized advantage estimation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><surname>Schulman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Philipp</forename><surname>Moritz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sergey</forename><surname>Levine</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Jordan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pieter</forename><surname>Abbeel</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1506.02438</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Convergence results for single-step on-policy reinforcement-learning algorithms</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Satinder</forename><surname>Singh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tommi</forename><surname>Jaakkola</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Csaba</forename><surname>Michael L Littman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Szepesvári</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Machine Learning</title>
+		<imprint>
+			<date type="published" when="2000" />
+			<biblScope unit="volume">38</biblScope>
+			<biblScope unit="page" from="287" to="308" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<monogr>
+		<title level="m" type="main">Reinforcement Learning: an Introduction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Sutton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Barto</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1998" />
+			<publisher>MIT Press</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Lecture 6.5-rmsprop: Divide the gradient by a running average of its recent magnitude</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tijmen</forename><surname>Tieleman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geoffrey</forename><surname>Hinton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">COURSERA: Neural Networks for Machine Learning</title>
+		<imprint>
+			<date type="published" when="2012" />
+			<biblScope unit="volume">4</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Todorov</surname></persName>
+		</author>
+		<title level="m">MuJoCo: Modeling, Simulation and Visualization of Multi-Joint Dynamics with Contact</title>
+		<imprint>
+			<publisher>Roboti Publishing</publisher>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<monogr>
+		<title level="m" type="main">Parallel and distributed evolutionary algorithms: A review</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marco</forename><surname>Tomassini</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1999" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Technical report</note>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">An analysis of temporal-difference learning with function approximation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Tsitsiklis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Van Roy</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Automatic Control</title>
+		<imprint>
+			<biblScope unit="volume">42</biblScope>
+			<biblScope unit="issue">5</biblScope>
+			<biblScope unit="page" from="674" to="690" />
+			<date type="published" when="1997" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">Asynchronous stochastic approximation and q-learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>John</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Tsitsiklis</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Machine Learning</title>
+		<imprint>
+			<biblScope unit="volume">16</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="185" to="202" />
+			<date type="published" when="1994" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<monogr>
+		<title level="m" type="main">Deep reinforcement learning with double q-learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Arthur</forename><surname>Hado Van Hasselt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Guez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Silver</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1509.06461</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<monogr>
+		<title level="m" type="main">True Online Temporal-Difference Learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Van Seijen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Mahmood</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">M</forename><surname>Pilarski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">C</forename><surname>Machado</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">S</forename><surname>Sutton</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015-12" />
+		</imprint>
+	</monogr>
+	<note>ArXiv e-prints</note>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<monogr>
+		<title level="m" type="main">Dueling Network Architectures for Deep Reinforcement Learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Freitas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Lanctot</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015-11" />
+		</imprint>
+	</monogr>
+	<note>ArXiv e-prints</note>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<monogr>
+		<title level="m" type="main">Learning from delayed rewards</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christopher John Cornish Hellaby</forename><surname>Watkins</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1989" />
+		</imprint>
+		<respStmt>
+			<orgName>University of Cambridge England</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">PhD thesis</note>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<analytic>
+		<title level="a" type="main">Simple statistical gradient-following algorithms for connectionist reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">J</forename><surname>Williams</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Machine Learning</title>
+		<imprint>
+			<date type="published" when="1992" />
+			<biblScope unit="volume">8</biblScope>
+			<biblScope unit="page" from="229" to="256" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">Function optimization using connectionist reinforcement learning algorithms</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Ronald</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jing</forename><surname>Williams</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Peng</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Connection Science</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="241" to="268" />
+			<date type="published" when="1991" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<monogr>
+		<title level="m" type="main">Torcs: The open racing car simulator</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Wymann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Espi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Guionneau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Dimitrakakis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Coulom</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Sumner</surname></persName>
+		</author>
+		<idno>v1.3.5</idno>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<monogr>
+		<title level="m" type="main">Adadelta: An adaptive learning rate method</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Matthew</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Zeiler</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1212.5701</idno>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

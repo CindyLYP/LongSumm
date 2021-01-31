@@ -1,0 +1,560 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Efficient Exact Gradient Update for training Deep Networks with Very Large Sparse Targets</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pascal</forename><surname>Vincent</surname></persName>
+							<affiliation key="aff1">
+								<orgName type="institution">CIFAR</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alexandre</forename><surname>De Brébisson</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xavier</forename><surname>Bouthillier</surname></persName>
+						</author>
+						<author>
+							<affiliation key="aff0">
+								<orgName type="department">Département d&apos;Informatique et de Recherche Opérationnelle</orgName>
+								<orgName type="institution">Université de Montréal</orgName>
+								<address>
+									<settlement>Montréal</settlement>
+									<region>Québec</region>
+									<country key="CA">CANADA</country>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Efficient Exact Gradient Update for training Deep Networks with Very Large Sparse Targets</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:41+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>An important class of problems involves training deep neural networks with sparse prediction targets of very high dimension D. These occur naturally in e.g. neural language models or the learning of word-embeddings, often posed as predicting the probability of next words among a vocabulary of size D (e.g. 200 000). Computing the equally large, but typically non-sparse D-dimensional output vector from a last hidden layer of reasonable dimension d (e.g. 500) incurs a prohibitive O(Dd) computational cost for each example, as does updating the D × d output weight matrix and computing the gradient needed for backpropagation to previous layers. While efficient handling of large sparse network inputs is trivial, the case of large sparse targets is not, and has thus so far been sidestepped with approximate alternatives such as hierarchical softmax or sampling-based approximations during training. In this work we develop an original algorithmic approach which, for a family of loss functions that includes squared error and spherical softmax, can compute the exact loss, gradient update for the output weights, and gradient for backpropagation, all in O(d 2) per example instead of O(Dd), remarkably without ever computing the D-dimensional output. The proposed algorithm yields a speedup of D 4d , i.e. two orders of magnitude for typical sizes, for that critical part of the computations that often dominates the training time in this kind of network architecture.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>Many modern applications of neural networks have to deal with data represented, or representable, as very large sparse vectors. Such representations arise in natural language related tasks, where the dimension D of that vector is typically (a multiple of) the size of the vocabulary, and also in the sparse user-item matrices of collaborative-filtering applications. It is trivial to handle very large sparse inputs to a neural network in a computationally efficient manner: the forward propagation and update to the input weight matrix after backpropagation are correspondingly sparse. By contrast, training with very large sparse prediction targets is problematic: even if the target is sparse, the computation of the equally large network output and the corresponding gradient update to the huge output weight matrix are not sparse and thus computationally prohibitive. This has been a practical problem ever since Bengio et al. <ref type="bibr" target="#b0">[1]</ref> first proposed using a neural network for learning a language model, in which case the computed output vector represents the probability of the next word and is the size of the considered vocabulary, which is becoming increasingly large in modern applications <ref type="bibr" target="#b1">[2]</ref>. Several approaches have been proposed to attempt to address this difficulty essentially by sidestepping it. They fall in two categories:</p><p>• Sampling or selection based approximations consider and compute only a tiny fraction of the output's dimensions sampled at random or heuristically chosen. The reconstruction sampling of Dauphin et al. <ref type="bibr" target="#b2">[3]</ref>, the efficient use of biased importance sampling in Jean et al. <ref type="bibr" target="#b3">[4]</ref>, the use of Noise Contrastive Estimation <ref type="bibr" target="#b4">[5]</ref> in Mnih and Kavukcuoglu <ref type="bibr" target="#b5">[6]</ref> and Mikolov et al. <ref type="bibr" target="#b6">[7]</ref> all fall under this category. As does the more recent use of approximate Maximum Inner Product Search based on Locality Sensitive Hashing techniques <ref type="bibr" target="#b7">[8,</ref><ref type="bibr" target="#b8">9]</ref> to select a good candidate subset. • Hierarchical softmax <ref type="bibr" target="#b9">[10,</ref><ref type="bibr" target="#b6">7]</ref> imposes a heuristically defined hierarchical tree structure for the computation of the normalized probability of the target class.</p><p>Compared to the initial problem of considering all D output dimensions, both kinds of approaches are crude approximations. In the present work, we will instead investigate a way to actually perform the exact gradient update that corresponds to considering all D outputs, but do so implicitly, in a computationally efficient manner, without actually computing the D outputs. This approach works for a relatively restricted class of loss functions, the simplest of which is linear output with squared error (a natural choice for sparse real-valued regression targets). The most common choice for multiclass classification, the softmax loss is not part of that family, but we may use an alternative spherical softmax, which will also yield normalized class probabilities. For simplicity and clarity, our presentation will focus on squared error and on an online setting. We will briefly discuss its extension to minibatches and to the class of possible loss functions in sections 3.5 and 3.6.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">The problem 2.1 Problem definition and setup</head><p>We are concerned with gradient-descent based training of a deep feed-forward neural network with target vectors of very high dimension D (e.g. D = 200 000) but that are sparse, i.e. a comparatively small number, at most K D, of the elements of the target vector are non-zero. Such a Ksparse vector will typically be stored and represented compactly as 2K numbers corresponding to pairs (index, value). A network to be trained with such targets will naturally have an equally large output layer of dimension D. We can also optionally allow the input to the network to be a similarly high dimensional sparse vector of dimension D in . Between the large sparse target, output, and (optionally large sparse) input, we suppose the network's intermediate hidden layers to be of smaller, more typically manageable, dimension d D (e.g. d = 500) 1 . Mathematical notation: Vectors are denoted using lower-case letters, e.g. h, and are considered column-vectors; corresponding row vectors are denoted with a transpose, e.g. h T . Matrices are denoted using upper-case letters, e.g. W , with W T the transpose of W . The i th column of W is denoted W i , and its i th row W :i (both viewed as a column vector). U −T = U −1 T denotes the transpose of the inverse of a square matrix. I d is the d × d identity matrix.</p><p>Network architecture: We consider a standard feed forward neural network architecture as depicted in <ref type="figure" target="#fig_1">Figure 1</ref>. An input vector x ∈ R Din is linearly transformed into a linear activation a <ref type="bibr" target="#b0">(1)</ref>  <ref type="bibr" target="#b0">(1)</ref> (and an optional bias vector b (1) ∈ R d ). This is typically followed by a non-linear transformation s to yield the representation of the first hidden layer h <ref type="bibr" target="#b0">(1)</ref> = s(a <ref type="bibr" target="#b0">(1)</ref> ). This first hidden layer representation is then similarly transformed through a number of subsequent non-linear layers (that can be of any usual kind amenable to backpropagation) e.g. h (k) = s(a (k) ) with a (k) = W (k)T h (k−1) + b (k) until we obtain last hidden layer representation h = h <ref type="bibr">(m)</ref> . We then obtain the final D-dimensional network output as o = W h where W is a D × d output weight matrix, which will be our main focus in this work. Finally, the network's D-dimensional output o is compared to the D-dimensional target vector y associated with input x using squared error, yielding loss L = o − y 2 .</p><formula xml:id="formula_0">= W (1)T x + b (1) through a D in × d input weight matrix W</formula><p>Training procedure: This architecture is a typical (possibly deep) multi-layer feed forward neural network architecture with a linear output layer and squared error loss. Its parameters (weight matrices and bias vectors) will be trained by gradient descent, using gradient backpropagation <ref type="bibr" target="#b10">[11,</ref><ref type="bibr" target="#b11">12,</ref><ref type="bibr" target="#b12">13]</ref> to efficiently compute the gradients. The procedure is shown in <ref type="figure" target="#fig_1">Figure 1</ref>. Given an example from the training set as an (input,target) pair (x, y), a pass of forward propagation proceeds as outlined above, computing the hidden representation of each hidden layer in turn based on the previous one, and finally the network's predicted output o and associated loss L. A pass of gradient backpropagation then works in the opposite direction, starting from ∇ o = ∂L ∂o = 2(o − y) and</p><p>Our approach does not impose any restriction on the architecture nor size of the hidden layers, as long as they are amenable to usual gradient backpropagation.</p><p>• Training deep neural networks with very large sparse targets is an important problem</p><p>• Arises e.g. in Neural Language Models <ref type="bibr" target="#b0">[1]</ref> with large vocabulary size (e.g. D = 500 000 one-hot target).</p><p>• Efficient handling of large sparse inputs is trivial.</p><p>• But backprop training with large sparse targets is prohibitively expensive.</p><p>• Focus on output layer: maps last hidden representation h of reasonable dimension d (e.g. 500)</p><p>to very large output o of dimension D (e.g. 500 000) with a Dxd parameter matrix W:</p><formula xml:id="formula_1">... ... (large D, but K-sparse) (large D, but K-sparse)</formula><p>...</p><formula xml:id="formula_2">(small d) ... large D, not sparse Loss Input x Target y Output o last hidden h L = o − y 2 hidden 2 (small d) hidden 1 (small d) O(Kd) O(d 2 ) O(d 2 ) O(Dd)</formula><p>Prohibitivley expensive! Ex: D = 500 000, K=5 </p><formula xml:id="formula_3">Ex: d = 500 O(D) O(d 2 ) O(d 2 ) O(d 2 ) Forward propagation Backpropagation (dxd) W (2) O(D) !o = 2(o-y) O(Dd) !h = W T !o O(Dd) W "W-! !o h T O(Kd) W (1) "W (1) -! x !a T cheap! W (1) (Dxd)</formula><formula xml:id="formula_4">! Ne " ac ! Ne " ac a) W ← W − 2ηW b) W ← W + 2ηyh</formula><p>We will now see how only U and V respe date versions of Q = h in Equations ???? for update b) ).</p><p>Solution:</p><formula xml:id="formula_5">a) U new = U − 2η( b) V new = V + 2ηy</formula><p>Proof:</p><formula xml:id="formula_6">V new U n SHORT FORMU LINE CASE: Q n a) First update implicitly by updat Proof:</formula><p>Current workarounds are approximations:</p><p>• Sampling based approximations compute only a tiny fraction of the output's dimensions sampled at random. Reconstruction sampling <ref type="bibr" target="#b1">[2]</ref> and the use of Noise Contrastive Estimation <ref type="bibr" target="#b2">[3]</ref> in <ref type="bibr" target="#b3">[4,</ref><ref type="bibr" target="#b4">5]</ref> fall under this category.</p><p>• Hierarchical softmax <ref type="bibr" target="#b5">[6,</ref><ref type="bibr" target="#b3">4]</ref> imposes a heuristically defined hierarchical tree structure for the computation of the normalized probability of the target class. propagating back the gradients ∇ h (k) = ∂L ∂h (k) and ∇ a (k) = ∂L ∂a (k) upstream through the network. The corresponding gradient contributions on parameters (weights and biases), collected along the way, are straightforward once we have the associated ∇ a (k) . Specifically they are ∇ b (k) = ∇ a (k) and ∇ W (k) = h (k−1) (∇ a (k) ) T . Similarly for the input layer ∇ W (1) = x(∇ a (1) ) T , and for the output layer ∇ W = (o − y)h T . Parameters are then updated through a gradient descent step</p><formula xml:id="formula_7">W (k) ← W (k) − η∇ W (k) and b (k) ← b (k) − η∇ b (k)</formula><p>, where η is a positive learning-rate. Similarly for the output layer which will be our main focus here: W ← W − η∇ W .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">The easy part: input layer forward propagation and weight update</head><p>It is easy and straightforward to efficiently compute the forward propagation, and the backpropagation and weight update part for the input layer when we have a very large D in -dimensional but K−sparse input vector x with appropriate sparse representation. Specifically we suppose that x is represented as a pair of vectors u, v of length (at most) K, where u contains integer indexes and v the associated real values of the elements of x such that x i = 0 if i / ∈ u, and</p><formula xml:id="formula_8">x u k = v k .</formula><p>• Forward propagation through the input layer: The sparse representation of x as the positions of K elements together with their value makes it cheap to compute W (1)T x. Even though W <ref type="bibr" target="#b0">(1)</ref> may be a huge full D in × d matrix, only K of its rows (those corresponding to the non-zero entries of x) need to be visited and summed to compute W (1)T x. Precisely, with our (u, v) sparse representation of x this operation can be written as</p><formula xml:id="formula_9">W (1)T x = K k=1 v k W<label>(1)</label></formula><p>:</p><formula xml:id="formula_10">u k where each W (1) :u k</formula><p>is a d-dimensional vector, making this an O(Kd) operation rather than O(Dd). • Gradient and update through input layer: Let us for now suppose that we were able to get gradients (through backpropagation) up to the first hidden layer activations a (1) ∈ R d in the form of gradient vector ∇ a (1) = ∂L ∂a <ref type="bibr" target="#b0">(1)</ref> . The corresponding gradient-based update to input layer weights W <ref type="bibr" target="#b0">(1)</ref> is simply W <ref type="bibr" target="#b0">(1)</ref> ← W <ref type="bibr" target="#b0">(1)</ref> − ηx(∇ a (1) ) T . This is a rank-one update to W <ref type="bibr" target="#b0">(1)</ref> . Here again, we see that only the K rows of W <ref type="bibr" target="#b0">(1)</ref> associated to the (at most) K non-zero entries of x need to be modified. Precisely this operation can be written as:</p><formula xml:id="formula_11">W (1) :u k ← W (1) :u k −ηv k ∇ a (1) ∀k ∈ {1, .</formula><p>. . , K} making this again a O(Kd) operation rather than O(Dd).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.3">The hard part: output layer propagation and weight update</head><p>Given some network input x, we suppose we can compute without difficulty through forward propagation the associated last hidden layer representation h ∈ R d . From then on:</p><p>• For very large D, all these three O(Dd) operations are prohibitive, and the fact that y is sparse, seen from this perspective, doesn't help, since neither o nor o − y will be sparse.</p><p>3 A computationally efficient algorithm for performing the exact online gradient update</p><p>Previously proposed workarounds are approximate or use stochastic sampling. We propose a different approach that results in the exact same, yet efficient gradient update, remarkably without ever having to compute large output o. . Similarly, to backpropagate the gradient through the network, we need to compute the gradient of loss L with respect to last hidden layer representation h. This is ∇ h = ∂L ∂h = ∂ W h−y 2 ∂h = 2W T (W h − y). So again, if we were to compute it directly in this manner, the computational complexity would be a prohibitive O(Dd). Provided we have maintained an up-to-date matrix Q = W T W , which is of reasonable size d × d and can be cheaply maintained as we will see in Section 3.3, we can rewrite these two operations so as to perform them in O(d 2 ):</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Loss computation:</head><p>Gradient on h:</p><formula xml:id="formula_12">L = O(Dd) W h −y 2 = (W h − y) T (W h − y) = h T W T W h − y T W h − h T W T y + y T y = h T Qh − 2h T (W T y) + y T y = h T ( Qh O(d 2 ) −2 W T y O(Kd) ) + y T y O(K)<label>(1)</label></formula><formula xml:id="formula_13">∇ h = ∂L ∂h = ∂ W h − y 2 ∂h = 2W T (W h − y) = 2 W T W h − W T y = 2( Qh O(d 2 ) − W T y O(Kd) )<label>(2)</label></formula><p>The terms in O(Kd) and O(K) are due to leveraging the K-sparse representation of target vector y. With K D and d D, we get altogether a computational cost of O(d 2 ) which can be several orders of magnitude cheaper than the prohibitive O(Dd) of the direct approach. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">Efficient gradient update of W</head><formula xml:id="formula_14">a) U new = U − 2η(U h)h T (3) b) V new = V + 2ηy(U −T new h) T<label>(4)</label></formula><p>This results in implicitly updating W as we did explicitly in the naive approach as we now prove:</p><formula xml:id="formula_15">V new U new = (V + 2ηy(U −T new h) T ) U new = V U new + 2ηy(U −T new h) T U new = V U new + 2ηyh T U −1 new U new = V (U − 2η(U h)h T ) + 2ηyh T (U −1 new U new ) = V U − 2ηV U hh T + 2ηyh T = V U − 2η(V U h − y)h T = W − 2η(W h − y) T h T = W new</formula><p>We see that the update of U in Eq. 3 is a simple O(d 2 ) operation. Following this simple rank-one update to U , we can use the Sherman-Morrison formula to derive the corresponding rank-one update to U −T which will also be O(d 2 ):</p><formula xml:id="formula_16">U −T new = U −T + 2η − 2η h 2 (U −T h)h T<label>(5)</label></formula><p>It is then easy to compute the U −T new h, an O(d 2 ) operation needed in Eq. 4. The ensuing rank-one update of V in Eq 4, thanks to the K-sparsity of y is only O(Kd): only the K rows V associated to non-zero elements in y are accessed and updated, instead of all D rows of W we had to modify in the naive update! Note that with the factored representation of W as V U , we only have W implicitly, so the W T y terms that entered in the computation of L and ∇ h in the previous paragraph need to be adapted slightly asŷ = W T y = U T (V T y), which becomes O(d 2 + Kd) rather than O(Kd) in computational complexity. But this doesn't change the overall O(d 2 ) complexity of these computations.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">Bookkeeping: keeping an up-to-date Q and U −T</head><p>We have already seen, in Eq. 5, how we can cheaply maintain an up-to-date U −T following our update of U . Similarly, following our updates to U and V , we need to keep an up-to-date Q = W T W which is needed to efficiently compute the loss L (Eq. 1) and gradient ∇ h (Eq. 2). We have shown that updates to U and V in equations 3 and 4 are equivalent to implicitly updating W as W new ← W − 2η(W h − y)h T , and this translates into the following update to Q = W T W :</p><formula xml:id="formula_17">z = Qh − U T (V T y) Q new = Q − 2η hẑ T +ẑh T + (4η 2 L)hh T<label>(6)</label></formula><p>The proof is straightforward but due to space constraints we put it in supplementary material. One can see that this last bookkeeping operation also has a O(d 2 ) computational complexity.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4">Putting it all together: detailed algorithm and expected benefits</head><p>We have seen that we can efficiently compute cost L, gradient with respect to h (to be later backpropagated further) as well as updating U and V and performing the bookkeeping for U −T and Q. Algorithm 1 describes the detailed algorithmic steps that we put together from the equations derived above. Having K d D we see that the proposed algorithm requires O(d 2 ) operations, whereas the standard approach required O(Dd) operations. If we take K ≈ d , we may state more precisely that the proposed algorithm, for computing the loss and the gradient updates will require roughly 12d 2 operations whereas the standard approach required roughly 3Dd operations. So overall the proposed algorithm change corresponds to a computational speedup by a factor of D 4d . For D = 200 000 and d = 500 the expected speedup is thus 100. Note that the advantage is not only in computational complexity, but also in memory access. For each example, the standard approach needs to access and change all D × d elements of matrix W , whereas the proposed approach only accesses the much smaller number K × d elements of V as well as the three d × d matrices U , U −T , and Q. So overall we have a substantially faster algorithm, which, while doing so implicitly, will nevertheless perform the exact same gradient update as the standard approach. We want to emphasize here that our approach is completely different from simply chaining 2 linear layers U and V and performing ordinary gradient descent updates on them: this would result in the same prohibitive computational complexity as the standard approach, and such ordinary separate gradient updates to U and V would not be equivalent to the ordinary gradient update to W = V U .</p><p>Algorithm 1 Efficient computation of cost L, gradient on h, and update to parameters U and V</p><p>Step # Operation Computational complexity Number of multiply-adds</p><formula xml:id="formula_18">1:ĥ = Qh O(d 2 ) d 2:ŷ = U T (V T y) O(Kd + d 2 ) Kd + d 2 3:ẑ =ĥ −ŷ O(d) d 4: ∇ h = 2ẑ O(d) d 5: L = h Tĥ − 2h Tŷ + y T y O(2d + K) 2d + K + 1 6: U new = U − 2η(U h)h T O(d 2 ) 2d 2 + d 7: U −T new = U −T + 2η 1−2η h 2 (U −T h)h T O(d 2 ) 2d 2 + 2d + 3 8: V new = V + 2ηy(U −T new h) T O(d 2 + Kd) d 2 + K + Kd 9: Q new = Q − 2η hẑ T +ẑh T + (4η 2 L)hh T O(d 2 ) + 2d + 3d 2</formula><p>Altogether:</p><formula xml:id="formula_19">O(d 2 ) provided K &lt; d D ≈ 12d 2 elementary operations</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.5">Controlling numerical stability and extension to the minibatch case</head><p>The update of U in Equation 3 may over time lead U to become ill-conditioned. To prevent this, we regularly (every 100 updates) monitor its conditioning number. If either the smallest or largest singular value moves outside an acceptable range , we bring it back to 1 by doing an appropriate rank-1 update to V (which costs Dd operations, but is only done rarely). Our algorithm can also be straightforwardly extended to the minibatch case (the derivations are given in the supplementary material section) and yields the same theoretical speedup factor with respect to the standard naive approach. But one needs to be careful in order to keep the computation of U −T h reasonably efficient: depending on the size of the minibatch m, it may be more efficient to solve the corresponding linear equation for each minibatch from scratch rather than updating U −T with the Woodbury equation (which generalizes the Sherman-Morrison formula for m &gt; 1).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.6">Generalization to a broader class of loss functions</head><p>The approach that we just detailed for linear output and squared error can be extended to a broader, though restricted, family of loss functions. We call it the spherical family of loss functions because it includes the spherical alternative to the softmax, thus named in <ref type="bibr" target="#b13">[14]</ref>. Basically it contains any loss function that can be expressed as a function of only the o c associated to non-zero y c and of o 2 = j o 2 j the squared norm of the whole output vector, which we can compute cheaply, irrespective of D, as we did above <ref type="bibr" target="#b2">3</ref> . This family does not include the standard softmax loss log exp <ref type="bibr">(oc)</ref> j exp(oj ) , but it does include the spherical softmax <ref type="bibr" target="#b3">4</ref> </p><formula xml:id="formula_20">: log o 2 c + j (o 2 j + )</formula><p>. Due to space constraints we will not detail this extension here, only give a sketch of how it can be obtained. Deriving it may not appear obvious at first, but it is relatively straightforward once we realize that: a) the gain in computing the squared error loss comes from being able to very cheaply compute the sum of squared activations o 2 (a scalar quantity), and will thus apply equally well to other losses that can be expressed based on that quantity (like the spherical softmax). b) generalizing our gradient update trick to such losses follows naturally from gradient backpropagation: the gradient is first backpropagated from the final loss to the scalar sum of squared activations, and from there on follows the same path and update procedure as for the squared error loss.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Experimental validation</head><p>We implemented both a CPU version using blas and a parallel GPU (Cuda) version using cublas of the proposed algorithm <ref type="bibr" target="#b4">5</ref> . We evaluated the GPU and CPU implementations by training word embeddings with simple neural language models, in which a probability map of the next word given its preceding n-gram is learned by a neural network. We used a Nvidia Titan Black GPU and a i7-4820K @ 3.70GHz CPU and ran experiments on the one billion word dataset <ref type="bibr" target="#b14">[15]</ref>, which is composed of 0.8 billions words belonging to a vocabulary of 0.8 millions words. We evaluated the resulting word embeddings with the recently introduced Simlex-999 score <ref type="bibr" target="#b15">[16]</ref>, which measures the similarity between words. We also compared our approach to unfactorised versions and to a two-layer hierarchical softmax. <ref type="figure" target="#fig_2">Figure 2</ref> and 3 (left) illustrate the practical speedup of our approach for the output layer only. <ref type="figure">Figure 3 (right)</ref> shows that out LST (Large Sparse Target) models are much faster to train than the softmax models and converge to only slightly lower Simlex-999 scores. <ref type="table" target="#tab_3">Table 1</ref> summarizes the speedups for the different output layers we tried, both on CPU and GPU. We also empirically verified that our proposed factored algorithm learns the model weights (V U ) as the corresponding naive unfactored algorithm's W , as it theoretically should, and followed the same learning curves (as a function of number of iterations, not time!).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Conclusion and future work</head><p>We introduced a new algorithmic approach to efficiently compute the exact gradient updates for training deep networks with very large sparse targets. Remarkably the complexity of the algorithm is independent of the target size, which allows tackling very large problems. Our CPU and GPU implementations yield similar speedups to the theoretical one and can thus be used in practical applications, which could be explored in further work. In particular, neural language models seem good candidates. But it remains unclear how using a loss function other than the usual softmax might affect the quality of the resulting word embeddings so further research needs to be carried out in this direction. This includes empirically investigating natural extensions of the approach we described to other possible losses in the spherical family such as the spherical-softmax.  LST CPU LST GPU Softmax CPU Softmax GPU H-Softmax GPU <ref type="figure">Figure 3</ref>: Left: Practical and theoretical speedups for different sizes of vocabulary D and fixed input size d=300. The practical unfact / fact speedup is similar to the theoretical one. Right: Evolution of the Simlex-999 score obtained with different models as a function of training time (CPU softmax times were extrapolated from fewer iterations). Softmax models are zero hidden-layer models, while our large sparse target (LST) models have two hidden layers. These were the best architectures retained in both cases (surprisingly the softmax models with hidden layers performed no better on this task). The extra non-linear layers in LST may help compensate for the lack of a softmax. LST models converge to slightly lower scores at similar speed as the hierarchical softmax model but significantly faster than softmax models.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>[ 1 ]Figure 1 :</head><label>11</label><figDesc>Bengio, Y., Ducharme, R., and Vincent, P. (2001). A neural probabilistic language model. NIPS 2000.[2] Dauphin, Y., Glorot, X., and Bengio, Y. (2011). Large-scale learning of embeddings with reconstruction sampling. ICML 2011. The computational problem posed by very large sparse targets. Dealing with sparse input efficiently is trivial, with both the forward and backward propagation phases easily achieved in O(Kd). However this is not the case with large sparse targets. They incur a prohibitive computational cost of O(Dd) at the output layer as forward propagation, gradient backpropagation and weight update each require accessing all D × d elements of the large output weight matrix.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>3. 1</head><label>1</label><figDesc>Computing the squared error loss L and the gradient with respect to h efficiently Suppose that, we have, for a network input example x, computed the last hidden representation h ∈ R d through forward propagation. The network's D dimensional output o = W h is then in principle compared to the high dimensional target y ∈ R D . The corresponding squared error loss is L = W h − y 2 . As we saw in Section 2.3, computing it in the direct naive way would have a prohibitive computational complexity of O(Dd + D) = O(Dd) because computing output W h with a full D × d matrix W and a typically non-sparse h is O(Dd)</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 2 :</head><label>2</label><figDesc>Timing of different algorithms. Time taken by forward and backward propagations in the output layer, including weight update, on a minibatch of size 128 for different sizes of vocabulary D on both CPU and GPU. The input size d is fixed to 300. The Timing of a 2 layer hierarchical softmax efficient GPU implementation (h_softmax) is also provided for comparison. Right plot is in log-log scale. As expected, the timings of factorized versions are independent of vocabulary size.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head>Prohibitivley expensive! Altogether: O( Dd )</head><label></label><figDesc>Problem: expensive computation we suppose K &lt;&lt; d &lt;&lt; D o = Wh Seco with Q = W T W Supposing we hav d×d matrix (we will ĥ = Qh has a comp representation of y, vector, so that comp O(K). So the overal O(Kd + d 2 ) = O((K of magnitude cheape If we define inter computation of L ca 5.3 Efficient gra The gradient of the squ W is ∂L ∂W = ∂W h−y 2∂Wupdate to W would b learning rate. Again, co computational complex then to update all the will be sparse). To ove</figDesc><table><row><cell>N</cell></row><row><cell>(a</cell></row><row><cell>W</cell></row><row><cell>Note that we can d</cell></row><row><cell>Boo</cell></row></table><note>3! Us com</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head></head><label></label><figDesc>Computing the final output o = W h incurs a prohibitive computational cost of O(Dd) since W is a full D × d matrix. Note that there is a-priori no reason for representation h to be sparse (e.g. with a sigmoid non-linearity) but even if it was, this would not fundamentally change the problem since it is D that is extremely large, and we supposed d reasonably sized already. Computing the residual (o − y) and associated squared error loss o − y 2 incurs an additional O(D) cost.• The gradient on h that we need to backpropagate to lower layers is ∇ h = ∂L ∂h = 2W T (o − y) which is another O(Dd) matrix-vector product.• Finally, when performing the corresponding output weight update W ← W − η(o − y)h T we see that it is a rank-one update that updates all D × d elements of W , which again incurs a prohibitive O(Dd) computational cost.</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_2"><head></head><label></label><figDesc>The gradient of the squared error loss with respect to output layer weight matrix W is ∂L ∂W = − y)h T . And the corresponding gradient descent update to W would beW new ← W − 2η(W h − y)h T ,where η is a positive learning rate. Again, computed in this manner, this induces a prohibitive O(Dd) computational complexity, both to compute output and residual W h − y, and then to update all the Dd elements of W (since generally neither W h − y nor h will be sparse). All D × d elements of W must be accessed during this update. On the surface this seems hopeless. But we will now see how we can achieve the exact same update on Win O(d 2 ). The trick is to represent W implicitly as the factorization W</figDesc><table><row><cell>∂ W h−y 2 ∂W</cell><cell>= 2(W h D×d</cell><cell>= V</cell></row></table><note>D×d Ud×d and update U and V instead</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_3"><head>Table 1 :</head><label>1</label><figDesc>Speedups with respect to the baseline naive model on CPU, for a minibatch of 128 and the whole vocabulary of D = 793471 words. This is a model with two hidden layers of d = 300 neurons.</figDesc><table><row><cell></cell><cell></cell><cell></cell><cell>Model</cell><cell></cell><cell cols="2">output layer only speedup whole model speedup</cell></row><row><cell></cell><cell></cell><cell cols="3">cpu unfactorised (naive) gpu unfactorised (naive) gpu hierarchical softmax cpu factorised gpu factorised</cell><cell></cell><cell>6.8 125.2 763.3 3257.3</cell><cell>1 4.7 178.1 1852.3</cell></row><row><cell></cell><cell>0.010</cell><cell></cell><cell></cell><cell></cell><cell></cell></row><row><cell></cell><cell></cell><cell></cell><cell></cell><cell cols="3">un-factorised CPU</cell></row><row><cell></cell><cell></cell><cell></cell><cell></cell><cell cols="3">un-factorised GPU</cell></row><row><cell>Timing (sec) of a minibatch of size 128</cell><cell>0.002 0.004 0.006 0.008</cell><cell></cell><cell></cell><cell cols="2">factorised GPU factorised CPU h_softmax GPU</cell></row><row><cell></cell><cell>0 0.000</cell><cell>2000</cell><cell>4000</cell><cell>6000</cell><cell>8000</cell><cell>10000</cell></row><row><cell></cell><cell></cell><cell></cell><cell cols="2">Size of the vocabulary D</cell><cell></cell></row></table><note></note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="4">where c is the correct class label, and is a small positive constant that we added to the spherical interpretation in<ref type="bibr" target="#b13">[14]</ref> for numerical stability: to guarantee we never divide by 0 nor take the log of 0.Open source code is available at: https://github.com/pascal20100/factored_output_layer</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><p>Acknowledgements: We wish to thank Yves Grandvalet for stimulating discussions, Çaglar Gülçehre for pointing us to <ref type="bibr" target="#b13">[14]</ref>, the developers of Theano <ref type="bibr" target="#b16">[17,</ref><ref type="bibr" target="#b17">18]</ref> and Blocks <ref type="bibr" target="#b18">[19]</ref> for making these libraries available to build on, and NSERC and Ubisoft for their financial support.</p><p>In addition loss functions in this family are also allowed to depend on sum(o) = j oj which we can also compute cheaply without computing o, by trackingw = j W:j whereby sum(o) = j W T :j h =w T h.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">A neural probabilistic language model</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Ducharme</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Vincent</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems 13 (NIPS&apos;00)</title>
+		<imprint>
+			<date type="published" when="2001" />
+			<biblScope unit="page" from="932" to="938" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Natural language processing (almost) from scratch</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Collobert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Bottou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Karlen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Kuksa</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">12</biblScope>
+			<biblScope unit="page" from="2493" to="2537" />
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Large-scale learning of embeddings with reconstruction sampling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Dauphin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Glorot</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 28th International Conference on Machine learning</title>
+		<meeting>the 28th International Conference on Machine learning</meeting>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">On using very large target vocabulary for neural machine translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Jean</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Cho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Memisevic</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.2007</idno>
+	</analytic>
+	<monogr>
+		<title level="m">ACL-IJCNLP&apos;2015</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Noise-contrastive estimation: A new estimation principle for unnormalized statistical models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Gutmann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Hyvarinen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of The Thirteenth International Conference on Artificial Intelligence and Statistics (AISTATS&apos;10)</title>
+		<meeting>The Thirteenth International Conference on Artificial Intelligence and Statistics (AISTATS&apos;10)</meeting>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Learning word embeddings efficiently with noise-contrastive estimation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Mnih</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="volume">26</biblScope>
+			<biblScope unit="page" from="2265" to="2273" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Distributed representations of words and phrases and their compositionality</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mikolov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Corrado</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Dean</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS&apos;2013</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="3111" to="3119" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Asymmetric LSH (ALSH) for sublinear time maximum inner product search (MIPS)</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Shrivastava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Li</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="volume">27</biblScope>
+			<biblScope unit="page" from="2321" to="2329" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<monogr>
+		<title level="m" type="main">Deep networks with large output spaces</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Vijayanarasimhan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Shlens</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Monga</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Yagnik</surname></persName>
+		</author>
+		<idno>arxiv:1412.7479</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Hierarchical probabilistic neural network language model</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Morin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Tenth International Workshop on Artificial Intelligence and Statistics</title>
+		<meeting>the Tenth International Workshop on Artificial Intelligence and Statistics</meeting>
+		<imprint>
+			<date type="published" when="2005" />
+			<biblScope unit="page" from="246" to="252" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Learning representations by back-propagating errors</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Rumelhart</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Williams</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nature</title>
+		<imprint>
+			<biblScope unit="volume">323</biblScope>
+			<biblScope unit="page" from="533" to="536" />
+			<date type="published" when="1986" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Une procédure d&apos;apprentissage pour Réseau à seuil assymétrique</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Cognitiva 85: A la Frontière de l&apos;Intelligence Artificielle, des Sciences de la Connaissance et des Neurosciences</title>
+		<imprint>
+			<date type="published" when="1985" />
+			<biblScope unit="page" from="599" to="604" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Learning processes in an asymmetric threshold network</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Disordered Systems and Biological Organization</title>
+		<meeting><address><addrLine>Les Houches</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="1985" />
+			<biblScope unit="page" from="233" to="240" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<monogr>
+		<title level="m" type="main">Riemannian metrics for neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Ollivier</surname></persName>
+		</author>
+		<idno>abs/1303.0818</idno>
+		<imprint>
+			<date type="published" when="2013" />
+			<publisher>CoRR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">One billion word benchmark for measuring progress in statistical language modeling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Chelba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mikolov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Schuster</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Ge</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Brants</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Koehn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Robinson</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">INTERSPEECH 2014, 15th Annual Conference of the International Speech Communication Association</title>
+		<meeting><address><addrLine>Singapore</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="2635" to="2639" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<monogr>
+		<title level="m" type="main">Simlex-999: Evaluating semantic models with (genuine) similarity estimation. CoRR, abs/1408</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Hill</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Reichart</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Korhonen</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="volume">3456</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Theano: a CPU and GPU math expression compiler</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Bergstra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Breuleux</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Bastien</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Lamblin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Desjardins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Turian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Warde-Farley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Python for Scientific Computing Conference (SciPy)</title>
+		<meeting>the Python for Scientific Computing Conference (SciPy)</meeting>
+		<imprint>
+			<publisher>Oral Presentation</publisher>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Bastien</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Lamblin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Bergstra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><forename type="middle">J</forename><surname>Goodfellow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bergeron</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Bouchard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<title level="m">Theano: new features and speed improvements. Deep Learning and Unsupervised Feature Learning NIPS Workshop</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<monogr>
+		<title level="m" type="main">Blocks and Fuel: Frameworks for deep learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Van Merriënboer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Bahdanau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Dumoulin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Serdyuk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Warde-Farley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Chorowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015-06" />
+		</imprint>
+	</monogr>
+	<note>ArXiv e-prints</note>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

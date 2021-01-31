@@ -1,0 +1,573 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">XTreePath: A generalization of XPath to handle real world structural variation</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Joseph</forename><forename type="middle">Paul</forename><surname>Cohen</surname></persName>
+							<email>joecohen@cs.umb.edu</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Wei</forename><surname>Ding</surname></persName>
+							<email>ding@cs.umb.edu</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Abraham</forename><surname>Bagherjeiran</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jsoup</forename><surname>Java</surname></persName>
+						</author>
+						<author>
+							<affiliation key="aff0">
+								<orgName type="institution">University of Massachusetts</orgName>
+								<address>
+									<settlement>Boston Boston</settlement>
+									<region>MA</region>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff1">
+								<orgName type="institution">University of Massachusetts</orgName>
+								<address>
+									<settlement>Boston Boston</settlement>
+									<region>MA</region>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff2">
+								<orgName type="department">ThinkersR.Us Sunnyvale</orgName>
+								<address>
+									<region>CA</region>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">XTreePath: A generalization of XPath to handle real world structural variation</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:42+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>We discuss a key problem in information extraction which deals with wrapper failures due to changing content templates. A good proportion of wrapper failures are due to HTML templates changing to cause wrappers to become incompatible after element inclusion or removal in a DOM (Tree representation of HTML). We perform a large-scale empirical analyses of the causes of shift and mathematically quantify the levels of domain difficulty based on entropy. We propose the XTreePath annotation method to captures contextual node information from the training DOM. We then utilize this annotation in a supervised manner at test time with our proposed Recursive Tree Matching method which locates nodes most similar in context recursively using the tree edit distance. The search is based on a heuristic function that takes into account the similarity of a tree compared to the structure that was present in the training data. We evaluate XTreePath using 117,422 pages from 75 diverse websites in 8 vertical markets. Our XTreePath method consistently outperforms XPath and a current commercial system in terms of successful extractions in a blackbox test. We make our code and datasets publicly available online.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">INTRODUCTION</head><p>We address a key problem in information extraction which deals with wrapper failures due to changing content templates. A wrapper is best described by Kushmerick as a "procedure, specific to a single information resource, that translates a [webpage] query response to relational form" <ref type="bibr" target="#b12">[13]</ref>. Wrappers are required because much of the desired data on the Internet is presented using HTML templates instead of well formed (XML or JSON) data or unstructured freeform text <ref type="bibr" target="#b5">[6]</ref>. Extracting data, such as stock, flight, and product information, from websites that use HTML templates is difficult because wrapper methods have difficulty dealing with changes to HTML structure.</p><p>We believe a good proportion of wrapper failures are due to HTML templates changing and cause wrappers to become incompatible after the element inclusion or removal of DOM (Tree representation of HTML). For example, an additional "On Sale" element is included above a product. This shift <ref type="bibr" target="#b2">[3,</ref><ref type="bibr" target="#b18">19]</ref> may require manual div a div div div div div span τ 0 div div div div div span τ 1 div span τ 2 span τ 3 //div <ref type="bibr" target="#b0">[1]</ref> /div <ref type="bibr" target="#b0">[1]</ref> /div <ref type="bibr" target="#b0">[1]</ref> /span <ref type="figure">Figure 1</ref>: Here we present the view of a tree path in relation to an XPath. The red nodes show the nesting of trees within each other in the tree path. This is comparable to the XPath //div <ref type="bibr" target="#b0">[1]</ref>/div <ref type="bibr" target="#b0">[1]</ref>/div <ref type="bibr" target="#b0">[1]</ref>/span.</p><p>retraining of wrappers which is a burden to users. Empirically we find over 50% of our web sample contains shift at various levels and we have a detailed discussion about shift in Section §3.</p><p>To handle the problem of shift we need to take in more information from the DOM <ref type="bibr" target="#b1">[2,</ref><ref type="bibr" target="#b3">4,</ref><ref type="bibr" target="#b6">7,</ref><ref type="bibr" target="#b10">11,</ref><ref type="bibr" target="#b14">15,</ref><ref type="bibr" target="#b18">19]</ref>. Instead of only extracting statistics from the training data we extract an entire sub-tree structure, like Reis <ref type="bibr" target="#b16">[17]</ref>, and use this during wrapper induction to create a supervised information extraction method. <ref type="figure">Figure 1</ref> gives an example of XTreePath. We start by finding the least common ancestor of the nodes of interest (product name, price, etc) and extract a relative XPath as well as the nodes of the DOM for every step of that XPath. We then use this XTreePath with our Recursive Tree Matching method which performs a heuristic graph search in the target DOM to find the most similar sub-trees to those in the training data. Because we are matching sub-trees we can handle large horizontal and vertical shifts as long as some unique traits about the DOM are preserved.</p><p>Furthermore, XTreePath is compatible by design, which complements XPath but does not replace it. We only utilize the recursive tree matching lookup process after an XPath has failed, which minimizes runtime. This allows an XPath-based method to adopt XTreePath without sacrificing existing speed or quality. Existing research has discovered many methods to construct robust XPaths a priori. Our presented method can exist in parallel with these methods as they are continually advanced in order to achieve better overall accuracy.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>arXiv:1505.01303v3 [cs.IR] 27 Dec 2017</head><p>Thus, our main contributions are as follows:</p><p>• Method: We propose the XTreePath method which is a generalization of XPaths where tree structure is also stored and used during wrapper induction. • Algorithm Design: We propose a Recursive Tree Matching method and a dynamic programming solution to perform wrapper induction.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>• Theoretical Analysis:</head><p>We formally define and analyze the problem of shift theoretically and empirically. We mathematically quantify the levels of domain difficulty based on entropy and study a large representative dataset. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">RELATED WORK</head><p>In the field of information extraction there are two primary categories of annotation learning: supervised and unsupervised approaches. We take a supervised approach and combine positional (XPath <ref type="bibr" target="#b0">[1]</ref>) and ontological (Tree Structure) concepts <ref type="bibr" target="#b9">[10,</ref><ref type="bibr" target="#b11">12,</ref><ref type="bibr" target="#b13">14]</ref> together. In Dalvi and Parameswaran <ref type="bibr" target="#b2">[3,</ref><ref type="bibr" target="#b3">4,</ref><ref type="bibr" target="#b15">16]</ref> focused on supervised annotation learning algorithms tolerant to noise in the training data. They enumerate many XPath wrappers using a probabilistic ranking system to pick the best one. The output of these methods is XPath annotations which differentiates our method as XTreePath would complement this method and not replace it.</p><p>The context of nodes has been used to create annotations themselves but not during extraction as our method does. In 2009 Zheng <ref type="bibr" target="#b19">[20]</ref> and Fang <ref type="bibr" target="#b4">[5]</ref> used a "broom" structure inside the HTML DOM to represent both records and generated wrappers. This work was motivated to capture lists of products instead of creating wrappers tolerant to shift.</p><p>Tree similarity has been used in unsupervised information extraction approaches to find common sub-trees in websites by Zhai in 2005 <ref type="bibr" target="#b18">[19]</ref> and used as a method to locate lists from web pages by Jindal in 2010 <ref type="bibr" target="#b8">[9]</ref>. These methods focus on locating interesting data but not in a way of imposing a label as our method XTreePath does.</p><p>A break away from just carrying XPaths forward from the training was discussed by Omari <ref type="bibr" target="#b14">[15]</ref>. In this work they would learn a decision decision tree to predict which XPath fragments should be used at test time.</p><p>Moving beyond XPath is not a new concept. There has been work on tree automata induction by <ref type="bibr" target="#b10">[11]</ref> which aims to learn a deterministic finite automata which will process the DOM tree and accept nodes which contain the information of interest. The mechanics of this are very different but we can also argue that a DFA does not take the neighborhood of the tree into account when accepting a node.</p><p>Possibly the most similar approach to our method was proposed by Reis <ref type="bibr" target="#b16">[17]</ref>. Here they use the tree edit distance to determine if a webpage contains a specific type of content (news) based on tree structure. We take this concept and structure it into a generalized XPath representation that can be used for supervised information extraction.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">SHIFT ANALYSIS</head><p>A shift of a web page occurs when a modification of the page causes the inclusion, removal, or substitution of DOM elements which changes the DOM tree representation. Not all shifts are bad. A shift only becomes a problem when it causes wrappers to become incompatible and return no result or an incorrect result. Here compatibility is defined as whether the DOM structure of a wrapper matches the DOM structure of a web page.</p><p>html div a div div div div div div span Our method is based on the principle that all shifts can be broken down into a combination of vertical and horizontal shifts. We can take advantage of this by considering all tree permutations. Given a tree T with nodes t ∈ T , each node is a sub-tree and has a parent t .parent and a set of children t .children. A tree contains many paths p with elements p i ∈ T , when the path travels down the tree:</p><formula xml:id="formula_0">Vertical Shift Target Figure XPath Name Before /html/div[1]/div[1]/div[1]/span After /html/div[1]/div[1]/div[1]/ div /span Description Before /html/div[1]/div[1]/div[2]/div After /html/div[1]/div[1]/div[2]/div Info Before /html/div[1]/a After /html/div[1]/a</formula><formula xml:id="formula_1">p i+1 ∈ p i .children. Definition 3.1.</formula><p>A vertical shift is a tree modification where a node is inserted on the path from the root to the target element. Formally, for some path p = {p 1 , . . . , p i , p i+1 , . . . p n }, a vertical shift occurs when some new node, lets call s, is inserted and</p><formula xml:id="formula_2">p ′ = {p 1 , . . . , p i , s, p i+1 , . . . , p n }</formula><p>or, if a node is removed,</p><formula xml:id="formula_3">p ′ = {p 1 , . . . , p i , p i+2 , . . . , p n }.</formula><p>A vertical shift causes an insertion or removal in an XPath, see the example in <ref type="figure" target="#fig_0">Figure 2</ref>. </p><formula xml:id="formula_4">p = {p 1 , . . . , p i−1 , p i , p i+1 , .</formula><p>. . , p n }, a horizontal shift occurs when some new node, lets call s where s p i , is inserted</p><formula xml:id="formula_5">p ′ = {p 1 , . . . , p i−1 , s, p i+1 , . . . , p n }.</formula><p>p i may still exist in the tree but a different node now connects the two path segments p 1 , . . . , p i−1 and p i+1 , . . . , p n .</p><p>A horizontal shift causes the index of a node to change, see the example in <ref type="figure">Figure 3</ref> .</p><p>html div a div div div div div div span div div span <ref type="figure">Figure 3</ref>: A sibling div element is added under the html parent. This is a horizontal shift that affects many XPaths at once due to the change of a child index from div[1] to div <ref type="bibr" target="#b1">[2]</ref>.</p><formula xml:id="formula_6">Horizontal Shift Target Figure XPath Name Before /html/div[1]/div[1]/div[1]/div/span After /html/div[ 2 ]/div[1]/div[1]/div/span Description Before /html/div[1]/div[1]/div[2]/div After /html/div[ 2 ]/div[1]/div[2]/div Info Before /html/div[1]/a After /html/div[ 2 ]/a</formula><p>With formal definition of shifts, we study a large dataset of 117,422 pages from 75 websites in 8 vertical markets described in Section §5 to empirically analyze possible reasons for shifts.</p><p>One indicator of shifts is when multiple XPaths are needed to extract the same attribute from different web pages of the same website. The probability of a domain requiring multiple compatible XPaths decreases as the number of XPaths increases. Even with this good news, 116 out of the 231 attributes have more than one XPath associated with them. The most difficult domain and attribute are barnesandnoble's title with 270 unique XPaths required. Inspecting the mean XPaths required for each domain we can observe slight chunks which would imply possible clusters and maybe some similarities between the websites. We identify three main possible reasons for shifts:</p><p>• Inconsistent templates : A website might present items to a user differently depending on a property of that item. For example, an item on sale may have a graphic inserted which shifts the DOM. In our dataset, collegeboard.com uses different templates for public and private universities that results in shifts. • Temporal changes : Over time the developer may change the site to fix a bug, add a feature, or perform a redesign. Changes can be related to user tracking, advertising, or updated template software. • DOM cleaner inconsistencies : A DOM cleaner (details in Section §5.1) needs to make assumptions when converting semistructured HTML into XHTML. If the HTML is ambiguous this process will result in a DOM tree that does not match the intended DOM and will appear as a shift.</p><p>In our empirical study, we observe large groups of unique XPaths are due to inconsistent templates and small groups of unique XPaths (less than 4) are usually due to DOM cleaner inconsistencies.</p><p>Our next step is to mathematically quantify the difficulty in maintaining a wrapper in order to measure the disorder of the domain.</p><p>Definition 3.3. Attribute difficulty represents the disorder of the attribute locations with respect to XPath annotations in a sample set of pages from a domain. The probability that a particular XPath for an attribute will be compatible with pages from a domain given a sample of pages is formalized as: p(x) = compatible pages total pages . We define attribute difficulty in Eq 1:</p><formula xml:id="formula_7">H (attribute) = − xpaths p(xpath) log p(xpath)<label>(1)</label></formula><p>When looking now at <ref type="table" target="#tab_1">Table 1</ref> the attribute difficulty can be used to quantify the difference between the two attributes presented for the domain deepdiscount. Intuitively title appears more difficult than author due to the long list of unique XPaths. Attribute difficulty confirms this with 0.93 for title and 0.65 for author. One strength of the difficulty analysis is that it weights each XPath to take into account outliers that are only compatible with 1 or 2 webpages. This is important because these outliers will not significantly impact accuracy and therefore should not impact the difficulty. Inspecting domain difficulty can provide insight into where the current XPath method fails to solve the problem. In <ref type="figure" target="#fig_3">Figure 4</ref> we look at the F1-Score (measure for classification accuracy; the higher the better, explained in §5) versus the domain difficulty (a low value means less shifts occur). The plot reinforces the intuition that XPath usually works well on domains with low difficulty. Also we can confirm that when the difficulty is high XPath does not perform as well. This makes sense because higher difficulty means that there is more disorder in the set of XPaths for that domain which causes them to fail.  /html/body/div/div <ref type="bibr" target="#b1">[2]</ref>/div <ref type="bibr" target="#b0">[1]</ref>/ul/li/ul/li/ul/li/ul/li/ul/li/ul/li/span 44 /html/body/div/div <ref type="bibr" target="#b1">[2]</ref>/div <ref type="bibr" target="#b0">[1]</ref>/ul/li/ul/li/ul/li/ul/li/ul/li/ul/li/ul/li/span deepdiscount/ 20 /html/body/div/div <ref type="bibr" target="#b1">[2]</ref>/div <ref type="bibr" target="#b0">[1]</ref>/ul/li/ul/li/ul/li/ul/li/ul/li/ul/li/ul/li/ul/li/span title 9 /html/body/div/div <ref type="bibr" target="#b1">[2]</ref>/div <ref type="bibr" target="#b0">[1]</ref>/ul/li/ul/li/ul/li/ul/li/ul/li/ul/li/ul/li/ul/li/ul/li/span 577 /html/body/div/div <ref type="bibr" target="#b1">[2]</ref>/div <ref type="bibr" target="#b1">[2]</ref>/div/div/div/div/div <ref type="bibr" target="#b0">[1]</ref>/div/h1 1237 /html/body/div/div <ref type="bibr" target="#b1">[2]</ref>/div/div/div/div <ref type="bibr" target="#b0">[1]</ref>/div/div <ref type="bibr" target="#b0">[1]</ref>/div/h1 deepdiscount/ 738 /html/body/div/div <ref type="bibr" target="#b1">[2]</ref>/div <ref type="bibr" target="#b1">[2]</ref>/div/div/div <ref type="bibr" target="#b0">[1]</ref>/div/div <ref type="bibr" target="#b1">[2]</ref>/div <ref type="bibr" target="#b0">[1]</ref>/div <ref type="bibr" target="#b1">[2]</ref>/div/ul/li[1]/a author 1257 /html/body/div/div <ref type="bibr" target="#b1">[2]</ref>/div/div/div/div <ref type="bibr" target="#b0">[1]</ref>/div/div <ref type="bibr" target="#b1">[2]</ref>/div <ref type="bibr" target="#b1">[2]</ref>/div/div <ref type="bibr" target="#b0">[1]</ref></p><formula xml:id="formula_8">/div/ul/li[1]/a[1] &lt;html&gt; &lt;div&gt; &lt;div&gt; &lt;div&gt; &lt;span&gt;Sale!&lt;/span&gt; &lt;/div&gt; &lt;/div&gt; &lt;div&gt; &lt;div&gt; &lt;div&gt; &lt;span&gt;Name&lt;/span&gt; &lt;/div&gt; &lt;/div&gt; &lt;div&gt; &lt;div&gt;Desc&lt;/div&gt; &lt;/div&gt; &lt;div&gt;Stock&lt;/div&gt; &lt;/div&gt; &lt;a&gt;Info&lt;/a&gt; &lt;/div&gt; &lt;/html&gt; Rendered D O M V i e w</formula><p>html div a div div div div div div span div div span </p><formula xml:id="formula_9">Target XPath Name /html/div[2]/div[1]/div[1]/div/span Description /html/div[2]/div[1]/div[2]/div Info /html/div[2]/a</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">XTREEPATH (XPATH+TREEPATHS)</head><p>We now utilize the knowledge gained from our shift analysis that more attribute difficulty means lower performance of XPath annotations. Then we will explain how our Recursive Tree Matching algorithm searches node by node using similarity of sub-trees to train examples to simultaneously accommodate for vertical and horizontal shifts. In order to store the relevant data for searching we first explain tree paths.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">TreePaths</head><p>We seek for an efficient wrapper method that can fix incompatible wrappers automatically when shifts happen. In order to have enough information to fix wrappers in an automated way we extract not only the direct indexing into the document but also the context of those elements. Instead of consulting the entire training set to repair a wrapper we store the tree structure immediately surrounding the target data. The algorithm starts building the tree path at the least common ancestor (LCA) of the target elements.</p><p>Definition 4.1. Least common ancestor (LCA) of target elements: The least common ancestor is an element that exists on every path from the root to each target element. The LCA is unique in that there is no other common element that is closer to every target element.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Definition 4.2.</head><p>A tree path is identified by τ . It is a sequence of trees in an HTML Document Object Model (DOM) starting from the least common ancestor (τ 0 ) and ending at the target element (τ n ) as follows:</p><formula xml:id="formula_10">TreePath = τ = ⟨τ 0 , τ 1 , . . . , τ n ⟩, τ i ∈ DOM</formula><p>A tree path is an extension of the XPath concept. With XPath, the elements of the path are tag names that describe the sequence to the target. In contrast, a tree path includes an entire sub-tree starting from each element in the sequence to the target. This is to provide sufficient contextual information from which each element was extracted to aid in the wrapper recovery later. An example tree path of length four is shown in <ref type="figure">Figure 1</ref>.</p><p>Extracting tree paths from an HTML DOM is shown in Algorithm 1. First, we find the least common ancestor (LCA) between all the labeled elements. Next, starting from the target element, each element is added to a vector and then it's parent element and so on until the LCA is reached. Next, we add the LCA because it was not added in the above loop. Finally the elements are reversed and returned so that they start with the LCA and end with the target element. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Recursive Tree Matching</head><p>We learned from analyzing shifts causing incompatibility that the majority are composed only a very small number of vertical and horizontal shifts. With our proposed Recursive Tree Matching, we jump over these shifts by matching sub-trees on each side of the shift. The LCA, which is the root of the tree path, provides a starting point and allows us to ignore shifts that have occurred outside where the target data is. Starting here also allows us to reduce the complexity of the search. The proceeding elements of the tree path are matched to their most similar nodes in order to align trees that existed previously unshifted. The objective function is shown in Eq 2. Here the maximum matching sequence of e (DOM elements) to the data contained in each τ i is found. This maximization is iterative with constraints which requires two maximization sections. max τ i ∈τ {e i+1 = arдmax e ∈e i (match(τ i , e))}</p><p>The algorithmic detail, including the dynamic programming heuristic function, of Recursive Tree Matching is shown in Algorithm 2. In this pseudo code a reference to an element of the DOM is kept as d and updated as the search progresses. Line 4 is the core where each element of the tree path τ i is matched to its most similar DOM element in d. HTML Tree similarity is calculated using a modified Simple Tree Matching algorithm <ref type="bibr" target="#b17">[18]</ref> which is designed to deal with HTML specifically by taking into account the class, style, id, name attributes of each node. If a max similarity is 0 then the element is considered not found. Using this method we perform a heuristic search through the tree using concise information from the training data.</p><p>A demonstration of the recursive tree matching process is shown in <ref type="figure">Figure 6</ref>. The shifted HTML DOM presented in <ref type="figure" target="#fig_4">Figure 5</ref> is searched using the Recursive Tree Matching method with the tree path we extracted from original DOM in <ref type="figure" target="#fig_4">Figure 5</ref> shown in <ref type="figure">Figure  1</ref>. We first start by trying to directly look up the target data using the original sequence of elements. This results in a failure causing the algorithm to perform wrapper recovery.</p><p>Recovery starts by searching every element in the HTML DOM for the sub-tree that has the highest similarity to τ 0 (the LCA).  In <ref type="figure">Figure 6</ref> the element /div has a similarity score of 7 which is higher than all other sub-trees. The similarity is calculated using the html_tree_match method. The score of 7 is calculated as the maximum overlap of one tree with the other given the liberty of horizontal shifts.</p><formula xml:id="formula_12">i = 1 to n do x ← M[i, j − 1] 18 y ← M[i − 1, j] 19 z ← M[i − 1, j − 1] + html_tree_match(a i , b j ) 20 M[i, j] ← max(x,</formula><p>Once we have focused on /div <ref type="bibr" target="#b0">[1]</ref>, this sub-tree is now searched using the second element of the tree path. A similarity score of 5 yields /div <ref type="bibr" target="#b1">[2]</ref> as the most similar sub-tree. Next, the algorithm will find a most similar sub-tree by jumping over the element /div <ref type="bibr" target="#b0">[1]</ref> to find /div[1]/div has a higher similarity. This search will result in the /span element being located and the wrapper successfully repaired. This example showcases the power of Recursive Tree Matching method in dealing with addition of identical trees and the extension of trees.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">Complexity</head><p>The worst case complexity of the recursive tree matching method is O(|τ |n 1 n 2 ) where n 1 and n 2 are the number of elements in the training and test DOM trees. This is derived from the Simple Tree Matching (STM) complexity, which is reduced using dynamic programming, being O(n 1 n 2 ). There are |τ | iterations of the algorithm, each needing to perform an STM search. The cost at each iteration /html /div <ref type="bibr" target="#b0">[1]</ref> /div <ref type="bibr" target="#b1">[2]</ref> /div <ref type="bibr" target="#b0">[1]</ref>/div /span 1 tree matches for τ 3 tree matches for τ 2 /div <ref type="bibr" target="#b0">[1]</ref> /div <ref type="bibr" target="#b1">[2]</ref> /div <ref type="bibr" target="#b1">[2]</ref>/div /div <ref type="bibr">[</ref> /div/div <ref type="bibr" target="#b0">[1]</ref> /div/div <ref type="bibr" target="#b1">[2]</ref>  <ref type="figure">Figure 6</ref>: The search tree when performing Recursive Tree Matching on <ref type="figure" target="#fig_4">Figure 5</ref> using the tree path in <ref type="figure">Figure 1</ref>. Each transition represents a search using the next tree of the tree path. Each box displays represents a sub-tree offset from the source of the transition. Inside the box displays the similarity result of Simple Tree Matching and the XPath leading to the sub-tree in the form similarity:XPath. The result of this recursive tree matching search yields /html/div/div <ref type="bibr" target="#b1">[2]</ref>/div <ref type="bibr" target="#b0">[1]</ref>/div/span which is quite different from our starting XPath of /html/div/div <ref type="bibr" target="#b0">[1]</ref>/div <ref type="bibr" target="#b0">[1]</ref>/span. will be smaller than the previous but for this analysis we round up. Also, in our method we reduce the initial size of n 1 by selecting the LCA instead of the root element. Empirically the initial n 1 value is very small, about 30.</p><formula xml:id="formula_13">/div[1] 2 /div/div[2]/div[2] 2 /div/div[1]/div 1 /div/div[2]/div[1]/div 1 /div/div[2]/div[2]/div 1 /div/div[2]/div[3] 1 /div/div[1]/div/span 0 /div/div[2]/div[1]/div/span 0 /div/</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">EVALUATION</head><p>In this section we aim to show that XTreePaths can be utilized to complement and outperform the existing dominant method XPath. The method presented has no parameters that require tuning. Our goal is to design robust and practical method which can be easily extended under different scenarios.</p><p>In order to test the robustness of the methods, the percentage of the dataset used for training is varied. This allows a comprehensive comparison between the following three methods: To compare XTreePath and XPath we use a large dataset built by Qiang Hao <ref type="bibr" target="#b7">[8]</ref> to benchmark per-vertical wrapper repair instead of per-domain. This dataset contains a total of 117,422 pages from 75 diverse websites in 8 vertical markets that covers a broad range of topics from university rankings to NBA players. The composition is displayed in <ref type="table" target="#tab_5">Table 2</ref>. For each vertical market a set of (3-5) common attributes are labelled on every page. We make our data and code available for comparison at http://kdl.cs.umb.edu/w/datasets/.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1">Working With Data</head><p>It is important to document the difficulties of dealing with datasets in this field in order to ensure that the benchmark datasets used here can be utilized by other researchers.</p><p>The main issue is that HTML in the wild does not always map to the same DOM representation, it is highly dependent on the HTML Cleaner used. There is no standard mapping to convert HTML into A training set made with one cleaning engine will not work using another engine. The libraries used for our work were chosen as the most reliable and competent methods after a comparative study on major libraries was performed. The complete list of libraries we evaluated are labeled in <ref type="table" target="#tab_6">Table 3</ref> as having the following properties:</p><p>• Cleaning -These are used to convert from a non-standard HTML file to an XHTML file. The corrections include tag closing, namespace filtering, and tag nesting. This is required because most HTML on the Internet is non-standard. In this paper, our research is done using the well supported open source libraries JTidy and Dom4j. These libraries are written in Java and support multi-threading. JTidy's performed consistently for cleaning and intergraded cleanly into Dom4j. Dom4j has a clean query interface to lookup using XPath as well as a clean Representation interface for implementing tree paths and recursive tree matching. Other Java libraries such as JSoup and TagSoup are designed for their own query language instead of XPath and exposing a DOM.</p><p>A few pages today retrieve their content using JavaScript once the page is loaded. This means the HTML retrieved with the initial GET request does not contain the full product information. A way to solve this problem is to use a library that will run the JavaScript on the page or to scrape the data using a browser after it has run the JavaScript code. It is better to get JavaScript out of the way during scraping due to the need to make AJAX calls to retrieve data that may be missing at a later date. For this reason we retrieve the pages using the FireFox web browser which will evaluate JavaScript as expected by the web developer.</p><p>We use the standard machine learning metrics precision, recall, and F1-score as the evaluation metrics. In this domain, a true positive (tp) is an extraction of the correct data (verified using labeled data), a false positive (fp) is an extraction that resulted in the wrong </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2">Difficulty Correlation</head><p>Using our new domain entropy measurement introduced in Section §3 we plot the entropy per domain over all vertical markets in <ref type="figure" target="#fig_9">Figure  7</ref> for XPath and XTreePath. As the entropy increases XTreePath is able to maintain performance while XPath degrades. The higher a domain entropy value is, the more changes in HTML elements occur. XTreePath is more robust than XPath when dealing with shifts.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3">Limiting Training Examples</head><p>We evaluate the ability to recover from shift on each domain by splitting the pages of each domain into training and testing sets at various percentages. The pages of each domain are chosen randomly to simulate the different possible situations that could be encountered.</p><p>In the following experiments each method is trained on a percentage of the dataset. In these experiments; 10% percentage trained means that only 10% of the pages from a domain are used in training to build XPaths and XTreePaths. These are used to extract data from the remaining 90% of the pages.</p><p>In <ref type="figure" target="#fig_10">Figure 8</ref> the aggregate recall is plotted against the percentage trained. This analyses how many wrappers are saved from needing to be relearned by using the different methods. We can observe the combination of XPath and tree paths as XTreePath achieves a significant increase which confirms they are complementing each other. This is important because these methods do not directly replace each other and together are able to provide a more robust data extraction pipeline. Also, it is important to note the largest increase is with a lower percentage of training data. This is desired because the algorithm can perform even if a small number of pages have been collected which is often the case. This is because every annotated training page is a cost to the system. Also, some data sources will increase in size over time causing the trained percentage will shrink over time. Next we evaluate the aggregate precision in <ref type="figure">Figure 9</ref>. The most interesting result here is that as the training percentage is increased, the precision is reduced for XPath and tree paths. As more examples are learned, XPath and tree path have more data to try which results in higher false positives. When the methods are combined in XTreePath the same number of false positives exists but the number of true positives increases and allows the precision formula to grow. <ref type="figure">Figure 9</ref>: Tree paths, by themselves, perform poorly but because there is only a small intersection between successful XPath and tree path extractions the true positives outweigh the false positives and drive the precision up.</p><p>The aggregate F1-Score is shown in <ref type="figure">Figure 10</ref>. Here the F1-Score of XTreePath consistently outperform XPath and tree paths alone. The advantage of XPath in precision is countered by it's low recall. <ref type="figure">Figure 10</ref>: XPaths and tree paths have slightly decreasing results due to precision. When combined they complement each other and increase as the training set size is increased because they perform better for recall.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.4">Performance Per Vertical</head><p>We are interested to know how the proposed XTreePath perform in vastly different web domains. In <ref type="figure">Figure 11</ref> we analyze the mean F1score of XPath and XTreePath in each vertical market. XTreePath performs consistently well against XPath in all vertical markets. We can draw from this analysis that book websites have more stable structure which allows XPaths to work consistently. We can also draw that restaurant and university sites have more dynamic structures with slight changes that can easily be accommodated for by XTreePath.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.5">Industry Baseline</head><p>Finally, we compare our method to a current commercial solution, ScrapingHub, that tackles the same problem. This method is treated <ref type="figure">Figure 11</ref>: Here we compare our method across eight vertical markets. XPath is sorted from worst to best starting from the left.</p><p>as a black box and we do not know how it works. In this evaluation both methods are trained on the same single example. Each method is then evaluated on the remaining examples from the domain. <ref type="figure" target="#fig_0">Figure 12</ref> shows the comparison using 17 randomly selected domains. XTreePath ties or beats ScrapingHub on 12/17 domains. For the domain embark the problems arise from two faults happening at the same time. First, an XPath fails when locating the address (a span <ref type="bibr" target="#b5">[6]</ref> is shifted to a span <ref type="bibr" target="#b7">[8]</ref>). XTreePath recovers this broken XPath but then fails on the phone number attribute (for which the learned XPath would have worked but the system was already trying to recover the wrapper). The weakness is that when all the children look the same the tree similarity doesn't work. This happened to be a perfect storm for XTreePath but would easily be fixed by adding another training example.</p><p>The abebooks results are identical. Why can't we improve this result? The weakness is that tree paths cannot deal with the shift in this site because it is confused with matching tree structure. The shifted site only has it's data rearranged but the tree structure has not changed. Even with using the node attributes it cannot repair the wrappers because they are also the same.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6">CONCLUSION</head><p>We have presented the XTreePath algorithm which is composed of XPath and tree paths together. Tree paths contain contextual information from training examples and are used by the recursive tree matching search algorithm. We have shown that with a simple data structure, the tree path, we can conquer shifts in webpages and reduce manual retraining. We evaluate our method on a massive and publicly available dataset where XTreePath consistently outperforms XPath alone. A key advantage of the XTreePath method is that it complements existing methods and it does not need to replace them. We hope that this allows greater adoption in research and industry. Further work may utilize a semantic difference between trees by utilizing a cost matrix to weight differences in HTML elements unequally which would potentially increase accuracy but introduce additional parameters to test. To accelerate adoption we provide our easy to use implementation as open source and all the code necessary to evaluate it.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 2 :</head><label>2</label><figDesc>A vertically shift occurs by adding a parent node to the span element. The XPath that reaches N ame must have a div element added to maintain compatibility with the altered HTML tree.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Definition 3 . 2 .</head><label>32</label><figDesc>A horizontal shift is a tree modification where a sibling element of a node is inserted. Formally, for some path</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Definition 3 . 4 .</head><label>34</label><figDesc>The domain difficulty is the mean difficulty of it's attributes.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 4 :</head><label>4</label><figDesc>The domain difficulty versus the evaluated F1-Score of an XPath wrapper for every domain in our dataset. A linear trend-line is drawn to show the trend of the relationship.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Figure 5 :</head><label>5</label><figDesc>The starting webpage has simulated shift applied by the addition of the words "On Sale!". The nodes used to add this text are designed to break existing methods. These are identified with dashed borders. The path of nodes from the root to N ame node are highlighted in red.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>Algorithm 2 : 5 / 11 m</head><label>2511</label><figDesc>Wrapper Induction (Recursive Tree Matching) Input: Tree path τ HTML DOM dom Output: Resulting data 1 d ← dom 2 for τ i ∈ τ do for e ∈ d do d = arдmax e (html_tree_match(τ i , e)) /If match is 0 then not found 6 return d 7 html_tree_match(a, b) : 8 if a and τ i contain distinct symbols then 9 ← the number of first-level sub-trees of a 12 n ← the number of first-level sub-trees of b 13 M[i, 0] ← 0 for i = 0, . . . , m 14 M[0, j] ← 0 for j = 0, . . . , n 15 for i = 1 to m do for</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_6"><head></head><label></label><figDesc>y, z) for attr ∈ {class, style, id, name} do if a at t r == b at t r then attrMatch ← attrMatch + 0.25; return M[m, n] + (attrMatch * 0.5) + 1</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_8"><head>•</head><label></label><figDesc>Representation -This library provides things such as DOM traversal, insertion, and removal. This library is used to build sub-trees and represent namespaces. Most of these libraries are not tolerant to non-standard HTML and require cleaning before they can turn HTML into a DOM.• Query -These methods can include XPath, XQuery, XML-GL, or XML-QL.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_9"><head>Figure 7 :</head><label>7</label><figDesc>The entropy of the domains is plotted against the F1-score of XTreePath and XPath. Linear trendlines are shown.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_10"><head>Figure 8 :</head><label>8</label><figDesc>Recall is not high when evaluating the TreePath alone. However, for XTreePath, when tree paths are used after XPath fails we are able to obtain a higher recall overall.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_11"><head>Figure 12 :</head><label>12</label><figDesc>Comparing XTreePath with ScrapingHub. One sample from each domain is used as train both systems. The methods are then evaluated for accuracy and shown here.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>Table 1 :</head><label>1</label><figDesc>The number of compatible pages in each domain for each XPath. For the XPath listed, the "# Compatible" is the number of pages that have data stored at the location specified by that XPath.</figDesc><table><row><cell>Domain/</cell><cell>#</cell></row><row><cell>Attribute</cell><cell>Compatible Unique XPath</cell></row><row><cell></cell><cell>79</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_2"><head>Algorithm 1 :</head><label>1</label><figDesc>Build Tree Path From Training DOM Input: Training DOM dom Labeled elements E = {e 1 , . . . , e k } Target element e Output: Tree Path τ 1 dom LCA = LCA(E, dom) 2 while dom LCA e do τ .add(e) e = e.дetParent() τ .add(e.дetParent())</figDesc><table /><note>5 return τ R</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_4"><head>•</head><label></label><figDesc>XPath : Each training example has an XPath to be the target node that is combined into a set of possible paths. Each path is attempted on the testing examples until there is a valid path. • XTreePath : Firstly XPaths are attempted. If it is not successful then a tree paths is used to attempt recovery. • TreePath : Only a tree path is used without XPath. A tree path is extracted from each training example starting from the LCA of the target elements for that domain. Then Recursive Tree Matching is used to search the DOM tree. • ScrapingHub : The web service offered at scrapinghub.com is used as a blackbox to evaluate the state of the art offered commercially by industry. (No authors are affiliated with ScrapingHub)</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_5"><head>Table 2 :</head><label>2</label><figDesc>Composition of the dataset. Domains in each vertical are shown with the number of sample instances. aol,autobytel,automotive,autoweb,carquotes,cars,kbb,motortrend,msn,yahoo Books 10 15,990 abebooks,barnesandnoble,bookdepository,booksamillion,borders,christianbook,deepdiscount,waterstones</figDesc><table><row><cell>Vertical</cell><cell cols="2">#Sites #Pages Domains</cell></row><row><cell cols="3">Autos 17,883 Cameras 10 10 6,991 amazon,beachaudio,buy,compsource,ecost,jr,newegg,onsale,pcnation,thenerds</cell></row><row><cell>Jobs</cell><cell>10</cell><cell>19,963 careerbuilder,dice,hotjobs,job,jobcircle,jobtarget,monster,nettemps,rightitjobs,techcentric</cell></row><row><cell>Movies</cell><cell>10</cell><cell>16,000 allmovie,amctv,boxofficemojo,hollywood,iheartmovies,imdb,metacritic,rottentomatoes</cell></row><row><cell>NBA Players</cell><cell>9</cell><cell>3,966 espn,fanhouse,foxsports,msnca,nba,si,slam,usatoday,wiki</cell></row><row><cell>Restaurants</cell><cell>10</cell><cell>19,928 fodors,frommers,gayot,opentable,pickarestaurant,restaurantica,tripadvisor,urbanspoon,usdiners,zagat</cell></row><row><cell>Universities</cell><cell>10</cell><cell>16,701 collegeboard,collegenavigator,collegeprowler,collegetoolkit,ecampustours,embark,matchcollege,princetonreview,studentaid,usnews</cell></row><row><cell cols="3">a properly formatted XHTML file. There are common algorithms</cell></row><row><cell cols="3">used by browsers but there is no agreed specification of how they</cell></row><row><cell cols="3">convert HTML to XHTML. Different cleaners convert HTML in</cell></row><row><cell cols="3">different ways leading to an incompatibility of XPath annotations.</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_6"><head>Table 3 :</head><label>3</label><figDesc>Information Extraction Library Classification</figDesc><table><row><cell>Name</cell><cell>Lang</cell><cell>Clean Rep. Query</cell></row></table><note></note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7">ACKNOWLEDGEMENTS</head><p>Partially funded by ThinkersR.Us, The University of Massachusetts Boston, The National Science Foundation Award Research Experiences for Undergraduates (NSF#0755376), and The National Science Foundation Graduate Research Fellowship Program (Grant No. DGE-1356104). This work utilized the supercomputing facilities managed by the Research Computing Department at the University of Massachusetts Boston as well as the resources provided by the Open Science Grid, which is supported by the National Science Foundation and the U.S. Department of Energy's Office of Science.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">XPath-Wrapper Induction by generalizing tree traversal patterns</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tobias</forename><surname>Anton</surname></persName>
+			<affiliation>
+				<orgName type="collaboration">LWA</orgName>
+			</affiliation>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Lernen, Wissensentdeckung und Adaptivitt</title>
+		<imprint>
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Information extraction from tree documents by learning subtree delimiters</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Boris</forename><surname>Chidlovskii</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IJCAI Workshop on Information Integration on the Web</title>
+		<imprint>
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Robust web extraction: an approach based on a probabilistic tree-edit model</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nilesh</forename><surname>Dalvi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Philip</forename><surname>Bohannon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Fei</forename><surname>Sha</surname></persName>
+		</author>
+		<idno type="DOI">10.1145/1559845.1559882</idno>
+		<ptr target="https://doi.org/10.1145/1559845.1559882" />
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Management of Data</title>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Automatic wrappers for large scale web extraction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nilesh</forename><surname>Dalvi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ravi</forename><surname>Kumar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mohamed</forename><surname>Soliman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the VLDB Endowment</title>
+		<meeting>the VLDB Endowment</meeting>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<monogr>
+		<title level="m" type="main">STEM: a suffix tree-based method for web data records extraction. Knowledge and Information Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yixiang</forename><surname>Fang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xiaoqin</forename><surname>Xie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xiaofeng</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Reynold</forename><surname>Cheng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zhiqiang</forename><surname>Zhang</surname></persName>
+		</author>
+		<idno type="DOI">10.1007/s10115-017-1062-0</idno>
+		<ptr target="https://doi.org/10.1007/s10115-017-1062-0" />
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<monogr>
+		<title level="m" type="main">Web wrapper induction: a brief survey</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Flesca</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Manco</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Masciari</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Rende</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Tagarelli</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2004" />
+			<publisher>AI Communications</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Web-scale information extraction with vertex</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Gulhane</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Madaan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Mehta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ramamirtham</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Rastogi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S H</forename><surname>Satpal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Sengamedu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Tengli</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Tiwari</surname></persName>
+		</author>
+		<idno type="DOI">10.1109/ICDE.2011.5767842</idno>
+		<ptr target="https://doi.org/10.1109/ICDE.2011.5767842" />
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Data Engineering</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">From one tree to a forest: a unified solution for structured web data extraction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Qiang</forename><surname>Hao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rui</forename><surname>Cai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yanwei</forename><surname>Pang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lei</forename><surname>Zhang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Research and Development in Information Retrieval</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">A Generalized Tree Matching Algorithm Considering Nested Lists for Web Data Extraction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nitin</forename><surname>Jindal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bing</forename><surname>Liu</surname></persName>
+		</author>
+		<idno type="DOI">10.1137/1.9781611972801.81</idno>
+		<ptr target="https://doi.org/10.1137/1.9781611972801.81" />
+	</analytic>
+	<monogr>
+		<title level="m">The SIAM International Conference on Data Mining</title>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">A survey of web information extraction systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Kayed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M R</forename><surname>Kayed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K F</forename><surname>Girgis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Shaalan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Knowledge and Data Engineering</title>
+		<imprint>
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<monogr>
+		<title level="m" type="main">Information Extraction in Structured Documents Using Tree Automata Induction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Raymond</forename><surname>Kosala</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jan</forename><surname>Van Den Bussche</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Maurice</forename><surname>Bruynooghe</surname></persName>
+		</author>
+		<idno type="DOI">10.1007/3-540-45681-3_25</idno>
+		<ptr target="https://doi.org/10.1007/3-540-45681-3_25" />
+		<imprint>
+			<date type="published" when="2002" />
+			<publisher>Springer</publisher>
+			<pubPlace>Berlin, Heidelberg</pubPlace>
+		</imprint>
+	</monogr>
+	<note>and Hendrik Blockeel</note>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Wrapper induction: Efficiency and expressiveness</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Kushmerick</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Artificial Intelligence</title>
+		<imprint>
+			<date type="published" when="2000" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<title level="m" type="main">Wrapper induction for information extraction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nicholas</forename><surname>Kushmerick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daniel</forename><forename type="middle">S</forename><surname>Weld</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Robert</forename><surname>Doorenbos</surname></persName>
+		</author>
+		<ptr target="https://doi.org/10.1.1.33.2176" />
+		<imprint>
+			<date type="published" when="1997" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">A Comparative Study on Web Data Extraction Approaches</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Samiah Jan Nasti</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Muheet Ahmad</forename><surname>Asghar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Butt</surname></persName>
+		</author>
+		<idno type="DOI">10.4010/2016.1322</idno>
+		<ptr target="https://doi.org/10.4010/2016.1322" />
+	</analytic>
+	<monogr>
+		<title level="j">International Journal of Engineering Science and Computing</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adi</forename><surname>Omari</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sharon</forename><surname>Shoham</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Eran</forename><surname>Yahav</surname></persName>
+		</author>
+		<idno type="DOI">10.1145/3018661.3018740</idno>
+		<ptr target="https://doi.org/10.1145/3018661.3018740" />
+		<title level="m">Synthesis of Forgiving Data Extractors. International Conference on Web Search and Data Mining</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Optimal Schemes for Robust Web Extraction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aditya</forename><surname>Parameswaran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Dalvi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Garcia-Molina</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Rastogi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Very Large Data Bases</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Automatic web news extraction using tree edit distance</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Paulo</forename><forename type="middle">B</forename><surname>D C Reis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A S</forename><surname>Golgher</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Silva</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Laender</surname></persName>
+		</author>
+		<idno type="DOI">10.1145/988672.988740</idno>
+		<ptr target="https://doi.org/10.1145/988672.988740" />
+	</analytic>
+	<monogr>
+		<title level="m">World Wide Web</title>
+		<imprint>
+			<date type="published" when="2004" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<title level="m" type="main">Identifying syntactic differences between two programs. Software -Practice and Experience</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Yang</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1991" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Web data extraction based on partial tree alignment</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Zhai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Liu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">World Wide Web</title>
+		<imprint>
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Efficient record-level wrapper induction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Zheng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Song</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C L</forename><surname>R Wen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Giles</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Conference on Information and knowledge Management</title>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

@@ -1,0 +1,1287 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Born-Again Neural Networks</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author role="corresp">
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tommaso</forename><surname>Furlanello</surname></persName>
+							<email>&lt;furlanel@usc.edu&gt;</email>
+							<affiliation key="aff0">
+								<orgName type="institution">University of Southern California</orgName>
+								<address>
+									<settlement>Los Angeles</settlement>
+									<region>CA</region>
+									<country key="US">USA</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zachary</forename><forename type="middle">C</forename><surname>Lipton</surname></persName>
+							<affiliation key="aff1">
+								<orgName type="institution">Carnegie Mellon University</orgName>
+								<address>
+									<settlement>Pittsburgh</settlement>
+									<region>PA</region>
+									<country key="US">USA</country>
+								</address>
+							</affiliation>
+							<affiliation key="aff2">
+								<orgName type="institution">Amazon AI</orgName>
+								<address>
+									<settlement>Palo Alto</settlement>
+									<region>CA</region>
+									<country key="US">USA</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Tschannen</surname></persName>
+							<affiliation key="aff3">
+								<orgName type="institution">ETH Zürich</orgName>
+								<address>
+									<settlement>Zürich</settlement>
+									<country key="CH">Switzerland</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Laurent</forename><surname>Itti</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">University of Southern California</orgName>
+								<address>
+									<settlement>Los Angeles</settlement>
+									<region>CA</region>
+									<country key="US">USA</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Anima</forename><surname>Anandkumar</surname></persName>
+							<affiliation key="aff4">
+								<address>
+									<settlement>Caltech, Pasadena</settlement>
+									<region>CA</region>
+									<country key="US">USA</country>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Born-Again Neural Networks</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:43+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Knowledge Distillation (KD) consists of transferring &quot;knowledge&quot; from one machine learning model (the teacher) to another (the student). Commonly, the teacher is a high-capacity model with formidable performance, while the student is more compact. By transferring knowledge, one hopes to benefit from the student&apos;s compactness, without sacrificing too much performance. We study KD from a new perspective: rather than compressing models, we train students parameterized identically to their teachers. Surprisingly, these Born-Again Networks (BANs), outperform their teachers significantly, both on computer vision and language modeling tasks. Our experiments with BANs based on DenseNets demonstrate state-of-the-art performance on the CIFAR-10 (3.5%) and CIFAR-100 (15.5%) datasets, by validation error. Additional experiments explore two distillation objectives: (i) Confidence-Weighted by Teacher Max (CWTM) and (ii) Dark Knowledge with Permuted Predictions (DKPP). Both methods elucidate the essential components of KD, demonstrating the effect of the teacher outputs on both predicted and nonpredicted classes.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.">Introduction</head><p>In a 2001 paper on statistical modeling <ref type="bibr" target="#b2">(Breiman et al., 2001</ref>), Leo Breiman noted that different stochastic algorithmic procedures <ref type="bibr" target="#b14">(Hansen &amp; Salamon, 1990;</ref><ref type="bibr" target="#b25">Liaw et al., 2002;</ref><ref type="bibr" target="#b5">Chen &amp; Guestrin, 2016)</ref> can lead to diverse models with similar validation performances. Moreover, he noted that we can often compose these models into an ensemble that achieves predictive power superior to each of the constituent Proceedings of the 35 th International Conference on Machine Learning, Stockholm, Sweden, PMLR 80, 2018. Copyright 2018 by the author(s). models. Interestingly, given such a powerful ensemble, one can often find a simpler model -no more complex than one of the ensemble's constituents -that mimics the ensemble and achieves its performance. Previously, in Born-Again Trees <ref type="bibr" target="#b1">Breiman &amp; Shang (1996)</ref> pioneered this idea, learning single trees that match the performance of multiple-tree predictors. These born-again trees approximate the ensemble decision but offer some desired properties of individual decision trees, such as their purported amenability to interpretation. A number of subsequent papers have proposed variations the idea of born-again models. In the neural network community, similar ideas emerged in papers on model compression by <ref type="bibr" target="#b3">Bucilua et al. (2006)</ref> and related work on knowledge distillation (KD) by <ref type="bibr" target="#b17">Hinton et al. (2015)</ref>. In both cases, the idea is typically to transfer the knowledge of a high-capacity teacher with desired high performance to a more compact student <ref type="bibr" target="#b0">(Ba &amp; Caruana, 2014;</ref><ref type="bibr">Urban et al., 2016;</ref><ref type="bibr">Rusu et al., 2015)</ref>. Although the student cannot match the teacher when trained directly on the data, the distillation process brings the student closer to matching the predictive power of the teacher.</p><p>We propose to revisit KD with the objective of disentangling the benefits of this training technique from its use in model compression. In experiments transferring knowledge from teachers to students of identical capacity, we make the surprising discovery that the students become the masters, outperforming their teachers by significant margins. In a manner reminiscent to Minsky's Sequence of Teaching Selves <ref type="bibr" target="#b32">(Minsky, 1991)</ref>, we develop a simple re-training procedure: after the teacher model converges, we initialize a new student and train it with the dual goals of predicting the correct labels and matching the output distribution of the teacher. We call these students Born-Again Networks (BANs) and show that applied to DenseNets, ResNets and LSTM-based sequence models, BANs consistently have lower validation errors than their teachers. For DenseNets, we show that this procedure can be applied for multiple steps, albeit with diminishing returns.</p><p>We observe that the gradient induced by KD can be decomposed into two terms: a dark knowledge term, containing the information on the wrong outputs, and a ground-truth component which corresponds to a simple rescaling of the original gradient that would be obtained using the real labels. We interpret the second term as training from the real arXiv:1805.04770v2 [stat.ML] 29 Jun 2018 <ref type="figure">Figure 1</ref>. Graphical representation of the BAN training procedure: during the first step the teacher model T is trained from the labels Y . Then, at each consecutive step, a new identical model is initialized from a different random seed and trained from the supervision of the earlier generation. At the end of the procedure, additional gains can be achieved with an ensemble of multiple students generations. labels using importance weights for each sample based on the teacher's confidence in its maximum value. Experiments investigating the importance of each term are aimed at quantifying the contribution of dark knowledge to the success of KD.</p><p>Furthermore, we explore whether the objective function induced by the DenseNet teacher can be used to improve a simpler architecture like ResNet bringing it close to state-ofthe-art accuracy. We construct Wide-ResNets <ref type="bibr" target="#b48">(Zagoruyko &amp; Komodakis, 2016b)</ref> and Bottleneck-ResNets <ref type="bibr" target="#b16">(He et al., 2016b)</ref> of comparable complexity to their teacher and show that these BAN-as-ResNets surpass their DenseNet teachers. Analogously we train DenseNet students from Wide-ResNet teachers, which drastically outperform standard ResNets. Thus, we demonstrate that weak masters can still improve performance of students, and KD need not be used with strong masters.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">Related Literature</head><p>We briefly review the related literature on knowledge distillation and the models used in our experiments.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1.">Knowledge Distillation</head><p>A long line of papers have sought to transfer knowledge between one model and another for various purposes. Sometimes the goal is compression: to produce a compact model that retains the accuracy of a larger model that takes up more space and/or requires more computation to make predictions <ref type="bibr" target="#b3">(Bucilua et al., 2006;</ref><ref type="bibr" target="#b17">Hinton et al., 2015)</ref>. <ref type="bibr" target="#b1">Breiman &amp; Shang (1996)</ref> proposed compressing neural networks and multipletree predictors by approximating them with a single tree. More recently, others have proposed to transfer knowledge from neural networks by approximating them with simpler models like decision trees <ref type="bibr" target="#b4">(Chandra et al., 2007)</ref> and generalized additive models <ref type="bibr" target="#b41">(Tan et al., 2018)</ref> for the purpose of increasing transparency or interpretability. Further, <ref type="bibr" target="#b9">Frosst &amp; Hinton (2017)</ref> proposed distilling deep networks into decision trees for the purpose of explaining decisions. We note that in each of these cases, what precisely is meant by interpretability or transparency is often undeclared and the topic remains fraught with ambiguity <ref type="bibr" target="#b26">(Lipton, 2016)</ref>.</p><p>Among papers seeking to compress models, the goal of knowledge transfer is simple: produce a student model that achieves better accuracy by virtue of knowledge transfer from the teacher model than it would if trained directly. This research is often motivated by the resource constraints of underpowered devices like cellphones and internet-ofthings devices. In a pioneering work, <ref type="bibr" target="#b3">Bucilua et al. (2006)</ref> compress the information in an ensemble of neural networks into a single neural network. Subsequently, with modern deep learning tools, <ref type="bibr" target="#b0">Ba &amp; Caruana (2014)</ref> demonstrated a method to increase the accuracy of shallow neural networks, by training them to mimic deep neural networks, using an penalizing the L2 norm of the difference between the student's and teacher's logits. In another recent work, <ref type="bibr" target="#b36">Romero et al. (2014)</ref> aim to compress models by approximating the mappings between teacher and student hidden layers, using linear projection layers to train the relatively narrower students.</p><p>Interest in KD increased following <ref type="bibr" target="#b17">Hinton et al. (2015)</ref>, who demonstrated a method called dark knowledge, in which a student model trains with the objective of matching the full softmax distribution of the teacher model. One paper applying ML to Higgs Boson and supersymmetry detection, made the (perhaps inevitable) leap to applying dark knowledge to the search for dark matter <ref type="bibr" target="#b39">(Sadowski et al., 2015)</ref>. <ref type="bibr">Urban et al. (2016)</ref> train a super teacher consisting of an ensemble of 16 convolutional neural networks and compresses the learned function into shallow multilayer perceptrons containing 1, 2, 3, 4, and 5 layers. In a different approach, <ref type="bibr" target="#b47">Zagoruyko &amp; Komodakis (2016a)</ref> force the student to match the attention map of the teacher (norm across the channel dimension in each spatial location) at the end of each residual stage. <ref type="bibr" target="#b6">Czarnecki et al. (2017)</ref> try to minimize the difference between teacher and student derivatives of the loss with respect to the input in addition to minimizing the divergence from teacher predictions.</p><p>Interest in KD has also spread beyond supervised learning. In the deep reinforcement learning community, for example, <ref type="bibr">Rusu et al. (2015)</ref> distill multiple DQN models into a single one. A number of recent papers <ref type="bibr" target="#b10">(Furlanello et al., 2016;</ref><ref type="bibr" target="#b24">Li &amp; Hoiem, 2016;</ref><ref type="bibr" target="#b40">Shin et al., 2017)</ref> employ KD for the purpose of minimizing forgetting in continual learning. <ref type="bibr" target="#b33">(Papernot et al., 2016)</ref> incorporate KD into an adversarial training scheme. Recently, <ref type="bibr">Lopez-Paz et al. (2015)</ref> pointed out some connections between KD and a theory of on learning with privileged information <ref type="bibr" target="#b34">(Pechyony &amp; Vapnik, 2010)</ref>.</p><p>In a superficially similar work to our own, <ref type="bibr" target="#b46">Yim et al. (2017)</ref> propose applying KD from a DNN to another DNN of identical architecture, and report that the student model trains faster and achieves greater accuracy than the teacher. They employ a loss which is calculated as follows: for a number of pairs of layers {(i, j)} of same dimensionality, they (i) calculate a number of inner products G i,j (x) between the activation tensors at the layers i and j, and (ii) they construct a loss that requires the student to match the statistics of these inner products to the corresponding statistics calculated on the teacher (for the same example), by minimizing</p><formula xml:id="formula_0">||G T i,j (x) − G S i,j (x)|| 2 2 .</formula><p>The authors exploit a statistic used in <ref type="bibr" target="#b12">Gatys et al. (2015)</ref> to capture style similarity between images (given the same network).</p><p>Key differences Our work differs from <ref type="bibr" target="#b46">(Yim et al., 2017)</ref> in several key ways. First, their novel loss function, while technically imaginative, is not demonstrated to outperform more standard KD techniques. Our work is the first, to our knowledge, to demonstrate that dark knowledge, applied for self-distillation, even without softening the logits results in significant boosts in performance. Indeed, when distilling to a model of identical architecture we achieve the current second-best performance on the CIFAR100 dataset. Moreover, this paper offers empirical rigor, providing several experiments aimed at understanding the efficacy of self-distillation, and demonstrating that the technique is successful in domains other than images.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2.">Residual and Densely Connected Neural Networks</head><p>First described in <ref type="bibr" target="#b15">(He et al., 2016a)</ref>, deep residual networks employ design principles that are rapidly becoming ubiquitous among modern computer vision models. The Resnet passes representations through a sequence of consecutive residual-blocks, each of which applies several sub-modules, denoted residual units), each of which consists of convolutions and skip-connections, interspersed with spatial downsampling. Multiple extensions <ref type="bibr" target="#b16">(He et al., 2016b;</ref><ref type="bibr" target="#b48">Zagoruyko &amp; Komodakis, 2016b;</ref><ref type="bibr">Xie et al., 2016;</ref><ref type="bibr">Han et al., 2016)</ref> have been proposed, progressively increasing their accuracy on CIFAR100 <ref type="bibr" target="#b23">(Krizhevsky &amp; Hinton, 2009)</ref> and ImageNet <ref type="bibr" target="#b37">(Russakovsky et al., 2015)</ref>. Densely connected networks (DenseNets) <ref type="bibr">(Huang et al., 2016)</ref> are a recently proposed variation where the summation operation at the end of each unit is substituted by a concatenation of the input and output of the unit.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">Born-Again Networks</head><p>Consider the classical image classification setting where we have a training dataset consisting of tuples of images and labels (x, y) ∈ X × Y and we are interested in fitting a function f (x) : X → Y, able to generalize to unseen data. Commonly, the mapping f (x) is parametrized by a neural network f (x, θ 1 ), θ 1 with parameters in some space Θ 1 . We learn the parameters via Empirical Risk Minimization (ERM), producing a resulting model θ * 1 that minimizes some loss function:</p><formula xml:id="formula_1">θ * 1 = arg min θ1 L(y, f (x, θ 1 )),<label>(1)</label></formula><p>typically optimized by some variant of Stochastic Gradient Descent (SGD).</p><p>Born-Again Networks (BANs) are based on the empirical finding demonstrated in knowledge distillation / model compression papers that generalization error, can be reduced by modifying the loss function. This should not be surprising: the most common such modifications are the classical regularization penalties which limit the complexity of the learned model. BANs instead exploit the idea demonstrated in KD, that the information contained in a teacher model's output distribution f (x, θ * 1 ) can provide a rich source of training signal, leading to a second solution f (x, θ * 2 ), θ 2 ∈ Θ 2 , with better generalization ability. We explore techniques to modify, substitute, or regularize the original loss function with a KD term based on the cross-entropy between the new model's outputs and the outputs of the original model:</p><formula xml:id="formula_2">L(f (x, arg min θ1 L(y, f (x, θ 1 ))), f (x, θ 2 )).<label>(2)</label></formula><p>Unlike the original works on KD, we address the case when the teacher and student networks have identical architectures. Additionally, we present experiments addressing the case when the teacher and student networks have similar capacity but different architectures. For example we perform knowledge transfer from a DenseNet teacher to a ResNet student with similar number of parameters.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1.">Sequence of Teaching Selves Born-Again Networks Ensemble</head><p>Inspired by the impressive recent results of SGDR Wide-Resnet <ref type="bibr">(Loshchilov &amp; Hutter, 2016)</ref> and Coupled-DenseNet <ref type="bibr" target="#b8">(Dutt et al., 2017)</ref> ensembles on CIFAR100, we apply BANs sequentially with multiple generations of knowledge transfer. In each case, the k-th model is trained, with knowledge transferred from the k − 1-th student:</p><formula xml:id="formula_3">L(f (x, arg min θ k−1 L(f (x, θ k−1 ))), f (x, θ k )).<label>(3)</label></formula><p>Finally, similarly to ensembling multiple snapshots  of SGD with restart <ref type="bibr">(Loshchilov &amp; Hutter, 2016)</ref>, we produce Born-Again Network Ensembles (BANE) by averaging the prediction of multiple generations of BANs.f</p><formula xml:id="formula_4">k (x) = k i=1 f (x, θ i )/k.<label>(4)</label></formula><p>We find the improvements of the sequence to saturate, but we are able to produce significant gains through ensembling.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2.">Dark Knowledge Under the Light</head><p>The authors in <ref type="bibr" target="#b17">(Hinton et al., 2015)</ref> suggest that the success of KD depends on the dark knowledge hidden in the distribution of logits of the wrong responses, that carry information on the similarity between output categories. Another plausible explanations might be found by comparing the gradients flowing through output node corresponding to the correct class during distillation vs. normal supervised training. Note that restricting attention to this gradient, the knowledge distillation might resemble importance-weighting where the weight corresponds to the teacher's confidence in the correct prediction.</p><p>The single-sample gradient of the cross-entropy between student logits z j and teacher logits t j with respect to the ith output is given by:</p><formula xml:id="formula_5">∂L i ∂z i = q i − p i = e zi n j=1 e zj − e ti n j=1 e tj .<label>(5)</label></formula><p>When the target probability distribution function corresponds to the ground truth * one-hot label p * = y * = 1 this reduces to:</p><formula xml:id="formula_6">∂L * ∂z * = q * − y * = e z * n j=1 e zj − 1<label>(6)</label></formula><p>When the loss is computed with respect to the complete teacher output, the student back-propagates the mean of the gradients with respect to correct and incorrect outputs across all the b samples s of the mini-batch (assuming without loss of generality the nth label is the ground truth label * ):</p><formula xml:id="formula_7">b s=1 n i=1 ∂L i,s ∂z i,s = b s=1 (q * ,s − p * ,s ) + b s=1 n−1 i=1 (q i,s − p i,s ),<label>(7)</label></formula><p>up to a rescaling factor 1/b. The second term corresponds to the information incoming from all the wrong outputs, via dark knowledge. The first term corresponds to the gradient from the correct choice and can be rewritten as</p><formula xml:id="formula_8">1 b b s=1 (q * ,s − p * ,s y * ,s )<label>(8)</label></formula><p>which allows the interpretation of the output of the teacher p * as a weighting factor of the original ground truth label y * .</p><p>When the teacher is correct and confident in its output, i.e. p * ,s ≈ 1, Eq. (8) reduces to the ground truth gradient in Eq. (6), while samples with lower confidence have their gradients rescaled by a factor p * ,s and have reduced contribution to the overall training signal.</p><p>We notice that this form has a relationship with importance weighting of samples where the gradient of each sample in a mini-batch is balanced based on its importance weight w s . When the importance weights correspond to the output of a teacher for the correct dimension we have:</p><formula xml:id="formula_9">b s=1 w s b u=1 w u (q * ,s −y * ,s ) = b s=1 p * ,s b u=1 p * ,u (q * ,s −y * ,s ). (9)</formula><p>So we ask the following question: does the success of dark knowledge owe to the information contained in the nonargmax outputs of the teacher? Or is dark knowledge simply performing a kind of importance weighting? To explore these questions, we develop two treatments. In the first treatment, Confidence Weighted by Teacher Max (CWTM), we weight each example in the student's loss function (standard cross-entropy with ground truth labels) by the confidence of the teacher model on that example (even if the teacher wrong). We train BAN models using an approximation of Eq. <ref type="formula">9</ref>, where we substitute the correct answer p * ,s with the max output of the teacher max p .,s :</p><formula xml:id="formula_10">b s=1 max p .,s b u=1 max p .,u (q * ,s − y * ,s ).<label>(10)</label></formula><p>In the second treatment, dark knowledge with Permuted Predictions (DKPP), we permute the non-argmax outputs of the teacher's predicted distribution. We use the original formulation of Eq. <ref type="formula" target="#formula_7">7</ref>, substituting the * operator with max and permuting the teacher dimensions of the dark knowledge term, leading to:</p><formula xml:id="formula_11">b s=1 n i=1 ∂L i,s ∂z i,s = b s=1 (q * ,s − max p .,s ) + b s=1 n−1 i=1 q i,s − φ(p j,s ),<label>(11)</label></formula><p>where φ(p j,s ) are the permuted outputs of the teacher. In DKPP we scramble the correct attribution of dark knowledge to each non-argmax output dimension, destroying the pairwise similarities of the original output covariance matrix.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3.">BANs Stability to Depth and Width Variations</head><p>DenseNet architectures are parametrized by depth, growth, and compression factors. Depth corresponds to the number of dense blocks. The growth factor defines how many new features are concatenated at each new dense block, while the compression factor controls by how much features are reduced at the end of each stage.</p><p>Variations in these hyper-parameters induce a tradeoff between number of parameters, memory use and the number of sequential operations for each pass. We test the possibility of expressing the same function of the DenseNet teacher with different architectural hyperparameters. In order to construct a fair comparison, we construct DenseNets whose output dimensionality at each spatial transition matches that of the DenseNet-90-60 teacher. Keeping the size of the hidden states constant, we modulate the growth factor indirectly via the choice the number of blocks. Additionally, we can drastically reduce the growth factor by reducing the compression factor before or after each spatial transition.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4.">DenseNets Born-Again as ResNets</head><p>Since </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">Experiments</head><p>All experiments performed on CIFAR-100 use the same preprocessing and training setting as for Wide-ResNet <ref type="bibr" target="#b48">(Zagoruyko &amp; Komodakis, 2016b</ref>) except for Mean-Std normalization. The only form of regularization used other than the KD loss are weight decay and, in the case of Wide-ResNet drop-out.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.">CIFAR-10/100</head><p>Baselines To get a strong teacher baseline without the prohibitive memory usage of the original architectures, we explore multiple heights and growth factors for DenseNets. We find a good configuration in relatively shallower architectures with increased growth factor and comparable number of parameters to the largest configuration of the original paper. Classical ResNet baselines are trained following <ref type="bibr" target="#b48">(Zagoruyko &amp; Komodakis, 2016b)</ref>. Finally, we construct Wide-ResNet and bottleneck-ResNet networks that match the output shape of DenseNet-90-60 at each block, as baselines for our BAN-ResNet with DenseNet teacher experiment.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>BAN-DenseNet and ResNet</head><p>We perform BAN retraining after convergence, using the same training schedule originally used to train the teacher networks. We employ DenseNet- <ref type="bibr">(116-33, 90-60, 80-80, 80-120)</ref> and train a sequence of BANs for each configuration. We test the ensemble performance for sequences of 2 and 3 BANs. We explored other forms of knowledge transfer for training BANs. Specifically, we tried progressively constraining the BANs to be more similar to their teachers, sharing the first and last layers between student and teacher, or adding losses that penalize the L2 distance between student and teacher activations. However, we found these variations to systematically perform slightly worse than the simple KD via cross entropy. For BAN-ResNet experiments with a ResNet teacher we use .</p><p>BAN without Dark Knowledge In the first treatment, CWTM, we fully exclude the effect of all the teacher's output except for the argmax dimension. To do so, we train the students with the normal label loss where samples are weighted by their importance. We interpret the max of the teacher's output for each sample as the importance weight and use it to rescale each sample of the student's loss.</p><p>In the second treatment, DKPP, we maintain the overall high order moments of the teachers output, but randomly permute each output dimension except the argmax one. We maintain the rest of the training scheme and the architecture unchanged.</p><p>Both methods alter the covariance between outputs, such that any improvement cannot be fully attributed to the classical dark knowledge interpretation.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Variations in Depth, Width and Compression Rate</head><p>We also train variations of DenseNet-90-60, with increased or decreased number of units in each block and different number of channels determined through a ratio of the original activation sizes.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>BAN-Resnet with DenseNet teacher</head><p>In all the BAN-ResNet with DenseNet teacher experiments, the student shares the first and last layers of the teacher. We modulate the complexity of the ResNet by changing the number of units, starting from the depth of the successful Wide-ResNet- <ref type="bibr" target="#b48">(Zagoruyko &amp; Komodakis, 2016b)</ref> and reducing until only a single residual unit per block remains. Since the number of channels in each block is the same for every residual unit, we match it with a proportion of the corresponding dense block output after the 1 × 1 convolution, before the spatial down-sampling. We explore mostly architectures with a ratio of 1, but we also show the effect of halving the width of the network.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>BAN-DenseNet with ResNet teacher</head><p>With this experiment we test whether a weaker ResNet teacher is able to successfully train DenseNet-90-60 students. We use multiple configurations of Wide-ResNet teacher and train the Ban-DenseNet student with the same hyper parameters of the other DenseNet experiments.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.">Penn Tree Bank</head><p>To validate our method beyond computer vision applications, we also apply the BAN framework to language models and evaluate it on the Penn Tree Bank (PTB) dataset <ref type="bibr" target="#b29">(Marcus et al., 1993)</ref> using the standard train/test/validation split by <ref type="bibr" target="#b31">(Mikolov et al., 2010)</ref>. We consider two BAN language models: a single layer LSTM <ref type="bibr" target="#b18">(Hochreiter &amp; Schmidhuber, 1997)</ref> with 1500 units <ref type="bibr" target="#b49">(Zaremba et al., 2014</ref>) and a smaller model from  combining a convolutional layers, highway layers, and a 2-layer LSTM (referred to as CNN-LSTM).</p><p>For the LSTM model we use weight tying <ref type="bibr" target="#b35">(Press &amp; Wolf, 2016)</ref>, 65% dropout and train for 40 epochs using SGD with a mini-batch size of 32. An adaptive learning rate schedule is used with an initial learning rate 1 that is multiplied by a factor of 0.25 if the validation perplexity does not decrease after an epoch.</p><p>The CNN-LSTM is trained with SGD for the same number of epochs with a mini-batch size of 20. The initial learning rate is set to 2 and is multiplied by a factor of 0.5 if the validation perplexity does not decrease by at least 0.5 after an epoch (this schedule slightly differs from , but worked better for the teacher model in our experiments).</p><p>Both models are unrolled for 35 steps and the KD loss is simply applied between the softmax outputs of the unrolled teacher an student.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.">Results</head><p>We report the surprising finding that by performing KD across models of similar architecture, BAN student models tend to improve over their teachers across all configurations.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1.">CIFAR-10</head><p>As can be observed in <ref type="table" target="#tab_1">Table 1</ref> the CIFAR-10 test error is systematically lower or equal for both Wide-ResNet and DenseNet student trained from an identical teacher. It is worth to note how for BAN-DenseNet the gap between architectures of different complexity is quickly reduced leading to implicit gains in the parameters to error rate ratio. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2.">CIFAR-100</head><p>For CIFAR-100 we find stronger improvements for all BAN-DenseNet models. We focus therefore most of our experiments to explore and understand the born-again phenomena on this dataset. <ref type="table">Table 2</ref> we report test error rates using both labels and teacher outputs (BAN+L) or only the latter (BAN). The improvement of fully removing the label supervision is systematic across modality, it is worth noting that the smallest student BAN-DenseNet-112-33 reaches an error of 16.95% with only 6.5 M parameters, comparable to the 16.87% error of the DenseNet-80-120 teacher with almost eight times more parameters.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>BAN-DenseNet and BAN-ResNet In</head><p>In <ref type="table">Table 3</ref> all but one Wide-ResNnet student improve over their identical teacher.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Sequence of Teaching Selves</head><p>Training BANs for multiple generations leads to inconsistent but positive improvements, that saturate after a few generations. The third gener- <ref type="table">Table 2</ref>. Test error on CIFAR-100 Left Side: DenseNet of different depth and growth factor and respective BAN student. BAN models are trained only with the teacher loss, BAN+L with both label and teacher loss. CWTM are trained with sample importance weighted label, the importance of the sample is determined by the max of the teacher's output. DKPP are trained only from teacher outputs with all the dimensions but the argmax permuted. Right Side: test error on CIFAR-100 sequence of BAN-DenseNet, and the BAN-ensembles resulting from the sequence. Each BAN in the sequence is trained from cross-entropy with respect to the model at its left. BAN and BAN-1 models are trained from Teacher but have different random seeds. We include the teacher as a member of the ensemble for Ens*3 for 80-120 since we did not train a BAN-3 for this configuration.  <ref type="table">(Table 2)</ref>. To our knowledge, this is currently the SOTA non-ensemble model without shake-shake regularization. It is only beaten by <ref type="bibr" target="#b44">Yamada et al. (2018)</ref> who use a pyramidal ResNet trained for 1800 epochs with a combination of shake-shake <ref type="bibr" target="#b11">(Gastaldi, 2017)</ref>, pyramid-drop <ref type="bibr" target="#b45">(Yamada et al., 2016)</ref> and cut-out regularization (DeVries &amp; Taylor, 2017).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Network</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>BAN-Ensemble</head><p>Similarly, our largest ensemble BAN-3-DenseNet-BC-80-120 with 150M parameters and an error of 14.9% is the lowest reported ensemble result in the same setting. BAN-3-DenseNet-112-33 is based on the building block of the best coupled-ensemble of <ref type="bibr" target="#b8">(Dutt et al., 2017)</ref> and reaches a single-error model of 16.59% with only 6.3M parameters, furthermore the ensembles of two or three consecutive generations reach a comparable error of 15.77% and 15.68% with the baseline error of 15.68% reported in <ref type="bibr" target="#b8">(Dutt et al., 2017)</ref> where four models were used.</p><p>Effect of non-argmax Logits As can be observed in the two rightmost columns if the left side of <ref type="table">Table we</ref> find that removing part of the dark knowledge still generally brings improvements to the training procedure with respect to the baseline. Importance weights CWTM lead to weak improvements over the teacher in all models but the largest DenseNet. Instead, in DKPP we find a comparable but systematic improvement effect of permuting all but the argmax dimensions.</p><p>These results demonstrate that KD does not simply contribute information on each specific non-correct output. DKPP demonstrates that the higher order moments of the output distribution that are invariant to the permutation procedure still systematically contribute to improved generalization. Furthermore, the complete removal of wrong logit information in the CWTM treatment still brings improvements for three models out of four, suggesting that the information contained in pre-trained models can be used to rebalance the training set, by giving less weight to training samples for which the teacher's output distribution is not concentrated on the max.</p><p>DenseNet to modified DenseNet students It can be seen in <ref type="table">Table 4</ref> that DenseNet students are particularly robust to the variations in the number of layers. The most shallow model with only half the number of its teacher layers DenseNet-7-1-2 still improves over the DenseNet-90-60 teacher with an error rate of 16.95%. Deeper variations are competitive or even better than the original student. The best modified student result is 16.43% error with twice the number of layers (half the growth factor) of its DenseNet-90-60 teacher.</p><p>The biggest instabilities as well as parameter saving is obtained by modifying the compression rate of the network, indirectly reducing the dimensionality of each hidden layer.</p><p>Halving the number of filters after each spatial dimension reduction in DenseNet-14-0.5-1 gives an error of 19.83%, the worst across all trained DenseNets. Smaller reductions lead to larger parameter savings with lower accuracy losses, but directly choosing a smaller network retrained with BAN procedure like DenseNet-106-33 seems to lead to higher parameter efficiency.</p><p>DenseNet Teacher to ResNet Student Surprisingly, we find (Ttable 5) that our Wide-ResNet and Pre-ResNet students that match the output shapes at each stage of their DenseNet teachers tend to outperform classical ResNets, their teachers, and their baseline. Both BAN-Pre-ResNet with 14 blocks per stage and BAN-Wide-ResNet with 4 blocks per stage and 50% compression factor reach respectively a test error of 17.39% and 17.13% using a parameter budget that is comparable with their teachers. We find that for BAN-Wide-ResNets, only limiting the number of blocks to 1 per stage leads to inferior performance compared to the teacher.</p><p>Similar to how adapting the depth of the models offers a nice tradeoff between memory consumption and number of sequential operations, exchanging dense and residual blocks allows to choose between concatenation and additions. By using additions, ResNets overwrite old memory banks, saving RAM, at the cost of heavier models that do not share layers offering another technical tradeoff to choose from.</p><p>ResNet Teacher to DenseNet Students The converse experiment, training a DenseNet-90-60 student from ResNet student confirms the trend of students surpassing their teachers. The improvement from ResNet to DenseNet <ref type="table">(Table 3</ref>, right-most column) over simple label supervision is significant as indicated by 16.79% error of the DenseNet-90-60 student trained from the Wide-ResNet-28-10.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3.">Penn Tree Bank</head><p>Although we did not use the state-of-the-art bag of tricks <ref type="bibr" target="#b30">(Merity et al., 2017)</ref> for training LSTMs, nor the recently proposed improvements on KD for sequence models , we found significant decreases in perplexity on both validation and testing set for our benchmark language models. The smaller BAN-LSTM-CNN model decreases test perplexity from 80.05 to 76.97, while the bigger BAN-LSTM model improves from 71.87 to 68.56. Unlike the CNNs trained for CIFAR classification, we find that LSTM models work only when trained with a combination of teacher outputs and label loss (BAN+L). One potential explanation for this finding might be that teachers generally reach 100% accuracy on the CIFAR training sets while the PTB training perplexity is far from being minimized.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.">Discussion</head><p>In Marvin Minsky's Society of Mind <ref type="bibr" target="#b32">(Minsky, 1991)</ref>, the analysis of human development led to the idea of a sequence of teaching selves. Minsky suggested that sudden spurts in intelligence during childhood may be due to longer and hidden training of new "student" models under the guidance of the older self. Minsky concluded that our perception of a long-term self is constructed by an ensemble of multiple generations of internal models, which we can use for guidance when the most current model falls short. Our results show several instances where such transfer was successful in artificial neural networks.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>Table 1 .</head><label>1</label><figDesc>Test error on CIFAR-10 for Wide-ResNet with different depth and width and DenseNet of different depth and growth factor.</figDesc><table><row><cell>Network</cell><cell cols="3">Parameters Teacher BAN</cell></row><row><cell>Wide-ResNet-28-1</cell><cell>0.38 M</cell><cell>6.69</cell><cell>6.64</cell></row><row><cell>Wide-ResNet-28-2</cell><cell>1.48 M</cell><cell>5.06</cell><cell>4.86</cell></row><row><cell>Wide-ResNet-28-5</cell><cell>9.16 M</cell><cell>4.13</cell><cell>4.03</cell></row><row><cell>Wide-ResNet-28-10</cell><cell>M</cell><cell>3.77</cell><cell>3.86</cell></row><row><cell>DenseNet-112-33</cell><cell>6.3 M</cell><cell>3.84</cell><cell>3.61</cell></row><row><cell>DenseNet-90-60</cell><cell>16.1 M</cell><cell>3.81</cell><cell>3.5</cell></row><row><cell>DenseNet-80-80</cell><cell>22.4 M</cell><cell>3.48</cell><cell>3.49</cell></row><row><cell>DenseNet-80-120</cell><cell>50.4 M</cell><cell>3.37</cell><cell>3.54</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_3"><head>Table 4 .Table 5 .Table 6 .</head><label>456</label><figDesc>Test error on CIFAR-100-Modified Densenet: a Densenet-90-60 is used as teacher with students that share the same size of hidden states after each spatial transition but differs in depth and compression rate DenseNet to ResNet: CIFAR-100 test error for BAN-ResNets trained from a DenseNet-90-60 teacher with different numbers of blocks and compression factors. In all the BAN architectures, the number of units per block is indicated first, followed by the ratio of input and output channels with respect to a DenseNet-90-60 block. All BAN architectures share the first (conv1) and last(fc-output) layer with the teacher which are frozen. Every dense block is effectively substituted by residual blocks Validation/Test perplexity on PTB (lower is better) for BAN-LSTM language model of different complexity</figDesc><table><row><cell cols="10">Densenet-90-60 Teacher 0.5*Depth 2*Depth 3*Depth 4*Depth 0.5*Compr 0.75*Compr 1.5*compr</cell></row><row><cell>Error</cell><cell>17.69</cell><cell>16.95</cell><cell>16.43</cell><cell>16.64</cell><cell cols="2">16.64</cell><cell cols="2">19.83</cell><cell>17.3</cell><cell>18.89</cell></row><row><cell>Parameters</cell><cell>22.4 M</cell><cell>21.2 M</cell><cell>13.7 M</cell><cell cols="2">12.9 M</cell><cell>2.6 M</cell><cell cols="2">5.1 M</cell><cell>10.1 M</cell><cell>80.5 M</cell></row><row><cell></cell><cell cols="2">DenseNet 90-60</cell><cell></cell><cell cols="5">Parameters Baseline BAN</cell></row><row><cell></cell><cell cols="3">Pre-activation ResNet-1001</cell><cell></cell><cell cols="2">10.2 M</cell><cell>22.71</cell><cell>/</cell></row><row><cell></cell><cell cols="3">BAN-Pre-ResNet-14-0.5</cell><cell></cell><cell>7.3 M</cell><cell></cell><cell>20.28</cell><cell>18.8</cell></row><row><cell></cell><cell cols="3">BAN-Pre-ResNet-14-1</cell><cell></cell><cell cols="2">17.7 M</cell><cell>18.84</cell><cell>17.39</cell></row><row><cell></cell><cell cols="3">BAN-Wide-ResNet-1-1</cell><cell></cell><cell cols="2">20.9 M</cell><cell>20.4</cell><cell>19.12</cell></row><row><cell></cell><cell cols="4">BAN-Match-Wide-ResNet-2-1</cell><cell cols="2">43.1 M</cell><cell>18.83</cell><cell>17.42</cell></row><row><cell></cell><cell cols="3">BAN-Wide-ResNet-4-0.5</cell><cell></cell><cell cols="2">24.3 M</cell><cell>19.63</cell><cell>17.13</cell></row><row><cell></cell><cell cols="3">BAN-Wide-ResNet-4-1</cell><cell></cell><cell cols="2">87.3 M</cell><cell>18.77</cell><cell>17.18</cell></row><row><cell></cell><cell>Network</cell><cell cols="8">Parameters Teacher Val BAN+L Val Teacher Test BAN+L Test</cell></row><row><cell></cell><cell>ConvLSTM</cell><cell>19M</cell><cell>83.69</cell><cell></cell><cell>80.27</cell><cell></cell><cell>80.05</cell><cell></cell><cell>76.97</cell></row><row><cell></cell><cell>LSTM</cell><cell>52M</cell><cell>75.11</cell><cell></cell><cell>71.19</cell><cell></cell><cell>71.87</cell><cell></cell><cell>68.56</cell></row></table><note></note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgements</head><p>This work was supported by the National Science Foundation (grant numbers CCF-1317433 and CNS-1545089), C-BRIC (one of six centers in JUMP, a Semiconductor Research Corporation (SRC) program sponsored by DARPA), and the Intel Corporation. The authors affirm that the views expressed herein are solely their own, and do not represent the views of the United States government or any agency thereof.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Do deep nets really need to be deep?</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Ba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Caruana</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="2654" to="2662" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<monogr>
+		<title level="m" type="main">Born again trees</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Breiman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Shang</surname></persName>
+		</author>
+		<ptr target="ftp://ftp.stat.berkeley.edu/pub/users/breiman/BAtrees.ps" />
+		<imprint>
+			<date type="published" when="1996" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Statistical modeling: The two cultures (with comments and a rejoinder by the author)</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Breiman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Statistical Science</title>
+		<imprint>
+			<biblScope unit="volume">16</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="199" to="231" />
+			<date type="published" when="2001" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Model compression</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Bucilua</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Caruana</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Niculescu-Mizil</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 12th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining</title>
+		<meeting>the 12th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2006" />
+			<biblScope unit="page" from="535" to="541" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<monogr>
+		<title level="m" type="main">The combination and comparison of neural networks with decision trees for wine classification. School of Sciences and Technology</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Chandra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Chaudhary</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kumar</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2007" />
+		</imprint>
+		<respStmt>
+			<orgName>University of Fiji</orgName>
+		</respStmt>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Xgboost: A scalable tree boosting system</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Guestrin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining</title>
+		<meeting>the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="785" to="794" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Sobolev training for neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><forename type="middle">M</forename><surname>Czarnecki</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Osindero</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Jaderberg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Świrszcz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Pascanu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="4281" to="4290" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<title level="m" type="main">Improved regularization of convolutional neural networks with cutout</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Devries</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">W</forename><surname>Taylor</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1708.04552</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Dutt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Pellerin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Quenot</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1709.06053</idno>
+		<title level="m">Coupled Ensembles of Neural Networks</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<monogr>
+		<title level="m" type="main">Distilling a neural network into a soft decision tree</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Frosst</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1711.09784</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Furlanello</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Zhao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">M</forename><surname>Saxe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Itti</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">S</forename><surname>Tjan</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1606.02355</idno>
+		<title level="m">Active long term memory networks</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<monogr>
+		<title level="m" type="main">Shake-shake regularization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Gastaldi</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1705.07485</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<title level="m" type="main">A neural algorithm of artistic style</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">A</forename><surname>Gatys</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">S</forename><surname>Ecker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Bethge</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1508.06576</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Deep pyramidal residual networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Han</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Kim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Kim</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition</title>
+		<meeting>the IEEE Conference on Computer Vision and Pattern Recognition</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="6307" to="6315" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Neural network ensembles</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">K</forename><surname>Hansen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Salamon</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Pattern Analysis and Machine Intelligence</title>
+		<imprint>
+			<biblScope unit="volume">12</biblScope>
+			<biblScope unit="issue">10</biblScope>
+			<biblScope unit="page" from="993" to="1001" />
+			<date type="published" when="1990" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Deep residual learning for image recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition</title>
+		<meeting>the IEEE Conference on Computer Vision and Pattern Recognition</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="770" to="778" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Identity mappings in deep residual networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">European Conference on Computer Vision</title>
+		<imprint>
+			<publisher>Springer</publisher>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="630" to="645" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<title level="m" type="main">Distilling the knowl</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Dean</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1503.02531</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Long short-term memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Hochreiter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schmidhuber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural Computation</title>
+		<imprint>
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="issue">8</biblScope>
+			<biblScope unit="page" from="1735" to="1780" />
+			<date type="published" when="1997" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Densely connected convolutional networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">Q</forename><surname>Weinberger</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Van Der Maaten</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition</title>
+		<meeting>the IEEE Conference on Computer Vision and Pattern Recognition</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="4700" to="4708" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Pleiss</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">E</forename><surname>Hopcroft</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">Q</forename><surname>Weinberger</surname></persName>
+		</author>
+		<title level="m">International Conference on Learning Representations</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note>Snapshot ensembles: Train 1, get M for free</note>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Sequence-level knowledge distillation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Kim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">M</forename><surname>Rush</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Conference on Empirical Methods in Natural Language Processing</title>
+		<meeting>the Conference on Empirical Methods in Natural Language Processing</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="1317" to="1327" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Characteraware neural language models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Kim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Jernite</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Sontag</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">M</forename><surname>Rush</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Thirtieth AAAI Conference on Artificial Intelligence</title>
+		<meeting>the Thirtieth AAAI Conference on Artificial Intelligence</meeting>
+		<imprint>
+			<publisher>AAAI Press</publisher>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="2741" to="2749" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<monogr>
+		<title level="m" type="main">Learning multiple layers of features from tiny images</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">Learning without forgetting</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Hoiem</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">European Conference on Computer Vision</title>
+		<imprint>
+			<publisher>Springer</publisher>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="614" to="629" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Classification and regression by randomforest</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Liaw</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Wiener</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">R News</title>
+		<imprint>
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="18" to="22" />
+			<date type="published" when="2002" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><forename type="middle">C</forename><surname>Lipton</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1606.03490</idno>
+		<title level="m">The mythos of model interpretability. ICML Workshop on Human Interpretability in Machine Learning</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Unifying distillation and privileged information</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Lopez-Paz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Bottou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Schölkopf</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Vapnik</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Learning Representations</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">SGDR: Stochastic gradient descent with restarts</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Loshchilov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Hutter</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Learning Representations</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Building a large annotated corpus of English: The penn treebank</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">P</forename><surname>Marcus</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">A</forename><surname>Marcinkiewicz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Santorini</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Computational Linguistics</title>
+		<imprint>
+			<biblScope unit="volume">19</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="313" to="330" />
+			<date type="published" when="1993" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Regularizing and optimizing LSTM language models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Merity</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><forename type="middle">S</forename><surname>Keskar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Socher</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Learning Representations</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">Recurrent neural network based language model</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mikolov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Karafiát</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Burget</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Černockỳ</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Khudanpur</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Eleventh Annual Conference of the International Speech Communication Association</title>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Society of mind: A response to four reviews</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Minsky</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Artificial Intelligence</title>
+		<imprint>
+			<biblScope unit="volume">48</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="371" to="396" />
+			<date type="published" when="1991" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<analytic>
+		<title level="a" type="main">Distillation as a defense to adversarial perturbations against deep neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Papernot</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Mcdaniel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Jha</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Swami</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE Symposium on Security and Privacy</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="582" to="597" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">On the theory of learning with privileged information</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Pechyony</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Vapnik</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="1894" to="1902" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<analytic>
+		<title level="a" type="main">Using the output embedding to improve language models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Press</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Wolf</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 15th Conference of the European Chapter of the Association for Computational Linguistics</title>
+		<meeting>the 15th Conference of the European Chapter of the Association for Computational Linguistics</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="157" to="163" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Romero</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Ballas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">E</forename><surname>Kahou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Chassang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Gatta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Fitnets</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.6550</idno>
+		<title level="m">Hints for thin deep nets</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">Imagenet large scale visual recognition challenge</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Russakovsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Deng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Su</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Krause</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Satheesh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Karpathy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Khosla</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Bernstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">C</forename><surname>Berg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Fei-Fei</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">International Journal of Computer Vision</title>
+		<imprint>
+			<biblScope unit="volume">115</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="211" to="252" />
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">A</forename><surname>Rusu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">G</forename><surname>Colmenarejo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Gulcehre</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Desjardins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Kirkpatrick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Mnih</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Hadsell</surname></persName>
+		</author>
+		<title level="m">International Conference on Learning Representations</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Policy distillation</note>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">Deep learning, dark knowledge, and dark matter</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Sadowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Collado</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Whiteson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Baldi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS 2014 Workshop on High-energy Physics and Machine Learning</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="81" to="87" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<analytic>
+		<title level="a" type="main">Continual learning with deep generative replay</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Shin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">K</forename><surname>Lee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Kim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Kim</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="2994" to="3003" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<monogr>
+		<title level="m" type="main">Transparent model distillation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Tan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Caruana</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hooker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Gordo</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1801.08640</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<analytic>
+		<title level="a" type="main">Do deep convolutional nets really need to be deep and convolutional</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Urban</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">J</forename><surname>Geras</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">E</forename><surname>Kahou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Aslan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Caruana</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Mohamed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Philipose</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Richardson</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Learning Representations</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Xie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Girshick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dollár</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Tu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>He</surname></persName>
+		</author>
+		<title level="m">Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition</title>
+		<meeting>the IEEE Conference on Computer Vision and Pattern Recognition</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="5987" to="5995" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Yamada</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Iwamura</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kise</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1802.02375</idno>
+		<title level="m">ShakeDrop regularization</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<monogr>
+		<title level="m" type="main">Deep pyramidal residual networks with separated stochastic depth</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Yamada</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Iwamura</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kise</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1612.01230</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b46">
+	<analytic>
+		<title level="a" type="main">A gift from knowledge distillation: Fast optimization, network minimization and transfer learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Yim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Joo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Bae</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Kim</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition</title>
+		<meeting>the IEEE Conference on Computer Vision and Pattern Recognition</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="7130" to="7138" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b47">
+	<analytic>
+		<title level="a" type="main">Paying more attention to attention: Improving the performance of convolutional neural networks via attention transfer</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Zagoruyko</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Komodakis</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Learning Representations</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b48">
+	<analytic>
+		<title level="a" type="main">Wide residual networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Zagoruyko</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Komodakis</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the British Machine Vision Conference (BMVC)</title>
+		<meeting>the British Machine Vision Conference (BMVC)</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="volume">12</biblScope>
+			<biblScope unit="page" from="87" to="88" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b49">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Zaremba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Vinyals</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1409.2329</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note>Recurrent neural network regularization</note>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

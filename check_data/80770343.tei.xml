@@ -1,0 +1,805 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Deep Generative Image Models using a Laplacian Pyramid of Adversarial Networks</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2015-06-18">18 Jun 2015</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Emily</forename><surname>Denton</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Soumith</forename><surname>Chintala</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Arthur</forename><surname>Szlam</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rob</forename><surname>Fergus</surname></persName>
+						</author>
+						<author>
+							<affiliation key="aff0">
+								<orgName type="department">Dept. of Computer Science</orgName>
+								<orgName type="institution">Courant Institute New York University</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff1">
+								<orgName type="department">Facebook AI Research New York</orgName>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Deep Generative Image Models using a Laplacian Pyramid of Adversarial Networks</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2015-06-18">18 Jun 2015</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1506.05751v1[cs.CV]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:41+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>In this paper we introduce a generative parametric model capable of producing high quality samples of natural images. Our approach uses a cascade of convolutional networks within a Laplacian pyramid framework to generate images in a coarse-to-fine fashion. At each level of the pyramid, a separate generative convnet model is trained using the Generative Adversarial Nets (GAN) approach [10]. Samples drawn from our model are of significantly higher quality than alternate approaches. In a quantitative assessment by human evaluators, our CIFAR10 samples were mistaken for real images around 40% of the time, compared to 10% for samples drawn from a GAN baseline model. We also show samples from models trained on the higher resolution images of the LSUN scene dataset. * denotes equal contribution.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Introduction</head><p>Building a good generative model of natural images has been a fundamental problem within computer vision. However, images are complex and high dimensional, making them hard to model well, despite extensive efforts. Given the difficulties of modeling entire scene at high-resolution, most existing approaches instead generate image patches. In contrast, in this work, we propose an approach that is able to generate plausible looking scenes at × 32 and 64 × 64. To do this, we exploit the multi-scale structure of natural images, building a series of generative models, each of which captures image structure at a particular scale of a Laplacian pyramid <ref type="bibr" target="#b0">[1]</ref>. This strategy breaks the original problem into a sequence of more manageable stages. At each scale we train a convolutional network-based generative model using the Generative Adversarial Networks (GAN) approach of Goodfellow et al. <ref type="bibr" target="#b9">[10]</ref>. Samples are drawn in a coarse-to-fine fashion, commencing with a low-frequency residual image. The second stage samples the band-pass structure at the next level, conditioned on the sampled residual. Subsequent levels continue this process, always conditioning on the output from the previous scale, until the final level is reached. Thus drawing samples is an efficient and straightforward procedure: taking random vectors as input and running forward through a cascade of deep convolutional networks (convnets) to produce an image.</p><p>Deep learning approaches have proven highly effective at discriminative tasks in vision, such as object classification <ref type="bibr" target="#b2">[3]</ref>. However, the same level of success has not been obtained for generative tasks, despite numerous efforts <ref type="bibr" target="#b12">[13,</ref><ref type="bibr" target="#b23">24,</ref><ref type="bibr" target="#b27">28]</ref>. Against this background, our proposed approach makes a significant advance in that it is straightforward to train and sample from, with the resulting samples showing a surprising level of visual fidelity, indicating a better density model than prior methods.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.1">Related Work</head><p>Generative image models are well studied, falling into two main approaches: non-parametric and parametric. The former copy patches from training images to perform, for example, texture synthesis <ref type="bibr" target="#b5">[6]</ref> or super-resolution <ref type="bibr" target="#b7">[8]</ref>. More ambitiously, entire portions of an image can be in-painted, given a sufficiently large training dataset <ref type="bibr" target="#b11">[12]</ref>. Early parametric models addressed the easier problem of tex-ture synthesis <ref type="bibr" target="#b1">[2,</ref><ref type="bibr" target="#b30">31,</ref><ref type="bibr" target="#b19">20]</ref>, with Portilla &amp; Simoncelli <ref type="bibr" target="#b19">[20]</ref> making use of a steerable pyramid wavelet representation <ref type="bibr" target="#b24">[25]</ref>, similar to our use of a Laplacian pyramid. For image processing tasks, models based on marginal distributions of image gradients are effective <ref type="bibr" target="#b17">[18,</ref><ref type="bibr" target="#b22">23]</ref>, but are only designed for image restoration rather than being true density models (so cannot sample an actual image). Very large Gaussian mixture models <ref type="bibr" target="#b31">[32]</ref> and sparse coding models of image patches <ref type="bibr" target="#b28">[29]</ref> can also be used but suffer the same problem.</p><p>A wide variety of deep learning approaches involve generative parametric models. Restricted Boltzmann machines <ref type="bibr" target="#b12">[13,</ref><ref type="bibr" target="#b15">16,</ref><ref type="bibr" target="#b18">19,</ref><ref type="bibr" target="#b20">21]</ref>, Deep Boltzmann machines <ref type="bibr" target="#b23">[24,</ref><ref type="bibr" target="#b6">7]</ref>, Denoising auto-encoders <ref type="bibr" target="#b27">[28]</ref> all have a generative decoder that reconstructs the image from the latent representation. Variational auto-encoders <ref type="bibr" target="#b14">[15,</ref><ref type="bibr" target="#b21">22]</ref> provide probabilistic interpretation which facilitates sampling. However, for all these methods convincing samples have only been shown on simple datasets such as MNIST and NORB, possibly due to training complexities which limit their applicability to larger and more realistic images.</p><p>Several recent papers have proposed novel generative models. Dosovitskiy et al. <ref type="bibr" target="#b4">[5]</ref> showed how a convnet can draw chairs with different shapes and viewpoints. While our model also makes use of convnets, it is able to sample general scenes and objects. The DRAW model of Gregor et al. <ref type="bibr" target="#b10">[11]</ref> used an attentional mechanism with an RNN to generate images via a trajectory of patches, showing samples of MNIST and CIFAR10 images. Sohl-Dickstein et al. <ref type="bibr" target="#b25">[26]</ref> use a diffusion-based process for deep unsupervised learning and the resulting model is able to produce reasonable CIFAR10 samples. Theis and Bethge <ref type="bibr" target="#b26">[27]</ref> employ LSTMs to capture spatial dependencies and show convincing inpainting results of natural textures.</p><p>Our work builds on the GAN approach of Goodfellow et al. <ref type="bibr" target="#b9">[10]</ref> which works well for smaller images (e.g. MNIST) but cannot directly handle large ones, unlike our method. Most relevant to our approach is the preliminary work of Mirza and Osindero <ref type="bibr" target="#b16">[17]</ref> and Gauthier <ref type="bibr" target="#b8">[9]</ref> who both propose conditional versions of the GAN model. The former shows MNIST samples, while the latter focuses solely on frontal face images. Our approach also uses several forms of conditional GAN model but is much more ambitious in its scope.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Approach</head><p>The basic building block of our approach is the generative adversarial network (GAN) of Goodfellow et al. <ref type="bibr" target="#b9">[10]</ref>. After reviewing this, we introduce our LAPGAN model which integrates a conditional form of GAN model into the framework of a Laplacian pyramid.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1">Generative Adversarial Networks</head><p>The GAN approach <ref type="bibr" target="#b9">[10]</ref> is a framework for training generative models, which we briefly explain in the context of image data. The method pits two networks against one another: a generative model G that captures the data distribution and a discriminative model D that distinguishes between samples drawn from G and images drawn from the training data. In our approach, both G and D are convolutional networks. The former takes as input a noise vector z drawn from a distribution p Noise (z) and outputs an imageh. The discriminative network D takes an image as input stochastically chosen (with equal probability) to be eitherh -as generated from G, or h -a real image drawn from the training data p Data (h). D outputs a scalar probability, which is trained to be high if the input was real and low if generated from G. A minimax objective is used to train both models together:</p><formula xml:id="formula_0">min G max D E h∼pData(h) [log D(h)] + E z∼pNoise(z) [log(1 − D(G(z)))]<label>(1)</label></formula><p>This encourages G to fit p Data (h) so as to fool D with its generated samplesh. Both G and D are trained by backpropagating the loss in Eqn. 1 through their respective models to update the parameters.</p><p>The conditional generative adversarial net (CGAN) is an extension of the GAN where both networks G and D receive an additional vector of information l as input. This might contain, say, information about the class of the training example h. The loss function thus becomes</p><formula xml:id="formula_1">min G max D E h,l∼pData(h,l) [log D(h, l)] + E z∼pNoise(z),l∼p l (l) [log(1 − D(G(z, l), l))]<label>(2)</label></formula><p>where p l (l) is, for example, the prior distribution over classes. This model allows the output of the generative model to be controlled by the conditioning variable l. Mirza and Osindero <ref type="bibr" target="#b16">[17]</ref> and Gauthier <ref type="bibr" target="#b8">[9]</ref> both explore this model with experiments on MNIST and faces, using l as a class indicator. In our approach, l will be another image, generated from another CGAN model.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">Laplacian Pyramid</head><p>The Laplacian pyramid <ref type="bibr" target="#b0">[1]</ref> is a linear invertible image representation consisting of a set of band-pass images, spaced an octave apart, plus a low-frequency residual. Formally, let d(.) be a downsampling operation which blurs and decimates a j × j image I, so that d(I) is a new image of size j/2 × j/2. Also, let u(.) be an upsampling operator which smooths and expands I to be twice the size, so u(I) is a new image of size 2j × 2j. We first build a Gaussian pyramid G(I) = [I 0 , I 1 , . . . , I K ], where I 0 = I and I k is k repeated applications * of d(.) to I. K is the number of levels in the pyramid, selected so that the final level has very small spatial extent (≤ × 8 pixels).</p><p>The coefficients h k at each level k of the Laplacian pyramid L(I) are constructed by taking the difference between adjacent levels in the Gaussian pyramid, upsampling the smaller one with u(.) so that the sizes are compatible: </p><formula xml:id="formula_2">h k = L k (I) = G k (I) − u(G k+1 (I)) = I k − u(I k+1 )<label>(3)</label></formula><formula xml:id="formula_3">I k = u(I k+1 ) + h k (4)</formula><p>which is started with I K = h K and the reconstructed image being I = I o . In other words, starting at the coarsest level, we repeatedly upsample and add the difference image h at the next finer level until we get back to the full resolution image.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.3">Laplacian Generative Adversarial Networks (LAPGAN)</head><p>Our proposed approach combines the conditional GAN model with a Laplacian pyramid representation. The model is best explained by first considering the sampling procedure. Following training (explained below), we have a set of generative convnet models {G 0 , . . . , G K }, each of which captures the distribution of coefficients h k for natural images at a different level of the Laplacian pyramid. Sampling an image is akin to the reconstruction procedure in Eqn. 4, except that the generative models are used to produce the h k 's:</p><formula xml:id="formula_4">I k = u(Ĩ k+1 ) +h k = u(Ĩ k+1 ) + G k (z k , u(Ĩ k+1 ))<label>(5)</label></formula><p>The recurrence starts by settingĨ K+1 = 0 and using the model at the final level G K to generate a residual imageĨ K using noise vector z K :Ĩ K = G K (z K ). Note that models at all levels except the final are conditional generative models that take an upsampled version of the current imageĨ k+1 as a conditioning variable, in addition to the noise vector z k . <ref type="figure">Fig. 1</ref> shows this procedure in action for a pyramid with K = 3 using 4 generative models to sample a 64 × 64 image.</p><p>The generative models {G 0 , . . . , G K } are trained using the CGAN approach at each level of the pyramid. Specifically, we construct a Laplacian pyramid from each training image I. At each level * i.e.</p><formula xml:id="formula_5">I2 = d(d(I)). G 2 ~ I 3 G 3 z 2 ~ h z 3 G 1 z 1 G 0 z 0 ~ I 2 l 2 ~ I 0 h 0 ~ I 1 ~ ~ h 1 l 1 l 0</formula><p>Figure 1: The sampling procedure for our LAPGAN model. We start with a noise sample z3 (right side) and use a generative model G3 to generateĨ3. This is upsampled (green arrow) and then used as the conditioning variable (orange arrow) l2 for the generative model at the next level, G2. Together with another noise sample z2, G2 generates a difference imageh2 which is added to l2 to createĨ2. This process repeats across two subsequent levels to yield a final full resolution sample I0.</p><formula xml:id="formula_6">G 0 l 2 ~ I 3 G 3 D 0 z 0 D 1 D 2 h 2 ~ h 2 z 3 D 3 I 3 I 2 I 2 I 3</formula><p>Real/Generated?</p><p>Real/ Generated?</p><formula xml:id="formula_7">G 1 z 1 G 2 z 2</formula><p>Real/Generated?</p><p>Real/ Generated? <ref type="figure">Figure 2</ref>: The training procedure for our LAPGAN model. Starting with a 64x64 input image I from our training set (top left): (i) we take I0 = I and blur and downsample it by a factor of two (red arrow) to produce I1; (ii) we upsample I1 by a factor of two (green arrow), giving a low-pass version l0 of I0; (iii) with equal probability we use l0 to create either a real or a generated example for the discriminative model D0. In the real case (blue arrows), we compute high-pass h0 = I0 − l0 which is input to D0 that computes the probability of it being real vs generated. In the generated case (magenta arrows), the generative network G0 receives as input a random noise vector z0 and l0. It outputs a generated high-pass imageh0 = G0(z0, l0), which is input to D0. In both the real/generated cases, D0 also receives l0 (orange arrow). Optimizing Eqn. 2, G0 thus learns to generate realistic high-frequency structureh0 consistent with the low-pass image l0. The same procedure is repeated at scales 1 and 2, using I1 and I2. Note that the models at each level are trained independently. At level 3, I3 is an 8×8 image, simple enough to be modeled directly with a standard GANs G3 &amp; D3.</p><formula xml:id="formula_8">l 0 I = I 0 h 0 I 1 I l 1 ~ h 1 h 1 h ~</formula><p>we make a stochastic choice (with equal probability) to either (i) construct the coefficients h k either using the standard procedure from Eqn. 3, or (ii) generate them using G k :</p><formula xml:id="formula_9">h k = G k (z k , u(I k+1 ))<label>(6)</label></formula><p>Note that G k is a convnet which uses a coarse scale version of the image l k = u(I k+1 ) as an input, as well as noise vector z k . D k takes as input h k orh k , along with the low-pass image l k (which is explicitly added to h k orh k before the first convolution layer), and predicts if the image was real or generated. At the final scale of the pyramid, the low frequency residual is sufficiently small that it can be directly modeled with a standard GAN:h K = G K (z K ) and D K only has h K orh K as input.</p><p>The framework is illustrated in <ref type="figure">Fig. 2</ref>.</p><p>Breaking the generation into successive refinements is the key idea in this work. Note that we give up any "global" notion of fidelity; we never make any attempt to train a network to discriminate between the output of a cascade and a real image and instead focus on making each step plausible. Furthermore, the independent training of each pyramid level has the advantage that it is far more difficult for the model to memorize training examples -a hazard when high capacity deep networks are used.</p><p>As described, our model is trained in an unsupervised manner. However, we also explore variants that utilize class labels. This is done by add a 1-hot vector c, indicating class identity, as another conditioning variable for G k and D k .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">Model Architecture &amp; Training</head><p>We apply our approach to three datasets: (i) CIFAR10 -32×32 pixel color images of 10 different classes, 100k training samples with tight crops of objects; (ii) STL -96×96 pixel color images of 10 different classes, 100k training samples (we use the unlabeled portion of data); and (iii) LSUN [30] -∼10M images of 10 different natural scene types, downsampled to 64×64 pixels.</p><p>For each dataset, we explored a variety of architectures for {G k , D k }. We now detail the best performing models, selected using a combination of log-likelihood and visual appearance of the samples. Complete Torch specification files for all models are provided in supplementary material <ref type="bibr" target="#b3">[4]</ref>. For all models, the noise vector z k is drawn from a uniform [-1,1] distribution.  <ref type="bibr" target="#b3">[4]</ref>). The noise input z k to G k is presented as a 4th "color plane" to low-pass l k , hence its dimensionality varies with the pyramid level. For CIFAR10, we also explore a class conditional version of the model, where a vector c encodes the label. This is integrated into G k &amp; D k by passing it through a linear layer whose output is reshaped into a single plane feature map which is then concatenated with the 1st layer maps. The loss in Eqn. 2 is trained using SGD with an initial learning rate of 0.02, decreased by a factor of (1 + 4 × 10 −5 ) at each epoch. Momentum starts at 0.5, increasing by 0.0008 at epoch up to a maximum of 0.8. During training, we monitor log-likelihood using a Parzen-window estimator and retain the best performing model. Training time depends on the models size and pyramid level, with smaller models taking hours to train and larger models taking several days.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">LSUN</head><p>The larger size of this dataset allows us to train a separate LAPGAN model for each the 10 different scene classes. During evaluation, so that we may understand the variation captured by our models, we commence the sampling process with validation set images † , downsampled to 4 × 4 resolution.  <ref type="bibr" target="#b13">[14]</ref> and Dropout are used at each hidden layer. D k has 3 hidden layers with {48, 448, 416} maps plus a sigmoid output. See <ref type="bibr" target="#b3">[4]</ref> for full details. Note that G k and D k are substantially larger than those used for CIFAR10 and STL, as afforded by the larger training set.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Experiments</head><p>We evaluate our approach using 3 different methods: (i) computation of log-likelihood on a held out image set; (ii) drawing sample images from the model and (iii) a human subject experiment that compares (a) our samples, (b) those of baseline methods and (c) real images.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Evaluation of Log-Likelihood</head><p>A traditional method for evaluating generative models is to measure their log-likelihood on a held out set of images. But, like the original GAN method <ref type="bibr" target="#b9">[10]</ref>, our approach does not have a direct way of computing the probability of an image. Goodfellow et al. <ref type="bibr" target="#b9">[10]</ref> propose using a Gaussian Parzen window estimate to compute log-likelihoods. Despite showing poor performance in high dimensional spaces, this approach is the best one available for estimating likelihoods of models lacking an explicitly represented density function.</p><p>Our LAPGAN model allows for an alternative method of estimating log-likelihood that exploits the multi-scale structure of the model. This new approach uses a Gaussian Parzen window estimate to compute a probability at each scale of the Laplacian pyramid. We use this procedure, described in detail in Appendix A, to compute the log-likelihoods for CIFAR10 and STL images (both at 32 × 32 resolution). The parameter σ (controlling the Parzen window size) was chosen using the validation set. We also compute the Parzen window based log-likelihood estimates of the standard GAN <ref type="bibr" target="#b9">[10]</ref> model, using 50k samples for both the CIFAR10 and STL estimates. <ref type="table">Table 1</ref> shows our model achieving a significantly higher log-likelihood on both datasets. Comparisons to further approaches, notably <ref type="bibr" target="#b25">[26]</ref>, are problematic due to different normalizations used on the data.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Model Samples</head><p>We show samples from models trained on CIFAR10, STL and LSUN datasets. Additional samples can be found in the supplementary material <ref type="bibr" target="#b3">[4]</ref>. † These were not used in any way during training.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Model</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>CIFAR10</head><p>STL (@32×32) GAN <ref type="bibr" target="#b9">[10]</ref> -3617 ± 353 -3661 ± 347 LAPGAN -1799 ± 826 -2906 ± 728 <ref type="table">Table 1</ref>: Parzen window based log-likelihood estimates for a standard GAN, our proposed LAPGAN model on CIFAR10 and STL datasets. <ref type="figure">Fig. 3</ref> shows samples from our models trained on CIFAR10. Samples from the class conditional LAPGAN are organized by class. Our reimplementation of the standard GAN model <ref type="bibr" target="#b9">[10]</ref> produces slightly sharper images than those shown in the original paper. We attribute this improvement to the introduction of data augmentation. The LAPGAN samples improve upon the standard GAN samples. They appear more object-like and have more clearly defined edges. Conditioning on a class label improves the generations as evidenced by the clear object structure in the conditional LAPGAN samples. The quality of these samples compares favorably with those from the DRAW model of Gregor et al. <ref type="bibr" target="#b10">[11]</ref> and also Sohl-Dickstein et al. <ref type="bibr" target="#b25">[26]</ref>. The rightmost column of each image shows the nearest training example to the neighboring sample (in L2 pixel-space). This demonstrates that our model is not simply copying the input examples. <ref type="figure">Fig. 4(a)</ref> shows samples from our LAPGAN model trained on STL. Here, we lose clear object shape but the samples remain sharp. <ref type="figure">Fig. 4(b)</ref> shows the generation chain for random STL samples. <ref type="figure" target="#fig_2">Fig. 5</ref> shows samples from LAPGAN models trained on three LSUN categories (tower, bedroom, church front). The 4 × 4 validation image used to start the generation process is shown in the first column, along with 10 different 64 × 64 samples, which illustrate the inherent variation captured by the model. Collectively, these show the models capturing long-range structure within the scenes, being able to recompose scene elements into credible looking images. To the best of our knowledge, no other generative model has been able to produce samples of this complexity. The substantial gain in quality over the CIFAR10 and STL samples is likely due to the much larger training LSUN training set which allowed us to train bigger and deeper models.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">Human Evaluation of Samples</head><p>To obtain a quantitative measure of quality of our samples, we asked 15 volunteers to participate in an experiment to see if they could distinguish our samples from real images. The subjects were presented with the user interface shown in <ref type="figure">Fig. 6</ref>(right) and shown at random four different types of image: samples drawn from three different GAN models trained on CIFAR10 ((i) LAPGAN, (ii) class conditional LAPGAN and (iii) standard GAN <ref type="bibr" target="#b9">[10]</ref>) and also real CIFAR10 images. After being presented with the image, the subject clicked the appropriate button to indicate if they believed the image was real or generated. Since accuracy is a function of viewing time, we also randomly pick the presentation time from one of 11 durations ranging from 50ms to 2000ms, after which a gray mask image is displayed. Before the experiment commenced, they were shown examples of real images from CIFAR10. After collecting ∼10k samples from the volunteers, we plot in <ref type="figure">Fig. 6</ref> the fraction of images believed to be real for the four different data sources, as a function of presentation time. The curves show our models produce samples that are far more realistic than those from standard GAN <ref type="bibr" target="#b9">[10]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Discussion</head><p>By modifying the approach in <ref type="bibr" target="#b9">[10]</ref> to better respect the structure of images, we have proposed a conceptually simple generative model that is able to produce high-quality sample images that are both qualitatively and quantitatively better than other deep generative modeling approaches. A key point in our work is giving up any "global" notion of fidelity, and instead breaking the generation into plausible successive refinements. We note that many other signal modalities have a multiscale structure that may benefit from a similar approach.     <ref type="figure">Figure 6</ref>: Left: Human evaluation of real CIFAR10 images (red) and samples from Goodfellow et al. <ref type="bibr" target="#b9">[10]</ref> (magenta), our LAPGAN (blue) and a class conditional LAPGAN (green). The error bars show ±1σ of the inter-subject variability. Around 40% of the samples generated by our class conditional LAPGAN model are realistic enough to fool a human into thinking they are real images. This compares with ≤ 10% of images from the standard GAN model <ref type="bibr" target="#b9">[10]</ref>, but is still a lot lower than the &gt; 90% rate for real images. Right: The user-interface presented to the subjects.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Appendix A</head><p>To describe the log-likelihood computation in our model, let us consider a two scale pyramid for the moment. Given a (vectorized) j × j image I, denote by l = d(I) the coarsened image, and h = I − u(d(I)) to be the high pass. In this section, to simplify the computations, we use a slightly different u operator than the one used to generate the images displayed in <ref type="figure">Fig. 3</ref>. Namely, here we take d(I) to be the mean over each disjoint block of 2 × 2 pixels, and take u to be the operator that removes the mean from each 2 × 2 block. Since u has rank 3d 2 /4, in this section, we write h in an orthonormal basis of the range of u, then the (linear) mapping from I to (l, h) is unitary. We now build a probability density p on R d 2 by p(I) = q 0 (l, h)q 1 (l) = q 0 (d(I), h(I))q 1 (d(I)); in a moment we will carefully define the functions q i . For now, suppose that q i ≥ 0, q (l) dl = 1, and for each fixed l, q 0 (l, h) dh = 1. Then we can check that p has unit integral: p dI = q 0 (d(I), h(I))q 1 (d(I))dI = q 0 (l, h)q 1 (l) dl dh = 1. Now we define the q i with Parzen window approximations to the densities of each of the scales. For q 1 , we take a set of training samples l 1 , ...., l N0 , and construct the density function q 1 (l) ∼ N1 i=1 e ||l−li|| 2 /σ1 . We fix l = d(I) to define q 0 (I) = q 0 (l, h) ∼ N0 i=1 e ||h−hi|| 2 /σ0 .For pyramids with more levels, we continue in the same way for each of the finer scales. Note we always use the true low pass at each scale, and measure the true high pass against the high pass samples generated from the model. Thus for a pyramid with K levels, the final log likelihood will be: log(q K (l K )) + K−1 k=0 log(q k (l k , h k )).</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 3 :Figure 4 :</head><label>34</label><figDesc>CIFAR10 samples: our class conditional CC-LAPGAN model, our LAPGAN model and the standard GAN model of Goodfellow [10]. The yellow column shows the training set nearest neighbors of the samples in the adjacent column. STL samples: (a) Random 96x96 samples from our LAPGAN model. (b) Coarse-to-fine generation chain.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 5 :</head><label>5</label><figDesc>64 × samples from three different LSUN LAPGAN models (top: tower, middle: bedroom, bottom: church front). The first column shows the 4 × validation set image used to start the generation process, with subsequent columns showing different draws from the model.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head></head><label></label><figDesc>Intuitively, each level captures image structure present at a particular scale. The final level of the Laplacian pyramid h K is not a difference image, but a low-frequency residual equal to the final Gaussian pyramid level, i.e. h K = I K . Reconstruction from a Laplacian pyramid coefficients [h 1 , . . . , h K ] is performed using the backward recurrence:</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head></head><label></label><figDesc>3.1 CIFAR10 and STLInitial scale: This operates at 8 × resolution, using densely connected nets for both G K &amp; D K with 2 hidden layers and ReLU non-linearities. D K uses Dropout and has 600 units/layer vs 1200 for G K . z K is a 100-d vector.Subsequent scales: For CIFAR10, we boost the training set size by taking four 28 × 28 crops from the original images. Thus the two subsequent levels of the pyramid are 8 → 14 and 14 → 28. For STL, we have 4 levels going from 8 → 16 → 32 → 64 → 96. For both datasets, G k &amp; D k are convnets with 3 and 2 layers, respectively (see</figDesc><table /><note></note></figure>
+		</body>
+		<back>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">The laplacian pyramid as a compact image code</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">J</forename><surname>Burt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">H</forename><surname>Edward</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Adelson</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Communications</title>
+		<imprint>
+			<biblScope unit="volume">31</biblScope>
+			<biblScope unit="page" from="532" to="540" />
+			<date type="published" when="1983" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Multiresolution sampling procedure for analysis and synthesis of texture images</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">S</forename><surname>De</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bonet</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 24th annual conference on Computer graphics and interactive techniques</title>
+		<meeting>the 24th annual conference on Computer graphics and interactive techniques</meeting>
+		<imprint>
+			<publisher>ACM Press/Addison-Wesley Publishing Co</publisher>
+			<date type="published" when="1997" />
+			<biblScope unit="page" from="361" to="368" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Imagenet: A large-scale hierarchical image database</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Deng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Dong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Socher</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L.-J</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Fei-Fei</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2009" />
+			<biblScope unit="page" from="248" to="255" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<monogr>
+		<title level="m" type="main">Deep generative image models using a laplacian pyramid of adversarial networks: Supplementary material</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Denton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Chintala</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Szlam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Fergus</surname></persName>
+		</author>
+		<ptr target="http://soumith.ch/eyescream" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<monogr>
+		<title level="m" type="main">Learning to generate chairs with convolutional neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Dosovitskiy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">T</forename><surname>Springenberg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Brox</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1411.5928</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Texture synthesis by non-parametric sampling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">A</forename><surname>Efros</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">K</forename><surname>Leung</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICCV</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="1999" />
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page" from="1033" to="1038" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">The shape boltzmann machine: a strong model of object shape</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">A</forename><surname>Eslami</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Heess</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">K</forename><surname>Williams</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Winn</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">International Journal of Computer Vision</title>
+		<imprint>
+			<biblScope unit="volume">107</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="155" to="176" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Example-based super-resolution</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><forename type="middle">T</forename><surname>Freeman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">R</forename><surname>Jones</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">C</forename><surname>Pasztor</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Computer Graphics and Applications</title>
+		<imprint>
+			<biblScope unit="volume">22</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="56" to="65" />
+			<date type="published" when="2002" />
+		</imprint>
+	</monogr>
+	<note>IEEE</note>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Conditional generative adversarial nets for convolutional face generation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Gauthier</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Convolutional Neural Networks for Visual Recognition</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="volume">231</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Generative adversarial nets</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Goodfellow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Pouget-Abadie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Mirza</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Xu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Warde-Farley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ozair</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Courville</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="2672" to="2680" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<monogr>
+		<title level="m" type="main">DRAW: A recurrent neural network for image generation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Gregor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Danihelka</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Graves</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wierstra</surname></persName>
+		</author>
+		<idno>abs/1502.04623</idno>
+		<imprint>
+			<date type="published" when="2015" />
+			<publisher>CoRR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Scene completion using millions of photographs</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Hays</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">A</forename><surname>Efros</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Transactions on Graphics (TOG)</title>
+		<imprint>
+			<biblScope unit="volume">26</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page">4</biblScope>
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Reducing the dimensionality of data with neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">R</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Science</title>
+		<imprint>
+			<biblScope unit="volume">313</biblScope>
+			<biblScope unit="issue">5786</biblScope>
+			<biblScope unit="page" from="504" to="507" />
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<monogr>
+		<title level="m" type="main">Batch normalization: Accelerating deep network training by reducing internal covariate shift</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ioffe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Szegedy</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1502.03167v3</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<monogr>
+		<title level="m" type="main">Auto-encoding variational bayes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Welling</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2014" />
+			<publisher>ICLR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Factored 3-way restricted boltzmann machines for modeling natural images</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">AISTATS</title>
+		<imprint>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="621" to="628" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<monogr>
+		<title level="m" type="main">Conditional generative adversarial nets. CoRR, abs/1411.1784</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Mirza</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Osindero</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<title level="m" type="main">Sparse coding with an overcomplete basis set: A strategy employed by v1? Vision research</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">A</forename><surname>Olshausen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Field</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1997" />
+			<biblScope unit="volume">37</biblScope>
+			<biblScope unit="page" from="3311" to="3325" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Modeling image patches with a directed hierarchy of markov random fields</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Osindero</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<editor>J. Platt, D. Koller, Y. Singer, and S. Roweis</editor>
+		<imprint>
+			<date type="published" when="2008" />
+			<biblScope unit="page" from="1121" to="1128" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">A parametric texture model based on joint statistics of complex wavelet coefficients</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Portilla</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">P</forename><surname>Simoncelli</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">International Journal of Computer Vision</title>
+		<imprint>
+			<biblScope unit="volume">40</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="49" to="70" />
+			<date type="published" when="2000" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Modeling natural images using gated MRFs</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Ranzato</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Mnih</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">M</forename><surname>Susskind</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Pattern Analysis &amp; Machine Intelligence</title>
+		<imprint>
+			<biblScope unit="issue">9</biblScope>
+			<biblScope unit="page" from="2206" to="2222" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Rezende</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mohamed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wierstra</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1401.4082</idno>
+		<title level="m">Stochastic backpropagation and variational inference in deep latent gaussian models</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Fields of experts: A framework for learning image priors</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Roth</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">J</forename><surname>Black</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2005" />
+			<biblScope unit="page" from="860" to="867" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Deep boltzmann machines</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">AISTATS</title>
+		<imprint>
+			<date type="published" when="2009" />
+			<biblScope unit="page" from="448" to="455" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">P</forename><surname>Simoncelli</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><forename type="middle">T</forename><surname>Freeman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">H</forename><surname>Adelson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Heeger</surname></persName>
+		</author>
+		<title level="m">Shiftable multiscale transforms. Information Theory, IEEE Transactions on</title>
+		<imprint>
+			<date type="published" when="1992" />
+			<biblScope unit="volume">38</biblScope>
+			<biblScope unit="page" from="587" to="607" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<monogr>
+		<title level="m" type="main">Deep unsupervised learning using nonequilibrium thermodynamics</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sohl-Dickstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">A</forename><surname>Weiss</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Maheswaranathan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ganguli</surname></persName>
+		</author>
+		<idno>abs/1503.03585</idno>
+		<imprint>
+			<date type="published" when="2015" />
+			<publisher>CoRR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<monogr>
+		<title level="m" type="main">Generative image modeling using spatial LSTMs</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Theis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Bethge</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015-12" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Extracting and composing robust features with denoising autoencoders</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Vincent</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Larochelle</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P.-A</forename><surname>Manzagol</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2008" />
+			<biblScope unit="page" from="1096" to="1103" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">Sparse representation for computer vision and pattern recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Wright</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Ma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Mairal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Sapiro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">S</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Yan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Proceedings of the IEEE</title>
+		<imprint>
+			<biblScope unit="volume">98</biblScope>
+			<biblScope unit="issue">6</biblScope>
+			<biblScope unit="page" from="1031" to="1044" />
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Large-scale scene understanding challenge</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Yu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Song</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Xu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Seff</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Xiao</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR Workshop</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Filters, random fields and maximum entropy (frame): Towards a unified theory for texture modeling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">C</forename><surname>Zhu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Mumford</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">International Journal of Computer Vision</title>
+		<imprint>
+			<biblScope unit="volume">27</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="107" to="126" />
+			<date type="published" when="1998" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">From learning models of natural image patches to whole image restoration</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Zoran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Weiss</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICCV</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

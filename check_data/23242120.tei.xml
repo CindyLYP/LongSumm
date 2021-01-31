@@ -1,0 +1,757 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Online Learning to Sample</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2016-03-15">15 Mar 2016</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Guillaume</forename><surname>Bouchard</surname></persName>
+							<email>g.bouchard@cs.ucl.ac.uk</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Théo</forename><surname>Trouillon</surname></persName>
+							<email>theo.trouillon@xrce.xerox.com</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Julien</forename><surname>Perez</surname></persName>
+							<email>julien.perez@xrce.xerox.com</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adrien</forename><surname>Gaidon</surname></persName>
+							<email>adrien.gaidon@xrce.xerox.com</email>
+						</author>
+						<author>
+							<affiliation key="aff0">
+								<orgName type="institution">University College London</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff1">
+								<orgName type="department">Xerox Research Center Europe</orgName>
+								<orgName type="institution">UGA -LIG</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff2">
+								<orgName type="department">Xerox Research Center Europe</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff3">
+								<orgName type="department">Xerox Research Center Europe</orgName>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Online Learning to Sample</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2016-03-15">15 Mar 2016</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1506.09016v2[cs.LG]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:43+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Stochastic Gradient Descent (SGD) is one of the most widely used techniques for online optimization in machine learning. In this work, we accelerate SGD by adaptively learning how to sample the most useful training examples at each time step. First, we show that SGD can be used to learn the best possible sampling distribution of an importance sampling estimator. Second, we show that the sampling distribution of an SGD algorithm can be estimated online by incrementally minimizing the variance of the gradient. The resulting algorithm-called Adaptive Weighted SGD (AW-SGD)-maintains a set of parameters to optimize, as well as a set of parameters to sample learning examples. We show that AW-SGD yields faster convergence in three different applications: (i) image classification with deep features, where the sampling of images depends on their labels, (ii) matrix factorization, where rows and columns are not sampled uniformly, and (iii) reinforcement learning, where the optimized and exploration policies are estimated at the same time, where our approach corresponds to an off-policy gradient algorithm.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>In many real-world problems, one has to face intractable integrals, such as averaging on combinatorial spaces or non-Gaussian integrals. Stochastic approximation is a class of methods introduced in 1951 by Herbert Robbins and Sutton Monro <ref type="bibr" target="#b0">[1]</ref> to solve intractable equations by using a se- * Work made while at Xerox. quence of approximate and random evaluations. Stochastic Gradient Descent <ref type="bibr" target="#b1">[2]</ref> is a special type of stochastic approximation method that is widely used in large scale learning tasks thanks to its good generalization properties <ref type="bibr" target="#b2">[3]</ref>.</p><p>Stochastic Gradient Descent (SGD) can be used to minimize functions of the form:</p><formula xml:id="formula_0">γ(w) := E x∼P [f (x; w)] = X f (x; w)dP (x) (1)</formula><p>where P is a known fixed distribution and f is a function that maps X × W into , i.e. a family of functions on the metric space X and parameterized by w ∈ W. SGD is a stochastic approximation method that consists in doing approximate gradient steps equal on average to the true gradient ∇ w γ(w) <ref type="bibr" target="#b1">[2]</ref>. In many applications, including supervised learning techniques, the function f is the loglikelihood and P is an empirical distribution with density At a given step t, SGD can be viewed as a two-step procedure: (i) sampling x t ∈ X according to the distribution P ; (ii) doing an approximate gradient step with step-size ρ t :</p><formula xml:id="formula_1">w t+1 = w t − ρ t ∇ w f (x t ; w t )<label>(2)</label></formula><p>The convergence properties of SGD are directly linked to the variance of the gradient estimate <ref type="bibr" target="#b3">[4]</ref>. Consequently, some improvements on this basic algorithm focus on the use of (i) parameter averaging <ref type="bibr" target="#b4">[5]</ref> to reduce the variance of the final estimator, (ii) the sampling of mini-batches <ref type="bibr" target="#b5">[6]</ref> when multiple points are sampled at the same time to reduce the variance of the gradient, and (iii) the use of adaptive step sizes to have per-dimension learning rates, e.g., AdaGrad <ref type="bibr" target="#b6">[7]</ref>.</p><p>In this paper, we propose another general technique, which can be used in conjunction with the aforementioned ones, which is to reduce the gradient variance by learning how to sample training points. Rather than learning the fixed optimal sampling distribution and then optimizing the gradient, we propose to dynamically learn an optimal sampling distribution at the same time as the original SGD algorithm.</p><p>Our formulation uses a stochastic process that focuses on the minimization of the gradient variance, which amounts to do an additional SGD step (to minimize gradient variance) along each SGD step (to minimize the learning objective). There is a constant extra cost to pay at each iteration, but it is the same for each iteration, and when simulations are expensive or the data access is slow, this extra computational cost is compensated by the increase of convergence speed, as quantified in our experiments.</p><p>The paper is organized as follows. After reviewing the related work in Section 2, we show that SGD can be used to find the optimal sampling distribution of an importance sampling estimator (Sec. 3). This variance reduction technique is then used during the iterations of a SGD algorithm by learning how to reduce the variance of the gradient (Sec. 4). We then illustrate this algorithm -called Adaptive Weighted SGD (AW-SGD) -on three well known machine learning problems: image classification (Sec. 5), matrix factorization (Sec. 6), and reinforcement learning (Sec. 7). Finally, we conclude with a discussion (Sec. 9).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Related work</head><p>The idea of speeding up learning by modifying the importance sampling distribution in SGD has been recently analyzed by <ref type="bibr" target="#b7">[8]</ref> who showed that a particular choice of the sampling distribution could lead to sub-linear performance guarantees for support vector machines. We can see our approach as a generalization of this idea to other models, by including the learning of the sampling distribution as part of the optimization. The work of <ref type="bibr" target="#b8">[9]</ref> shows that using a simple model to choose which data to resample from is a useful thing to do, but they do not learn the sampling model while optimizing. The two approaches mentioned above can be viewed as the extreme case of adaptive sampling, where there is one step to learn the sampling distribution, and then a second step to learn the model using this sampling distribution. The training on language models has been shown to be faster with adaptive importance sampling <ref type="bibr">[10; 11]</ref>, but the authors did not directly minimize the variance of the estimator.</p><p>Regarding variance reduction techniques, in addition to the aforementioned ones (Polyak-Ruppert Averaging <ref type="bibr" target="#b4">[5]</ref>, batching <ref type="bibr" target="#b5">[6]</ref>, and adaptive learning rates like AdaGrad <ref type="bibr" target="#b6">[7]</ref>), an additional technique is to use control variates (see for instance <ref type="bibr" target="#b11">[12]</ref>). It has been recently used by <ref type="bibr" target="#b12">[13]</ref> to estimate non-conjugate potentials in a variational stochastic gradient algorithm. The techniques described in this paper can also be straightforwardly extended to the optimiza-tion of a control variate. A full derivation is given in the appendix, but it was not implemented in the experimental section. In the neural net community, adapting the order at which the training samples are used is called curriculum learning <ref type="bibr" target="#b13">[14]</ref>, and our approach can be seen under this framework, allthough our algorithm is more general as it can speadup the learning on arbitrary integrals, not only sums of losses over the training data.</p><p>Another way to obtain good convergence properties is to properly scale or rotate the gradient, ideally in the direction of the inverse Hessian, but this type of second-order method is slow in practice. However, one can estimate the Hessian greedily, as done in Quasi-Newton methods such as Limited Memory BFGS, and then adapt it for the SGD algorithm, similarly to <ref type="bibr" target="#b5">[6]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">Adaptive Importance Sampling</head><p>We first show in this section that SGD is a powerful tool to optimize the sampling distribution of Monte Carlo estimators. This will motivate our Adaptive Weighted SGD algorithm in which the sampling distribution is not kept constant, but learned during the optimization process.</p><p>We consider a family {Q τ } of sampling distributions on X , such that Q τ is absolutely continuous with respect to P (i.e. the support of P is included in the support of Q τ ) for any τ in the parametric set T . We denote the density q = dQ dP . Importance sampling is a common method to estimate the integral in Eq. <ref type="bibr" target="#b0">(1)</ref>. It corresponds to a Monte Carlo estimator of the form (we omit the dependency on w for clarity):</p><formula xml:id="formula_2">γ = 1 T T t=1 f (x t ) q(x t ; τ ) , x t ∼ Q τ ,<label>(3)</label></formula><p>where Q τ is called the importance distribution. It is an unbiased estimator of γ, i.e. the expectation ofγ is exactly the desired quantity γ.</p><p>To compare estimators, we can use a variance criterion. The variance of this estimator depends on τ :</p><formula xml:id="formula_3">σ 2 (τ ) = Var τ [γ] = 1 T E τ f (x) q(x; τ ) 2 − γ 2 T<label>(4)</label></formula><p>where E τ [.] and Var τ [.] denote the expectation and variance with respect to distribution Q τ .</p><p>To find the best possible sampling distribution in the sampling family {Q τ }, one can minimize the variance σ 2 (τ ) with respect to τ . If |f | belongs to the family {Q τ }, then there exists a parameter τ * ∈ T such that q(., τ * ) ∝ |f | P -almost surely. In such a case, the variance σ(τ * ) of the estimator is null: one can estimate the integral with a single sample. In general, however, the parametric family does Algorithm 1 Minimal Variance Importance Sampling Require: Initial sampling parameter vector τ 0 ∈ T Require:</p><formula xml:id="formula_4">Learning rates {η t } t&gt;0 for t = 0, 1, 2, • • • , T − 1 do x t ∼ Q τt τ t+1 ← τ t + η t f (xt) q(xt;τt) 2 ∇ τ log q(x t ; τ t ) end for Outputγ ← 1 T t f (xt) q(xt;τt)</formula><p>not contain a normalized version of |f |. In addition, the minimization of the variance σ 2 has often no closed form solution. This motivates the use of approximate variance reduction methods.</p><p>A possible approach is to minimize σ 2 with respect to the importance parameter τ . The gradient is:</p><formula xml:id="formula_5">∇ τ σ 2 (τ ) = ∇ τ E τ f (x) q(x; τ ) 2 (5) = −E τ f (x) 2 ∇ τ q(x; τ ) q(x; τ ) 3 (6) = −E τ f (x) q(x; τ ) 2 ∇ τ log q(x; τ ) .</formula><p>This quantity has no closed form solution, but we can use a SGD algorithm with a gradient step equal on average to this quantity. To obtain an estimator g of the gradient with expectation given by Equation (6), it is enough to sample a point x t according to Q τ and then set g :</p><formula xml:id="formula_6">= −f 2 (x t )/q 2 (x t ; τ )∇ τ log q(x t ; τ )</formula><p>. This is then repeated until convergence. The full iterative procedure is summarized in Algorithm 1.</p><p>In the experiments below, we show that learning the importance weight of an importance sampling estimator using SGD can lead to a significant speed-up in several machine learning applications, including the estimation of empirical loss functions and the evaluation of a policy in a reinforcement learning scenario. In the following, we show that this idea can also be used in a sequential setting (the function f can change over time), and when f has multivariate outputs, so that we can control the variance of the gradient of a standard SGD algorithm and, ultimately, speedup the convergence.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Biased Sampling in Stochastic Optimization</head><p>In this section, we first analyze a weighted version of the SGD algorithm where points are sampled non-uniformly, similarly to importance sampling, and then derive an adaptive version of this algorithm, where the sampling distribution evolves with the iterations.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Weighted stochastic gradient descent</head><p>As introduced previously, our goal is to minimize the expectation of a parametric function f (cf. Eq. (1)). Similarly to importance sampling, we do not need to sample according to the base distribution P at each iteration of SGD. Instead, we can use any distribution Q defined on X if each gradient step is properly re-weighted by the density q = dQ/dP . Each iteration t of the algorithm consists in two steps: (i) sample x t ∈ X according to distribution Q; (ii) do an approximate gradient step:</p><formula xml:id="formula_7">w t+1 = w t − ρ t ∇ w f (x t ; w t ) q(x t ) .<label>(7)</label></formula><p>Depending on the importance distribution Q, this algorithm can have different convergence properties from the original SGD algorithm. As mentioned previously, the best sampling distribution would be the one that gives a small variance to the weighted gradient in Eq. <ref type="formula" target="#formula_7">7</ref>. The main issue is that it depends on the parameters w t , which are different at each iteration.</p><p>Our main observation is that we can minimize the variance of the gradient using the previous iterates, under the assumption that this variance does not change to quickly when w t is updated. We argue this is reasonable in practice as learning rate policies for ρ t usually assume a small constant learning rate, or a decreasing schedule <ref type="bibr" target="#b1">[2]</ref>. In the next section, we build on that observation to build a new algorithm that learns the best sampling distribution Q in an online fashion.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Adaptive weighted stochastic gradient descent</head><p>Similarly to Section 3, we consider a family {Q τ } of sampling distributions parameterized by τ in the parametric set T . Using the sampling distribution Q τ with p.d.f. q(x; τ ) = dQτ (x) dP (x) , we can now evaluate the efficiency of the sampling distributions Q τ based on the variance Σ(w, τ ):</p><formula xml:id="formula_8">Σ(w, τ ) :=Var τ [∇ w f (x; w)/q(x, τ )] (8) =E τ ∇ w f (x; w)∇ T w f (x; w) q(x; τ ) 2 − ∇ w γ(w)∇ T w γ(w)<label>(9)</label></formula><p>For a given function f (.; w) we would like to find the parameter τ * (w) of the sampling distribution that minimizes the trace of the covariance Σ(w, τ ), i.e.: for</p><formula xml:id="formula_9">τ * (w) ∈ arg min τ E τ ∇ w f (x; w) q(x; τ )</formula><formula xml:id="formula_10">t = 0, 1, • • • , T − 1 do x t ∼ Q τt d t ← ∇wf (xt;wt) q(xt;τt) w t+1 ← w t − ρ t d t τ t+1 ← τ t + η t d t 2 ∇ τ log q(x t ; τ t ) end for</formula><p>and therefore can be solved using (sub-) gradient methods. Consequently, a simple SGD algorithm with gradient steps having small variance consists in the following two steps at each iteration t:</p><p>1. perform a weighted stochastic gradient step using distribution Q τt to obtain w t ;</p><p>2. compute τ t = τ * (w t ) by solving Equation (10), i.e. find the parameter τ t minimizing the variance of the gradient at point w t . This can be done approximately by applying M steps of stochastic gradient descent.</p><p>The inner-loop SGD algorithm involved in the second step can be based on the current sample, and the stochastic gradient direction is</p><formula xml:id="formula_11">∇ τ Σ(w t , τ ) =∇ τ E τ ∇ wt f (x; w t ) q(x; τ ) 2 (11) = − E τ ∇ wt f (x; w t ) q(x; τ ) 2 ∇ τ log q(x; τ )</formula><p>In practice, we noted that it is enough to do a single step of the inner loop, i.e. M = 1. We call this simplified algorithm the Adapted-Weighted SGD Algorithm and its pseudocode is given in Algorithm 2. We see that AW-SGD is a slight modification of the standard SGD -or any variant of it, such as Adagrad, AdaDelta or RMSProp -but where the sampling distribution evolves during the algorithm, thanks to the update of τ t . This algorithm is useful when the gradient has a variance that can be significantly reduced by choosing better samples. An important design choice of the algorithm is the choice of the decay of the step sizes sequences {ρ t } t&gt;0 and {η t } t&gt;0 . While using adaptive step sizes appears to be useful in some settings, it appears that the regime in which AW-SGD outperforms SGD is when η t are significantly larger than ρ t , meaning that the algorithm converges quickly to the smallest variance, and AW-SGD tracks it during the course of the iterations. Ideally, the sequence of sampling parameters {τ t } remains close to the optimal trajectory which consist is the best possible sequence of sampling parameters given by Equation 10</p><p>We now illustrate the benefit of this algorithm in three different applications: image classification, matrix factorization and reinforcement learning.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Application to Image classification</head><p>Large scale image classification is an important machine learning tasks where images containing a given category are much less frequent than images not containing the category. In practice, to learn efficient classifiers, one need to optimize a class-imbalance hyper-parameter <ref type="bibr" target="#b14">[15]</ref>. Furthermore, as suggested by the standard practice of "hard negative mining" <ref type="bibr" target="#b15">[16]</ref>, positives and negatives should have a different importance during optimization, with positives being more important at first, and negatives gradually gaining in importance. However, cross-validating the best imbalance hyper-parameter at each iteration is prohibitively expensive. Instead, we show here that AW-SGD can be used for biased sampling depending on the label, where the bias τ t (imbalance factor) is adapted along the learning.</p><p>To measure the acceleration of convergence, we experiment on the widely used Pascal VOC 2007 image classification benchmark <ref type="bibr" target="#b16">[17]</ref>. Following standard practice <ref type="bibr">[18; 19; 20]</ref>, we learn a One-versus-Rest logistic regression classifier using deep image features from the last layers of the pretrained AlexNet Convolutional Network <ref type="bibr" target="#b20">[21]</ref>. Note that this image classification pipeline provides a strong baseline, comparable to the state of the art <ref type="bibr" target="#b18">[19]</ref>.</p><formula xml:id="formula_12">Let D = {(I i , y i ), i = 1, • • • , n} a training set of n images I i with labels y i ∈ {−1, 1}.</formula><p>The discrete distribution over samples is parametrized by the log-odd τ of the probability of sampling a positive image: the family of sampling distributions {Q τ } over D can be written as:</p><formula xml:id="formula_13">q(x; τ ) = n n(y i ) ς(y i τ )<label>(12)</label></formula><p>with ς(a) := 1/(1 + e −a ) representing the sigmoid function 1 , x = i, an image index in {1, . . . , n}, τ ∈ , and n(+1) (resp. n(−1)) is the number of positive (resp. negative) images. With this formulation, the update equations in AW-SGD (Algo. 2) are:</p><formula xml:id="formula_14">f (x t ; w t ) = (f (φ θ (I it ); w t ), y it ) = log 1 + exp(−y it w T t φ θ (I it )) (13) = − log (s t )<label>(14)</label></formula><p>with s t := ς(y it w T t φ θ (I it )) representing the predicted probability and θ the parameters of the feature function.</p><formula xml:id="formula_15">∇ w f (x t ; w t ) = (s t − 1) y it φ θ (I it ), ∇ τ log q(x t ; τ t ) = y it (1 − s(y it τ t )) .<label>(15)</label></formula><p>We initialize the positive sampling bias parameter with the value τ 0 = 0.0, which yields a good performance both for SGD and AW-SGD. For both the SGD baseline and our AW-SGD algorithm we use AdaGrad <ref type="bibr" target="#b6">[7]</ref> to choose the learning rates ρ t and η t . Both were initialized at 0.1. <ref type="figure" target="#fig_1">Figure 1</ref> shows that AW-SGD converges faster than SGD for both training error and generalization performance. Acceleration is both in time and in iterations, and AW-SGD only costs +1.7% per iteration with respect to SGD in our implementation. In further experiments, we noticed that the positive sampling bias parameter τ t indeed gradually decreases, i.e. the /algorithm learns that it should focus more on the harder negative class. We also show that the   <ref type="figure" target="#fig_2">Figure 2</ref> displays the evolution of the positive sampling bias parameter τ t along AW-SGD iterations t. Almost all classes expose the expected behavior of sampling more and more negatives as the optimization progresses, as the negatives correspond to anything but the object of interest, and are, therefore, much more varied and difficult to model. The "person" class is the only exception, because it is, by far, the category with the largest number of positives and intra-class variation. Note that, although the dynamics of the τ t stochastic process are similar, the exact values obtained vary significantly depending on the class, which shows the self-tuning capacity of AW-SGD.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6">Application to Matrix factorization</head><p>We applied AW-SGD to learn how to sample the rows and columns in a SGD-based low-rank matrix decomposition algorithm. Let Y ∈ n×m be a matrix that has been generated by a rank-K matrix U V T , where U ∈ n×K and V ∈ m×K . We consider a differentiable loss function (z; y) where z ∈ and y is the observed value. With the squared loss, we have each entry of Y is a real scalar and (z, y) = (z − y) <ref type="bibr" target="#b1">2</ref> . The full loss function is We consider the sampling distributions {Q τ } over the set</p><formula xml:id="formula_16">γ(U, V ) = n i=1 m j=1 (u i v T j , y ij )<label>(16)</label></formula><formula xml:id="formula_17">X := {1, • • • , n} × {1, • • • , m},</formula><p>where we independently sample a row i and a column j according to the discrete distributions ς(τ ) and ς(τ ) respectively, with τ ∈ n , τ ∈ m , τ = (τ , τ ) ∈ m+n , and x = (i, j). We define:</p><formula xml:id="formula_18">ς(z) =(e z1 , e z2 , • • • , e zp )/ p i=1 e zi (17) q(x, τ ) = ς(τ ) ς(τ )<label>(18)</label></formula><p>with ς : p → p the softmax function. Using the square loss, as in the experiments below, the update equations in AW-SGD (Algo. 2) are:</p><formula xml:id="formula_19">f (x t ; u t , v t ) = (u it v T jt , y itjt ) = (u it v T jt − y itjt ) 2 = s 2 t<label>(19)</label></formula><formula xml:id="formula_20">∇ ui t f (x t ; u t , v t ) = 2v jt s t ,<label>(20)</label></formula><formula xml:id="formula_21">∇ vj t f (x t ; u t , v t ) = 2u it s t (21) ∇ τ log q(x t ; τ t ) = e i − ς(τ ), (22) ∇ τ log q(x t ; τ t ) = e j − ς(τ )<label>(23)</label></formula><p>where e i ∈ n and e j ∈ m , vectors with 1 at index i and j respectively, and all other components are 0.</p><p>In the matrix factorization experiments, we used the minibatch technique with batches of size 100, ρ 0 and η 0 were tuned to yield the minimum γ at convergence, separately with each algorithm. All results are averaged over 10 runs. τ and τ were initialized with zeros to get an initial uniform sampling distribution over the rows and columns. The In <ref type="figure" target="#fig_3">Figure 3</ref>, we simulated a n × m rank-K matrix, for n = m = 100 and K = 10, by sampling U and V using independent centered Gaussian variables with unit variance. To illustrate the benefit of adaptive sampling, we multiply by 100 a randomly drawn square block of size 20, to experimentally observe the benefit of a non uniform sampling strategy. The results of the minimal variance important sampling scheme (Algorithm 1) is shown on the left. We see that after having seen 50% of the number N = nm of matrix entries, the standard deviation of the importance sampling estimator is divided by two, meaning that we would need only half of the samples to evaluate the full loss compared to uniform sampling . <ref type="figure" target="#fig_4">Figure 4</ref> shows the loss decrease of SGD and AW-SGD and on the same matrix for multiple learning rates. The x−axis is expressed in epochs, where one epoch corresponds to N sampling of values in the matrix. AW-SGD converges significantly faster than the best uniformly sampled SGD, even after 1 epoch through the data. On average, AW-SGD requires half of the number of iterations to converge to the same value.</p><p>In-painting experiment We compared both algorithms on the MNIST dataset <ref type="bibr" target="#b21">[22]</ref>, on which low-rank decomposition techniques have been successfully applied <ref type="bibr" target="#b22">[23]</ref>. We factorized with K = 50 the training set for the zero digit, a 5923 × 784 matrix, where each line is a 28 × 28 image of a handwritten zero, and each column one pixel. <ref type="figure" target="#fig_5">Figure  5</ref> shows the loss decrease for both algorithms on the first iteration. AW-SGD requires significantly less samples to reach the same error. At convergence, AW-SGD showed an average 2.52× speedup in execution time compared to SGD, showing that its sampling choices compensate for its Non-stationary data On <ref type="figure" target="#fig_6">Figure 6</ref> we progressively substituted images of handwritten zeros by images of handwritten ones. It shows, every 2000 samples (i.e. 0.0005 epoch), the heatmap of the sampling probability of each pixel, ς(τ ), reorganized as 28 × 28 grids. Substitution from zeros to ones was made between 10000 and 20000 samples (on 2nd line). One can distinctly recognize the zero digit first, that progressively fades out for the one digit <ref type="bibr" target="#b1">2</ref> . This transitions shows that AW-SGD learns to sample the digits that are likely to have a high impact on the loss. The algorithm adapts online to changes in the underlying distribution (transitions from one digit to another).</p><p>Combined with adaptive step size algorithms such as Ada-Grad, we noticed that Adagrad did not improved the convergence speed of AW-SGD in our matrix factorization experiments. A possible explanation is that the adaptive sampling favors some rows and columns, and AdaGrad compensates the non-uniform sampling, such that using AW-SGD and AdaGrad simultaneously converges only slightly faster than AdaGrad alone. It should behave similarly on other parameterizations of τ where τ indices are linked to parameters indices. However, in many of our experiments, Adagrad performances were not matching the best crossvalidated learning rates.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7">Sequential Control through Policy Gradient</head><p>Stochastic optimization is currently one of the most popular approaches for policy learning in the context of Markov Decision Processes. More precisely, policy gradient has</p><p>We created an animated gif with more of these images and inserted it in the supplementary material.</p><p>become the method of choice in a large number of contexts in reinforcement learning <ref type="bibr">[24; 25]</ref>. Here, optimizing the integral (1) is related to policy gradient algorithms which aim at minimizing an expected loss (i.e. a negative reward or a cost) or maximizing a reward in an episodic setting (i.e. with a predefined finite trajectory length) and off-policy estimation. Equivalently, if we consider the sampling space as being the (action, state) trajectory of a Markov Decision Process, AW-SGD can be viewed as a off-policy gradient algorithm, where P w and Q τ have the same parameterization, i.e. W = T . The objective is to maximize the expected reward for the target policy P w, and to minimize the variance of the gradient for the policy gradient for the exploration policy Q τ .</p><p>We considered a canonical grid-world problem <ref type="bibr">[26; 27]</ref> with a squared grid of size is considered. A classical reward setting has been applied: the reward function is a discounted instantaneous reward of −1 assigned on each cell of the grid and a reward of for a terminal state located at the down right of the grid. In this context, an episode is considered as successful if the defined terminal state is reached. Finally, a random distribution of n trap = 25 terminal states with a negative reward of −1000 are also positioned. The start state is located at the very up-left cell of the grid.</p><p>In this experimental setting, the parameters w and τ of the target policy P w and the exploration policy Q τ are defined in the space × ×4 . More precisely, the probability of an action a at each position {x, y} ∈ [1, ] 2 follows a multinomial distribution of parameters {p x,y 1 , . . . , p x,y 4 }. Indeed, in the context of the grid type of environment that we will use in this section, these parameters basically correspond to the log-odds of the probability of moving in one of the four directions at each position of the grid (movements outside the grid do not change the position). The distribution Q τ of sampled trajectories are different from the distribution of trajectory derived from P w (off-policy learning).</p><p>The policy is optimized using Algorithm 2. The baseline corresponds to a policy iteration based on SGD where trajectories are sampled using their current policy estimate (on-policy learning). On <ref type="table">Table 1</ref>, the table gives the average means and variances obtained for a batch of 20000 learning trials using both algorithms with properly tuned learning rate (the optimal learning rate is different in the two algorithms, for SGD ρ = 2.1 and for AWSGD ρ = 0.003 has been found). We can see that for all the tested grid sizes, there is a significant improvement (close to 10% relative improvement) of the expected success when adaptive weighted SGD is used instead of the on-policy learning SGD algorithm. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="8">Adapting to Non-Uniform Architectures</head><p>In many large scale infrastructures, such as computation servers shared by many people, data access or gradient computation are unknown in advance. For example, in large scale image classification, some images might be stored in the RAM, leading to a access time that is order of times faster than other images stored only on the hard drive. These hardware systems are sometimes called Non-Uniform Memory Access <ref type="bibr" target="#b27">[28]</ref>. It is also the case in matrix factorization, when some embeddings are stored locally, and others downloaded through the network. How can we inform the algorithm that it should sample more often data stored locally?</p><p>A simple modification of AW-SGD can enable the algorithm to adapt to non-uniform computation time. The key idea is to learn dynamically to minimize the expected loss decrease per unit of time. To make AW-SGD take into account this access time, we simply weighted the update of τ in Algorithm 2 by dividing it by the simulated access time ∆ x to the sample x. This is summarized in Algorithm 3.</p><p>As an experiment, we show in the matrix factorization case that the time-aware AW-SGD is able to learn and exploit the underlying hardware when the data does not fit entirely in memory, and one part of them has an extra access cost. To do so, we generate a 1000 × 1000 rank-10 matrix, but without high variance block, so that variance is uniform across rows and columns. For the first half of the rows of the matrix, i.e. i &lt; n , we consider the data as being in main memory, and simulate an access cost of 100ns for each sampling in those rows, inspired by Jeff Dean's explanations <ref type="bibr" target="#b28">[29]</ref>. For the other half of the rows, i &gt;= n , AW-SGD SGD 0.91 ± 0.021 0.85 ± 0.032 0.85 ± 0.031 0.77 ± 0.042 0.81 ± 0.046 0.74 ± 0.056 <ref type="table">Table 1</ref>: Probability of success, e.g. reaching the end point, for various environment sizes.</p><p>Algorithm 3 Time-Aware AW-SGD) Require: Initial values for w 0 ∈ W and τ 0 ∈ T Require: Learning rates {ρ t } t&gt;0 and {η t } t&gt;0</p><p>for</p><formula xml:id="formula_22">t = 0, 1, • • • , T − 1 do s t ← getCurrentTime() x t ∼ Q τt d t ← ∇wf (xt;wt) q(xt;τt) w t+1 ← w t − ρ t d t e t ← getCurrentTime() τ t+1 ← τ t + ηt et−st d t 2 ∇ τ log q(x t ; τ t ) end for</formula><p>we multiply that access cost by a factor f , we'll call the slow block access factor. The simulated access time to the sample (i, j), ∆ (i,j) is thus given by:</p><formula xml:id="formula_23">∆ (i,j) = 10 −7 × f if i &gt;= n</formula><p>, and ∆ (i,j) = 10 −7 if i &gt;= n . We ranged the factor f from 2 to 2 20 .</p><p>The time speedup achieved by the time-aware AW-SGD against SGD is plotted against the evolution of this factor in <ref type="figure">Figure 7</ref>. For each algorithm, we summed the real execution time and the simulated access times in order to take into account the time-aware AW-SGD sampling overhead. The speedup is computed after one epoch, by dividing SGD total time by AW-SGD total time. Positive speedups starts with a slow access time factor f of roughly 200, which corresponds to a random read on a SSD. Below AW-SGD is slower, since the data is homogeneous, and time access difference is not yet big enough to compensate its overhead. At f = 5000, corresponding to a read from another computer's memory on local network, speedup reaches 10×. At f = 50000, a hard drive seek, AW-SGD is 100× faster. This shows that the time-aware AW-SGD overhead is compensated by its sampling choices. <ref type="figure">Figure 8</ref> shows the loss decrease of both algorithms on the first epochs with f = 5000. It shows that if the access time was the uniform, AW-SGD would have the same convergence speed as standard SGD (this is expected by the design of this experiment). Hence, even in such case where there is no theoretical benefit of using the time-aware AW-SGD in terms of epochs, the fact that we learn the underlying access time to bias the sampling could potentially lead to huge improvements of the convergence time. <ref type="figure">Figure 7</ref>: Evolution of the training error as a function of the number of epochs on the simulated matrix with different access costs, with f = 5000, for the uniformly-sampled SGD and AW-SGD using best ρ 0 for each algorithm.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="9">Conclusion</head><p>In this work, we argue that SGD and importance sampling can strongly benefit from each other. SGD algorithms can be used to learn the minimal variance sampling distribution, while importance sampling techniques can be used to improve the gradient estimation of SGD algorithm. We have introduced a simple yet efficient Adaptive Weighted SGD algorithm that can optimize a function while optimizing the way it samples the examples. We showed that this framework can be used in a large variety of problems, and experimented with it in three domains that have apparently no direct connections: image classification, matrix factorization and reinforcement learning. In all the cases, we can gain a significant speed-up by optimizing the way the samples are generated.</p><p>There are many more applications in which these variance reduction techniques have a strong potential. For example, in variational inference, the objective function is an integral and SGD algorithms are often used to increase convergence <ref type="bibr">[30; 13]</ref>. Computing these integrals stochastically could be made more efficient by sampling non-uniformly in the integration space. Also, the estimation of intractable log-partition function, such as Boltzmann machines, are potential candidate models in which importance sampling has already been proposed, but without variance reduction technique <ref type="bibr" target="#b30">[31]</ref>.</p><p>This work also shows that we can learn about the algorithm while optimizing, as shown by the time-aware AW-SGD. This idea can be extended to design new types of metaalgorithms that learn to optimize or learn to coach other algorithms. <ref type="figure">Figure 8</ref>: Evolution of the training error as a function of the number of epochs on the simulated matrix with different access costs, with f = 5000, for the uniformly-sampled SGD and AW-SGD using best ρ 0 for each algorithm.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head></head><label></label><figDesc>x, x i ) where {x 1 , • • • , x n } is a set of i.i.d. data sampled from an unknown distribution.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 1 :</head><label>1</label><figDesc>Generalization performance (test mean Average Precision) and training error (average log loss) in function of training time (in seconds) averaged over three independent runs. SGD converged in 45 epochs (outside the graph), whereas AW-SGD converged to the same performance in 10 times less epochs for a 982% improvement in training time.Algorithm 2 Adaptive Weighted SGD (AW-SGD)Require: Initial target and sampling parameter vectors w 0 ∈ W and τ 0 ∈ T Require: Learning rates {ρ t } t&gt;0 and {η t } t&gt;0</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 2 :</head><label>2</label><figDesc>Evolution of the positive sampling bias parameter τ t in function of the training iteration t for the different object categories of Pascal VOC 2007.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 3 :</head><label>3</label><figDesc>Results of the Minimal Variance Importance Sampling algorithm (Algorithm 1.). The curve shows the standard deviation of the estimator of the lossγ as a function of the number of matrix entries that have been observed.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Figure 4 :</head><label>4</label><figDesc>Comparison of the convergence speed of the AW-SGD algorithm compared to the standard SGD algorithm (uniform sampling of rows and columns) on the matrix factorization experiment. model learning rate decrease was set to ρ 0 /((N/2) + t), η 0 was kept constant.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>Figure 5 :</head><label>5</label><figDesc>Evolution of the training error as a function of the number of epochs for the uniformly-sampled SGD and AW-SGD for the matrix factorization application applied on MNIST data. parametrization overhead.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_6"><head>Figure 6 :</head><label>6</label><figDesc>Illustration of the evolution of the sampling distribution when data are not i.i.d. Each heatmap contains the sampling probability of each pixel in the MNIST matrix factorization experiment.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head></head><label></label><figDesc>values learned for this sampling parameter also depend on the category.</figDesc><table><row><cell></cell><cell>0.4</cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell></row><row><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell>aeroplane</cell></row><row><cell></cell><cell>0.2</cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell>bicycle bird</cell></row><row><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell>boat</cell></row><row><cell></cell><cell>0.0</cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell>bottle</cell></row><row><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell>bus</cell></row><row><cell>t sampling parameter τ</cell><cell>−0.4 −0.2 −0.6</cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell>car cat chair cow diningtable dog horse motorbike</cell></row><row><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell>person</cell></row><row><cell></cell><cell>−0.8</cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell cols="2">pottedplant sheep</cell></row><row><cell></cell><cell>−1.0</cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell>sofa train</cell></row><row><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell>tvmonitor</cell></row><row><cell></cell><cell>−1.2</cell><cell>0</cell><cell>10000</cell><cell>20000</cell><cell>30000</cell><cell>40000</cell><cell>50000</cell><cell>60000</cell><cell>70000</cell></row><row><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell cols="2">Iteration t</cell><cell></cell><cell></cell></row></table><note>1 Using the sigmoid link enables an optimization in the real line instead on the constrained set [0, 1]</note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="2"><ref type="bibr" target="#b9">(10)</ref> Note that if the family of sampling distribution {Q τ } belongs to the exponential family, the problem (10) is convex,</note>
+		</body>
+		<back>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">A stochastic approximation method</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Robbins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Monro</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Annals of Mathematical Statistics</title>
+		<imprint>
+			<biblScope unit="volume">22</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page">1951</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Online algorithms and stochastic approximations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Bottou</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Online Learning and Neural Networks</title>
+		<editor>David Saad</editor>
+		<meeting><address><addrLine>Cambridge, UK</addrLine></address></meeting>
+		<imprint>
+			<publisher>Cambridge University Press</publisher>
+			<date type="published" when="1998" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">The tradeoffs of large scale learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Bottou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bousquet</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Optimization for Machine Learning</title>
+		<editor>Suvrit Sra, Sebastian Nowozin, and Stephen J. Wright</editor>
+		<imprint>
+			<publisher>MIT Press</publisher>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="351" to="368" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Non-asymptotic analysis of stochastic approximation algorithms for machine learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Bach</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Moulines</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="451" to="459" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Acceleration of stochastic approximation by averaging</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">T</forename><surname>Polyak</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">B</forename><surname>Juditsky</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">SIAM Journal on Control and Optimization</title>
+		<imprint>
+			<date type="published" when="1992" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Hybrid deterministicstochastic methods for data fitting</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Friedlander</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Schmidt</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">SIAM Journal on Scientific Computing</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Adaptive subgradient methods for online learning and stochastic optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Duchi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Hazan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Singer</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMRL</title>
+		<imprint>
+			<biblScope unit="volume">12</biblScope>
+			<biblScope unit="page" from="2121" to="2159" />
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Beating sgd: Learning svms in sublinear time</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Elad</forename><surname>Hazan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tomer</forename><surname>Koren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nati</forename><surname>Srebro</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="1233" to="1241" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Loss-proportional subsampling for subsequent erm</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Mineiro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Karampatziakis</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Adaptive importance sampling to accelerate training of a neural probabilistic language model</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J-S</forename><surname>Senecal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IDIAP</title>
+		<imprint>
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Technical report</note>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Adaptive importance sampling to accelerate training of a neural probabilistic language model</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J-S</forename><surname>Senecal</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on</title>
+		<imprint>
+			<biblScope unit="volume">19</biblScope>
+			<biblScope unit="issue">4</biblScope>
+			<biblScope unit="page" from="713" to="722" />
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+	<note>Neural Networks</note>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<monogr>
+		<title level="m" type="main">Simulation academic press</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Sm Ross</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1997" />
+			<pubPlace>San Diego</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Variational bayesian inference with stochastic search</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Paisley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Blei</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Jordan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ICML</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Curriculum learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jérôme</forename><surname>Louradour</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ronan</forename><surname>Collobert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jason</forename><surname>Weston</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML &apos;09: Proceedings of the 26th Annual International Conference on Machine Learning</title>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2009" />
+			<biblScope unit="page" from="41" to="48" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Towards Good Practice in Large-Scale Learning for Image Classification</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Perronnin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Akata</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Harchaoui</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Schmid</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Histograms of oriented gradients for human detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Dalal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Triggs</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<monogr>
+		<title level="m" type="main">The Pascal Visual Object Classes (VOC) Challenge. IJCV</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Everingham</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C K I</forename><surname>Van Gool</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Williams</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Winn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Zisserman</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">DeCAF : A Deep Convolutional Activation Feature for Generic Visual Recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Donahue</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Jia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Hoffman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Tzeng</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Learning and Transferring Mid-Level Image Representations using Convolutional Neural Networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Oquab</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bottou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Laptev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Sivic</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Rich feature hierarchies for accurate object detection and semantic segmentation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Girshick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Donahue</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Darrell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Malik</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">ImageNet Classification with Deep Convolutional Neural Networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Sutskever</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Gradient-based learning applied to document recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yann</forename><surname>Lecun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Léon</forename><surname>Bottou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Patrick</forename><surname>Haffner</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Proceedings of the IEEE</title>
+		<imprint>
+			<biblScope unit="volume">86</biblScope>
+			<biblScope unit="issue">11</biblScope>
+			<biblScope unit="page" from="2278" to="2324" />
+			<date type="published" when="1998" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Non-negative matrix factorization as a feature selection tool for maximum margin classifiers</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mithun</forename><surname>Das Gupta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jing</forename><surname>Xiao</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Computer Vision and Pattern Recognition (CVPR), 2011 IEEE Conference on</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="2841" to="2848" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Deterministic policy gradient algorithms</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Silver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Guy</forename><surname>Lever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nicolas</forename><surname>Heess</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Thomas</forename><surname>Degris</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daan</forename><surname>Wierstra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><surname>Riedmiller</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="volume">32</biblScope>
+			<biblScope unit="page" from="387" to="395" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<monogr>
+		<title level="m" type="main">Policy gradient in continuous time</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rémi</forename><surname>Munos</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2006-05" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+	</analytic>
+	<monogr>
+		<title level="m">Reinforcement Learning</title>
+		<editor>Machine Learning</editor>
+		<imprint>
+			<publisher>Kluwer Academic Publishers</publisher>
+			<date type="published" when="1992" />
+			<biblScope unit="volume">173</biblScope>
+		</imprint>
+	</monogr>
+	<note>Reprinted from volume</note>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<monogr>
+		<title level="m" type="main">Algorithms for Reinforcement Learning. Synthesis lectures on artificial intelligence and machine learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Szepesvari</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2010" />
+			<pubPlace>Morgan &amp; Claypool</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Global arrays: A nonuniform memory access programming model for high-performance computers</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jaroslaw</forename><surname>Nieplocha</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Robert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Richard J</forename><surname>Harrison</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Littlefield</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">The Journal of Supercomputing</title>
+		<imprint>
+			<biblScope unit="volume">10</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="169" to="189" />
+			<date type="published" when="1996" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<monogr>
+		<title level="m" type="main">Software Engineering Advice from Building Large-Scale Distributed Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Dean</surname></persName>
+		</author>
+		<ptr target="http://research.google.com/people/jeff/stanford-295-talk.pdf#13" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Stochastic variational inference</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Hoffman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Blei</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Paisley</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMRL</title>
+		<imprint>
+			<biblScope unit="volume">14</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="1303" to="1347" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">On the quantitative analysis of deep belief networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Murray</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

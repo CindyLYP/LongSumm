@@ -1,0 +1,1155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">DISCRIMINATOR-ACTOR-CRITIC: ADDRESSING SAMPLE INEFFICIENCY AND REWARD BIAS IN ADVERSARIAL IMITATION LEARNING</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2018-10-15">15 Oct 2018</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ilya</forename><surname>Kostrikov</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution" key="instit1">Courant Institute of Mathematical Sciences</orgName>
+								<orgName type="institution" key="instit2">New York University</orgName>
+								<address>
+									<settlement>New York</settlement>
+								</address>
+							</affiliation>
+							<affiliation key="aff1">
+								<orgName type="institution">NY Google Brain</orgName>
+								<address>
+									<settlement>Mountain View</settlement>
+									<region>CA</region>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Krishna</forename><surname>Kumar</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Agrawal</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Debidatta</forename><surname>Dwibedi</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sergey</forename><surname>Levine</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonathan</forename><surname>Tompson</surname></persName>
+						</author>
+						<title level="a" type="main">DISCRIMINATOR-ACTOR-CRITIC: ADDRESSING SAMPLE INEFFICIENCY AND REWARD BIAS IN ADVERSARIAL IMITATION LEARNING</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2018-10-15">15 Oct 2018</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1809.02925v2[cs.LG]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:42+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>We identify two issues with the family of algorithms based on the Adversarial Imitation Learning framework. The first problem is implicit bias present in the reward functions used in these algorithms. While these biases might work well for some environments, they can also lead to sub-optimal behavior in others. Secondly, even though these algorithms can learn from few expert demonstrations, they require a prohibitively large number of interactions with the environment in order to imitate the expert for many real-world applications. In order to address these issues, we propose a new algorithm called Discriminator-Actor-Critic that uses off-policy Reinforcement Learning to reduce policy-environment interaction sample complexity by an average factor of 10. Furthermore, since our reward function is designed to be unbiased, we can apply our algorithm to many problems without making any task-specific adjustments.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">INTRODUCTION</head><p>The Adversarial Imitation Learning (AIL) class of algorithms learns a policy that robustly imitates an expert's actions via a collection of expert demonstrations, an adversarial discriminator and a reinforcement learning method. For example, the Generative Adversarial Imitation Learning (GAIL) algorithm <ref type="bibr" target="#b16">(Ho &amp; Ermon, 2016</ref>) uses a discriminator reward and a policy gradient algorithm to imitate an expert RL policy on standard benchmark tasks. Similarly, the Adversarial Inverse Reinforcement Learning (AIRL) algorithm <ref type="bibr" target="#b8">(Fu et al., 2017</ref>) makes use of a modified GAIL discriminator to recover a reward function that can be used to perform Inverse Reinforcement Learning (IRL) <ref type="bibr" target="#b1">(Abbeel &amp; Ng, 2004</ref>) and who's subsequent dense reward is robust to changes in dynamics or environment properties. Importantly, AIL algorithms such as GAIL and AIRL, obtain higher performance than supervised Behavioral Cloning (BC) when using a small number of expert demonstrations; experimentally suggesting that AIL algorithms alleviate some of the distributional drift <ref type="bibr" target="#b29">(Ross et al., 2011)</ref> issues associated with BC. However, both these AIL methods suffer from two important issues that will be addressed by this work: 1) a large number of policy interactions with the learning environment is required for policy convergence and 2) bias in the reward function formulation and improper handling of environment terminal states introduces implicit rewards priors that can either improve or degrade policy performance.</p><p>While GAIL requires as little as 200 expert frame transitions (from 4 expert trajectories) to learn a robust reward function on most MuJoCo <ref type="bibr" target="#b34">(Todorov et al., 2012)</ref> tasks, the number of policy frame transitions sampled from the environment can be as high as 25 million in order to reach convergence. If PPO <ref type="bibr" target="#b31">(Schulman et al., 2017)</ref> is used in place of TRPO <ref type="bibr" target="#b30">(Schulman et al., 2015)</ref>, the sample complexity can be reduced somewhat (for example, as in <ref type="figure">Figure 4</ref>, 25 million steps reduces to approximately 10 million steps), however it is still intractable for many robotics or real-world applications. In this work we address this issue by incorporating an off-policy RL algorithm (TD3 <ref type="bibr">(</ref>  <ref type="figure">Figure 1</ref>: The Discriminator-Actor-Critic imitation learning framework. et al., 2018)) and an off-policy discriminator to dramatically decrease the sample complexity by many orders of magnitude.</p><p>In this work we will also illustrate how the specific form of AIL reward function used has a large impact on agent performance for episodic environments. For instance, as we will show, a strictly positive reward function prevents the agent from solving tasks in a minimal number of steps and a strictly negative reward function is not able to emulate a survival bonus. Therefore, one must have some knowledge of the true environment reward and incorporate such priors to choose a suitable reward function for successful application of GAIL and AIRL. We will discuss these issues in formal detail, and present a simple -yet effective -solution that drastically improves policy performance for episodic environments; we explicitly handle absorbing state transitions by learning the reward associated with these states.</p><p>We propose a new algorithm, which we call Discriminator-Actor-Critic (DAC), that is compatible with both the popular GAIL and AIRL frameworks, incorporates explicit terminal state handling, an off-policy discriminator and an off-policy actor-critic reinforcement learning algorithm. DAC achieves state-of-the-art AIL performance for a number of difficult imitation learning tasks. More specifically, in this work we:</p><p>• Identify, and propose solutions for the problem of bias in discriminator-based reward estimation in imitation learning.</p><p>• Accelerate learning from demonstrations by providing an off-policy variant for AIL algorithms, which significantly reduces the number of agent-environment interactions.</p><p>• Illustrate the robustness of DAC to noisy, multi-modal and constrained expert demonstrations, by performing experiments with human demonstrations on non-trivial robotic tasks.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>RELATED WORK</head><p>Imitation learning has been broadly studied under the twin umbrellas of Behavioral Cloning (BC) <ref type="bibr" target="#b3">(Bain &amp; Sommut, 1999;</ref><ref type="bibr" target="#b29">Ross et al., 2011)</ref> and Inverse Reinforcement Learning (IRL) <ref type="bibr" target="#b23">(Ng &amp; Russell, 2000)</ref>. To recover the underlying policy, IRL performs an intermediate step of estimating the reward function followed by RL on this function <ref type="bibr" target="#b1">(Abbeel &amp; Ng, 2004;</ref><ref type="bibr" target="#b27">Ratliff et al., 2006)</ref>. Operating in the Maximum Entropy IRL formulation <ref type="bibr" target="#b39">(Ziebart et al., 2008)</ref>, <ref type="bibr" target="#b7">Finn et al. (2016b)</ref> introduce an iterative-sampling based estimator for the partition function, deriving an algorithm for recovering non-linear reward functions in high-dimensional state and action spaces. <ref type="bibr" target="#b6">Finn et al. (2016a)</ref> and <ref type="bibr" target="#b8">Fu et al. (2017)</ref> further extend this by exploring the theory and practical considerations of an adversarial IRL framework, and draw connections between IRL and cost learning in GANs <ref type="bibr" target="#b10">(Goodfellow et al., 2014)</ref>.</p><p>In practical scenarios, we are often interested in recovering the expert's policy, rather than the reward function. Following <ref type="bibr" target="#b33">Syed et al. (2008)</ref>, and by treating imitation learning as an occupancy matching problem, <ref type="bibr" target="#b16">Ho &amp; Ermon (2016)</ref> proposed a Generative Adversarial Imitation Learning (GAIL) framework for learning a policy from demonstrations, which bypasses the need to recover the expert's reward function. More recent work extends the framework by improving on stability and robustness <ref type="bibr" target="#b18">Kim &amp; Park, 2018)</ref> and making connections to model-based imitation learning <ref type="bibr" target="#b4">(Baram et al., 2017)</ref>. These approaches generally use on-policy algorithms for policy optimization, trading off sample efficiency for training stability.</p><formula xml:id="formula_0">. . . s T −2 s T −1 s T s a r T −2 r T −1 r T r a = 0</formula><p>Figure 2: Absorbing states for episodic tasks.</p><p>Learning complex behaviors from sparse reward signals poses a significant challenge in reinforcement learning. In this context, expert demonstrations or template trajectories have been successfully used <ref type="bibr" target="#b26">(Peters &amp; Schaal, 2008)</ref> for initalizing RL policies. There has been a growing interest in combining extrinsic sparse reward signals with imitation learning for guided exploration <ref type="bibr" target="#b38">(Zhu et al., 2018;</ref><ref type="bibr" target="#b17">Kang et al., 2018;</ref><ref type="bibr" target="#b20">Le et al., 2018;</ref><ref type="bibr" target="#b36">Vecerík et al., 2017)</ref>. Off policy learning from demonstration has been previously studied under the umbrella of accelerating reinforcement learning by structured exploration <ref type="bibr" target="#b22">(Nair et al., 2017;</ref> An implicit assumption of these approaches is access to demonstrations and reward from the environment; our approach requires access only to expert demonstrations.</p><p>Our work is most related to AIL algorithms <ref type="bibr" target="#b16">(Ho &amp; Ermon, 2016;</ref><ref type="bibr" target="#b8">Fu et al., 2017;</ref><ref type="bibr" target="#b35">Torabi et al., 2018)</ref>. In contrast to <ref type="bibr" target="#b16">Ho &amp; Ermon (2016)</ref> which assumes (state-action-state') transition tuples, <ref type="bibr" target="#b35">Torabi et al. (2018)</ref> has weaker assumptions, by relying only on observations and removing the dependency on actions. The contributions in this work are complementary (and compatible) to <ref type="bibr" target="#b35">Torabi et al. (2018)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">BACKGROUND 3.1 MARKOV DECISION PROCESS</head><p>We consider problems that satisfy the definition of a Markov Decision Process (MDP), formalized by the tuple:</p><formula xml:id="formula_1">(S, A, p(s), p(s |s, a), r(s, a, s ), γ).</formula><p>Here S, A represent the state and action spaces respectively, p(s) is the initial state distribution, p(s |s, a) defines environment dynamics represented as a conditional state distribution, r(s, a, s ) is reward function and γ the return discount factor.</p><p>In continuing tasks, where environment interactions are unbounded in sequence length, the returns for a trajectory</p><formula xml:id="formula_2">τ = {(s t , a t )} ∞ t=0 , are defined as R t = ∞ k=t γ k−t r(s k , a k , s k+1 ).</formula><p>In order to use the same notation for episodic tasks, whose finite length episodes end when reaching a terminal state, we can define a set of absorbing states s a <ref type="bibr" target="#b32">(Sutton et al., 1998)</ref> that an agent enters after the end of episode, has zero reward and transitions to itself for all agent actions: <ref type="figure">Figure 3</ref>.1). With this above absorbing state notation, returns can be defined simply</p><formula xml:id="formula_3">s a ∼ p(•|s T , a T ), r(s a , •, •) = 0 and s a ∼ p(•|s a , •) (see</formula><formula xml:id="formula_4">as R t = T k=t γ k−t r(s k , a k , s k+1 ).</formula><p>In reinforcement learning, the goal is to learn a policy that maximizes expected returns.</p><p>In many imitation learning and IRL algorithms a common assumption is to assign zero reward value, often implicitly, to absorbing states. As we will discuss in detail in Section 4.2, our DAC algorithm will assign a learned, potentially non-zero reward for absorbing states and we will demonstrate empirically in Section 4.1.1, that it is extremely important to properly handle the absorbing states for algorithms where rewards are learned.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">ADVERSARIAL IMITATION LEARNING</head><p>In order to learn a robust reward function we use the GAIL framework <ref type="bibr" target="#b16">(Ho &amp; Ermon, 2016)</ref>. Inspired by maximum entropy <ref type="bibr">IRL (Ziebart et al., 2008)</ref> and Generative Adversarial Networks (GANs) <ref type="bibr" target="#b10">(Goodfellow et al., 2014)</ref>, GAIL trains a binary classifier, D(s, a), referred to as the discriminator, to distinguish between transitions sampled from an expert and those generated by the trained policy. In standard GAN frameworks, a generator gradient is calculated by backprop through the learned discriminator. However, in GAIL the policy is instead provided a reward for confusing the discriminator, which is then maximized via some on-policy RL optimization scheme (e.g. TRPO <ref type="bibr" target="#b30">(Schulman et al., 2015)</ref></p><formula xml:id="formula_5">): max π max D E π [log(D(s, a))] + E π E [log(1 − D(s, a))] − λH(π)<label>(1)</label></formula><p>where H(π) is an entropy regularization term.</p><p>The rewards learned by GAIL might not correspond to a true reward <ref type="bibr" target="#b8">(Fu et al., 2017)</ref> but can be used to match the expert occupancy measure, which is defined as <ref type="bibr" target="#b16">Ho &amp; Ermon (2016)</ref> draw analogies between distribution matching using GANs and occupancy matching with GAIL. They demonstrate that by maximizing the above reward, the algorithm matches occupancy measures of the expert and trained policies with some regulation term defined by the choice of GAN loss function.</p><formula xml:id="formula_6">ρ π E (s, a) = ∞ t=0 γ t p(s t = s, a t = a|π E ).</formula><p>In principle, GAIL can be incorporated with any on-policy RL algorithm. However, in this work we adapt it for off-policy training (discussed in Section 4.3). As can be seen from Equation 1, the algorithm requires state-action pairs to be sampled from the learned policy. In Section 4.3 we will discuss what modifications are necessary to adapt the algorithm to off-policy training.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>DISCRIMINATOR-ACTOR-CRITIC</head><p>In this section we will present the Discriminator-Actor-Critic (DAC) algorithm. This algorithm is comprised of two parts: a method for unbiasing adversarial reward functions, discussed in Section 4.2, and an off-policy discriminator formulation of AIL, discussed in Section 4.3. A high level pictorial representation of this algorithm is also shown in <ref type="figure">Figure 1</ref>. The algorithm is formally summarized in Appendix A.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">BIAS IN REWARD FUNCTIONS</head><p>In the following section, we present examples of bias present in reward functions in different AIL algorithms:</p><p>• In the GAIL framework, and follow-up methods, such as GMMIL <ref type="bibr" target="#b18">(Kim &amp; Park, 2018)</ref> and AIRL, zero reward is implicitly assigned for absorbing states, while some reward function, r(s, a), assigns rewards for intermediate states depending on properties of a task. • For certain environments, a survival bonus in the form of per-step positive reward is added to the rewards received by the agent. This encourages agents to survive longer in the environment to collect more rewards. We observe that a commonly used form of the reward function: r(s, a) = − log(1 − D(s, a)) has worked well for environments that require a survival bonus. However, since the recovered reward function can never be negative, it cannot recover the true reward function for environments where an agent is required to solve the task as quickly as possible. Using this form of the reward function will lead to sub-optimal solutions. The agent is now incentivized to move in loops or take small actions (in continuous action spaces) that keep it close to the states in the expert's trajectories. The agent keeps collecting positive rewards without actually attempting to solve the task demonstrated by the expert (see Section 4.1). 1 • Another reward formulation is r(s, a) = log <ref type="figure">(D(s, a)</ref>). This is often used for tasks with a per step penalty, when a part of a reward function consists of a negative constant assigned unconditionally of states and actions. However, this variant assigns only negative rewards and cannot learn a survival bonus. Such strong priors might lead to good results even with no expert trajectories (as shown in <ref type="figure">Figure 5</ref>).</p><p>From an end-user's perspective, it is undesirable to have to craft a different reward function for every new task. In the next section, we describe an illustrative example of a typical failure of biased reward functions. We also propose a method to unbias the reward function in our imitation learning algorithm such that it is able to recover different reward functions without adjusting the form of reward function.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.1">AN ILLUSTRATIVE EXAMPLE OF REWARD BIAS</head><p>Firstly, we illustrate how r(s, a) = − log(1 − D(s, a)) cannot match the expert trajectories with environments with per-step penalties. Consider a simple MDP with 3 states:</p><formula xml:id="formula_7">s 1 , s 2 , s g , where s g is</formula><p>Note that this behavior was described in the early reward shaping literature <ref type="bibr" target="#b24">(Ng et al., 1999)</ref>.</p><formula xml:id="formula_8">s 1 s 2 s g a 1→2 a 2→1 a 2→g a) s 1 s 2 s g 1 : a 1→2 2 : a 2→g b) s 1 s 2 s g 1, 3 : a 1→2 2 : a 2→1 : a 2→g c)</formula><p>Figure 3: a) An MDP with 3 possible states and 3 possible actions. b) Expert demonstration. c) A policy (potentially) more optimal than the expert policy according to the GAIL reward function.</p><p>a goal state and agents receive a reward by reaching the goal state, and 3 actions:</p><formula xml:id="formula_9">a 1→2 , a 2→1 , a 2→g ;</formula><p>where a i→j is such that s j ∼ p(•|s i , a i→j ), as shown in <ref type="figure">Figure 4.1 a)</ref>. And for every state the expert demonstration is the following: π E (s 1 ) = a 1→2 , π E (s 2 ) = a 2→g , (as shown in <ref type="figure">Figure 4</ref>.1 b), and which clearly reaches the goal state in the optimal number of steps. Now consider the trajectory of <ref type="figure">Figure 4</ref>.1 c): <ref type="figure">a 2→g )</ref>. This trajectory will have the return <ref type="figure">a 2→g )</ref>. While the expert return is R E = r(s 1 , a 1→2 ) + γr(s 2 , a 2→g ).</p><formula xml:id="formula_10">(s 1 , a 1→2 ) → (s 2 , a 2→1 ) → (s 1 , a 1→2 ) → (s 2 ,</formula><formula xml:id="formula_11">R π = r(s 1 , a 1→2 ) + γr(s 2 , a 2→1 ) + γ 2 r(s 1 , a 1→2 ) + γ 3 r(s 2 ,</formula><p>Assuming that we have a discriminator trained to convergence, it will assign r(s 2 , a 2→1 ) a value that is close to zero, since it never appears in expert demonstrations. Therefore, from <ref type="figure">a 2→g )</ref>. Thus, for the loopy trajectory to have a smaller return than our expert policy, we need r(s 1 , a 1→2 ) &lt; 0.0199 0.99 • r(s 2 , a 2→g ), if γ = 0.99 (a standard value). However, the optimal values for GAN discriminator in this case are r(s , a 1→2 ) = −log(1 − 0.5) ≈ 0.3 and r(s 2 , a 2→g ) = −log(1−2/3) ≈ 0.477. Hence, the inequality above does not hold. As such, the convergence of GAIL to the expert policy with this reward function is possible under only certain values of γ, and this value depends heavily on the task MDP. At the same time, since the reward function is strictly positive it implicitly provides a survival bonus. In other words, regardless of how the discriminator actually classifies state-action tuples, it always rewards the policy for avoiding absorbing states (see Section 5.2). Fundamentally, this characteristic makes it difficult to attribute policy performance to the robustness of the GAIL learned reward since the RL optimizer can often solve the task as long as the reward is strictly positive.</p><formula xml:id="formula_12">R π &lt; R E one can derive r(s 1 , a 1→2 ) &lt; (1−γ 2 ) γ r(s 2 ,</formula><p>Another common reward variant, r(s, a) = log(D(s, a)), which corresponds to the original saturating loss for GANs, penalizes every step and leads to collapsing in environments with a survival bonus. This phenomenon can be demonstrated using a reasoning similar to the one stated above.</p><p>Finally, AIRL uses the reward function: r(s, a, s ) = log(D(s, a, s ) − log(1 − D(s, a, s )), which can assign both positive and negative rewards for each time step. In AIRL, as in the original GAIL, the agent receives zero reward at the end of the episode, leading to sub-optimal policies (and training instability) in environments with a survival bonus. In the beginning of training this reward function assigns rewards with a negative bias because it is easy for the discriminator to distinguish samples for an untrained policy and an expert, and so it is common for learned agents to finish an episode earlier (to avoid additional negative penalty) instead of trying to imitate the expert.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">UNBIASING REWARD FUNCTIONS</head><p>In order to resolve the issues described in Section 4.1.1, we suggest explicitly learning rewards for absorbing states for expert demonstrations and trajectories produced by a policy. Thus, the returns for final states are defined now</p><formula xml:id="formula_13">R T = r(s T , a T ) + ∞ t=T +1 γ t−T r(s a , •) with a learned reward r(s a , •) instead of just R T = r(s T , a T ).</formula><p>We implemented these absorbing states by adding an extra indicator dimension that indicates whether the state is absorbing or not, for absorbing states we set the indicator dimension to one and all other dimensions to zero. The GAIL discriminator can distinguish whether reaching an absorbing state is a desirable behavior from the expert's perspective and assign the rewards accordingly.</p><p>Instead of recursively computing the Q values, this issue can be addressed by analytically deriving the following returns for the terminal states: R T = r(s T , a T ) + γr <ref type="bibr">(sa,•)</ref> 1−γ . However, in practice this alternative was much less stable.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">ADDRESSING SAMPLE INEFFICIENCY</head><p>As previously mentioned, GAIL requires a significant number of interactions with a learning environment in order to imitate an expert policy. To address the sample inefficiency of GAIL, we use an off-policy RL algorithm and perform off-policy training of the GAIL discriminator performed in the following way: instead of sampling trajectories from a policy directly, we sample transitions from a replay buffer R collected while performing off-policy training: <ref type="figure">D(s, a)</ref>)] − λH(π).</p><formula xml:id="formula_14">max D E R [log(D(s, a))] + E π E [log(1 −</formula><p>(2)</p><p>Equation 2 tries to match the occupancy measures between the expert and the distribution induced by the replay buffer R, which can be seen as a mixture of all policy distributions that appeared during training, instead of the latest trained policy π. In order to recover the original on-policy expectation, one needs to use importance sampling:</p><formula xml:id="formula_15">max D E R p π θ (s, a) p R (s, a) log(D(s, a)) + E π E [log(1 − D(s, a))] − λH(π).<label>(3)</label></formula><p>However, it can be challenging to properly estimate these densities and the discriminator updates might have large variance. We found that the algorithm works well in practice with the importance weight omitted.</p><p>We use the GAIL discriminator in order to define rewards for training a policy using TD3; we update per-step rewards every time when we pull transitions from the replay buffer using the latest discriminator. The TD3 algorithm provides a good balance between sample complexity and simplicity of implementation and so is a good candidate for practical applications. Additionally, depending on the distribution of expert demonstrations and properties of the task, off-policy RL algorithms can effectively handle multi-modal action distributions; for example, this can be achieved for the Soft Actor Critic algorithm <ref type="bibr" target="#b13">(Haarnoja et al., 2018b)</ref> using the reparametrization trick (Kingma &amp; Ba, 2014) with a normalizing flow (Rezende &amp; Mohamed, 2015) as described in <ref type="bibr" target="#b12">Haarnoja et al. (2018a)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>EXPERIMENTS</head><p>We implemented the DAC algorithm described in Section 4.3 using TensorFlow Eager <ref type="bibr" target="#b0">(Abadi et al., 2015)</ref> and we evaluated it on popular benchmarks for continuous control simulated in Mu-JoCo <ref type="bibr" target="#b34">(Todorov et al., 2012)</ref>. We also define a new set of robotic continuous control tasks (described in detail below) simulated in PyBullet <ref type="bibr" target="#b5">(Coumans &amp; Bai, 2016)</ref>, and a Virtual Reality (VR) system for capturing human examples in this environment; human examples constitute a particularly challenging demonstration source due to their noisy, multi-modal and potentially sub-optimal nature, and we define episodic multi-task environments as a challenging setup for adversarial imitation learning.</p><p>For the critic and policy networks we used the same architecture as in <ref type="bibr" target="#b9">Fujimoto et al. (2018)</ref>: a layer MLP with ReLU activations and 400 and 300 hidden units correspondingly. We also add gradient clipping <ref type="bibr" target="#b25">(Pascanu et al., 2013)</ref> to the actor network with clipping value of 40. For the discriminator we used the same architecture as in <ref type="bibr" target="#b16">Ho &amp; Ermon (2016)</ref>: a 2 layer MLP with 100 hidden units and tanh activations. We trained all networks with the Adam optimizer (Kingma &amp; Ba, 2014) and decay learning rate by starting with initial learning rate of 10 −3 and decaying it by 0.5 every 10 5 training steps for the actor network.</p><p>In order to make the algorithm more stable, especially in the off-policy regime when the discriminator can easily over-fit to training data, we use regularization in the form of gradient penalties <ref type="bibr" target="#b11">(Gulrajani et al., 2017)</ref> for the discriminator. Originally, this was introduced as an alternative to weight clipping for Wasserstein GANs , but later it was shown that it helps to make JS-based GANs more stable as well <ref type="bibr" target="#b21">(Lucic et al., 2017)</ref>.</p><p>We replicate the experimental setup of <ref type="bibr" target="#b16">Ho &amp; Ermon (2016)</ref>: expert trajectories are sub-sampled by retaining every 20 time steps starting with a random offset (and fixed stride). It is worth mentioning that, as in <ref type="bibr" target="#b16">Ho &amp; Ermon (2016)</ref>, this procedure is done in order to make the imitation learning task harder. With full trajectories, behavioral cloning provides competitive results to GAIL. <ref type="figure">Figure 4</ref>: Comparisons of algorithms using 4 expert demonstrations. y-axis corresponds to normalized reward (0 corresponds to a random policy, while 1 corresponds to an expert policy).</p><p>Following <ref type="bibr" target="#b14">Henderson et al. (2017)</ref> and <ref type="bibr" target="#b9">Fujimoto et al. (2018)</ref>, we perform evaluation using 10 different random seeds. For each seed, we compute average episode reward using episodes and running the policy without random noise. As in <ref type="bibr" target="#b16">Ho &amp; Ermon (2016)</ref> we plot reward normalized in such a way that zero corresponds to a random reward while one corresponds to expert rewards. We compute mean over all seeds and visualize half standard deviations. In order to produce the same evaluation for GAIL we used the original implementation 2 of the algorithm.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1">OFF POLICY DAC ALGORITHM</head><p>Evaluation results of the DAC algorithm on a suite of MuJoCo tasks are shown in <ref type="figure">Figure 4</ref>, as are the GAIL (TRPO) and BC basline results. In the top-left plot, we show DAC is an order of magnitude more sample efficent than then TRPO and PPO based GAIL baselines. In the other plots, we show that by using a significantly smaller number of environment steps (orders of magnitude fewer), our DAC algorithm reaches comparable expected reward as the GAIL baseline. Furthermore, DAC outperforms the GAIL baseline on all environments within a 1 million step threshold. A comprehensive suit of results can be found in Appendix B, <ref type="figure">Figure 8</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2">REWARD BIAS</head><p>As discussed in Section 4.1.1, the reward function variants used with GAIL can have implicit biases when used without handling absorbing states.  <ref type="figure">D(s, a)</ref>). Surprisingly, when using a fixed and untrained GAIL discriminator that outputs 0.5 for every state-action pair, we were able to reach episode rewards of around 1000 on the Hopper environment, corresponding to approximately one third of the expert performance. Without any reward learning, and using no expert demonstrations, the agent can learn a policy that outperforms behavioral cloning ( <ref type="figure">Figure 5)</ref>. Therefore, the choice of a specific reward function might already provide strong prior knowledge that helps the RL algorithm to move towards recovering the expert policy, irrespective of the quality of the learned reward.</p><p>Additionally, we evaluated our method on two environments with per-step penalty (see <ref type="figure" target="#fig_1">Figure 6</ref>). These environment are simulated in PyBullet and consist of a Kuka IIWA arm and 3 blocks on a virtual table. A rendering of the environment can be found in Appendix C, <ref type="figure">Figure 9</ref>. Using a Cartesian displacement action for the gripper end-effector and a compact observation-space (consisting of each block's 6DOF pose and the Kuka's end-effector pose), the agent must either a) reach one of the 3 blocks in the shortest number of frames possible (the target block is provided to the policy as a one-hot vector), which we call Kuka-Reach, or b) push one block along the table so that it is adjacent to another block, which we call Kuka-PushNext. For evaluation, we define a sparse reward <ref type="figure">Figure 5</ref>: Reward functions that can be used in GAIL (left). Even without training some reward functions can perform well on some tasks (right). indicating successful task completion (within some threshold). For these imitation learning experiments, we use human demonstrations collected with a VR setup, where the participant wears a VR headset and controls in real-time the gripper end-effector using a 6DOF controller.</p><p>Using the reward defined as r(s, a) = −log(1 − D(s, a)) and without absorbing state handling, the agent completely fails to recover the expert policy given expert trajectories without subsampling (as shown in <ref type="figure">Figure 5</ref>). In contrast, our DAC algorithm quickly learns to imitate the expert, despite using noisy and potentially sub-optimal human demonstrations.</p><p>As discussed, alternative reward functions do not have this positive bias but still require proper handling of the absorbing states as well in order to avoid early termination due to incorrectly assigned per-frame penalty. <ref type="figure">Figure 7</ref> illustrates results for AIRL with and without learning rewards for absorbing states. For these experiments we use the discriminator structure from <ref type="bibr" target="#b8">Fu et al. (2017)</ref> in combination with the TD3 algorithm.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6">CONCLUSION</head><p>In this work we address several important issues associated with the popular GAIL framework. In particular, we address 1) sample inefficiency with respect to policy transitions in the environment and 2) we demonstrate a number of reward biases that can either implicitly impose prior knowledge about the true reward, or alternatively, prevent the policy from imitating the optimal expert. To address reward bias, we propose a simple mechanism whereby the rewards for absorbing states are also learned, which negates the need to hand-craft a discriminator reward function for the properties of the task at hand. In order to improve sample efficiency, we perform off-policy training of the <ref type="figure">Figure 7</ref>: Effect of learning absorbing state rewards when using an AIRL discriminator within the DAC Framework. discriminator and use an off-policy RL algorithm. We show that our algorithm reaches state-of-theart performance for an imitation learning algorithm on several standard RL benchmarks, and is able to recover the expert policy given a significantly smaller number of samples than in recent GAIL work. We will make the code for this project public following review. C KUKA-IIWA SIMULATED ENVIRONMENT <ref type="figure">Figure 9</ref>: Renderings of our Kuka-IIWA environment. Using a VR headset and 6DOF controller, a human participant can control the 6DOF end-effector pose in order to record expert demonstrations. In the Kuka-Reach tasks, the agent must bring the robot gripper to 1 of the 3 blocks (where the state contains a 1-hot encoding of the task) and for the Kuka-PushNext tasks, the agent must use the robot gripper to push one block next to another.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head></head><label></label><figDesc>Figure 5demonstrates how bias affects results on an environment with survival bonus when using the reward function of<ref type="bibr" target="#b16">Ho &amp; Ermon (2016)</ref>: r(s, a) = − log(1 −</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 6 :</head><label>6</label><figDesc>Effect of absorbing state handling on Kuka environments with human demonstrations.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head></head><label></label><figDesc>Fujimoto   </figDesc><table><row><cell></cell><cell>Expert</cell><cell>Policy</cell><cell></cell></row><row><cell></cell><cell>Replay Buffer</cell><cell>Replay Buffer</cell><cell></cell></row><row><cell>Environment</cell><cell cols="2">Absorbing State Wrapper</cell><cell>Discriminator</cell><cell>Actor</cell></row></table><note>s a Critic</note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="2">https://github.com/openai/imitation</note>
+		</body>
+		<back>
+			<div type="annex">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>A DAC ALGORITHM</head><p>Algorithm 1 Discriminative-Actor-Critic Adversarial Imitation Learning Algorithm Input: expert replay buffer R E procedure WRAPFORABSORBINGSTATES(τ ) if s T is a terminal state then</p><p>Wrap expert rollouts with absorbing states end for for n = 1, . . . , do</p><p>Use current reward estimate. end for Update π θ with TD3 end for end for B SUPPLEMENTARY RESULTS ON MUJOCO ENVIRONMENTS <ref type="figure">Figure 8</ref>: Comparisons of different algorithms given the same number of expert demonstrations. y-axis corresponds to normalized reward (0 corresponds to a random policy, while 1 corresponds to an expert policy).</p></div>			</div>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<title level="m" type="main">TensorFlow: Large-scale machine learning on heterogeneous systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martín</forename><surname>Abadi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ashish</forename><surname>Agarwal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Paul</forename><surname>Barham</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Eugene</forename><surname>Brevdo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zhifeng</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Craig</forename><surname>Citro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Greg</forename><forename type="middle">S</forename><surname>Corrado</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andy</forename><surname>Davis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jeffrey</forename><surname>Dean</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Matthieu</forename><surname>Devin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sanjay</forename><surname>Ghemawat</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ian</forename><surname>Goodfellow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><surname>Harp</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geoffrey</forename><surname>Irving</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Isard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yangqing</forename><surname>Jia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rafal</forename><surname>Jozefowicz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lukasz</forename><surname>Kaiser</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Manjunath</forename><surname>Kudlur</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Josh</forename><surname>Levenberg</surname></persName>
+		</author>
+		<ptr target="https://www.tensorflow.org/.Softwareavailablefromtensorflow.org" />
+		<editor>Mané, Rajat Monga, Sherry Moore, Derek Murray, Chris Olah, Mike Schuster, Jonathon Shlens, Benoit Steiner, Ilya Sutskever, Kunal Talwar, Paul Tucker, Vincent Vanhoucke, Vijay Vasudevan, Fernanda Viégas, Oriol Vinyals, Pete Warden, Martin Wattenberg, Martin Wicke, Yuan Yu, and Xiaoqiang Zheng</editor>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Apprenticeship learning via inverse reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pieter</forename><surname>Abbeel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Andrew</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ng</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the twenty-first international conference on Machine learning</title>
+		<meeting>the twenty-first international conference on Machine learning</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2004" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><surname>Arjovsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Soumith</forename><surname>Chintala</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Léon</forename><surname>Bottou</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1701.07875</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Wasserstein gan. arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">A framework for behavioural cloning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Bain</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Claude</forename><surname>Sommut</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Machine intelligence</title>
+		<imprint>
+			<biblScope unit="volume">15</biblScope>
+			<biblScope unit="issue">15</biblScope>
+			<biblScope unit="page">103</biblScope>
+			<date type="published" when="1999" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">End-to-end differentiable adversarial imitation learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nir</forename><surname>Baram</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Oron</forename><surname>Anschel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Itai</forename><surname>Caspi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Shie</forename><surname>Mannor</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="390" to="399" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Pybullet, a python module for physics simulation for games, robotics and machine learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Coumans</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bai</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">GitHub repository</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">A connection between generative adversarial networks, inverse reinforcement learning, and energy-based models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chelsea</forename><surname>Finn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Paul</forename><surname>Christiano</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pieter</forename><surname>Abbeel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sergey</forename><surname>Levine</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">NIPS Workshop on Adversarial Training</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Guided cost learning: Deep inverse optimal control via policy optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chelsea</forename><surname>Finn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sergey</forename><surname>Levine</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pieter</forename><surname>Abbeel</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="49" to="58" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<monogr>
+		<title level="m" type="main">Learning robust rewards with adversarial inverse reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Justin</forename><surname>Fu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Katie</forename><surname>Luo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sergey</forename><surname>Levine</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1710.11248</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<monogr>
+		<title level="m" type="main">Addressing function approximation error in actor-critic methods</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Scott</forename><surname>Fujimoto</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dave</forename><surname>Herke Van Hoof</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Meger</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1802.09477</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Generative adversarial nets</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ian</forename><surname>Goodfellow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jean</forename><surname>Pouget-Abadie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mehdi</forename><surname>Mirza</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bing</forename><surname>Xu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Warde-Farley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sherjil</forename><surname>Ozair</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aaron</forename><surname>Courville</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="2672" to="2680" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Improved training of wasserstein gans</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ishaan</forename><surname>Gulrajani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Faruk</forename><surname>Ahmed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><surname>Arjovsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Vincent</forename><surname>Dumoulin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aaron C</forename><surname>Courville</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="5767" to="5777" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<title level="m" type="main">Latent space policies for hierarchical reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tuomas</forename><surname>Haarnoja</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kristian</forename><surname>Hartikainen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pieter</forename><surname>Abbeel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sergey</forename><surname>Levine</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1804.02808</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<monogr>
+		<title level="m" type="main">Soft actor-critic: Offpolicy maximum entropy deep reinforcement learning with a stochastic actor</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tuomas</forename><surname>Haarnoja</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aurick</forename><surname>Zhou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pieter</forename><surname>Abbeel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sergey</forename><surname>Levine</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1801.01290</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Peter</forename><surname>Henderson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Riashat</forename><surname>Islam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Philip</forename><surname>Bachman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Joelle</forename><surname>Pineau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Doina</forename><surname>Precup</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Meger</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1709.06560</idno>
+		<title level="m">Deep reinforcement learning that matters</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Todd</forename><surname>Hester</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Matej</forename><surname>Vecerik</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Olivier</forename><surname>Pietquin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marc</forename><surname>Lanctot</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tom</forename><surname>Schaul</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bilal</forename><surname>Piot</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dan</forename><surname>Horgan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><surname>Quan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><surname>Sendonaris</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Gabriel</forename><surname>Dulac-Arnold</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1704.03732</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Deep q-learning from demonstrations. arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Generative adversarial imitation learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonathan</forename><surname>Ho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Stefano</forename><surname>Ermon</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="4565" to="4573" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Policy optimization with demonstrations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bingyi</forename><surname>Kang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zequn</forename><surname>Jie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jiashi</forename><surname>Feng</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 35th International Conference on Machine Learning</title>
+		<meeting>the 35th International Conference on Machine Learning</meeting>
+		<imprint>
+			<publisher>PMLR</publisher>
+			<date type="published" when="2018" />
+			<biblScope unit="volume">80</biblScope>
+			<biblScope unit="page" from="2469" to="2478" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<monogr>
+		<title level="m" type="main">Imitation learning via kernel mean embedding</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kee-Eung</forename><surname>Kim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hyun</forename><forename type="middle">Soo</forename><surname>Park</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2018" />
+			<publisher>AAAI</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<title level="m" type="main">Adam: A method for stochastic optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Diederik</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jimmy</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ba</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.6980</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nan</forename><surname>Hoang M Le</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alekh</forename><surname>Jiang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Miroslav</forename><surname>Agarwal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yisong</forename><surname>Dudík</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hal</forename><surname>Yue</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Iii</forename><surname>Daumé</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1803.00590</idno>
+		<title level="m">Hierarchical imitation and reinforcement learning</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<monogr>
+		<title level="m" type="main">Are gans created equal? a large-scale study</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mario</forename><surname>Lucic</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Karol</forename><surname>Kurach</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marcin</forename><surname>Michalski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sylvain</forename><surname>Gelly</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Olivier</forename><surname>Bousquet</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1711.10337</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<monogr>
+		<title level="m" type="main">Overcoming exploration in reinforcement learning with demonstrations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ashvin</forename><surname>Nair</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bob</forename><surname>Mcgrew</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marcin</forename><surname>Andrychowicz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Wojciech</forename><surname>Zaremba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pieter</forename><surname>Abbeel</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1709.10089</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Algorithms for inverse reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Andrew</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Stuart</forename><surname>Ng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Russell</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. 17th International Conf. on Machine Learning</title>
+		<meeting>17th International Conf. on Machine Learning</meeting>
+		<imprint>
+			<publisher>Morgan Kaufmann</publisher>
+			<date type="published" when="2000" />
+			<biblScope unit="page" from="663" to="670" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">Policy invariance under reward transformations: Theory and application to reward shaping</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Andrew</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daishi</forename><surname>Ng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Stuart</forename><surname>Harada</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Russell</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="1999" />
+			<biblScope unit="volume">99</biblScope>
+			<biblScope unit="page" from="278" to="287" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">On the difficulty of training recurrent neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Razvan</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tomas</forename><surname>Mikolov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="1310" to="1318" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Reinforcement learning of motor skills with policy gradients</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jan</forename><surname>Peters</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Stefan</forename><surname>Schaal</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural networks</title>
+		<imprint>
+			<biblScope unit="volume">21</biblScope>
+			<biblScope unit="issue">4</biblScope>
+			<biblScope unit="page" from="682" to="697" />
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Maximum margin planning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><surname>Nathan D Ratliff</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><forename type="middle">A</forename><surname>Bagnell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Zinkevich</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 23rd international conference on Machine learning</title>
+		<meeting>the 23rd international conference on Machine learning</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2006" />
+			<biblScope unit="page" from="729" to="736" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Danilo</forename><surname>Jimenez Rezende</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Shakir</forename><surname>Mohamed</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1505.05770</idno>
+		<title level="m">Variational inference with normalizing flows</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">A reduction of imitation learning and structured prediction to no-regret online learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Stéphane</forename><surname>Ross</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geoffrey</forename><surname>Gordon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Drew</forename><surname>Bagnell</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the fourteenth international conference on artificial intelligence and statistics</title>
+		<meeting>the fourteenth international conference on artificial intelligence and statistics</meeting>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="627" to="635" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Trust region policy optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><surname>Schulman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sergey</forename><surname>Levine</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pieter</forename><surname>Abbeel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Jordan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Philipp</forename><surname>Moritz</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="1889" to="1897" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><surname>Schulman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Filip</forename><surname>Wolski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Prafulla</forename><surname>Dhariwal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alec</forename><surname>Radford</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Oleg</forename><surname>Klimov</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1707.06347</idno>
+		<title level="m">Proximal policy optimization algorithms</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<monogr>
+		<title level="m" type="main">Reinforcement learning: An introduction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Richard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><forename type="middle">G</forename><surname>Sutton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Barto</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1998" />
+			<publisher>MIT press</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<analytic>
+		<title level="a" type="main">Apprenticeship learning using linear programming</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Umar</forename><surname>Syed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Bowling</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Robert</forename><forename type="middle">E</forename><surname>Schapire</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 25th international conference on Machine learning</title>
+		<meeting>the 25th international conference on Machine learning</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2008" />
+			<biblScope unit="page" from="1032" to="1039" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">Mujoco: A physics engine for model-based control</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Emanuel</forename><surname>Todorov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tom</forename><surname>Erez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yuval</forename><surname>Tassa</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Intelligent Robots and Systems (IROS), 2012 IEEE/RSJ International Conference on</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="5026" to="5033" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Faraz</forename><surname>Torabi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Garrett</forename><surname>Warnell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Peter</forename><surname>Stone</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1807.06158</idno>
+		<title level="m">Generative adversarial imitation from observation</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<monogr>
+		<title level="m" type="main">Leveraging demonstrations for deep reinforcement learning on robotics problems with sparse rewards</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Matej</forename><surname>Vecerík</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Todd</forename><surname>Hester</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonathan</forename><surname>Scholz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Fumin</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Olivier</forename><surname>Pietquin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bilal</forename><surname>Piot</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nicolas</forename><surname>Heess</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Thomas</forename><surname>Rothörl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Thomas</forename><surname>Lampe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><forename type="middle">A</forename><surname>Riedmiller</surname></persName>
+		</author>
+		<idno>abs/1707.08817</idno>
+		<imprint>
+			<date type="published" when="2017" />
+			<publisher>CoRR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">Robust imitation of diverse behaviors</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ziyu</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Josh</forename><forename type="middle">S</forename><surname>Merel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Scott</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Reed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Gregory</forename><surname>Nando De Freitas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nicolas</forename><surname>Wayne</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Heess</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="5320" to="5329" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<monogr>
+		<title level="m" type="main">Reinforcement and imitation learning for diverse visuomotor skills</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yuke</forename><surname>Zhu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ziyu</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Josh</forename><surname>Merel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrei</forename><surname>Rusu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tom</forename><surname>Erez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Serkan</forename><surname>Cabi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Saran</forename><surname>Tunyasuvunakool</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">János</forename><surname>Kramár</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Raia</forename><surname>Hadsell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Nando De Freitas</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1802.09564</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">Maximum entropy inverse reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Brian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><forename type="middle">L</forename><surname>Ziebart</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><surname>Maas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Anind K</forename><surname>Bagnell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Dey</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">AAAI</title>
+		<meeting><address><addrLine>Chicago, IL, USA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2008" />
+			<biblScope unit="volume">8</biblScope>
+			<biblScope unit="page" from="1433" to="1438" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

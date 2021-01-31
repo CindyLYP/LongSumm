@@ -1,0 +1,822 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Stable Recurrent Models</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2019-03-05">March 5, 2019</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><surname>Miller</surname></persName>
+						</author>
+						<author role="corresp">
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Moritz</forename><surname>Hardt</surname></persName>
+							<email>hardt@berkeley.edu</email>
+						</author>
+						<title level="a" type="main">Stable Recurrent Models</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2019-03-05">March 5, 2019</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1805.10369v4[cs.LG]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:46+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Stability is a fundamental property of dynamical systems, yet to this date it has had little bearing on the practice of recurrent neural networks. In this work, we conduct a thorough investigation of stable recurrent models. Theoretically, we prove stable recurrent neural networks are well approximated by feed-forward networks for the purpose of both inference and training by gradient descent. Empirically, we demonstrate stable recurrent models often perform as well as their unstable counterparts on benchmark sequence tasks. Taken together, these findings shed light on the effective power of recurrent networks and suggest much of sequence learning happens, or can be made to happen, in the stable regime. Moreover, our results help to explain why in many cases practitioners succeed in replacing recurrent models by feed-forward models.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Introduction</head><p>Recurrent neural networks are a popular modeling choice for solving sequence learning problems arising in domains such as speech recognition and natural language processing. At the outset, recurrent neural networks are non-linear dynamical systems commonly trained to fit sequence data via some variant of gradient descent.</p><p>Stability is of fundamental importance in the study of dynamical system. Surprisingly, however, stability has had little impact on the practice of recurrent neural networks. Recurrent models trained in practice do not satisfy stability in an obvious manner, suggesting that perhaps training happens in a chaotic regime. The difficulty of training recurrent models has compelled practitioners to successfully replace recurrent models with non-recurrent, feed-forward architectures.</p><p>This state of affairs raises important unresolved questions.</p><p>Is sequence modeling in practice inherently unstable? When and why are recurrent models really needed?</p><p>In this work, we shed light on both of these questions through a theoretical and empirical investigation of stability in recurrent models.</p><p>We first prove stable recurrent models can be approximated by feed-forward networks. In particular, not only are the models equivalent for inference, they are also equivalent for training via gradient descent. While it is easy to contrive non-linear recurrent models that on some input sequence cannot be approximated by feed-forward models, our result implies such models are inevitably unstable. This means in particular they must have exploding gradients, which is in general an impediment to learnibility via gradient descent.</p><p>Second, across a variety of different sequence tasks, we show how recurrent models can often be made stable without loss in performance. We also show models that are nominally unstable often operate in the stable regime on the data distribution. Combined with our first result, these observation helps to explain why an increasingly large body of empirical research succeeds in replacing recurrent models with feed-forward models in important applications, including translation <ref type="bibr" target="#b5">[6,</ref><ref type="bibr" target="#b26">26]</ref>, speech synthesis <ref type="bibr" target="#b25">[25]</ref>, and language modeling <ref type="bibr" target="#b4">[5]</ref>. While stability does not always hold in practice to begin with, it is often possible to generate a high-performing stable model by imposing stability during training.</p><p>Our results also shed light on the effective representational properties of recurrent networks trained in practice. In particular, stable models cannot have long-term memory. Therefore, when stable and unstable models achieve similar results, either the task does not require long-term memory, or the unstable model does not have it.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.1">Contributions</head><p>In this work, we make the following contributions.</p><p>1. We present a generic definition of stable recurrent models in terms of non-linear dynamical systems and show how to ensure stability of several commonly used models. Previous work establishes stability for vanilla recurrent neural networks. We give new sufficient conditions for stability of long short-term memory (LSTM) networks. These sufficient conditions come with an efficient projection operator that can be used at training time to enforce stability.</p><p>2. We prove, under the stability assumption, feed-forward networks can approximate recurrent networks for purposes of both inference and training by gradient descent. While simple in the case of inference, the training result relies on non-trivial stability properties of gradient descent.</p><p>3. We conduct extensive experimentation on a variety of sequence benchmarks, show stable models often have comparable performance with their unstable counterparts, and discuss when, if ever, there is an intrinsic performance price to using stable models.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Stable Recurrent Models</head><p>In this section, we define stable recurrent models and illustrate the concept for various popular model classes. From a pragmatic perspective, stability roughly corresponds to the criterion that the gradients of the training objective do not explode over time. Common recurrent models can operate in both the stable and unstable regimes, depending on their parameters. To study stable variants of common architectures, we give sufficient conditions to ensure stability and describe how to efficiently enforce these conditions during training.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1">Defining Stable Recurrent Models</head><p>A recurrent model is a non-linear dynamical system given by a differentiable state-transition map φ w : R n × R d → R n , parameterized by w ∈ R m . The hidden state h t ∈ R n evolves in discrete time steps according to the update rule</p><formula xml:id="formula_0">h t = φ w (h t−1 , x t ) ,<label>(1)</label></formula><p>where the vector x t ∈ R d is an arbitrary input provided to the system at time t. This general formulation allows us to unify many examples of interest. For instance, for a recurrent neural network, given weight matrices W and U , the state evolves according to</p><formula xml:id="formula_1">h t = φ W,U (h t−1 , x t ) = tanh (W h t−1 + U x t ) .</formula><p>Recurrent models are typically trained using some variant of gradient descent. One naturaleven if not strictly necessary-requirement for gradient descent to work is that the gradients of the training objective do not explode over time. Stable recurrent models are precisely the class of models where the gradients cannot explode. They thus constitute a natural class of models where gradient descent can be expected to work. In general, we define a stable recurrent model as follows. Definition 1. A recurrent model φ w is stable if there exists some λ &lt; 1 such that, for any weights w ∈ R m , states h, h ∈ R n , and input</p><formula xml:id="formula_2">x ∈ R d , φ w (h, x) − φ w (h , x) ≤ λ h − h .<label>(2)</label></formula><p>Equivalently, a recurrent model is stable if the map φ w is λ-contractive in h. If φ w is λ-stable, then ∇ h φ w (h, x) &lt; λ, and for Lipschitz loss p, ∇ w p is always bounded <ref type="bibr" target="#b21">[21]</ref>.</p><p>Stable models are particularly well-behaved and well-justified from a theoretical perspective. For instance, at present, only stable linear dynamical systems are known to be learnable via gradient descent <ref type="bibr" target="#b6">[7]</ref>. In unstable models, the gradients of the objective can explode, and it is a delicate matter to even show that gradient descent converges to a stationary point. The following proposition offers one such example. The proof is provided in the appendix. Proposition 1. There exists an unstable system φ w where gradient descent does not converge to a stationary point, and ∇ w p → ∞ as the number of iterations N → ∞.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">Examples of Stable Recurrent Models</head><p>In this section, we provide sufficient conditions to ensure stability for several common recurrent models. These conditions offer a way to require learning happens in the stable regime-after each iteration of gradient descent, one imposes the corresponding stability condition via projection.</p><p>Linear dynamical systems and recurrent neural networks. Given a Lipschitz, point-wise non-linearity ρ and matrices W ∈ R n×n and U ∈ R n×d , the state-transition map for a recurrent neural network (RNN) is</p><formula xml:id="formula_3">h t = ρ(W h t−1 + U x t ).</formula><p>If ρ is the identity, then the system is a linear dynamical system. <ref type="bibr" target="#b9">[10]</ref> show if ρ is L ρ -Lipschitz, then the model is stable provided W &lt; 1</p><p>Lρ . Indeed, for any states h, h , and any x,</p><formula xml:id="formula_4">ρ(W h + U x) − ρ(W h + U x) ≤ L ρ W h + U x − W h − U x ≤ L ρ W h − h .</formula><p>In the case of a linear dynamical system, the model is stable provided W &lt; 1. Similarly, for the 1-Lipschitz tanh-nonlinearity, stability obtains provided W &lt; 1. In the appendix, we verify the assumptions required by the theorems given in the next section for this example. Imposing this condition during training corresponds to projecting onto the spectral norm ball.</p><p>Long short-term memory networks. Long Short-Term Memory (LSTM) networks are another commonly used class of sequence models <ref type="bibr" target="#b8">[9]</ref>. The state is a pair of vectors s = (c, h) ∈ R 2d , and the model is parameterized by eight matrices, W ∈ R d×d and U ∈ R d×n , for ∈ {i, f, o, z}. The state-transition map φ LSTM is given by</p><formula xml:id="formula_5">f t = σ(W f h t−1 + U f x t ) i t = σ(W i h t−1 + U i x t ) o t = σ(W o h t−1 + U o x t ) z t = tanh(W z h t−1 + U z x t ) c t = i t • z t + f t • c t−1 h t = o t • tanh(c t ),</formula><p>where • denotes elementwise multiplication, and σ is the logistic function.</p><p>We provide conditions under which the iterated system φ r</p><formula xml:id="formula_6">LSTM = φ LSTM • • • • • φ LSTM is stable. Let f ∞ = sup t f t ∞ .</formula><p>If the weights W f , U f and inputs x t are bounded, then f ∞ &lt; 1 since |σ| &lt; 1 for any finite input. This means the next state c t must "forget" a non-trivial portion of c t−1 . We leverage this phenomenon to give sufficient conditions for φ LSTM to be contractive in the ∞ norm, which in turn implies the iterated system φ r LSTM is contractive in the 2 norm for r = O(log(d)). Let W ∞ denote the induced ∞ matrix norm, which corresponds to the maximum absolute row sum max i j |W ij |. <ref type="bibr" target="#b1">2</ref> , and r = O(log(d)), then the iterated system φ r LSTM is stable.</p><formula xml:id="formula_7">Proposition 2. If W i ∞ , W o ∞ &lt; (1 − f ∞ ), W z ∞ ≤ (1/4)(1 − f ∞ ), W f ∞ &lt; (1 − f ∞ )</formula><p>The proof is given in the appendix. The conditions given in Proposition 2 are fairly restrictive. Somewhat surprisingly we show in the experiments models satisfying these stability conditions still achieve good performance on a number of tasks. We leave it as an open problem to find different parameter regimes where the system is stable, as well as resolve whether the original system φ LSTM is stable. Imposing these conditions during training and corresponds to simple rowwise normalization of the weight matrices and inputs. More details are provided in Section 4 and the appendix.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">Stable Recurrent Models Have Feed-forward Approximations</head><p>In this section, we prove stable recurrent models can be well-approximated by feed-forward networks for the purposes of both inference and training by gradient descent. From a memory perspective, stable recurrent models are equivalent to feed-forward networks-both models use the same amount of context to make predictions. This equivalence has important consequences for sequence modeling in practice. When a stable recurrent model achieves satisfactory performance on some task, a feedforward network can achieve similar performance. Consequently, if sequence learning in practice is inherently stable, then recurrent models may not be necessary. Conversely, if feed-forward models cannot match the performance of recurrent models, then sequence learning in practice is in the unstable regime.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">Truncated recurrent models</head><p>For our purposes, the salient distinction between a recurrent and feed-forward model is the latter has finite-context. Therefore, we say a model is feed-forward if the prediction made by the model at step t is a function only of the inputs x t−k , . . . , x t for some finite k.</p><p>While there are many choices for a feed-forward approximation, we consider the simplest onetruncation of the system to some finite context k. In other words, the feed-forward approximation moves over the input sequence with a sliding window of length k producing an output every time the sliding window advances by one step. Formally, for context length k chosen in advance, we define the truncated model via the update rule</p><formula xml:id="formula_8">h k t = φ w (h k t−1 , x t ), h k t−k = 0 .<label>(3)</label></formula><p>Note that h k t is a function only of the previous k inputs x t−k , . . . , x t . While this definition is perhaps an abuse of the term "feed-forward", the truncated model can be implemented as a standard autoregressive, depth-k feed-forward network, albeit with significant weight sharing.</p><p>Let f denote a prediction function that maps a state h t to outputs f (h t ) = y t . Let y k t denote the predictions from the truncated model. To simplify the presentation, the prediction function f is not parameterized. This is without loss of generality because it is always possible to fold the parameters into the system φ w itself. In the sequel, we study y t − y k t both during and after training.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">Approximation during inference</head><p>Suppose we train a full recurrent model φ w and obtain a prediction y t . For an appropriate choice of context k, the truncated model makes essentially the same prediction y k t as the full recurrent model. To show this result, we first control the difference between the hidden states of both models. Lemma 1. Assume φ w is λ-contractive in h and L x -Lipschitz in x. Assume the input sequence x t ≤ B x for all t. If the truncation length k ≥ log 1/λ LxBx (1−λ)ε , then the difference in hidden states h t − h k t ≤ ε. Lemma 1 effectively says stable models do not have long-term memory-distant inputs do not change the states of the system. A proof is given in the appendix. If the prediction function is Lipschitz, Lemma 1 immediately implies the recurrent and truncated model make nearly identical predictions.</p><p>Proposition 3. If φ w is a L x -Lipschitz and λ-contractive map, and f is L f Lipschitz, and the truncation length</p><formula xml:id="formula_9">k ≥ log 1/λ L f LxBx (1−λ)ε , then y t − y k t ≤ ε.</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">Approximation during training via gradient descent</head><p>Equipped with our inference result, we turn towards optimization. We show gradient descent for stable recurrent models finds essentially the same solutions as gradient descent for truncated models. Consequently, both the recurrent and truncated models found by gradient descent make essentially the same predictions. Our proof technique is to initialize both the recurrent and truncated models at the same point and track the divergence in weights throughout the course of gradient descent. Roughly, we show if k ≈ O(log(N/ε)), then after N steps of gradient descent, the difference in the weights between the recurrent and truncated models is at most ε. Even if the gradients are similar for both models at the same point, it is a priori possible that slight differences in the gradients accumulate over time and lead to divergent weights where no meaningful comparison is possible. Building on similar techniques as <ref type="bibr" target="#b7">[8]</ref>, we show that gradient descent itself is stable, and this type of divergence cannot occur.</p><p>Our gradient descent result requires two essential lemmas. The first bounds the difference in gradient between the full and the truncated model. The second establishes the gradient map of both the full and truncated models is Lipschitz. We defer proofs of both lemmas to the appendix.</p><p>Let p T denote the loss function evaluated on recurrent model after T time steps, and define p k T similarly for the truncated model. Assume there some compact, convex domain Θ ⊂ R m so that the map φ w is stable for all choices of parameters w ∈ Θ.</p><p>Lemma 2. Assume p (and therefore p k ) is Lipschitz and smooth. Assume φ w is smooth, λcontractive, and Lipschitz in x and w. Assume the inputs satisfy</p><formula xml:id="formula_10">x t ≤ B x , then ∇ w p T − ∇ w p k T = γkλ k ,</formula><p>where</p><formula xml:id="formula_11">γ = O B x (1 − λ) −2</formula><p>, suppressing dependence on the Lipschitz and smoothness parameters.</p><p>Lemma 3. For any w, w ∈ Θ, suppose φ w is smooth, λ-contractive, and Lipschitz in w. If p is Lipschitz and smooth, then</p><formula xml:id="formula_12">∇ w p T (w) − ∇ w p T (w ) ≤ β w − w ,</formula><p>where</p><formula xml:id="formula_13">β = O (1 − λ) −3</formula><p>, suppressing dependence on the Lipschitz and smoothness parameters.</p><p>Let w i recurr be the weights of the recurrent model on step i and define w i trunc similarly for the truncated model. At initialization, w 0 recurr = w 0 trunc . For k sufficiently large, Lemma 2 guarantees the difference between the gradient of the recurrent and truncated models is negligible. Therefore, after a gradient update, w <ref type="bibr" target="#b0">1</ref> recurr − w 1 trunc is small. Lemma 3 then guarantees that this small difference in weights does not lead to large differences in the gradient on the subsequent time step. For an appropriate choice of learning rate, formalizing this argument leads to the following proposition. </p><formula xml:id="formula_14">= α/t, w N recurr − w N trunc ≤ αγkλ k N αβ+1</formula><p>. The decaying step size in our theorem is consistent with the regime in which gradient descent is known to be stable for non-convex training objectives <ref type="bibr" target="#b7">[8]</ref>. While the decay is faster than many learning rates encountered in practice, classical results nonetheless show that with this learning rate gradient descent still converges to a stationary point; see p. 119 in <ref type="bibr" target="#b3">[4]</ref> and references there. In the appendix, we give empirical evidence the O(1/t) rate is necessary for our theorem and show examples of stable systems trained with constant or O(1/ √ t) rates that do not satisfy our bound. Critically, the bound in Proposition 4 goes to 0 as k → ∞. In particular, if we take α = 1 and k ≥ Ω(log(γN β /ε)), then after N steps of projected gradient descent, w N recurr − w N trunc ≤ ε. For this choice of k, we obtain the main theorem. The proof is left to the appendix. Theorem 1. Let p be Lipschitz and smooth. Assume φ w is smooth, λ-contractive, Lipschitz in x and w. Assume the inputs are bounded, and the prediction function f is L f -Lipschitz. If k ≥ Ω(log(γN β /ε)), then after N steps of projected gradient descent with step size α t = 1/t,</p><formula xml:id="formula_15">y T − y k T ≤ ε.</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Experiments</head><p>In the experiments, we show stable recurrent models can achieve solid performance on several benchmark sequence tasks. Namely, we show unstable recurrent models can often be made stable without a loss in performance. In some cases, there is a small gap between the performance between unstable and stable models. We analyze whether this gap is indicative of a "price of stability" and show the unstable models involved are stable in a data-dependent sense.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Tasks</head><p>We consider four benchmark sequence problems-word-level language modeling, character-level language modeling, polyphonic music modeling, and slot-filling.</p><p>Language modeling. In language modeling, given a sequence of words or characters, the model must predict the next word or character. For character-level language modeling, we train and evaluate models on Penn Treebank <ref type="bibr" target="#b14">[15]</ref>. To increase the coverage of our experiments, we train and evaluate the word-level language models on the Wikitext-2 dataset, which is twice as large as Penn Treebank and features a larger vocabulary <ref type="bibr" target="#b16">[17]</ref>. Performance is reported using bits-per-character for character-level models and perplexity for word-level models.</p><p>Polyphonic music modeling. In polyphonic music modeling, a piece is represented as a sequence of 88-bit binary codes corresponding to the 88 keys on a piano, with a 1 indicating a key that is pressed at a given time. Given a sequence of codes, the task is to predict the next code. We evaluate our models on JSB Chorales, a polyphonic music dataset consisting of harmonized chorales by J.S. Bach <ref type="bibr" target="#b0">[1]</ref>. Performance is measured using negative log-likelihood.</p><p>Slot-filling. In slot filling, the model takes as input a query like "I want to Boston on Monday" and outputs a class label for each word in the input, e.g. Boston maps to Departure City and Monday maps to Departure Time. We use the Airline Travel Information Systems (ATIS) benchmark and report the F1 score for each model <ref type="bibr" target="#b22">[22]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Comparing Stable and Unstable Models</head><p>For each task, we first train an unconstrained RNN and an unconstrained LSTM. All the hyperparameters are chosen via grid-search to maximize the performance of the unconstrained model. For consistency with our theoretical results in Section and stability conditions in Section 2.2, both models have a single recurrent layer and are trained using plain SGD. In each case, the resulting model is unstable. However, we then retrain the best models using projected gradient descent to enforce stability without retuning the hyperparameters. In the RNN case, we constrain W &lt; 1. After each gradient update, we project the W onto the spectral norm ball by computing the SVD and thresholding the singular values to lie in [0, 1). In the LSTM case, after each gradient update, we normalize each row of the weight matrices to satisfy the sufficient conditions for stability given in Section 2.2. Further details are given in the appendix.  Across all the tasks we considered, stable and unstable RNNs have roughly the same performance. Stable RNNs and LSTMs achieve results comparable to published baselines on slotfilling <ref type="bibr" target="#b17">[18]</ref> and polyphonic music modeling <ref type="bibr" target="#b2">[3]</ref>. On word and character level language modeling, both stable and unstable RNNs achieve comparable results to <ref type="bibr" target="#b2">[3]</ref>.</p><p>On the language modeling tasks, however, there is a gap between stable and unstable LSTM models. Given the restrictive conditions we place on the LSTM to ensure stability, it is surprising they work as well as they do. Weaker conditions ensuring stability of the LSTM could reduce this gap. It is also possible imposing stability comes at a cost in representational capacity required for some tasks.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">What is the "price of stability" in sequence modeling?</head><p>The gap between stable and unstable LSTMs on language modeling raises the question of whether there is an intrinsic performance cost for using stable models on some tasks. If we measure stability in a data-dependent fashion, then the unstable LSTM language models are stable, indicating this gap is illusory. However, in some cases with short sequences, instability can offer modeling benefits.</p><p>LSTM language models are stable in a "data-dependent" way. Our notion of stability is conservative and requires stability to hold for every input and pair of hidden states. If we instead consider a weaker, data-dependent notion of stability, the word and character-level LSTM models are stable (in the iterated sense of Proposition 2). In particular, we compute the stability parameter only using input sequences from the data. Furthermore, we only evaluate stability on hidden states reachable via gradient descent. More precisely, to estimate λ, we run gradient ascent to find worst-case hidden states h, h to maximize φw(h,x)−φw <ref type="bibr">(h ,x)</ref> h−h . More details are provided in the appendix.</p><p>The data-dependent definition given above is a useful diagnostic-when the sufficient stability conditions fail to hold, the data-dependent condition addresses whether the model is still operating in the stable regime. Moreover, when the input representation is fixed during training, our theoretical results go through without modification when using the data-dependent definition.</p><p>Using the data-dependent measure, in <ref type="figure" target="#fig_3">Figure 2</ref>(a), we show the iterated character-level LSTM, φ r LSTM , is stable for r ≈ iterations. A similar result holds for the word-level language model for r ≈ 100. These findings are consistent with experiments in <ref type="bibr" target="#b13">[14]</ref> which find LSTM trajectories converge after approximately 70 steps only when evaluated on sequences from the data. For language models, the "price of stability" is therefore much smaller than the gap in <ref type="table" target="#tab_0">Table 1</ref> suggests-even the "unstable" models are operating in the stable regime on the data distribution.</p><p>Unstable systems can offer performance improvements for short-time horizons. When sequences are short, training unstable models is less difficult because exploding gradients are less of an issue. In these case, unstable models can offer performance gains. To demonstrate this, we train truncated unstable models on the polyphonic music task for various values of the truncation parameter k. In <ref type="figure" target="#fig_3">Figure 2</ref>(b), we simultaneously plot the performance of the unstable model and the stability parameter λ for the converged model for each k. For short-sequences, the final model is more unstable (λ ≈ 3.5) and achieves a better test-likelihood. For longer sequence lengths, λ decreases closer to the stable regime (λ ≈ 1.5), and this improved test-likelihood performance disappears.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.4">Unstable Models Operate in the Stable Regime</head><p>In the previous section, we showed nominally unstable models often satisfy a data-dependent notion of stability. In this section, we offer further evidence unstable models are operating in the stable regime. These results further help explain why stable and unstable models perform comparably in experiments.   Vanishing gradients. Stable models necessarily have vanishing gradients, and indeed this ingredient is a key ingredient in the proof of our training-time approximation result. For both word and character-level language models, we find both unstable RNNs and LSTMs also exhibit vanishing gradients. In <ref type="figure">Figures 3(a)</ref> and 3(b), we plot the average gradient of the loss at time t+i with respect to the input at time t, ∇ xt p t+i as t ranges over the training set. For either language modeling task, the LSTM and the RNN suffer from limited sensitivity to distant inputs at initialization and throughout training. The gradients of the LSTM vanish more slowly than those of the RNN, but both models exhibit the same qualitative behavior.  <ref type="figure">Figure 3</ref>: Unstable word and character-level language models exhibit vanishing gradients. We plot the norm of the gradient with respect to inputs, ∇ xt p t+i , as the distance between the input and the loss grows, averaged over the entire training set. The gradient vanishes for moderate values of i for both RNNs and LSTMs, though the decay is slower for LSTMs.</p><p>Truncating Unstable Models. The results in Section 3 show stable models can be truncated without loss of performance. In practice, unstable models can also be truncated without performance loss. In <ref type="figure" target="#fig_0">Figures 4(a)</ref> and 4(b), we show the performance of both LSTMs and RNNs for various values of the truncation parameter k on word-level language modeling and polyphonic music modeling. Initially, increasing k increases performance because the model can use more context to make predictions. However, in both cases, there is diminishing returns to larger values of the truncation parameter k. LSTMs are unaffected by longer truncation lengths, whereas the performance of RNNs slightly degrades as k becomes very large, possibly due to training instability. In either case, diminishing returns to performance for large values of k means truncation and therefore feed-forward approximation is possible even for these unstable models.  <ref type="figure" target="#fig_0">Figure 4</ref>: Effect of truncating unstable models. On both language and music modeling, RNNs and LSTMs exhibit diminishing returns for large values of the truncation parameter k. In LSTMs, larger k doesn't affect performance, whereas for unstable RNNs, large k slightly decreases performance Proposition (4) holds for unstable models. In stable models, Proposition (4) in Section 3 ensures the distance between the weight matrices w recurr − w trunc grows slowly as training progresses, and this rate decreases as k becomes large. In <ref type="figure" target="#fig_5">Figures 5(a)</ref> and 5(b), we show a similar result holds empirically for unstable word-level language models. All the models are initialized at the same point, and we track the distance between the hidden-to-hidden matrices W as training progresses. Training the full recurrent model is impractical, and we assume k = 65 well captures the full-recurrent model. In <ref type="figure" target="#fig_5">Figures 5(a)</ref> and 5(b), we plot W k − W 65 for k ∈ {5, 10, 15, 25, 35, 50, 64} throughout training. As suggested by Proposition (4), after an initial rapid increase in distance, W k − W 65 grows slowly, as suggested by Proposition 4. Moreover, there is a diminishing return to choosing larger values of the truncation parameter k in terms of the accuracy of the approximation.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Are recurrent models truly necessary?</head><p>Our experiments show recurrent models trained in practice operate in the stable regime, and our theoretical results show stable recurrent models are approximable by feed-forward networks, As a consequence, we conjecture recurrent networks trained in practice are always approximable by  feed-forward networks. Even with this conjecture, we cannot yet conclude recurrent models as commonly conceived are unnecessary. First, our present proof techniques rely on truncated versions of recurrent models, and truncated recurrent architectures like LSTMs may provide useful inductive bias on some problems. Moreover, implementing the truncated approximation as a feed-forward network increases the number of weights by a factor of k over the original recurrent model. Declaring recurrent models truly superfluous would require both finding more parsimonious feed-forward approximations and proving natural feed-forward models, e.g. fully connected networks or CNNs, can approximate stable recurrent models during training. This remains an important question for future work.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6">Related Work</head><p>Learning dynamical systems with gradient descent has been a recent topic of interest in the machine learning community. <ref type="bibr" target="#b6">[7]</ref> show gradient descent can efficiently learn a class of stable, linear dynamical systems, <ref type="bibr" target="#b20">[20]</ref> shows gradient descent learns a class of stable, non-linear dynamical systems. Work by <ref type="bibr" target="#b23">[23]</ref> gives a moment-based approach for learning some classes of stable non-linear recurrent neural networks. Our work explores the theoretical and empirical consequences of the stability assumption made in these works. In particular, our empirical results show models trained in practice can be made closer to those currently being analyzed theoretically without large performance penalties.</p><p>For linear dynamical systems, <ref type="bibr" target="#b24">[24]</ref> exploit the connection between stability and truncation to learn a truncated approximation to the full stable system. Their approximation result is the same as our inference result for linear dynamical systems, and we extend this result to the non-linear setting. We also analyze the impact of truncation on training with gradient descent. Our training time analysis builds on the stability analysis of gradient descent in <ref type="bibr" target="#b7">[8]</ref>, but interestingly uses it for an entirely different purpose. Results of this kind are completely new to our knowledge.</p><p>For RNNs, the link between vanishing and exploding gradients and W was identified in <ref type="bibr" target="#b21">[21]</ref>. For 1-layer RNNs, <ref type="bibr" target="#b9">[10]</ref> give sufficient conditions for stability in terms of the norm W and the Lipschitz constant of the non-linearity. Our work additionally considers LSTMs and provides new sufficient conditions for stability. Moreover, we study the consequences of stability in terms of feed-forward approximation.</p><p>A number of recent works have sought to avoid vanishing and exploding gradients by ensuring the system is an isometry, i.e. λ = 1. In the RNN case, this amounts to constraining W = 1 <ref type="bibr" target="#b1">[2,</ref><ref type="bibr" target="#b10">11,</ref><ref type="bibr" target="#b11">12,</ref><ref type="bibr" target="#b19">19,</ref><ref type="bibr" target="#b28">28]</ref>. <ref type="bibr" target="#b27">[27]</ref> observes strictly requiring W = 1 reduces performance on several tasks, and instead proposes maintaining W ∈ [1 − ε, 1 + ε]. <ref type="bibr" target="#b29">[29]</ref> maintains this "soft-isometry" constraint using a parameterization based on the SVD that obviates the need for the projection step used in our stable-RNN experiments. <ref type="bibr" target="#b12">[13]</ref> sidestep these issues and stabilizes training using a residual parameterization of the model. At present, these unitary models have not yet seen widespread use, and our work shows much of the sequence learning in practice, even with nominally unstable models, actually occurs in the stable regime.</p><p>From an empirical perspective, <ref type="bibr" target="#b13">[14]</ref> introduce a non-chaotic recurrent architecture and demonstrate it can perform as well more complex models like LSTMs. <ref type="bibr" target="#b2">[3]</ref> conduct a detailed evaluation of recurrent and convolutional, feed-forward models on a variety of sequence modeling tasks. In diverse settings, they find feed-forward models outperform their recurrent counterparts. Their experiments are complimentary to ours; we find recurrent models can often be replaced with stable recurrent models, which we show are equivalent to feed-forward networks.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>A Proofs from Section 2 A.1 Gradient descent on unstable systems need not converge</head><p>Proof of Proposition 1. Consider a scalar linear dynamical system</p><formula xml:id="formula_16">h t = ah t−1 + bx t (4) y t = h t ,<label>(5)</label></formula><p>where h 0 = 0, a, b ∈ R are parameters, and x t , y t ∈ R are elements the input-output sequence</p><formula xml:id="formula_17">{(x t , y t )} T t=1</formula><p>, where L is the sequence length, andŷ t is the prediction at time t. Stability of the above system corresponds to |a| &lt; 1.</p><p>Suppose (x t , y t ) = (1, 1) for t = 1, . . . , L. Then the desired system (4) simply computes the identity mapping. Suppose we use the squared-loss (y t ,ŷ t ) = (1/2)(y t −ŷ t ) <ref type="bibr" target="#b1">2</ref> , and suppose further b = 1, so the problem reduces to learning a = 0. We first compute the gradient. Compactly write</p><formula xml:id="formula_18">h t = t−1 i=0 a t b = 1 − a t − a .</formula><p>Let δ t = (ŷ t − y t ). The gradient for step T is then</p><formula xml:id="formula_19">d da (y T ,ŷ T ) = δ T d da = δ T T −1 t=0 a T −1−t h t = δ T T −1 t=0 a T −1−t 1 − a t − a = δ T 1 (1 − a) T −1 t=0 a t − T a T −1 (1 − a) = δ T (1 − a T ) (1 − a) 2 − T a T −1 (1 − a) .</formula><p>Plugging in y t = 1, this becomes</p><formula xml:id="formula_20">d da (y T ,ŷ T ) = (1 − a T ) (1 − a) − 1 (1 − a T ) (1 − a) 2 − T a T −1 (1 − a) .<label>(6)</label></formula><p>For large T , if |a| &gt; 1, then a L grows exponentially with T and the gradient is approximately</p><formula xml:id="formula_21">d da (y T ,ŷ T ) ≈ a T −1 − T a T −2 ≈ T a 2T −3</formula><p>Therefore, if a is initialized outside of [−1, 1], the iterates a i from gradient descent with step size α i = (1/i) diverge, i.e. a i → ∞, and from equation <ref type="bibr" target="#b5">(6)</ref>, it is clear that such a i are not stationary points.</p><p>A.2 Proofs from section 2.2</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>A.2.1 Recurrent neural networks</head><p>Assume W ≤ λ &lt; 1 and U ≤ B U . Notice tanh (x) = 1 − tanh(x) 2 , so since tanh(x) ∈ [−1, 1], tanh(x) is 1-Lipschitz and 2-smooth. We previously showed the system is stable since, for any states h, h ,</p><formula xml:id="formula_22">tanh(W h + U x) − tanh(W h + U x) ≤ W h + U x − W h − U x ≤ W h − h .</formula><p>Using Lemma 1 with k = 0, h t ≤ B U Bx (1−λ) for all t. Therefore, for any W, W , U, U ,</p><formula xml:id="formula_23">tanh(W h t + U x) − tanh(W h t + U x) ≤ W h t + U x − W h t − U x ≤ sup t h t W − W + B x U − U . ≤ B U B x (1 − λ) W − W + B x U − U ,</formula><p>so the model is Lipschitz in U, W . We can similarly argue the model is B U Lipschitz in x. For smoothness, the partial derivative with respect to h is</p><formula xml:id="formula_24">∂φ w (h, x) ∂h = diag(tanh (W h + U x))W,</formula><p>so for any h, h , bounding the ∞ norm with the 2 norm,</p><formula xml:id="formula_25">∂φ w (h, x) ∂h − ∂φ w (h , x) ∂h = diag(tanh (W h + U x))W − diag(tanh (W h + U x))W ≤ W diag(tanh (W h + U x) − tanh (W h + U x)) ≤ 2 W W h + U x − W h − U x ∞ ≤ 2λ 2 h − h .</formula><p>For any W, W , U, U satisfying our assumptions,</p><formula xml:id="formula_26">∂φ w (h, x) ∂h − ∂φ w (h, x) ∂h = diag(tanh (W h + U x))W − diag(tanh (W h + U x))W ≤ diag(tanh (W h + U x) − tanh (W h + U x)) W + diag(tanh (W h + U x)) W − W ≤ 2λ (W − W )h + (U − U )x ∞ + W − W ≤ 2λ (W − W ) h + 2λ U − U x + W − W ≤ 2λB U B x + (1 − λ) (1 − λ) W − W + 2λB x U − U .</formula><p>Similar manipulations establish ∂φw(h,x) ∂w is Lipschitz in h and w.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>A.2.2 LSTMs</head><p>Similar to the previous sections, we assume s 0 = 0. The state-transition map is not Lipschitz in s, much less stable, unless c is bounded. However, assuming the weights are bounded, we first prove this is always the case.</p><formula xml:id="formula_27">Lemma 4. Let f ∞ = sup t f t ∞ . If W f ∞ &lt; ∞, U f ∞ &lt; ∞, and x t ∞ ≤ B x , then f ∞ &lt; 1 and c t ∞ ≤ 1 (1− f ∞ ) for all t. Proof of Lemma 4. Note |tanh(x)| , |σ(x)| ≤ 1 for all x. Therefore, for any t, h t ∞ = o t • tanh(c t ) ∞ ≤ 1. Since σ(x) &lt; 1 for x &lt; ∞ and σ is monotonically increasing f t ∞ ≤ σ W f h t−1 + U f x t ∞ ≤ σ W f ∞ h t−1 ∞ + U f ∞ x t ∞ ≤ σ (B W + B u B x ) &lt; 1.</formula><p>Using the trivial bound, i t ∞ ≤ 1 and z t ∞ ≤ 1, so</p><formula xml:id="formula_28">c t+1 ∞ = i t • z t + f t • c t ∞ ≤ 1 + f t ∞ c t ∞ .</formula><p>Unrolling this recursion, we obtain a geometric series</p><formula xml:id="formula_29">c t+1 ∞ ≤ t i=0 f t i ∞ ≤ 1 (1 − f ∞ )</formula><p>.</p><p>Proof of Proposition 2. We show φ LSTM is λ-contractive in the ∞ -norm for some λ &lt; 1. For </p><formula xml:id="formula_30">r ≥ log 1/λ ( √ d),</formula><formula xml:id="formula_31">i − i ≤ 1 W i ∞ h − h ∞ f − f ≤ 1 W f ∞ h − h ∞ o − o ≤ 1 W o ∞ h − h ∞ z − z ≤ W z ∞ h − h ∞ .</formula><p>Both z ∞ , i ∞ ≤ since they're the output of a sigmoid. Letting c + and c + denote the state on the next time step, applying the triangle inequality,</p><formula xml:id="formula_32">c + − c + ∞ ≤ i • z − i • z ∞ + f • c − f • c ∞ ≤ (i − i ) • z ∞ + i • (z − z ) ∞ + f • (c − c ) ∞ + c • (f − f ) ∞ ≤ i − i ∞ z ∞ + z − z ∞ i ∞ + c − c ∞ f ∞ + f − f ∞ c ∞ ≤ W i ∞ + c ∞ W f ∞ + W z ∞ h − h ∞ + f ∞ c − c ∞ .</formula><p>A similar argument shows</p><formula xml:id="formula_33">h + − h + ∞ ≤ o − o ∞ + c + − c + ∞ ≤ W o ∞ 4 h − h ∞ + c + − c + ∞ .</formula><p>By assumption,</p><formula xml:id="formula_34">W i ∞ + c ∞ W f ∞ + W o ∞ 4 + W z ∞ &lt; 1 − f ∞ ,</formula><p>and so</p><formula xml:id="formula_35">h + − h + ∞ &lt; (1 − f ∞ ) h − h ∞ + f ∞ c − c ∞ ≤ s − s ∞ ,</formula><p>as well as</p><formula xml:id="formula_36">c + − c + ∞ &lt; (1 − f ∞ ) h − h ∞ + f ∞ c − c ∞ ≤ s − s ∞ ,</formula><p>which together imply</p><formula xml:id="formula_37">s + − s + ∞ &lt; s − s ∞ ,</formula><p>establishing φ LSTM is contractive in the ∞ norm.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>B Proofs from section 3</head><p>Throughout this section, we assume the initial state h 0 = 0. Without loss of generality, we also assume φ w (0, 0) = 0 for all w. Otherwise, we can reparameterize φ w (h, x) → φ w (h, x) − φ w (0, 0) without affecting expressivity of φ w . For stable models, we also assume there some compact, convex domain Θ ⊂ R m so that the map φ w is stable for all choices of parameters w ∈ Θ.</p><p>Proof of Lemma 1. For any t ≥ 1, by triangle inequality,</p><formula xml:id="formula_38">h t = φ w (h t−1 , x t ) − φ w (0, 0) ≤ φ w (h t−1 , x t ) − φ w (0, x t ) + φ w (0, x t ) − φ w (0, 0) .</formula><p>Applying the stability and Lipschitz assumptions and then summing a geometric series,</p><formula xml:id="formula_39">h t ≤ λ h t−1 + L x x t ≤ t i=0 λ i L x B x ≤ L x B x (1 − λ) .</formula><p>Now, consider the difference between hidden states at time step t. Unrolling the iterates k steps and then using the previous display yields</p><formula xml:id="formula_40">h t − h k t = φ w (h t−1 , x t ) − φ w (h k t−1 , x t ) ≤ λ h t−1 − h k t−1 ≤ λ k h t−k ≤ λ k L x B x (1 − λ) ,</formula><p>and solving for k gives the result.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>B.1 Proofs from section 3.3</head><p>Before proceeding, we introduce notation for our smoothness assumption. We assume the map φ w satisfies four smoothness conditions: for any reachable states h, h , and any weights w, w ∈ Θ, there are some scalars β ww , β wh , β hw , β hh such that</p><formula xml:id="formula_41">1. ∂φw(h,x) ∂w − ∂φ w (h,x) ∂w ≤ β ww w − w . 2. ∂φw(h,x) ∂w − ∂φw(h ,x) ∂w ≤ β wh h − h . 3. ∂φw(h,x) ∂h − ∂φ w (h,x) ∂h ≤ β hw w − w . 4. ∂φw(h,x) ∂h − ∂φw(h ,x) ∂h ≤ β hh h − h .</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>B.1.1 Gradient difference due to truncation is negligible</head><p>In the section, we argue the difference in gradient with respect to the weights between the recurrent and truncated models is O(kλ k ). For sufficiently large k (independent of the sequence length), the impact of truncation is therefore negligible. The proof leverages the "vanishing-gradient" phenomenon-the long-term components of the gradient of the full recurrent model quickly vanish. The remaining challenge is to show the short-term components of the gradient are similar for the full and recurrent models.</p><p>Proof of Lemma 2. The Jacobian of the loss with respect to the weights is</p><formula xml:id="formula_42">∂p T ∂w = ∂p T ∂h T T t=0 ∂h T ∂h t ∂h t ∂w ,</formula><p>where ∂ht ∂w is the partial derivative of h t with respect to w, assuming h t−1 is constant with respect to w. Expanding the expression for the gradient, we wish to bound</p><formula xml:id="formula_43">∇ w p T (w) − ∇ w p k T (w) = T t=1 ∂h T ∂h t ∂h t ∂w ∇ h T p T − T t=T −k+1 ∂h k T ∂h k t ∂h k t ∂w ∇ h k T p k T ≤ T −k t=1 ∂h T ∂h t ∂h t ∂w ∇ h T p T + T t=T −k+1 ∂h T ∂h t ∂h t ∂w ∇ h T p T − ∂h k T ∂h k t ∂h k t ∂w ∇ h k T p T .</formula><p>The first term consists of the "long-term components" of the gradient for the recurrent model. The second term is the difference in the "short-term components" of the gradients between the recurrent and truncated models. We bound each of these terms separately. For the first term, by the Lipschitz assumptions,</p><formula xml:id="formula_44">∇ h T p T ≤ L p and ∇ w h t ≤ L w . Since φ w</formula><p>is λ-contractive, so ∂ht ∂h t−1 ≤ λ. Using submultiplicavity of the spectral norm,</p><formula xml:id="formula_45">∂p T ∂h T T −k t=0 ∂p T ∂h t ∂h t ∂w ≤ ∇ h T p T T −k t=0 T i=t ∂h i ∂h i−1 ∇ w h t ≤ L p L w T −k t=0 λ T −t ≤ λ k L p L w (1 − λ) .</formula><p>Focusing on the second term, by triangle inequality and smoothness,</p><formula xml:id="formula_46">T t=T −k+1 ∂h T ∂h t ∂h t ∂w ∇ h T p T − ∂h k T ∂h k t ∂h k t ∂w ∇ h k T p T ≤ T t=T −k+1 ∇ h T p T − ∇ h k T p k T ∂h k T ∂h k t ∂h k t ∂w + ∇ h T p T ∂h T ∂h t ∂h t ∂w − ∂h k T ∂h k t ∂h k t ∂w ≤ T t=T −k+1 β p h T − h k T λ T −t L w (a) + L p ∂h T ∂h t ∂h t ∂w − ∂h k T ∂h k t ∂h k t ∂w (b)</formula><p>.</p><p>Using Lemma 1 to upper bound (a),</p><formula xml:id="formula_47">T t=T −k β p h T − h k T λ T −t L w ≤ T t=T −k λ T −t λ k β p L w L x B x (1 − λ) ≤ λ k β p L w L x B x (1 − λ) 2 .</formula><p>Using the triangle inequality, Lipschitz and smoothness, (b) is bounded by</p><formula xml:id="formula_48">T t=T −k+1 L p ∂h T ∂h t ∂h t ∂w − ∂h k T ∂h k t ∂h k t ∂w ≤ T t=T −k+1 L p ∂h T ∂h t ∂h t ∂w − ∂h k t ∂w + L p ∂h k t ∂w ∂h T ∂h t − ∂h k T ∂h k t ≤ T t=T −k+1 L p λ T −t β wh h t − h k t + L p L w ∂h T ∂h t − ∂h k T ∂h k t ≤ kλ k L p β wh L x B x (1 − λ) + L p L w T t=T −k+1 ∂h T ∂h t − ∂h k T ∂h k t (c) ,</formula><p>where the last line used h t − h k t ≤ λ t−(T −k) LxBx (1−λ) for t ≥ T − k. It remains to bound (c), the difference of the hidden-to-hidden Jacobians. Peeling off one term at a time and applying triangle inequality, for any t ≥ T − k + 1,</p><formula xml:id="formula_49">∂h T ∂h t − ∂h k T ∂h k t ≤ ∂h T ∂h T −1 − ∂h k T ∂h k T −1 ∂h T −1 ∂h t + ∂h k T ∂h k T −1 ∂h T −1 ∂h t − ∂h k T −1 ∂h k t ≤ β hh h T −1 − h T −1 λ T −t−1 + λ ∂h T −1 ∂h t − ∂h k T −1 ∂h k t ≤ T −1 i=t β hh λ T −t−1 h i − h k i ≤ λ k β hh L x B x (1 − λ) T −1 i=t λ i−t ≤ λ k β hh L x B x (1 − λ) 2 , so (c) is bounded by kλ k LpLwβ hh LxBx (1−λ) 2</formula><p>. Ignoring Lipschitz and smoothness constants, we've shown the entire sum is O kλ k (1−λ) 2 .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>B.1.2 Stable recurrent models are smooth</head><p>In this section, we prove that the gradient map ∇ w p T is Lipschitz. First, we show on the forward pass, the difference between hidden states h t (w) and h t (w ) obtained by running the model with weights w and w , respectively, is bounded in terms of w − w . Using smoothness of φ, the difference in gradients can be written in terms of h t (w) − h t (w ) , which in turn can be bounded in terms of w − w . We repeatedly leverage this fact to conclude the total difference in gradients must be similarly bounded. We first show small differences in weights don't significantly change the trajectory of the recurrent model. Lemma 5. For some w, w , suppose φ w , φ w are λ-contractive and L w Lipschitz in w. Let h t (w), h t (w ) be the hidden state at time t obtain from running the model with weights w, w on common inputs</p><formula xml:id="formula_50">{x t }. If h 0 (w) = h 0 (w ), then h t (w) − h t (w ) ≤ L w w − w (1 − λ) .</formula><p>Proof. By triangle inequality, followed by the Lipschitz and contractivity assumptions,</p><formula xml:id="formula_51">h t (w) − h t (w ) = φ w (h t−1 (w), x t ) − φ w (h t−1 (w ), x t ) ≤ φ w (h t−1 (w), x t ) − φ w (h t−1 (w), x t ) + φ w (h t−1 (w), x t ) − φ w (h t−1 (w ), x t ) ≤ L w w − w + λ h t−1 (w) − h t−1 (w ) .</formula><p>Iterating this argument and then using h 0 (w) = h 0 (w ), we obtain a geometric series in λ.</p><formula xml:id="formula_52">h t (w) − h t (w ) ≤ L w w − w + λ h t−1 (w) − h t−1 (w ) ≤ t i=0 L w w − w λ i ≤ L w w − w (1 − λ) .</formula><p>The proof of Lemma 3 is similar in structure to Lemma 2, and follows from repeatedly using smoothness of φ and Lemma 5.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Proof of Lemma 3. Let h t = h t (w ). Expanding the gradients and using</head><formula xml:id="formula_53">h t (w) − h t (w ) ≤ Lw w−w (1−λ)</formula><p>from Lemma 5.</p><formula xml:id="formula_54">∇ w p T (w) − ∇ w p T (w ) ≤ T t=1 ∂h T ∂h t ∂h t ∂w ∇ h T p T − ∂h T ∂h t ∂h t ∂w ∇ h T p T ≤ T t=1 ∇ h T p T − ∇ h T p T ∂h T ∂h t ∂h t ∂w + ∇ h T p T ∂h T ∂h t ∂h t ∂w − ∂h T ∂h t ∂h t ∂w ≤ T t=1 β p h T − h T λ T −t L w + L p ∂h T ∂h t ∂h t ∂w − ∂h T ∂h t ∂h t ∂w ≤ β p L 2 w w − w (1 − λ) 2 + L p T t=1 ∂h T ∂h t ∂h t ∂w − ∂h T ∂h t ∂h t ∂w (a)</formula><p>.</p><p>Focusing on term (a),</p><formula xml:id="formula_55">L p T t=1 ∂h T ∂h t ∂h t ∂w − ∂h T ∂h t ∂h t ∂w ≤ L p T t=1 ∂h T ∂h t − ∂h T ∂h t ∂h t ∂w + L p ∂h T ∂h t ∂h t ∂w − ∂h t ∂w ≤ L p L w T t=1 ∂h T ∂h t − ∂h T ∂h t + L p T t=1 λ T −t β wh h t − h t + β ww w − w ≤ L p L w T t=1 ∂h T ∂h t − ∂h T ∂h t (b) + L p β wh L w w − w (1 − λ) 2 + L p β ww w − w (1 − λ) ,</formula><p>where the penultimate line used,</p><formula xml:id="formula_56">∂h t ∂w − ∂h t ∂w ≤ ∂φ w (h t−1 , x t ) ∂w − ∂φ w (h t−1 , x t ) ∂w + ∂φ w (h t−1 , x t ) ∂w − ∂φ w (h t−1 , x t ) ∂w ≤ β wh h − h + β ww w − w .</formula><p>To bound (b), we peel off terms one by one using the triangle inequality,</p><formula xml:id="formula_57">L p L w T t=1 ∂h T ∂h t − ∂h T ∂h t ≤ L p L w T t=1 ∂h T ∂h T −1 − ∂h T ∂h T −1 ∂h T −1 ∂h t + ∂h T ∂h T −1 ∂h T −1 ∂h t − ∂h T −1 ∂h t ≤ L p L w T t=1 β hh h T −1 − h T −1 + β hw w − w λ T −t−1 + λ ∂h T −1 ∂h t − ∂h T −1 ∂h t ≤ L p L w T t=1 β hw (T − t)λ T −t−1 w − w + β hh T −t i=1 h T −i − h T −i λ T −t−1 ≤ L p L w T t=1 β hw (T − t)λ T −t−1 w − w + β hh L w w − w (1 − λ) (T − t)λ T −t−1 ≤ L p L w β hw w − w (1 − λ) 2 + L p L 2 w β hh w − w (1 − λ) 3 .</formula><p>Supressing Lipschitz and smoothness constants, we've shown the entire sum is O(1/(1 − λ) 3 ), as required.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>B.1.3 Gradient descent analysis</head><p>Equipped with the smoothness and truncation lemmas (Lemmas 2 and 3), we turn towards proving the main gradient descent result.</p><p>Proof of Proposition 4. Let Π Θ denote the Euclidean projection onto Θ, and let δ i = w i recurr − w i trunc . Initially δ 0 = 0, and on step i + 1, we have the following recurrence relation for δ i+1 ,</p><formula xml:id="formula_58">δ i+1 = w i+1 recurr − w i+1 trunc = Π Θ (w i recurr − α i ∇p T (w i )) − Π Θ (w i trunc − α i ∇p k T (w i trunc )) ≤ w i recurr − α i ∇p T (w i )) − w i trunc − α i ∇p k T (w i trunc ) ≤ w i recurr − w i trunc + α i ∇p T (w i recurr ) − ∇p k T (w i trunc ) ≤ δ i + α i ∇p T (w i recurr ) − ∇p T (w i trunc ) + α i ∇p T (w i trunc ) − ∇p k T (w i trunc ) ≤ δ i + α i βδ i + γkλ k ≤ exp (α i β) δ i + α i γkλ k ,</formula><p>the penultimate line applied lemmas 2 and 3, and the last line used 1 + x ≤ e x for all x. Unwinding the recurrence relation at step N ,</p><formula xml:id="formula_59">δ N ≤ N i=1    N j=i+1 exp(α j β)    α i γkλ k ≤ N i=1    N j=i+1 exp αβ j    αγkλ k i = N i=1    exp   αβ N j=i+1 1 j      αγkλ k i .</formula><p>Bounding the inner summation via an integral, N j=i+1 1 j ≤ log(N/i) and simplifying the resulting expression,</p><formula xml:id="formula_60">δ N ≤ N i=1 exp(αβ log(N/i)) αγkλ k i = αγkλ k N αβ N i=1 1 i αβ+1 ≤ αγkλ k N αβ+1 .</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>B.1.4 Proof of theorem 1</head><p>Proof of Theorem 1. Using f is L f -Lipschitz and the triangle inequality,</p><formula xml:id="formula_61">y T − y k T ≤ L f h T (w N recurr ) − h k T (w N trunc ) ≤ L f h T (w N recurr ) − h T (w N trunc ) + L f h T (w N trunc ) − h k T (w N trunc ) .</formula><p>By Lemma 5, the first term is bounded by , and by Lemma 1, the second term is bounded by λ k LxBx (1−λ) . Using Proposition 4, after N steps of gradient descent, we have</p><formula xml:id="formula_62">y T − y k T ≤ L f L w w N recurr − w N trunc (1 − λ) + λ k L f L x B x (1 − λ) ≤ kλ k αL f L w N αβ+1 (1 − λ) + λ k L f L x B x (1 − λ) ,</formula><p>and solving for k such that both terms are less than ε/2 gives the result.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>C Experiments</head><p>The O(1/t) rate may be necessary. The key result underlying Theorem 1 is the bound on the parameter difference w trunc − w recurr while running gradient descent obtained in Proposition 4. We show this bound has the correct qualitative scaling using random instances and training randomly initialized, stable linear dynamical systems and tanh-RNNs. In <ref type="figure">Figure 6</ref>, we plot the parameter error w t trunc − w t recurr as training progresses for both models (averaged over 10 runs). The error scales comparably with the bound given in Proposition 4. We also find for larger step-sizes like α/ √ t or constant α, the bound fails to hold, suggesting the O(1/t) condition is necessary. Concretely, we generate random problem instance by fixing a sequence length T = 200, sampling input data x t ∼ N (0, I 32 ). We fix the truncation length to k = 35, set the learning rate to α t = α/t for α = 0.01, and take N = 200 gradient steps. These parameters are chosen so that the γkλ k N αβ+1 bound from Proposition 4 does not become vacuous -by triangle inequality, we always have w trunc − w recurr ≤ 2λ.</p><p>Stable vs. unstable models. The word and character level language modeling experiments are based on publically available code from <ref type="bibr" target="#b15">[16]</ref>. The polyphonic music modeling code is based on the code in <ref type="bibr" target="#b2">[3]</ref>, and the slot-filling model is a reimplementation of <ref type="bibr" target="#b17">[18]</ref> Since the sufficient conditions for stability derived in Section 2.2 only apply for networks with a single layer, we use a single layer RNN or LSTM for all experiments. Further, our theoretical results are only applicable for vanilla SGD, and not adaptive gradient methods, so all models are trained with SGD. <ref type="table">Table 2</ref> contains a summary of all the hyperparameters for each experiment.</p><p>All hyperparameters are shared between the stable and unstable variants of both models. In the RNN case, enforcing stability is conceptually simple, though computationally expensive. Since tanh is 1-Lipschitz, the RNN is stable as long as W &lt; 1. Therefore, after each gradient update, we project W onto the spectral norm ball by taking the SVD and thresholding the singular values to lie in [0, 1). In the LSTM case, enforcing stability is conceptually more difficult, but computationally</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Proposition 4 .</head><label>4</label><figDesc>Under the assumptions of Lemmas 2 and 3, for compact, convex Θ, after N steps of projected gradient descent with step size α t</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 1 :</head><label>1</label><figDesc>Stable and unstable variants of common recurrent architectures achieve similar performance across a range of different sequence tasks.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head></head><label></label><figDesc>Data-dependent stability of character-level language models. The iterated-LSTM refers to the iteration system φ r LSTM = φLSTM • • • • • φLSTM.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 2 :</head><label>2</label><figDesc>What is the intrinsic "price of stability"? For language modeling, we show the unstable LSTMs are actually stable in weaker, data-dependent sense. On the other hand, for polyphonic music modeling with short sequences, instability can improve model performance.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>Figure 5 :</head><label>5</label><figDesc>Qualitative version of Proposition 4 for unstable, word-level language models. We assume k = 65 well-captures the full-recurrent model and plot w trunc − w recurr = W k − W 65 as training proceeds, where W denotes the recurrent weights. As Proposition 4 suggests, this quantity grows slowly as training proceeds, and the rate of growth decreases as k increases.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_6"><head></head><label></label><figDesc>this in turn implies the iterated system φ r LSTM is contractive is the 2 -norm. Consider the pair of reachable hidden states s = (c, h), s = (c , h ). By Lemma 4, c, c are bounded. Analogous to the recurrent network case above, since σ is (1/4)-Lipschitz and tanh is 1-Lipschitz,</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_7"><head>2 Bound from proposition 2 Figure 6 :</head><label>226</label><figDesc>Difference in Recurrent Weight Matrices during Gradient Descent (λ = 0.75, k = 35) LDS, step-size: 1/t Tanh-rnn, step-size, 1/t LDS, step-size: 1/ √ t Tanh-rnn, step-size: 1/ √ t Empirical validation Proposition 4 on random Gaussian instances. Without the 1/t rate, the gradient descent bound no longer appears qualitatively correct, suggesting the O(1/t) rate is necessary.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_8"><head></head><label></label><figDesc>i.i.d. ∼ N (0, 4 • I 32 ), and sampling y T ∼ Unif[−2, 2]. Next, we set λ = 0.75 and randomly initialize a stable linear dynamical system or RNN with tanh non-linearity by sampling U ij , W ij i.i.d. ∼ N (0, 0.5) and thresholding the singular values of W so W ≤ λ. We use the squared loss and prediction function f (h t , x t ) = Ch t +Dx t , where C, D i.i.d.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head>Table 1 :</head><label>1</label><figDesc>Comparison of stable and unstable models on a variety of sequence modeling tasks. For all the tasks, stable and unstable RNNs achieve the same performance. For polyphonic music and slot-filling, stable and unstable LSTMs achieve the same results. On language modeling, there is a small gap between stable and unstable LSTMs. We discuss this in Section 4.3. Performance is evaluated on the held-out test set. For negative log-likelihood (nll), bits per character (bpc), and perplexity, lower is better. For F1 score, higher is better.Stable and unstable models achieve similar performance.Table 1gives a comparison of the performance between stable and unstable RNNs and LSTMs on each of the different tasks. Each of the reported metrics is computed on the held-out test set. We also show a representative comparison of learning curves for word-level language modeling and polyphonic music modeling inFigures 1(a)and 1(b).</figDesc><table><row><cell>Model</cell><cell></cell></row><row><cell>RNN</cell><cell>LSTM</cell></row></table><note></note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="1">The word-level language modeling code is based on https://github.com/pytorch/examples/tree/master/word_ language_model, the character-level code is based on https://github.com/salesforce/awd-lstm-lm, and the polyphonic music modeling code is based on https://github.com/locuslab/TCN.</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgements</head></div>
+			</div>
+
+			<div type="annex">
+<div xmlns="http://www.tei-c.org/ns/1.0"><p>To estimate sup h,h ,x S(h, h , x), we do the following. First, we take x to be point in the training set.</p><p>In the language modeling case, x is one of the learned word-vectors. We randomly sample and fix x, and then we perform gradient ascent on S(h, h , x) to find worst-case h, h . In our experiments, we initialize h, h ∼ N (0, 0.1 • I) and run gradient ascent with learning rate 0.9 for 1000 steps. This procedure is repeated 20 times, and we estimate λ as the maximum value of S(h, h , x) encounted during any iteration from any of the 20 random starting points.</p></div>			</div>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Harmonising chorales by probabilistic inference</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Allan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Williams</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems (NeurIPS)</title>
+		<imprint>
+			<date type="published" when="2005" />
+			<biblScope unit="page" from="25" to="32" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Unitary evolution recurrent neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Arjovsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Shah</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="1120" to="1128" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<title level="m" type="main">An empirical evaluation of generic convolutional and recurrent networks for sequence modeling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Bai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">Z</forename><surname>Kolter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Koltun</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1803.01271</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Nonlinear Programming</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Bertsekas</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Athena Scientific</title>
+		<imprint>
+			<date type="published" when="1999" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Language modeling with gated convolutional networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><forename type="middle">N</forename><surname>Dauphin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Fan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Auli</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Grangier</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="933" to="941" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Convolutional sequence to sequence learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Gehring</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Auli</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Grangier</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Yarats</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><forename type="middle">N</forename><surname>Dauphin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="1243" to="1252" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Gradient descent learns linear dynamical systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Hardt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Ma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Recht</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">The Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">19</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="1025" to="1068" />
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Train faster, generalize better: Stability of stochastic gradient descent</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Hardt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Recht</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Singer</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="1225" to="1234" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Long short-term memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Hochreiter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schmidhuber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural computation</title>
+		<imprint>
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="issue">8</biblScope>
+			<biblScope unit="page" from="1735" to="1780" />
+			<date type="published" when="1997" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Absolute stability conditions for discrete-time recurrent neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Jin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">N</forename><surname>Nikiforuk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">M</forename><surname>Gupta</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Neural Networks</title>
+		<imprint>
+			<biblScope unit="volume">5</biblScope>
+			<biblScope unit="issue">6</biblScope>
+			<biblScope unit="page" from="954" to="964" />
+			<date type="published" when="1994" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Tunable efficient unitary neural networks (EUNN) and their application to rnns</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Jing</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Shen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Dubcek</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Peurifoy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Skirlo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Tegmark</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Soljačić</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="1733" to="1741" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Kronecker recurrent units</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Jose</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Cisse</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Fleuret</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2018" />
+			<biblScope unit="page" from="2380" to="2389" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Fastgrnn: A fast, accurate, stable and tiny kilobyte sized gated recurrent neural network</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kusupati</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Singh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Bhatia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kumar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Jain</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Varma</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems (NeurIPS)</title>
+		<imprint>
+			<date type="published" when="2018" />
+			<biblScope unit="page" from="9031" to="9042" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">A recurrent neural network without chaos</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Laurent</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Brecht</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Learning Representations (ICLR</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Building a large annotated corpus of english: The penn treebank</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">P</forename><surname>Marcus</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">A</forename><surname>Marcinkiewicz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Santorini</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Computational linguistics</title>
+		<imprint>
+			<biblScope unit="volume">19</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="313" to="330" />
+			<date type="published" when="1993" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Regularizing and Optimizing LSTM Language Models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Merity</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><forename type="middle">S</forename><surname>Keskar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Socher</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Learning Representations (ICLR)</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Pointer sentinel mixture models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Merity</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Xiong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Bradbury</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Socher</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Learning Representations (ICLR</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<title level="m" type="main">Using recurrent neural networks for slot filling in spoken language understanding</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Mesnil</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Dauphin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Yao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Deng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Hakkani-Tur</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Heck</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Tur</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Yu</surname></persName>
+		</author>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title/>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE/ACM Transactions on Audio, Speech, and Language Processing</title>
+		<imprint>
+			<biblScope unit="volume">23</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="530" to="539" />
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Efficient orthogonal parametrisation of recurrent neural networks using householder reflections</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Mhammedi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Hellicar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Rahman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Bailey</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="2401" to="2409" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<monogr>
+		<title level="m" type="main">Stochastic gradient descent learns state equations with nonlinear activations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Oymak</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1809.03019</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">On the difficulty of training recurrent neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mikolov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="1310" to="1318" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Evaluation of spoken language systems: The atis domain</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">J</forename><surname>Price</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Speech and Natural Language: Proceedings of a Workshop Held at Hidden Valley</title>
+		<meeting><address><addrLine>Pennsylvania</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="1990" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<monogr>
+		<title level="m" type="main">Training input-output recurrent neural networks through spectral methods</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Sedghi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Anandkumar</surname></persName>
+		</author>
+		<idno>abs/1603.00954</idno>
+		<imprint>
+			<date type="published" when="2016" />
+			<publisher>CoRR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<monogr>
+		<title level="m" type="main">Non-asymptotic analysis of robust control from coarse-grained identification</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Tu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Boczar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Packard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Recht</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1707.04791</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Van Den Oord</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Dieleman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Zen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Simonyan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Graves</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Kalchbrenner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Senior</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1609.03499</idno>
+		<title level="m">Wavenet: A generative model for raw audio</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Attention is all you need</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Vaswani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Shazeer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Parmar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Uszkoreit</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Jones</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">N</forename><surname>Gomez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Kaiser</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Polosukhin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems (NeurIPS)</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="6000" to="6010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">On orthogonality and learning recurrent networks with long term dependencies</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Vorontsov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Trabelsi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Kadoury</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Pal</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="3570" to="3578" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">Full-capacity unitary recurrent neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Wisdom</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Powers</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Hershey</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">Le</forename><surname>Roux</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Atlas</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems (NeurIPS)</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="4880" to="4888" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Stabilizing gradients for deep neural networks via efficient SVD parameterization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Lei</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Dhillon</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2018" />
+			<biblScope unit="page" from="5806" to="5814" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

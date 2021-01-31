@@ -1,0 +1,2167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Deep Code Search</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xiaodong</forename><surname>Gu</surname></persName>
+							<email>guxiaodong1987@126.com</email>
+							<affiliation key="aff0">
+								<orgName type="institution">The Hong Kong University of Science and Technology</orgName>
+								<address>
+									<settlement>Hong Kong</settlement>
+								</address>
+							</affiliation>
+							<affiliation key="aff0">
+								<orgName type="institution">The Hong Kong University of Science and Technology</orgName>
+								<address>
+									<settlement>Hong Kong</settlement>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hongyu</forename><surname>Zhang</surname></persName>
+							<email>hongyu.zhang@newcastle.edu.au</email>
+							<affiliation key="aff1">
+								<orgName type="institution">The University of Newcastle</orgName>
+								<address>
+									<settlement>Callaghan</settlement>
+									<country key="AU">Australia</country>
+								</address>
+							</affiliation>
+							<affiliation key="aff1">
+								<orgName type="institution">The University of Newcastle</orgName>
+								<address>
+									<settlement>Callaghan</settlement>
+									<country key="AU">Australia</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sunghun</forename><surname>Kim</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">The Hong Kong University of Science and Technology</orgName>
+								<address>
+									<settlement>Hong Kong</settlement>
+								</address>
+							</affiliation>
+							<affiliation key="aff2">
+								<orgName type="department">Clova AI Research</orgName>
+								<orgName type="institution">NAVER</orgName>
+							</affiliation>
+							<affiliation key="aff0">
+								<orgName type="institution">The Hong Kong University of Science and Technology</orgName>
+								<address>
+									<settlement>Hong Kong</settlement>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Deep Code Search</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+					<idno type="DOI">10.1145/3180155.3180167</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:42+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<textClass>
+				<keywords>
+					<term>code search</term>
+					<term>deep learning</term>
+					<term>joint embedding</term>
+				</keywords>
+			</textClass>
+			<abstract>
+				<p>To implement a program functionality, developers can reuse previously written code snippets by searching through a large-scale codebase. Over the years, many code search tools have been proposed to help developers. The existing approaches often treat source code as textual documents and utilize information retrieval models to retrieve relevant code snippets that match a given query. These approaches mainly rely on the textual similarity between source code and natural language query. They lack a deep understanding of the semantics of queries and source code. In this paper, we propose a novel deep neural network named CODEnn (Code-Description Embedding Neural Network). Instead of matching text similarity, CODEnn jointly embeds code snippets and natural language descriptions into a high-dimensional vector space, in such a way that code snippet and its corresponding description have similar vectors. Using the unified vector representation, code snippets related to a natural language query can be retrieved according to their vectors. Semantically related words can also be recognized and irrelevant/noisy keywords in queries can be handled. As a proof-of-concept application, we implement a code search tool named DeepCS using the proposed CODEnn model. We empirically evaluate DeepCS on a large scale codebase collected from GitHub. The experimental results show that our approach can effectively retrieve relevant code snippets and outperforms previous techniques.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">INTRODUCTION</head><p>Code search is a very common activity in software development practices <ref type="bibr" target="#b55">[57,</ref><ref type="bibr" target="#b66">68]</ref>. To implement a certain functionality, for example, to parse XML files, developers usually search and reuse previously written code by performing free-text queries over a large-scale codebase.</p><p>Many code search approaches have been proposed <ref type="bibr" target="#b10">[13,</ref><ref type="bibr" target="#b12">15,</ref><ref type="bibr" target="#b26">29,</ref><ref type="bibr" target="#b28">31,</ref><ref type="bibr" target="#b29">32,</ref><ref type="bibr" target="#b32">35,</ref><ref type="bibr" target="#b42">44,</ref><ref type="bibr" target="#b43">45,</ref><ref type="bibr" target="#b45">47,</ref><ref type="bibr" target="#b60">62]</ref>, most of them being based on information retrieval (IR) techniques. For example, Linstead et al. <ref type="bibr" target="#b41">[43]</ref> proposed Sourcerer, an information retrieval based code search tool that combines the textual content of a program with structural information. McMillan et al. <ref type="bibr" target="#b45">[47]</ref> proposed Portfolio, which returns a chain of functions through keyword matching and PageRank. Lu et al. <ref type="bibr" target="#b42">[44]</ref> expanded a query with synonyms obtained from WordNet and then performed keyword matching of method signatures. Lv et al. <ref type="bibr" target="#b43">[45]</ref> proposed CodeHow, which combines text similarity and API matching through an extended Boolean model.</p><p>A fundamental problem of the IR-based code search is the mismatch between the high-level intent reflected in the natural language queries and low-level implementation details in the source code <ref type="bibr" target="#b9">[12,</ref><ref type="bibr" target="#b44">46]</ref>. Source code and natural language queries are heterogeneous. They may not share common lexical tokens, synonyms, or language structures. Instead, they may only be semantically related. For example, a relevant snippet for the query "read an object from an xml" could be as follows:</p><p>public static &lt; S &gt; S deserialize(Class c, File xml) { try { JAXBContext context = JAXBContext.newInstance(c); Unmarshaller unmarshaller = context.createUnmarshaller(); S deserialized = (S) unmarshaller.unmarshal(xml); return deserialized; } catch (JAXBException ex) { log.error("Error-deserializing-object-from-XML", ex); return null; } } Existing approaches may not be able to return this code snippet as it does not contain keywords such as read and object or their synonyms such as load and instance. Therefore, an effective code search engine requires a higher-level semantic mapping between code and natural language queries. Furthermore, the existing approaches have difficulties in query understanding <ref type="bibr" target="#b24">[27,</ref><ref type="bibr" target="#b26">29,</ref><ref type="bibr" target="#b43">45]</ref>. They cannot effectively handle irrelevant/noisy keywords in queries <ref type="bibr" target="#b24">[27]</ref>. Therefore, an effective code search engine should also be able to understand the semantic meanings of natural language queries and source code in order to improve the accuracy of code search.</p><p>In our previous work, we introduced the DeepAPI framework <ref type="bibr" target="#b24">[27]</ref>, which is a deep learning based method that learns the semantics of queries and the corresponding API sequences. However, searching source code is much more difficult than generating APIs, because the semantics of code snippets are related not only to the API sequences but also to other source code aspects such as tokens and method names. For example, DeepAPI could return the same API ImageIO.write for the query save image as png and save image as jpg. Nevertheless, the actual code snippets for answering the two queries are different in terms of source code tokens. Therefore, the code search problem requires models that can exploit more aspects of the source code.</p><p>In this paper, we propose a novel deep neural network named CO-DEnn (Code-Description Embedding Neural Network). To bridge the lexical gap between queries and source code, CODEnn jointly embeds code snippets and natural language descriptions into a high-dimensional vector space, in such a way that code snippet and its corresponding description have similar vectors. With the unified vector representation, code snippets semantically related to a natural language query can be retrieved according to their vectors. Semantically related words can also be recognized and irrelevant/noisy keywords in queries can be handled.</p><p>Using CODEnn, we implement a code search tool, DeepCS as a proof of concept. DeepCS trains the CODEnn model on a corpus of 18.2 million Java code snippets (in the form of commented methods) from GitHub. Then, it reads code snippets from a codebase and embeds them into vectors using the trained CODEnn model. Finally, when a user query arrives, DeepCS finds code snippets that have the nearest vectors to the query vector and return them.</p><p>To evaluate the effectiveness of DeepCS, we perform code search on a search codebase using 50 real-world queries obtained from Stack Overflow. Our results show that DeepCS returns more relevant code snippets than the two related approaches, that is, Code-How <ref type="bibr" target="#b43">[45]</ref> and a conventional Lucene-based code search tool <ref type="bibr" target="#b3">[5]</ref>. On average, the first relevant code snippet returned by DeepCS is ranked 3.5, while the first relevant results returned by Code-How <ref type="bibr" target="#b43">[45]</ref> and Lucene <ref type="bibr" target="#b41">[43]</ref> are ranked 5.5 and 6.0, respectively. For 76% of the queries, the relevant code snippets can be found within the top 5 returned results. The evaluation results confirm the effectiveness of DeepCS.</p><p>To our knowledge, we are the first to propose deep learning based code search. The main contributions of our work are as follows:</p><p>• We propose a novel deep neural network, CODEnn, to learn a unified vector representation of both source code and natural language queries. • We develop DeepCS, a tool that utilizes CODEnn to retrieve relevant code snippets for given natural language queries. • We empirically evaluate DeepCS using a large scale codebase.</p><p>The rest of this paper is organized as follows. Section 2 describes the background of the deep learning based embedding models. Section 3 describes the proposed deep neural network for code search. Section 4 describes the detailed design of our approach. Section 5 presents the evaluation results. Section 6 discusses our work, followed by Section 7 that presents the related work. We conclude the paper in Section 8.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">BACKGROUND</head><p>Our work adopts recent advanced techniques from deep learning and natural language processing <ref type="bibr" target="#b7">[10,</ref><ref type="bibr" target="#b14">17,</ref><ref type="bibr" target="#b68">70]</ref>. In this section, we discuss the background of these techniques.  </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1">Embedding Techniques</head><p>Embedding (also known as distributed representation <ref type="bibr" target="#b48">[50,</ref><ref type="bibr" target="#b70">72]</ref>) is a technique for learning vector representations of entities such as words, sentences and images in such a way that similar entities have vectors close to each other <ref type="bibr" target="#b46">[48,</ref><ref type="bibr" target="#b48">50]</ref>. A typical embedding technique is word embedding, which represents words as fixed-length vectors so that similar words are close to each other in the vector space <ref type="bibr" target="#b46">[48,</ref><ref type="bibr" target="#b48">50]</ref>. For example, suppose the word execute is represented as [0.12, -0.32, 0.01] and the word run is represented as [0.12, -0.31, 0.02]. From their vectors, we can estimate their distance and identify their semantic relation. Word embedding is usually realized using a machine learning model such as CBOW and Skip-Gram <ref type="bibr" target="#b46">[48]</ref>. These models build a neural network that captures the relations between a word and its contextual words. The vector representations of words, as parameters of the network, are trained with a text corpus <ref type="bibr" target="#b48">[50]</ref>.</p><p>Likewise, a sentence (i.e., a sequence of words) can also be embedded as a vector <ref type="bibr" target="#b57">[59]</ref>. A simple way of sentence embedding is, for example, to view it as a bag of words and add up all its word vectors <ref type="bibr" target="#b37">[39]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">RNN for Sequence Embedding</head><p>We now introduce a widely-used deep neural network, the Recurrent Neural Networks (RNN) <ref type="bibr" target="#b47">[49,</ref><ref type="bibr" target="#b57">59]</ref> for the embedding of sequential data such as natural language sentences. The Recurrent Neural Network is a class of neural networks where hidden layers are recurrently used for computation. This creates an internal state of the network to record dynamic temporal behavior. <ref type="figure" target="#fig_0">Figure 1a</ref> shows the basic structure of an RNN. The neural network includes three layers, an input layer which maps each input to a vector, a recurrent hidden layer which recurrently computes and updates a hidden state after reading each input, and an output layer which utilizes the hidden state for specific tasks. Unlike traditional feedforward neural networks, RNNs can embed sequential inputs such as sentences using their internal memory <ref type="bibr" target="#b22">[25]</ref>.</p><p>Consider a natural language sentence with a sequence of T words s=w 1 , ..., w T , RNN embeds it through the following computations: it reads words in the sentence one by one, and updates a hidden state at each time step. Each word w t is first mapped to a d-dimensional vector w t ∈R d by a one-hot representation <ref type="bibr" target="#b70">[72]</ref> or word embedding <ref type="bibr" target="#b48">[50]</ref>. Then, the hidden state (values in the hidden layer) h t is updated at time t by considering the input word w t and the preceding hidden state h t −1 : Figure 2: Illustration of max pooling where [a;b]∈R 2d represents the concatenation of two vectors, W ∈ R 2d ×d is the matrix of trainable parameters in the RNN, while tanh is a non-linearity activation function of the RNN. Finally, the embedding vector of the sentence is summarized from the hidden states h 1 , ..., h T . A typical way is to select the last hidden state h T as the embedding vector. The embedding vector can also be summarized using other computations such as the maxpooling <ref type="bibr" target="#b33">[36]</ref>:</p><formula xml:id="formula_0">h t = tanh(W [h t −1 ; w t ]), ∀t = 1, 2, ..., T<label>(1</label></formula><formula xml:id="formula_1">s = maxpooling([h 1 , ..., h T ])<label>(2)</label></formula><p>Maxpooling is an operation that selects the maximum value in each fixed-size region over a matrix. <ref type="figure">Figure 2</ref> shows an example of maxpooling over a sequence of hidden vectors h 1 , ..., h T . Each column represents a hidden vector. The window size of each region is set to 1×T in this example. The result is a fixed-length vector whose elements are the maximum values of each row. Maxpooling can capture the most important feature (one with the highest value) for each region and can transform sentences of variable lengths into a fixed-length vector. <ref type="figure" target="#fig_0">Figure 1b</ref> shows an example of how RNN embeds a sentence (e.g., parse xml file) into a vector. To facilitate understanding, we expand the recurrent hidden layer for each time step. The RNN reads words in the sentence one by one, and updates a hidden state at each time step. When it reads the first word parse, it maps the word into a vector w 1 and computes the current hidden state h 1 using w 1 . Then, it reads the second word xml, embeds it into w 2 , and updates the hidden state h 1 to h 2 using w 2 . The procedure continues until the RNN receives the last word file and outputs the final state h 3 . The final state h 3 can be used as the embedding c of the whole sentence.</p><p>The embedding of the sentence, i.e., the sentence vector, can be used for specific applications. For example, one can build a language model conditioning on the sentence vector for machine translation <ref type="bibr" target="#b14">[17]</ref>. One can also embed two sentences (a question sentence and an answer sentence) and compare their vectors for answer selection <ref type="bibr" target="#b18">[21,</ref><ref type="bibr" target="#b69">71]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.3">Joint Embedding of Heterogeneous Data</head><p>Suppose there are two heterogeneous data sets X and Y. We want to learn a correlation between them, namely,</p><formula xml:id="formula_2">f : X → Y<label>(3)</label></formula><p>For example, suppose X is a set of images and Y is a set of natural language sentences, f can be the correlation between the images and the sentences (i.e., image captioning). Since the two data sources are heterogeneous, it is difficult to discover the correlation f directly. Thus, we need a bridge to connect these two levels of information. Joint Embedding, also known as multi-modal embedding <ref type="bibr" target="#b77">[78]</ref>, is a technique to jointly embed/correlate heterogeneous data into a unified vector space so that semantically similar concepts across the two modalities occupy nearby regions of the space <ref type="bibr" target="#b30">[33]</ref>. The joint embedding of X and Y can be formulated as:  where ϕ:X→R d is an embedding function to map X into a ddimensional vector space V ; ψ :Y→R d is an embedding function to map Y into the same vector space V ; J (•, •) is a similarity measure (e.g., cosine) to score the matching degrees of V X and V Y in order to learn the mapping functions. Through joint embedding, heterogeneous data can be easily correlated through their vectors.</p><formula xml:id="formula_3">X ϕ − → V X → J (V X , V Y ) ← V Y ψ ← − Y<label>(4)</label></formula><p>Joint embedding has been widely used in many tasks <ref type="bibr" target="#b19">[22,</ref><ref type="bibr" target="#b72">74,</ref><ref type="bibr" target="#b77">78]</ref>. For example, in computer vision, Karpathy and Li <ref type="bibr" target="#b30">[33]</ref> use a Convolutional Neural Network (CNN) <ref type="bibr" target="#b19">[22]</ref>, a deep neural network as the ϕ and an RNN as the ψ , to jointly embed both image and text into the same vector space for labeling images <ref type="bibr" target="#b30">[33]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>A DEEP NEURAL NETWORK FOR CODE SEARCH</head><p>Inspired by existing joint embedding techniques <ref type="bibr" target="#b18">[21,</ref><ref type="bibr" target="#b19">22,</ref><ref type="bibr" target="#b30">33,</ref><ref type="bibr" target="#b77">78]</ref>, we propose a novel deep neural network named CODEnn (Code-Description Embedding Neural Network) for the code search problem. <ref type="figure" target="#fig_2">Figure 3</ref> illustrates the key idea. Natural language queries and code snippets are heterogeneous and cannot be easily matched according to their lexical tokens. To bridge the gap, CODEnn jointly embeds code snippets and natural language descriptions into a unified vector space so that a query and the corresponding code snippets are embedded into nearby vectors and can be matched by vector similarities.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">Architecture</head><p>As introduced in Section 2.3, a joint embedding model requires three components: the embedding functions ϕ:X→R d and ψ :Y→R d , as well as the similarity measure J (•, •). CODEnn realizes these components with deep neural networks. <ref type="figure" target="#fig_3">Figure 4</ref> shows the overall architecture of CODEnn. The neural network consists of three modules, each corresponding to a component of joint embedding:</p><p>• a code embedding network (CoNN) to embed source code into vectors. • a description embedding network (DeNN) to embed natural language descriptions into vectors. • a similarity module that measures the degree of similarity between code and descriptions. The following subsections describe the detailed design of these modules.</p><p>3.1.1 Code Embedding Network. The code embedding network embeds source code into vectors. Source code is not simply plain text. It contains multiple aspects of information such as tokens, control flows and APIs <ref type="bibr" target="#b44">[46]</ref>. In our model, we consider three aspects  of source code: the method name, the API invocation sequence, and the tokens contained in the source code. They are commonly used in existing code search approaches <ref type="bibr" target="#b16">[19,</ref><ref type="bibr" target="#b24">27,</ref><ref type="bibr" target="#b39">41,</ref><ref type="bibr" target="#b42">44,</ref><ref type="bibr" target="#b43">45]</ref>. For each code snippet (at the method level), we extract these three aspects of information. Each is embedded individually and then combined into a single vector representing the entire code.</p><p>Consider an input code snippet</p><formula xml:id="formula_4">C=[M, A, Γ], where M=w 1 ,..., w N M is the method name represented as a sequence of N M camel split tokens [1]; A=a 1 , ..., a N A</formula><p>is the API sequence with N A consecutive API method invocations, and Γ={τ 1 , ..., τ N Γ } is the set of tokens in the snippet. The neural network embeds the three aspects as follows: for the method name M, it embeds the sequence of camel split tokens using an RNN with maxpooling:</p><formula xml:id="formula_5">h t = tanh(W M [h t −1 ; w t ]), ∀t = 1, 2, ..., N M m = maxpooling([h 1 , ..., h N M ])<label>(5)</label></formula><p>where w t ∈R d is the embedding vector of token w t , [a;b]∈R 2d represents the concatenation of two vectors, W M ∈R 2d ×d is the matrix of trainable parameters in the RNN, tanh is the activation function of the RNN. A method name is thus embedded as a d-dimensional vector m. Likewise, the API sequence A is embedded into a vector a using an RNN with maxpooling:</p><formula xml:id="formula_6">h t = tanh(W A [h t −1 ; a t ]), ∀t = 1, 2, ..., N A a = maxpooling([h 1 , ..., h N A ])<label>(6)</label></formula><p>where a t ∈R d is the embedding vector of API a t , W A is the matrix of trainable parameters in the RNN. For the tokens Γ, as they have no strict order in the source code, they are simply embedded via a multilayer perceptron (MLP), i.e., the conventional fully connected layer <ref type="bibr" target="#b50">[52]</ref>:</p><formula xml:id="formula_7">h i = tanh(W Γ τ i ), ∀i = 1, 2, ..., N Γ (7)</formula><p>where τ i ∈R d represents the embedded representation of the token τ i , W Γ is the matrix of trainable parameters in the MLP,</p><formula xml:id="formula_8">h i , i=1, .</formula><p>.., N Γ are the embedding vectors of all individual tokens. The individual vectors are also summarized to a single vector t via maxpooling:</p><formula xml:id="formula_9">t = maxpooling([h 1 , ..., h N Γ ])<label>(8)</label></formula><p>Finally, the vectors of the three aspects are fused into one vector through a fully connected layer:</p><formula xml:id="formula_10">c = tanh(W C [m; a; t ])<label>(9)</label></formula><p>where [a;b;c] represents the concatenation of three vectors, W C is the matrix of trainable parameters in the MLP. The output vector c represents the final embedding of the code snippet. </p><formula xml:id="formula_11">h t = tanh(W D [h t −1 ; w t ]), ∀t = 1, 2, ..., N D d = maxpooling([h 1 , ..., h N D ])<label>(10)</label></formula><p>where w t ∈R d represents the embedded representation of the description word w t , W D is the matrix of trainable parameters in the RNN, h t , t=1, ...N D are the hidden states of the RNN.</p><p>3.1.3 Similarity Module. We have described the transformations that map the code and description into vectors (i.e., the c and d).</p><p>Since we want the vectors of code and description to be jointly embedded, we measure the similarity between the two vectors.</p><p>We use the cosine similarity for the measurement, which is defined as:</p><formula xml:id="formula_12">cos(c, d ) = c T d ∥ c ∥ ∥ d ∥<label>(11)</label></formula><p>where c and d are the vectors of code and a description respectively. The higher the similarity, the more related the code is to the description.</p><p>Overall, CODEnn takes a ⟨code, description⟩ pair as input and predicts their cosine similarity cos(c, d).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">Model Training</head><p>Now we present how to train the CODEnn model to embed both code and descriptions into a unified vector space. The high-level goal of the joint embedding is: if a code snippet and a description have similar semantics, their embedded vectors should be close to each other. In other words, given an arbitrary code snippet C and an arbitrary description D, we want it to predict a high similarity if D is a correct description of C, and a little similarity otherwise.</p><p>At training time, we construct each training instance as a triple ⟨C, D+, D-⟩: for each code snippet C, there is a positive description D+ (a correct description of C) as well as a negative description (an incorrect description of C) D-randomly chosen from the pool of all D+'s. When trained on the set of ⟨C, D+, D-⟩ triples, the CO-DEnn predicts the cosine similarities of both ⟨C, D+⟩ and ⟨C, D-⟩ pairs and minimizes the ranking loss <ref type="bibr" target="#b15">[18,</ref><ref type="bibr" target="#b19">22]</ref>:</p><formula xml:id="formula_13">L(θ ) = &lt;C, D+, D-&gt;∈P max (0, ϵ − cos(c, d +) + cos(c, d -))<label>(12)</label></formula><p>where θ denotes the model parameters, P denotes the training dataset, ϵ is a constant margin. c, d+ and d-are the embedded vectors of C, D+ and D-, respectively. A small, fixed ϵ value of 0.05 is used in all the experiments. Intuitively, the ranking loss encourages the cosine similarity between a code snippet and its correct description to go up, and the cosine similarities between a code snippet and incorrect descriptions to go down.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">DEEPCS: DEEP LEARNING BASED CODE SEARCH</head><p>In this section, we describe DeepCS, a code search tool based on the proposed CODEnn model. DeepCS recommends top K most relevant code snippets for a given natural language query. <ref type="figure">Figure 5</ref> shows the overall architecture. It includes three main phases: offline training, offline code embedding, and online code search. We begin by collecting a large-scale corpus of code snippets, i.e., Java methods with corresponding descriptions. We extract subelements (including method names, tokens, and API sequences) from the methods. Then, we use the corpus to train the CODEnn model (the offline training phase). For a given codebase from which users would like to search for code snippets, DeepCS extracts code elements for each Java method in the search codebase, and computes a code vector using the CoNN module of the trained CODEnn model (the offline embedding phase). Finally, when a user query arrives, DeepCS first computes the vector representation of the query using the DeNN module of the CODEnn model, and then returns code snippets whose vectors are close to the query vector (the online code search phase).</p><p>In theory, our approach could search for source code written in any programming languages. In this paper, we limit our scope to the Java code. The following sections describe the detailed steps of our approach.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Collecting Training Corpus</head><p>As described in Section 3, the CODEnn model requires a large-scale training corpus that contains code elements and the corresponding descriptions, i.e., the ⟨method name, API sequence, tokens, description⟩ tuples. <ref type="figure">Figure 6</ref> shows an excerpt of the training corpus.</p><p>We build the training tuples using Java methods that have documentation comments 1 from open-source projects on GitHub <ref type="bibr" target="#b1">[3]</ref>. For each Java method, we use the method declaration as the code element and the first sentence of its documentation comment as its A documentation comment in JAVA starts with slash-asterisk-asterisk (/ * * ) and ends with asterisk-slash ( * /) natural language description. According to the Javadoc guidance , the first sentence is usually a summary of a method. To prepare the data, we download Java projects from GitHub created from August, to June, 2016. To remove toy or experimental programs, we exclude any projects without a star. We select only the Java methods that have documentation comments from the downloaded projects. Finally, we obtain a corpus comprising 18,233,872 commented Java methods.</p><p>Having collected the corpus of commented code snippets, we extract the ⟨method name, API sequence, tokens, description⟩ tuples as follows:</p><p>Method Name Extraction: For each Java method, we extract its name and parse the name into a sequence of tokens according to camel case [1]. For example, the method name listFiles will be parsed into the tokens list and files.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>API Sequence Extraction:</head><p>We extract an API sequence from each Java method using the same procedures as described in Deep-API <ref type="bibr" target="#b24">[27]</ref> -parsing the AST using the Eclipse JDT compiler <ref type="bibr" target="#b0">[2]</ref> and traversing the AST. The API sequences are produced as follows <ref type="bibr" target="#b24">[27]</ref>:</p><p>• For each constructor invocation new C(), we produce C.new and append it to the API sequence. Token Extraction: To collect tokens from a Java method, we tokenize the method body, split each token according to camel case [1], and remove the duplicated tokens. We also remove stop words (such as the and in) and Java keywords as they frequently occur in source code and are not discriminative.</p><p>Description Extraction: To extract the documentation comment, we use the Eclipse JDT compiler <ref type="bibr" target="#b0">[2]</ref> to parse the AST from a Java method and extract the JavaDoc Comment from the AST. <ref type="figure" target="#fig_4">Figure 7</ref> shows an example of code elements and documentation comments extracted from a Java method DateU tils.toCalendar 3 in the Apache commons-lang library.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Training CODEnn Model</head><p>We use the large-scale corpus described in the previous section to train the CODEnn model, following the method described in Section 3.2.  The detailed implementation of the CODEnn model is as follows: we use the bi-directional LSTM <ref type="bibr" target="#b68">[70]</ref>, a state-of-the-art kind of RNN for the RNN implementation. All LSTMs have 200 hidden units in each direction. We set the dimension of word embedding to 100. The CODEnn has two types of MLPs, the embedding MLP for embedding individual tokens and the fusion MLP to combine the embeddings of different aspects. We set the number of hidden units as 100 for the embedding MLP and 400 for the fusion MLP.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Code Vectors</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Search Codebase</head><p>The CODEnn model is trained via the mini-batch Adam algorithm <ref type="bibr" target="#b34">[37,</ref><ref type="bibr" target="#b38">40]</ref>. We set the batch size (i.e., the number of instances per batch) as 128. For training the neural networks, we limit the size of the vocabulary to 10,000 words that are most frequently used in the training dataset.</p><p>We build our model on Keras <ref type="bibr" target="#b2">[4]</ref> and Theano <ref type="bibr">[6]</ref>, two opensource deep learning frameworks. We train our models on a server with one Nvidia K40 GPU. The training lasts ∼50 hours with 500 epochs.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">Searching Code Snippets</head><p>Given a user's free-text query, DeepCS returns the relevant code snippets through the trained CODEnn model. It first computes the code vector for each code snippet (i.e., a Java method) in the search codebase. Then, it selects and returns the code snippets that have the top K nearest vectors to the query vector.</p><p>More specially, before a search starts, DeepCS embeds all code snippets in the codebase into vectors using the trained CoNN module of CODEnn in an off-line manner. During the on-line search, when a developer enters a natural language query, DeepCS first embeds the query into a vector using the trained DeNN module of CODEnn. Then, it estimates the cosine similarities between the query vector and all code vectors using Equation 11. Finally, the top K code snippets whose vectors are most similar to the query vector are returned as the search results. K is set to 10 in our experiments.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">EVALUATION</head><p>In this section, we evaluate DeepCS through experiments. We also compare DeepCS with related code search approaches.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1">Experimental Setup</head><p>5.1.1 Search Codebase. To better evaluate DeepCS, our experiments are performed over a search codebase, which is different from the training corpus. Code snippets that match a user query are retrieved from the search codebase. In practice, the search codebase could be an organization's local codebase or any codebase created from open source projects.</p><p>To construct the search codebase, we choose the Java projects that have at least 20 stars in GitHub. Different from the training corpus, they are considered in isolation and contain all code (including those do not have Javadoc comments). There are 9,950 projects in total. We select all 16,262,602 methods from these projects. For each Java method, we extract a ⟨method name, API sequence, tokens⟩ triple to generate its code vector.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1.2">Query Subjects.</head><p>To select code search queries for the evaluation, we adopt a systematic procedure used in <ref type="bibr" target="#b39">[41]</ref>  <ref type="bibr" target="#b2">4</ref> . We build a benchmark of queries from the top 50 voted Java programming questions in Stack Overflow. To achieve so, we browse the list of Java-tagged questions in Stack Overflow and sort them according to the votes that each one receives . We manually check the sorted list sequentially, and add questions that satisfy the following conditions to the benchmark:</p><p>(1) The question is a concrete Java programming task. We exclude questions about problems, knowledge, configurations, experience and questions whose descriptions are vague and abstract. For example, Failed to load the JNI Library, What is the difference between StringBuilder and StringBuffer?, and Why does Java have transient fields?. (2) The accepted answer to the question contains a Java code snippet. <ref type="formula" target="#formula_2">3</ref>The question is not a duplicate of the previous questions. We filter out questions that are tagged as "duplicated".</p><p>The full list of the 50 selected queries can be found in <ref type="table" target="#tab_6">Table 1</ref>. For each query, two developers manually inspect the top 10 results returned by DeepCS and label their relevance to the query. Then they discuss the inconsistent labels and relabel them. The procedure repeats until a consensus is reached.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1.3">Performance</head><p>Measure. We use four common metrics to measure the effectiveness of code search, namely, FRank, Success-Rate@k, Precision@k, and Mean Reciprocal Rank (MRR). They are widely used metrics in information retrieval and the code search literature <ref type="bibr" target="#b39">[41,</ref><ref type="bibr" target="#b43">45,</ref><ref type="bibr" target="#b60">62,</ref><ref type="bibr" target="#b78">79]</ref>.</p><p>The FRank (also known as best hit rank <ref type="bibr" target="#b39">[41]</ref>) is the rank of the first hit result in the result list <ref type="bibr" target="#b60">[62]</ref>. It is important as users scan the results from top to bottom. A smaller FRank implies lower inspection effort for finding the desired result. We use FRank to assess the effectiveness of a single code search query.</p><p>The SuccessRate@k (also known as success percentage at k <ref type="bibr" target="#b39">[41]</ref>) measures the percentage of queries for which more than one correct result could exist in the top k ranked results <ref type="bibr" target="#b32">[35,</ref><ref type="bibr" target="#b39">41,</ref><ref type="bibr" target="#b78">79]</ref>. In our evaluations it is calculated as follows:</p><formula xml:id="formula_14">SuccessRate@k = 1 |Q | Q q=1 δ (FRank q ≤ k)<label>(13)</label></formula><p>where Q is a set of queries, δ (•) is a function which returns 1 if the input is true and 0 otherwise. SuccessRate@k is important because a better code search engine should allow developers to discover the needed code by inspecting fewer returned results. The higher the metric value, the better the code search performance. The Precision@k <ref type="bibr" target="#b43">[45,</ref><ref type="bibr" target="#b55">57]</ref> measures the percentage of relevant results in the top k returned results for each query. In our evaluations http://taoxie.cs.illinois.edu/racs/subjects.html <ref type="bibr" target="#b3">5</ref> http://stackoverflow.com/questions/tagged/java?sort=votes&amp;pagesize=15 it is calculated as follows:</p><p>Precision@k = #relevant results in the top k results k <ref type="bibr" target="#b11">(14)</ref> Precision@k is important because developers often inspect multiple results of different usages to learn from <ref type="bibr" target="#b60">[62]</ref>. A better code search engine should allow developers to inspect less noisy results. The higher the metric values, the better the code search performance. We evaluate SuccessRate@k and Precision@k when k's value is 1, 5, and 10. These values reflect the typical sizes of results that users would inspect <ref type="bibr" target="#b39">[41]</ref>. The MRR <ref type="bibr" target="#b43">[45,</ref><ref type="bibr" target="#b78">79]</ref> is the average of the reciprocal ranks of results of a set of queries Q. The reciprocal rank of a query is the inverse of the rank of the first hit result <ref type="bibr" target="#b23">[26]</ref>. MRR is calculated as follows:</p><formula xml:id="formula_15">M RR = 1 |Q | |Q | q=1 1 F Rank q<label>(15)</label></formula><p>The higher the MRR value, the better the code search performance.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1.4">Comparison Methods.</head><p>We compare the effectiveness of our approach with CodeHow <ref type="bibr" target="#b43">[45]</ref> and a conventional Lucene-based code search tool <ref type="bibr" target="#b3">[5]</ref>.</p><p>CodeHow is a state-of-the-art code search engine proposed recently. It is an information retrieval based code search tool that incorporates an extended Boolean model and API matching. It first retrieves relevant APIs to a query by matching the query with the API documentation. Then, it searches code by considering both plain code and the related APIs. Like DeepCS, CodeHow also considers multiple aspects of source code such as method name and APIs. It combines multiple aspects using an Extended Boolean Model <ref type="bibr" target="#b43">[45]</ref>. The facts that CodeHow also considers APIs and is also built for large-scale code search make it an ideal baseline for our experiments.</p><p>Lucene is a popular, conventional text search engine behind many existing code search tools such as Sourcerer <ref type="bibr" target="#b41">[43]</ref>. Sourcerer combines Lucene with code properties such as FQN (full qualified name) of entities and code popularity to retrieve the code snippets. In our implementation of the Lucene-based code search tool, we consider the heuristic of FQN. We did not include the code popularity heuristic (computed using PageRank) as it does not significantly improve the code search performance <ref type="bibr" target="#b41">[43]</ref>.</p><p>We use the same experimental setting for CodeHow and the Lucene-based tool as used for evaluating DeepCS. <ref type="table" target="#tab_6">Table 1</ref> shows the evaluation results of DeepCS and related approaches for each query in the benchmark. The column Question ID shows the original ID of the question in Stack Overflow where the query comes from. The column FRank shows the FRank result of each approach. The symbol 'NF' stands for Not Found which means that no relevant result has been returned within the top K results (K=10).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2">Results</head><p>The results show that DeepCS produces generally more relevant results than Lucene and CodeHow. <ref type="figure">Figure 8a</ref> shows the statistical summary of FRank for the three approaches. The symbol '+' indicates the average FRank value achieved by each approach. We conservatively treat the FRank as 11 for queries that fail to obtain relevant results within the top returned results. We observe that DeepCS achieves more relevant results with an average FRank of 3.5, which is smaller than the average FRank achieved by CodeHow (5.5) and Lucene (6.0). The FRank values of DeepCS concentrate on the range from 1 to 4, while CodeHow and Lucene produce larger variance and many less relevant results. <ref type="figure">Figure 8b, 8c and 8d</ref> show the statistics of Precision@k for the three approaches when k is 1, 5 and 10, respectively. We observe that DeepCS achieves better overall precision values than CodeHow and the Lucene-based tool.</p><p>To test the statistical significance, we apply the Wilcoxon signedrank test (p&lt;0.05) for the comparison of FRank and Precision@k between DeepCS and the two related approaches for all the queries. We conservatively treat the FRank as 11 for queries that fail to obtain relevant results within the top returned results. The pvalues for the comparisons of DeepCS with Lucene and CodeHow are all less than 0.05, indicating the statistical significance of the improvement of DeepCS over the related approaches. <ref type="table" target="#tab_7">Table 2</ref> shows the overall performance of the three approaches, measured in terms of SuccessRate@k, Precision@k and MRR. The columns R@1, R@5 and R@10 show the results of SuccessRate@k  when k is 1, 5 and 10, respectively. The columns P@1, P@5 and P@10 show the results of the average Precision@k over all queries when k is 1, 5 and 10, respectively. The column MRR shows the MRR values of the three approaches. The results show that DeepCS returns more relevant code snippets than CodeHow and Lucene. For example, the R@5 value is 0.76, which means that for 76% of the queries, the relevant code snippets can be found within the top 5 return results. The P@5 value is 0.5, which means that 50% of the top 5 results are deemed accurate. For the SuccessRate@k, the improvements to CodeHow are 21%, 31% and 30%, respectively. For the Precision@k, the improvements to CodeHow are 21%, 72% and 75%, respectively. For the MRR, the improvement to CodeHow is 33%. Overall, our approach improves the accuracy of related techniques on all metrics.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3">Examples of Code Search Results</head><p>We now provide concrete examples of code search results that demonstrate the advantages of DeepCS. <ref type="figure" target="#fig_7">Figure 9a</ref> and 9b show the results for two queries: queue an event to be run on the thread and run an event on a thread queue. The two queries have the same set of keywords with different word sequences. The keyword queue in the two queries have different meanings and it could be difficult for an IR-based approach to distinguish. Still, DeepCS can understand the meaning of the two queries and return relevant snippets. Apparently, DeepCS has the ability to recognize query semantics.</p><p>The ability of query understanding enables DeepCS to perform a more robust code search. Its search results are less affected by  irrelevant or noisy keywords. For example, the query get the content of an input stream as a string using a specified character encoding contains 9 keywords. CodeHow returns many snippets that are related to less relevant keywords such as specified and character. DeepCS, on the other hand, can successfully identify the importance of different keywords and understand the key point of the query <ref type="figure" target="#fig_0">(Figure 10</ref>).</p><p>Another advantage of DeepCS relates to associative search. That is, it not only seeks snippets with matched keywords but also recommends those without matched keywords but are semantically related. This is important because it significantly increases the search scope especially when the codebase is small. Besides, developers need snippets of multiple usages <ref type="bibr" target="#b60">[62]</ref>. The associative search provides more options of code snippets for developers to learn from. <ref type="figure" target="#fig_0">Figure 11a</ref> shows the first result of the query read an object from an xml file. As discussed in Section 1, traditional IR-based approaches may only match snippets that contain keywords such as xml, object and read. However, as shown in the figure, DeepCS successfully recognizes the query semantic and returns results of xml deserialize, even the keywords do not exist in the result. By contrast, CodeHow only returns snippets containing read, object and xml, narrowing down the search scope. The example indicates that DeepCS searches code by understanding the semantics instead of just matching keywords. Similarly, the query initialization of an arraylist in one line in <ref type="table" target="#tab_6">Table 1</ref> returns snippets containing "new ArrayList⟨⟩" although the snippet does not include the keyword initialization. <ref type="figure" target="#fig_0">Figure 11b</ref> shows another example of the associative search. When searching play a song. DeepCS not only returns snippets with matching keywords but also recommends results with semantically related words such as audio and voice. We have identified three advantages of DeepCS that may explain its effectiveness in code search:</p><p>A unified representation of heterogeneous data Source code and natural language queries are heterogeneous. By jointly embedding source code and natural language query into the same vector representation, their similarities can be measured more accurately.</p><p>Better query understanding through deep learning Unlike traditional techniques, DeepCS learns queries and source code representations with deep learning. Characteristics of queries, such as semantically related words and word orders, are considered in these models <ref type="bibr" target="#b24">[27]</ref>. Therefore, it can recognize the semantics of query and code better. For example, it can distinguish the query queue an event to be run on the thread from the query run an event on the event queue. Clustering snippets by natural language semantics An advantage of our approach is that it embeds semantically similar code snippets into vectors that are close to each other. Semantically similar code snippets are grouped according to their semantics. Therefore, in addition to the exact matching snippets, DeepCS also recommends the semantically related ones.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.2">Limitation of DeepCS</head><p>Despite the advantages such as associative search, DeepCS could still return inaccurate results. It sometimes ranks partially relevant results higher than the exact matching ones. <ref type="figure" target="#fig_0">Figure 12</ref> shows the result for the query generate md5.  <ref type="figure" target="#fig_0">Figure 12</ref>: An example showing the inaccurate results -The first result of the query "generate md5" ranked 7 in the result list, while partially related results such as generate checksum are recommended before the exact results. This is because DeepCS ranks results by just considering their semantic vectors. In future work, more code features (such as programming context) <ref type="bibr" target="#b56">[58]</ref> could be considered in our model to further adjust the results.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.3">Threats to Validity</head><p>Our goal is to improve the performance of code search over GitHub, thus both training and search are performed over GitHub corpus. There is a threat of overlap between the training and search codebases. To mitigate this threat, in our experiments, the training and search codebases are constructed to be significantly different. The training codebase only contains code that has corresponding descriptions, while the search codebase is considered in isolation and contains all code (including those do not have descriptions). We believe the threat of overfitting for this overlap is not significant as our training codebase considers a vast majority of code in Github. The most important goal of our experiments is to evaluate DeepCS in a real-world code search scenario. For that, we used 50 real queries collected from Stack Overflow to test the effectiveness of DeepCS. These queries are not descriptions/comments of Java methods and are not used for training.</p><p>In our experiments, the relevancy of returned results were manually graded and could suffer from subjectivity bias. To mitigate this threat, (i) the manual analysis was performed independently by two developers and (ii) the developers performed an open discussion to resolve conflict grades for the 50 questions. In the future, we will further mitigate this threat by inviting more developers for the grading.</p><p>In the grading of relevancy, we consider only the top 10 results. Queries that fail are identically assigned with an FRank of 11 and could be biased from the real relevancy of code snippets. However, we believe that the setting is reasonable. In real-world code search, developers usually inspect the top K results and ignore the remaining. That means it does not make much difference if a code snippet appears at rank 11 or 20 if K is 10.</p><p>Like related work (e.g., <ref type="bibr" target="#b11">[14,</ref><ref type="bibr" target="#b39">41]</ref>), we evaluate DeepCS with popular Stack Overflow questions. SO questions may not be representative to all possible queries for code search engines. To mitigate this threat, (i) DeepCS is not trained on SO questions but on large scale Github corpus. (ii) We select the most frequently asked questions which might be also commonly asked by developers in other search engines. In the future, we will extend the scale and scope of test queries.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7">RELATED WORK 7.1 Code Search</head><p>In code search, a line of work has investigated marrying stateof-the-art information retrieval and natural language processing techniques <ref type="bibr">[13-15, 32, 35, 41, 45-47, 61, 81, 82]</ref>. Much of the existing work focuses on query expansion and reformulation <ref type="bibr" target="#b26">[29,</ref><ref type="bibr" target="#b28">31,</ref><ref type="bibr" target="#b42">44]</ref>. For example, Hill et al. <ref type="bibr" target="#b27">[30]</ref> reformulated queries with natural language phrasal representations of method signatures. Haiduc et al. <ref type="bibr" target="#b26">[29]</ref> proposed to reformulate queries based on machine learning. Their method trains a machine learning model that automatically recommends a reformulation strategy based on the query properties. Lu et al. <ref type="bibr" target="#b42">[44]</ref> proposed to extend a query with synonyms generated from WordNet. There is also much work that takes into account code characteristics. For example, McMillan et al. <ref type="bibr" target="#b45">[47]</ref> proposed Portfolio, a code search engine that combines keyword matching with PageRank to return a chain of functions. Lv et al. <ref type="bibr" target="#b43">[45]</ref> proposed CodeHow, a code search tool that incorporates an extended Boolean model and API matching. Ponzanelli et al. <ref type="bibr" target="#b59">[61]</ref> proposed an approach that automatically retrieves pertinent discussions from Stack Overflow given a context in the IDE. Recently Li et al. <ref type="bibr" target="#b39">[41]</ref> proposed RACS, a code search framework for JavaScript that considers relationships (e.g., sequencing, condition, and callback relationships) among the invoked API methods.</p><p>As described in Section 6, DeepCS differs from existing code search techniques in that it does not rely on information retrieval techniques. It measures the similarity between code snippets and user queries through joint embedding and deep learning. Thus, it can better understand code and query semantics.</p><p>As the keyword based approaches are inefficient on recognizing semantics, researchers have drawn increasing attention on semantics based code search <ref type="bibr" target="#b31">[34,</ref><ref type="bibr" target="#b63">65,</ref><ref type="bibr" target="#b67">69]</ref>. For example, Reiss <ref type="bibr" target="#b63">[65]</ref> proposed the semantics-based code search, which uses user specifications to characterize the requirement and uses transformations to adapt the searching results. However, Reiss's approach differs significantly from DeepCS. It does not consider the semantics of natural language queries. Furthermore, it requires users to provide not only natural language queries but also other specifications such as method declarations and test cases.</p><p>Besides code search, there have been many other information retrieval tasks in software engineering <ref type="bibr" target="#b5">[8,</ref><ref type="bibr" target="#b6">9,</ref><ref type="bibr" target="#b13">16,</ref><ref type="bibr" target="#b20">23,</ref><ref type="bibr" target="#b21">24,</ref><ref type="bibr" target="#b26">29,</ref><ref type="bibr" target="#b49">51,</ref><ref type="bibr" target="#b53">55,</ref><ref type="bibr" target="#b61">63,</ref><ref type="bibr" target="#b65">67]</ref> such as bug localization <ref type="bibr" target="#b64">[66,</ref><ref type="bibr" target="#b71">73,</ref><ref type="bibr" target="#b79">80]</ref>, feature localization <ref type="bibr" target="#b16">[19]</ref>, traceability links recovery <ref type="bibr" target="#b17">[20]</ref> and community Question Answering <ref type="bibr" target="#b8">[11]</ref>. Ye et al. <ref type="bibr" target="#b79">[80]</ref> proposed to embed words into vector representations to bridge the lexical gap between source code and natural language for SE-related text retrieval tasks. Different from DeepCS, the vector representations learned by their method are at the level of individual words and tokens instead of the whole query sentences. Their method is based on a bag-of-words assumption, and word sequences are not considered.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.2">Deep Learning for Source Code</head><p>Recently, researchers have investigated possible applications of deep learning techniques to source code <ref type="bibr" target="#b4">[7,</ref><ref type="bibr" target="#b35">38,</ref><ref type="bibr" target="#b51">53,</ref><ref type="bibr" target="#b54">56,</ref><ref type="bibr" target="#b58">60,</ref><ref type="bibr" target="#b62">64,</ref><ref type="bibr" target="#b73">75,</ref><ref type="bibr" target="#b74">76]</ref>. A typical use of deep learning is code generation <ref type="bibr" target="#b40">[42,</ref><ref type="bibr" target="#b52">54]</ref>. For example, Mou et al. <ref type="bibr" target="#b52">[54]</ref> proposed to generate code from natural language user intentions using an RNN Encoder-Decoder model. Their results show the feasibility of applying deep learning techniques to code generation from a highly homogeneous dataset (simple programming assignments). Gu et al. <ref type="bibr" target="#b24">[27]</ref> applies deep learning for API learning, that is, generating API usage sequences for a given natural language query. They also apply deep learning to migrate APIs between different programming languages <ref type="bibr" target="#b25">[28]</ref>. Deep learning is also applied to code completion <ref type="bibr" target="#b62">[64,</ref><ref type="bibr" target="#b75">77]</ref>. For example, White et al. <ref type="bibr" target="#b75">[77]</ref> applied the RNN language model to source code files and showed its effectiveness in predicting software tokens. Recently, White et al. <ref type="bibr" target="#b74">[76]</ref> also applied deep learning to code clone detection. Their framework automatically links patterns mined at the lexical level with patterns mined at the syntactic level. In our work, we explore the application of deep learning to code search.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>CONCLUSION</head><p>In this paper, we propose a novel deep neural network named CO-DEnn for code search. Instead of matching text similarity, CODEnn learns a unified vector representation of both source code and natural language queries so that code snippets semantically related to a query can be retrieved according to their vectors. As a proofof-concept application, we implement a code search tool DeepCS based on the proposed CODEnn model. Our experimental study has shown that the proposed approach is effective and outperforms the related approaches. Our source code and data are available at: https://github.com/guxd/deep-code-search</p><p>In the future, we will investigate more aspects of source code such as control structures to better represent high-level semantics of source code. The deep neural network we designed may also benefit other software engineering problems such as bug localization.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 :</head><label>1</label><figDesc>Illustration of the RNN Sentence Embedding</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head></head><label></label><figDesc>void readText(String file) { BufferedReader br = new BufferedReader( new FileInputStream(file)); String line = null; while ((line = br.readLine())!= null) { System.out.println(line); } br.close(); } public &lt;S&gt; S deserialize(Class c,File xml) { JAXBContext context = JAXBContext.newInstance(c); Unmarshaller unmarshaller = context.createUnmarshaller(); S deserialized =(S)unmarshaller.unmarshal(xml); return deserialized; }</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 3 :</head><label>3</label><figDesc>An example showing the idea of joint embedding for code and queries. The yellow points represent query vectors while the blue points represent code vectors.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 4 :</head><label>4</label><figDesc>The structure of the Code-Description Embedding Neural Network</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Figure 7 :</head><label>7</label><figDesc>An example of extracting code elements from a Java method DateUtils.toCalendar<ref type="bibr" target="#b1">3</ref> </figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>10 Figure 8 :</head><label>108</label><figDesc>The statistical comparison of FRank and Precison@k for three code search approaches</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_6"><head></head><label></label><figDesc>public boolean enqueue(EventHandler handler, Event event) { synchronized(monitor) { •••••• handlers[tail] = handler; events[tail] = event; tail++; if (handlers.length &lt;= tail) tail = 0; monitor.notify(); } return true; } (a) The third result of the query "queue an event to be run on the thread" public void run() { while (!stop) { DynamicModelEvent evt; while ((evt = eventQueue.poll()) != null) { for (DynamicModelListener l: listeners.toArray( new DynamicModelListener[0])) l.dynamicModelChanged(evt); } •••••• } } (b)The first result of the query "run an event on the thread queue"</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_7"><head>Figure 9 :</head><label>9</label><figDesc>Examples showing the query understanding</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_8"><head>Figure 10 :Figure 11 :</head><label>1011</label><figDesc>public static String toStringWithEncoding( InputStream inputStream, String encoding) { if (inputStream == null) throw new IllegalArgumentException( "inputStream-should-not-be-null"); char[] buffer = new char[BUFFER_SIZE]; StringBuffer stringBuffer = new StringBuffer(); BufferedReader bufferedReader = new BufferedReader( new InputStreamReader(inputStream, encoding), BUFFER_SIZE); int character = -1; •••••• return stringBuffer.toString(); } An example showing the search robustness -The first result of the query "get the content of an input stream as a string using a specified character encoding" public static &lt; S &gt; S deserialize(Class c, File xml) { try { JAXBContext context = JAXBContext.newInstance(c); Unmarshaller unmarshaller = context.createUnmarshaller(); S deserialized = (S) unmarshaller.unmarshal(xml); return deserialized; } catch (JAXBException ex) { log.error("Error-deserializing-object-from-XML", ex); return null; } } (a) The first result of the query "read an object from an xml file" public void playVoice(int clearedLines) throws Exception { int audiosAvailable = audioLibrary.get(clearedLines).size(); int audioIndex = rand.nextInt(audiosAvailable); audioLibrary.get(clearedLines).get(audioIndex).play(); } (b) The second result of the query "play a song" Examples showing the associative search DISCUSSIONS 6.1 Why does DeepCS Work?</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_5"><head>Query Vector embedding Commented Code Snippets Training Set</head><label></label><figDesc></figDesc><table><row><cell cols="3">Offline Training</cell><cell cols="2">How to …</cell><cell>public void foo(int para) { int ret = Lib.get(para);</cell></row><row><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell>}</cell></row><row><cell></cell><cell></cell><cell>Training</cell><cell></cell><cell></cell><cell>1.1 0.4 ⋮</cell><cell>K-Nearest Selection</cell><cell>1</cell><cell>3</cell></row><row><cell></cell><cell>aspect</cell><cell></cell><cell cols="2">CODEnn</cell><cell>5.0</cell><cell>2</cell></row><row><cell></cell><cell>extraction</cell><cell></cell><cell></cell><cell></cell></row><row><cell></cell><cell></cell><cell></cell><cell>aspect</cell><cell></cell></row><row><cell cols="2">code snippets (Java methods)</cell><cell>natural language descriptions</cell><cell cols="2">code snippets (Java methods) extraction</cell><cell>1.1 0.6 0.2 1</cell><cell>0.1 ⋯ 4.2 ⋮ ⋱ ⋮ 0.5 ⋯ 1.3 2</cell></row><row><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell>Offline Embedding</cell></row><row><cell></cell><cell></cell><cell cols="4">Figure 5: The overall workflow of DeepCS</cell></row><row><cell cols="2">Method Name</cell><cell>API Sequence</cell><cell></cell><cell>Tokens</cell><cell>Description (English)</cell></row><row><cell cols="2">file reader</cell><cell cols="4">InputStream.read→OutputStream.write input, output, stream, write</cell><cell>copy a file from an inputstream</cell></row><row><cell>2 open</cell><cell></cell><cell cols="2">URL.new→URL.openConnection</cell><cell>url, open, conn</cell><cell>open a url</cell></row><row><cell cols="2">3 test exists</cell><cell>File.new→File.exists</cell><cell></cell><cell>file, create, exists</cell><cell>test file exists</cell></row><row><cell>⋮</cell><cell>⋮</cell><cell>⋮</cell><cell></cell><cell>⋮</cell><cell>⋮</cell></row><row><cell></cell><cell></cell><cell cols="4">Figure 6: An excerpt of training tuples</cell></row><row><cell>/**</cell><cell></cell><cell></cell><cell></cell><cell></cell></row><row><cell>@since 3.0</cell><cell></cell><cell></cell><cell></cell><cell></cell></row><row><cell>*/</cell><cell></cell><cell></cell><cell></cell><cell></cell></row><row><cell cols="3">public static Calendar toCalendar(final Date date) {</cell><cell></cell><cell></cell></row><row><cell cols="3">final Calendar c = Calendar.getInstance();</cell><cell></cell><cell></cell></row><row><cell>c.setTime(date);</cell><cell></cell><cell></cell><cell></cell><cell></cell></row><row><cell>return c;</cell><cell></cell><cell></cell><cell></cell><cell></cell></row></table><note>* Converts a Date into a Calendar.* @param date the date to convert to a Calendar * @return the created Calendar * @throws NullPointerException if null is passed in*} Method Name: to calendar API sequence: Calendar.getInstance Calendar.setTime Tokens: calendar, get, instance, set, time, date Description: converts a date into a calendar.</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_6"><head>Table 1 :</head><label>1</label><figDesc>Benchmark Queries and Evaluation Results (NF: Not Found within the top 10 returned results LC:Lucene CH:CodeHow DCS:DeepCS)</figDesc><table><row><cell>No.</cell><cell>Question ID</cell><cell>Query</cell><cell>FRank LC CH DCS</cell></row><row><cell></cell><cell>309424</cell><cell>convert an inputstream to a string</cell><cell>2 1 1</cell></row><row><cell cols="2">2 157944</cell><cell>create arraylist from array</cell><cell>NF NF 2</cell></row><row><cell cols="3">3 1066589 iterate through a hashmap</cell><cell>NF 1</cell></row><row><cell cols="2">4 363681</cell><cell>generating random integers in a specific range</cell><cell>NF 6 2</cell></row><row><cell cols="3">5 5585779 converting string to int in java</cell><cell>NF</cell></row><row><cell cols="3">6 initialization of an array in one line</cell><cell>NF 1</cell></row><row><cell cols="3">7 1128723 how can I test if an array contains a certain value</cell><cell>6 6 1</cell></row><row><cell cols="2">8 604424</cell><cell>lookup enum by string value</cell><cell>NF</cell></row><row><cell></cell><cell>886955</cell><cell>breaking out of nested loops in java</cell><cell>NF NF NF</cell></row><row><cell cols="3">10 how to declare an array</cell><cell>NF NF</cell></row><row><cell>11</cell><cell></cell><cell>how to generate a random alpha-numeric string</cell><cell>NF 1</cell></row><row><cell cols="2">12 409784</cell><cell>what is the simplest way to print a java array</cell><cell>NF 1</cell></row><row><cell cols="2">13 109383</cell><cell>sort a map by values</cell><cell>NF 3</cell></row><row><cell cols="2">14 295579</cell><cell cols="2">fastest way to determine if an integer's square root is an integer NF NF NF</cell></row><row><cell>15</cell><cell></cell><cell>how can I concatenate two arrays in java</cell><cell>NF 1 1</cell></row><row><cell cols="2">16 326369</cell><cell>how do I create a java string from the contents of a file</cell><cell>8 NF 5</cell></row><row><cell cols="3">17 1149703 how can I convert a stack trace to a string</cell><cell>3 1 2</cell></row><row><cell>18</cell><cell></cell><cell>how do I compare strings in java</cell><cell>3 1</cell></row><row><cell cols="3">19 3481828 how to split a string in java</cell><cell>1 1 1</cell></row><row><cell cols="3">20 how to create a file and write to a file in java</cell><cell>1 NF</cell></row><row><cell></cell><cell></cell><cell>how can I initialise a static map</cell><cell>7 1 2</cell></row><row><cell>22</cell><cell></cell><cell>iterating through a collection, avoiding concurrentmodifica-</cell><cell>2</cell></row><row><cell></cell><cell></cell><cell>tionexception when removing in loop</cell><cell></cell></row><row><cell cols="2">23 415953</cell><cell>how can I generate an md5 hash</cell><cell>3 6</cell></row><row><cell cols="3">24 get current stack trace in java</cell><cell>1 1</cell></row><row><cell cols="3">25 2784514 sort arraylist of custom objects by property</cell><cell>1 1</cell></row><row><cell cols="2">26 153724</cell><cell>how to round a number to n decimal places in java</cell><cell>1 4</cell></row><row><cell cols="2">27 473282</cell><cell>how can I pad an integers with zeros on the left</cell><cell>NF 1</cell></row><row><cell cols="2">28 529085</cell><cell>how to create a generic array in java</cell><cell>NF NF 3</cell></row><row><cell></cell><cell cols="2">4716503 reading a plain text file in java</cell><cell>NF 7</cell></row><row><cell></cell><cell cols="2">1104975 a for loop to iterate over enum in java</cell><cell>NF NF NF</cell></row><row><cell></cell><cell></cell><cell>check if at least two out of three booleans are true</cell><cell>NF NF NF</cell></row><row><cell cols="3">32 how do I convert from int to string</cell><cell>NF</cell></row><row><cell cols="3">33 how to convert a char to a string in java</cell><cell>5 10</cell></row><row><cell cols="3">34 1816673 how do I check if a file exists in java</cell><cell>1</cell></row><row><cell cols="3">35 4216745 java string to date conversion</cell><cell>6 NF 1</cell></row><row><cell cols="3">36 1264709 convert inputstream to byte array in java</cell><cell>7 5 1</cell></row><row><cell cols="3">37 1102891 how to check if a string is numeric in java</cell><cell>1 NF 2</cell></row><row><cell cols="2">38 869033</cell><cell>how do I copy an object in java</cell><cell>2 1 1</cell></row><row><cell cols="2">39 180158</cell><cell>how do I time a method's execution in java</cell><cell>NF NF 2</cell></row><row><cell></cell><cell cols="2">5868369 how to read a large text file line by line using java</cell><cell>1 1 1</cell></row><row><cell cols="2">41 858572</cell><cell>how to make a new list in java</cell><cell>1 1</cell></row><row><cell cols="3">42 how to append text to an existing file in java</cell><cell>1 1</cell></row><row><cell cols="3">43 2201925 converting iso 8601-compliant string to date</cell><cell>3 1</cell></row><row><cell cols="2">44 122105</cell><cell>what is the best way to filter a java collection</cell><cell>NF 2</cell></row><row><cell cols="3">45 5455794 removing whitespace from strings in java</cell><cell>NF 3 1</cell></row><row><cell>46</cell><cell></cell><cell>how do I split a string with any whitespace chars as delimiters</cell><cell>1</cell></row><row><cell cols="2">47 52353</cell><cell cols="2">in java, what is the best way to determine the size of an object NF NF NF</cell></row><row><cell></cell><cell></cell><cell>how do I invoke a java method when given the method name</cell><cell>1 2</cell></row><row><cell></cell><cell></cell><cell>as a string</cell><cell></cell></row><row><cell cols="2">49 207947</cell><cell>how do I get a platform dependent new line character</cell><cell>NF</cell></row><row><cell></cell><cell></cell><cell>how to convert a map to list in java</cell><cell>NF 1</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_7"><head>Table 2 :</head><label>2</label><figDesc>Overall Accuracy of DeepCS and the Related Approaches</figDesc><table><row><cell>Tool</cell><cell>R@1 R@5 R@10 P@1 P@5 P@10 MRR</cell></row><row><cell>Lucene</cell><cell>0.24 0.48 0.62 0.24 0.24 0.26 0.35</cell></row><row><cell>CodeHow</cell><cell>0.38 0.58 0.66 0.38 0.29 0.28 0.45</cell></row><row><cell>DeepCS</cell><cell>0.46 0.76 0.86 0.46 0.50 0.49 0.60</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_8"><head></head><label></label><figDesc>The exactly matching result is</figDesc><table><row><cell>public static byte[] generateRandom256() {</cell></row><row><cell>byte[] randomSeed1 = ByteUtils.longToBytes(System.nanoTime());</cell></row><row><cell>byte[] randomSeed2 = (new SecureRandom()).generateSeed(KEY_SIZE_BYTES);</cell></row><row><cell>byte[] bh1 = ByteUtils.concatenate(randomSeed1, randomSeed2);</cell></row><row><cell>Thread.sleep(100L);</cell></row><row><cell>byte[] randomSeed3 = UUID.randomUUID().toString().getBytes();</cell></row><row><cell>byte[] randomSeed4 = ByteUtils.longToBytes(System.nanoTime());</cell></row><row><cell>byte[] bh2 = ByteUtils.concatenate(randomSeed3, randomSeed4);</cell></row><row><cell>return simpleHash256(ByteUtils.concatenate(bh1, bh2));</cell></row><row><cell>}</cell></row></table><note></note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="2">http://www.oracle.com/technetwork/articles/java/index-137868.html 3 https://github.com/apache/commons-lang/blob/master/src/main/java/org/apache/ commons/lang3/time/DateUtils.java</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="9">ACKNOWLEDGMENT</head><p>The authors would like to thank Dongmei Zhang at Microsoft Research Asia for her support for this project and insightful comments on the paper.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jdt</forename><surname>Eclipse</surname></persName>
+		</author>
+		<ptr target="http://www.eclipse.org/jdt/" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Github</surname></persName>
+		</author>
+		<ptr target="https://github.com" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Keras</surname></persName>
+		</author>
+		<ptr target="https://keras.io/" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Lucene</surname></persName>
+		</author>
+		<ptr target="https://lucene.apache.org/" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">A convolutional attention network for extreme summarization of source code</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Allamanis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Peng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Sutton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Reducing the effort of bug report triage: Recommenders for development-oriented decisions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Anvik</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">C</forename><surname>Murphy</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Transactions on Software Engineering and Methodology (TOSEM)</title>
+		<imprint>
+			<biblScope unit="volume">20</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page">10</biblScope>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Linking e-mails and source code artifacts</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bacchelli</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Lanza</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Robbes</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 32nd ACM/IEEE International Conference on Software Engineering</title>
+		<meeting>the 32nd ACM/IEEE International Conference on Software Engineering</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2010" />
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="page" from="375" to="384" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<title level="m" type="main">Neural machine translation by jointly learning to align and translate</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Bahdanau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Cho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1409.0473</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Facilitating crowd sourced software engineering via stack overflow</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Barzilay</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Treude</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Zagalsky</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Finding Source Code on the Web for Remix and Reuse</title>
+		<imprint>
+			<publisher>Springer</publisher>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="289" to="308" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Program understanding and the concept assignment problem</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">J</forename><surname>Biggerstaff</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">G</forename><surname>Mitbander</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">E</forename><surname>Webster</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Communications of the ACM</title>
+		<imprint>
+			<biblScope unit="volume">37</biblScope>
+			<biblScope unit="issue">5</biblScope>
+			<biblScope unit="page" from="72" to="82" />
+			<date type="published" when="1994" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Example-centric programming: integrating web search into the development environment</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Brandt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Dontcheva</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Weskamp</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">R</forename><surname>Klemmer</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the SIGCHI Conference on Human Factors in Computing Systems</title>
+		<meeting>the SIGCHI Conference on Human Factors in Computing Systems</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="513" to="522" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">A</forename><surname>Campbell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Treude</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1701.05648</idno>
+		<title level="m">NLP2Code: Code snippet content assist via natural language tasks</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Searching connected API subgraph via text phrases</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W.-K</forename><surname>Chan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Cheng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Lo</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the ACM SIGSOFT 20th International Symposium on the Foundations of Software Engineering</title>
+		<meeting>the ACM SIGSOFT 20th International Symposium on the Foundations of Software Engineering</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2012" />
+			<biblScope unit="page">10</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">On the reduction of verbose queries in text retrieval based software maintenance</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Chaparro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Marcus</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 38th International Conference on Software Engineering Companion</title>
+		<meeting>the 38th International Conference on Software Engineering Companion</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="716" to="718" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Learning phrase representations using RNN encoder-decoder for statistical machine translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Cho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Van Merriënboer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ç</forename><surname>Gülçehre</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Bahdanau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Bougares</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Schwenk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2014 Conference on Empirical Methods in Natural Language Processing (EMNLP)</title>
+		<meeting>the 2014 Conference on Empirical Methods in Natural Language Processing (EMNLP)<address><addrLine>Doha, Qatar</addrLine></address></meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2014-10" />
+			<biblScope unit="page" from="1724" to="1734" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Natural language processing (almost) from scratch</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Collobert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Bottou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Karlen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Kuksa</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">12</biblScope>
+			<biblScope unit="page" from="2493" to="2537" />
+			<date type="published" when="2011-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Exploring the use of deep learning for feature location</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">S</forename><surname>Corley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Damevski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><forename type="middle">A</forename><surname>Kraft</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Software Maintenance and Evolution (ICSME), 2015 IEEE International Conference on</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="556" to="560" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Recovering traceability links between an api and its learning resources</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Dagenais</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">P</forename><surname>Robillard</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2012 34th International Conference on Software Engineering (ICSE)</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="47" to="57" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Applying deep learning to answer selection: A study and an open task</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Feng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Xiang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">R</forename><surname>Glass</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Zhou</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2015 IEEE Workshop on Automatic Speech Recognition and Understanding (ASRU)</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="813" to="820" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">DeViSE: A deep visual-semantic embedding model</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Frome</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">S</forename><surname>Corrado</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Shlens</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Dean</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mikolov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="2121" to="2129" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Design and evaluation of a multi-recommendation system for local code search</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Ge</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">C</forename><surname>Shepherd</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Damevski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Murphy-Hill</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Visual Languages &amp; Computing</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">An exploratory study of the pull-based software development model</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Gousios</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Pinzger</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">V</forename><surname>Deursen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 36th International Conference on Software Engineering</title>
+		<meeting>the 36th International Conference on Software Engineering</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="345" to="355" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">A novel connectionist system for unconstrained handwriting recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Graves</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Liwicki</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Fernández</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Bertolami</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Bunke</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schmidhuber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE transactions on pattern analysis and machine intelligence</title>
+		<imprint>
+			<date type="published" when="2009" />
+			<biblScope unit="volume">31</biblScope>
+			<biblScope unit="page" from="855" to="868" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">A search engine for finding highly relevant applications</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Grechanik</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Fu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Xie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Mcmillan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Poshyvanyk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Cumby</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2010 ACM/IEEE 32nd International Conference on Software Engineering</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2010" />
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="page" from="475" to="484" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">Deep API learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Gu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Kim</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the ACM SIGSOFT 20th International Symposium on the Foundations of Software Engineering (FSE&apos;16)</title>
+		<meeting>the ACM SIGSOFT 20th International Symposium on the Foundations of Software Engineering (FSE&apos;16)</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">DeepAM: Migrate APIs with multi-modal sequence to sequence learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Gu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Kim</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Twenty-Sixth International Joint Conferences on Artifical Intelligence (IJCAI&apos;17</title>
+		<meeting>the Twenty-Sixth International Joint Conferences on Artifical Intelligence (IJCAI&apos;17</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Automatic query reformulations for text retrieval in software engineering</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Haiduc</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Bavota</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Marcus</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Oliveto</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">De</forename><surname>Lucia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Menzies</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2013 International Conference on Software Engineering</title>
+		<meeting>the 2013 International Conference on Software Engineering</meeting>
+		<imprint>
+			<publisher>IEEE Press</publisher>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="842" to="851" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Improving source code search with natural language phrasal representations of method signatures</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Hill</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Pollock</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Vijay-Shanker</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2011 26th IEEE/ACM International Conference on Automated Software Engineering</title>
+		<meeting>the 2011 26th IEEE/ACM International Conference on Automated Software Engineering</meeting>
+		<imprint>
+			<publisher>IEEE Computer Society</publisher>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="524" to="527" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">NL-based query refinement and contextualized code search results: A user study</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Hill</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Roldan-Vega</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">A</forename><surname>Fails</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Mallet</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Software Maintenance, Reengineering and Reverse Engineering</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="34" to="43" />
+		</imprint>
+		<respStmt>
+			<orgName>CSMR-WCRE</orgName>
+		</respStmt>
+	</monogr>
+	<note>2014 Software Evolution Week-IEEE Conference on</note>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">The end-to-end use of source code examples: An exploratory study</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Holmes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Cottrell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">J</forename><surname>Walker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Denzinger</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Software Maintenance, 2009. ICSM 2009. IEEE International Conference on</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2009" />
+			<biblScope unit="page" from="555" to="558" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Deep visual-semantic alignments for generating image descriptions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Karpathy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Fei-Fei</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition</title>
+		<meeting>the IEEE Conference on Computer Vision and Pattern Recognition</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="3128" to="3137" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">Repairing programs with semantic code search (T)</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Ke</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">T</forename><surname>Stolee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">Le</forename><surname>Goues</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Brun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">30th IEEE/ACM International Conference on</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="295" to="306" />
+		</imprint>
+	</monogr>
+	<note>Automated Software Engineering (ASE)</note>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Spotting working code examples</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Keivanloo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Rilling</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Zou</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 36th International Conference on Software Engineering</title>
+		<meeting>the 36th International Conference on Software Engineering</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="664" to="675" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Kim</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1408.5882</idno>
+		<title level="m">Convolutional neural networks for sentence classification</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<monogr>
+		<title level="m" type="main">Adam: A method for stochastic optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Ba</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.6980</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<monogr>
+		<title level="m" type="main">Combining deep learning with information retrieval to localize buggy files for bug reports (n)</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">N</forename><surname>Lam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">T</forename><surname>Nguyen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><forename type="middle">A</forename><surname>Nguyen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">N</forename><surname>Nguyen</surname></persName>
+		</author>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<monogr>
+		<title level="m">30th IEEE/ACM International Conference on</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="476" to="481" />
+		</imprint>
+	</monogr>
+	<note>Automated Software Engineering (ASE)</note>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">Distributed representations of sentences and documents</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Le</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mikolov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 31st International Conference on Machine Learning (ICML-14)</title>
+		<meeting>the 31st International Conference on Machine Learning (ICML-14)</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="1188" to="1196" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<analytic>
+		<title level="a" type="main">Efficient mini-batch training for stochastic optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">J</forename><surname>Smola</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 20th ACM SIGKDD international conference on Knowledge discovery and data mining</title>
+		<meeting>the 20th ACM SIGKDD international conference on Knowledge discovery and data mining</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="661" to="670" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">Relationship-aware code search for JavaScript frameworks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Yan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Xie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Mei</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the ACM SIGSOFT 24th International Symposium on the Foundations of Software Engineering</title>
+		<meeting>the ACM SIGSOFT 24th International Symposium on the Foundations of Software Engineering</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<monogr>
+		<title level="m" type="main">Latent predictor networks for code generation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Ling</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Grefenstette</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">M</forename><surname>Hermann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Kocisky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Senior</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Blunsom</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1603.06744</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<analytic>
+		<title level="a" type="main">Sourcerer: mining and searching internet-scale software repositories</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Linstead</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Bajracharya</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Ngo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Rigor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Lopes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Baldi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Data Mining and Knowledge Discovery</title>
+		<imprint>
+			<biblScope unit="volume">18</biblScope>
+			<biblScope unit="page" from="300" to="336" />
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<analytic>
+		<title level="a" type="main">Query expansion via wordnet for effective code search</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Lu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Sun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Lo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Duan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE 22nd International Conference on Software Analysis, Evolution, and Reengineering (SANER)</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="545" to="549" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<analytic>
+		<title level="a" type="main">CodeHow: Effective code search based on API understanding and extended boolean model</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Lv</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Lou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Zhao</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 30th IEEE/ACM International Conference on Automated Software Engineering</title>
+		<meeting>the 30th IEEE/ACM International Conference on Automated Software Engineering</meeting>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<analytic>
+		<title level="a" type="main">Exemplar: A source code search engine for finding highly relevant applications</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Mcmillan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Grechanik</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Poshyvanyk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Fu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Xie</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Software Engineering</title>
+		<imprint>
+			<biblScope unit="volume">38</biblScope>
+			<biblScope unit="issue">5</biblScope>
+			<biblScope unit="page" from="1069" to="1087" />
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<analytic>
+		<title level="a" type="main">Portfolio: finding relevant functions and their usage</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Mcmillan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Grechanik</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Poshyvanyk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Xie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Fu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 33rd International Conference on Software Engineering (ICSE&apos;11)</title>
+		<meeting>the 33rd International Conference on Software Engineering (ICSE&apos;11)</meeting>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="111" to="120" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b46">
+	<monogr>
+		<title level="m" type="main">Efficient estimation of word representations in vector space</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mikolov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Corrado</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Dean</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1301.3781</idno>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b47">
+	<analytic>
+		<title level="a" type="main">Recurrent neural network based language model</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mikolov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Karafiát</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Burget</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Cernockỳ</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Khudanpur</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">INTERSPEECH 2010, 11th Annual Conference of the International Speech Communication Association</title>
+		<meeting><address><addrLine>Makuhari, Chiba, Japan</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="1045" to="1048" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b48">
+	<analytic>
+		<title level="a" type="main">Distributed representations of words and phrases and their compositionality</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mikolov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">S</forename><surname>Corrado</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Dean</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="3111" to="3119" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b49">
+	<analytic>
+		<title level="a" type="main">A large scale empirical study on software reuse in mobile apps</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><forename type="middle">J</forename><surname>Mojica</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Adams</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Nagappan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Dienst</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Berger</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">E</forename><surname>Hassan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Software</title>
+		<imprint>
+			<biblScope unit="volume">31</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="78" to="86" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b50">
+	<analytic>
+		<title level="a" type="main">Training feedforward neural networks using genetic algorithms</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Montana</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Davis</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IJCAI</title>
+		<imprint>
+			<date type="published" when="1989" />
+			<biblScope unit="volume">89</biblScope>
+			<biblScope unit="page" from="762" to="767" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b51">
+	<analytic>
+		<title level="a" type="main">Convolutional neural networks over tree structures for programming language processing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Mou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Jin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Thirtieth AAAI Conference on Artificial Intelligence, AAAI&apos;16</title>
+		<meeting>the Thirtieth AAAI Conference on Artificial Intelligence, AAAI&apos;16</meeting>
+		<imprint>
+			<publisher>AAAI Press</publisher>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="1287" to="1293" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b52">
+	<monogr>
+		<title level="m" type="main">On end-to-end program generation from user intention by deep neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Mou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Men</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Jin</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv</note>
+</biblStruct>
+
+<biblStruct xml:id="b53">
+	<analytic>
+		<title level="a" type="main">Software engineering for the web: the state of the practice</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Nederlof</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Mesbah</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">V</forename><surname>Deursen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Companion Proceedings of the 36th International Conference on Software Engineering</title>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="4" to="13" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b54">
+	<analytic>
+		<title level="a" type="main">Exploring api embedding for api usages and applications</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">D</forename><surname>Nguyen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">T</forename><surname>Nguyen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><forename type="middle">D</forename><surname>Phan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">N</forename><surname>Nguyen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 39th International Conference on Software Engineering</title>
+		<meeting>the 39th International Conference on Software Engineering</meeting>
+		<imprint>
+			<publisher>IEEE Press</publisher>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="438" to="449" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b55">
+	<analytic>
+		<title level="a" type="main">Query expansion based on crowd knowledge for code search</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Nie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Jiang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Sun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Li</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Services Computing</title>
+		<imprint>
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="issue">5</biblScope>
+			<biblScope unit="page" from="771" to="783" />
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b56">
+	<analytic>
+		<title level="a" type="main">Learning to rank code examples for code search engines</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Niu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Keivanloo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Zou</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Empirical Software Engineering</title>
+		<imprint>
+			<biblScope unit="page" from="1" to="33" />
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b57">
+	<monogr>
+		<title level="m" type="main">Deep sentence embedding using the long short term memory network: Analysis and application to information retrieval</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Palangi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Deng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Shen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Gao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Song</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">K</forename><surname>Ward</surname></persName>
+		</author>
+		<idno>abs/1502.06922</idno>
+		<imprint>
+			<date type="published" when="2015" />
+			<publisher>CoRR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b58">
+	<analytic>
+		<title level="a" type="main">Building program vector representations for deep learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Peng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Mou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Jin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 8th International Conference on Knowledge Science, Engineering and Management</title>
+		<meeting>the 8th International Conference on Knowledge Science, Engineering and Management<address><addrLine>New York, NY, USA; New York, Inc</addrLine></address></meeting>
+		<imprint>
+			<publisher>Springer-Verlag</publisher>
+			<date type="published" when="2015" />
+			<biblScope unit="volume">9403</biblScope>
+			<biblScope unit="page" from="547" to="553" />
+		</imprint>
+	</monogr>
+	<note>KSEM 2015</note>
+</biblStruct>
+
+<biblStruct xml:id="b59">
+	<analytic>
+		<title level="a" type="main">Mining stackoverflow to turn the ide into a self-confident programming prompter</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Ponzanelli</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Bavota</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">Di</forename><surname>Penta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Oliveto</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Lanza</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 11th Working Conference on Mining Software Repositories</title>
+		<meeting>the 11th Working Conference on Mining Software Repositories</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="102" to="111" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b60">
+	<analytic>
+		<title level="a" type="main">SWIM: synthesizing what I mean: code search and idiomatic snippet synthesis</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Raghothaman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Wei</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Hamadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 38th International Conference on Software Engineering</title>
+		<meeting>the 38th International Conference on Software Engineering</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="357" to="367" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b61">
+	<analytic>
+		<title level="a" type="main">Patterns of co-evolution between requirements and source code</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Rahimi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Cleland-Huang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2015 IEEE Fifth International Workshop on Requirements Patterns (RePa)</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="25" to="31" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b62">
+	<analytic>
+		<title level="a" type="main">Code completion with statistical language models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Raychev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Vechev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Yahav</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 35th ACM SIGPLAN Conference on Programming Language Design and Implementation</title>
+		<meeting>the 35th ACM SIGPLAN Conference on Programming Language Design and Implementation</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b63">
+	<analytic>
+		<title level="a" type="main">Semantics-based code search</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">P</forename><surname>Reiss</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 31st International Conference on Software Engineering</title>
+		<meeting>the 31st International Conference on Software Engineering</meeting>
+		<imprint>
+			<publisher>IEEE Computer Society</publisher>
+			<date type="published" when="2009" />
+			<biblScope unit="page" from="243" to="253" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b64">
+	<analytic>
+		<title level="a" type="main">Fault localization with nearest neighbor queries</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Renieres</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">P</forename><surname>Reiss</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings. 18th IEEE International Conference on</title>
+		<meeting>18th IEEE International Conference on</meeting>
+		<imprint>
+			<date type="published" when="2003-10" />
+			<biblScope unit="page" from="30" to="39" />
+		</imprint>
+	</monogr>
+	<note>Automated Software Engineering</note>
+</biblStruct>
+
+<biblStruct xml:id="b65">
+	<analytic>
+		<title level="a" type="main">Discovering essential code elements in informal documentation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">C</forename><surname>Rigby</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">P</forename><surname>Robillard</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2013 International Conference on Software Engineering</title>
+		<meeting>the 2013 International Conference on Software Engineering</meeting>
+		<imprint>
+			<publisher>IEEE Press</publisher>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="832" to="841" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b66">
+	<analytic>
+		<title level="a" type="main">An examination of software engineering work practices</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Singer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Lethbridge</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Vinson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Anquetil</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CASCON First Decade High Impact Papers</title>
+		<imprint>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="174" to="188" />
+		</imprint>
+	</monogr>
+	<note>IBM Corp.</note>
+</biblStruct>
+
+<biblStruct xml:id="b67">
+	<analytic>
+		<title level="a" type="main">Solving the search for source code</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">T</forename><surname>Stolee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Elbaum</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Dobos</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Transactions on Software Engineering and Methodology (TOSEM)</title>
+		<imprint>
+			<biblScope unit="volume">23</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page">26</biblScope>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b68">
+	<analytic>
+		<title level="a" type="main">Sequence to sequence learning with neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><forename type="middle">V</forename><surname>Le</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="3104" to="3112" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b69">
+	<monogr>
+		<title level="m" type="main">Lstm-based deep learning models for non-factoid answer selection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Tan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Xiang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Zhou</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1511.04108</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b70">
+	<analytic>
+		<title level="a" type="main">Word representations: a simple and general method for semi-supervised learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Turian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Ratinov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 48th annual meeting of the association for computational linguistics</title>
+		<meeting>the 48th annual meeting of the association for computational linguistics</meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="384" to="394" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b71">
+	<analytic>
+		<title level="a" type="main">Using a distributed representation of words in localizing relevant files for bug reports</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Uneno</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Mizuno</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E.-H</forename><surname>Choi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Software Quality, Reliability and Security (QRS), 2016 IEEE International Conference on</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="183" to="190" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b72">
+	<analytic>
+		<title level="a" type="main">Wsabie: scaling up to large vocabulary image annotation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Usunier</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Twenty-Second international joint conference on Artificial Intelligence-Volume Volume Three</title>
+		<meeting>the Twenty-Second international joint conference on Artificial Intelligence-Volume Volume Three</meeting>
+		<imprint>
+			<publisher>AAAI Press</publisher>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="2764" to="2770" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b73">
+	<monogr>
+		<title level="m" type="main">Sorting and transforming program repair ingredients via deep learning code similarities</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>White</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Tufano</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Martinez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Monperrus</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Poshyvanyk</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1707.04742</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b74">
+	<analytic>
+		<title level="a" type="main">Deep learning code fragments for code clone detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>White</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Tufano</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Vendome</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Poshyvanyk</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 31th IEEE/ACM International Conference on Automated Software Engineering (ASE 2016)</title>
+		<meeting>the 31th IEEE/ACM International Conference on Automated Software Engineering (ASE 2016)</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b75">
+	<analytic>
+		<title level="a" type="main">Toward deep learning software repositories</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>White</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Vendome</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Linares-Vásquez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Poshyvanyk</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Mining Software Repositories (MSR)</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b76">
+	<monogr>
+		<title level="m">IEEE/ACM 12th Working Conference on</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="334" to="345" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b77">
+	<analytic>
+		<title level="a" type="main">Jointly modeling deep video and compositional text to bridge vision and language in a unified framework</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Xu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Xiong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">J</forename><surname>Corso</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">AAAI</title>
+		<imprint>
+			<publisher>Citeseer</publisher>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="2346" to="2352" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b78">
+	<analytic>
+		<title level="a" type="main">Learning to rank relevant files for bug reports using domain knowledge</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Ye</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Bunescu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Liu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 22nd ACM SIGSOFT International Symposium on Foundations of Software Engineering</title>
+		<meeting>the 22nd ACM SIGSOFT International Symposium on Foundations of Software Engineering</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="689" to="699" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b79">
+	<analytic>
+		<title level="a" type="main">From word embeddings to document similarities for improved information retrieval in software engineering</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Ye</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Shen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Ma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Bunescu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Liu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 38th International Conference on Software Engineering</title>
+		<meeting>the 38th International Conference on Software Engineering</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="404" to="415" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b80">
+	<analytic>
+		<title level="a" type="main">Bing developer assistant: Improving developer productivity by recommending sample code</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Jain</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Khandelwal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Kaushik</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ge</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Hu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2016 24th ACM SIGSOFT International Symposium on Foundations of Software Engineering, FSE 2016</title>
+		<meeting>the 2016 24th ACM SIGSOFT International Symposium on Foundations of Software Engineering, FSE 2016</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="956" to="961" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b81">
+	<analytic>
+		<title level="a" type="main">API Deprecation: A retrospective analysis and detection method for code examples on the web</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Zhou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">J</forename><surname>Walker</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the ACM SIGSOFT 20th International Symposium on the Foundations of Software Engineering (FSE&apos;16)</title>
+		<meeting>the ACM SIGSOFT 20th International Symposium on the Foundations of Software Engineering (FSE&apos;16)</meeting>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

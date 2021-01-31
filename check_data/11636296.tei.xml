@@ -1,0 +1,1355 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Relational Deep Reinforcement Learning</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2018-06-28">28 Jun 2018</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Vinicius</forename><surname>Zambaldi</surname></persName>
+							<email>vzambaldi@google.com</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Raposo</surname></persName>
+							<email>draposo@google.com</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adam</forename><surname>Santoro</surname></persName>
+							<email>adamsantoro@google.com</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Victor</forename><surname>Bapst</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yujia</forename><surname>Li</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Igor</forename><surname>Babuschkin</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Karl</forename><surname>Tuyls</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Reichert</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Timothy</forename><surname>Lillicrap</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Edward</forename><surname>Lockhart</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Murray</forename><surname>Shanahan</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Victoria</forename><surname>Langston</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Razvan</forename><surname>Pascanu</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Matthew</forename><surname>Botvinick</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Oriol</forename><surname>Vinyals</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Peter</forename><surname>Battaglia</surname></persName>
+						</author>
+						<title level="a" type="main">Relational Deep Reinforcement Learning</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2018-06-28">28 Jun 2018</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1806.01830v2[cs.LG]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:41+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>We introduce an approach for deep reinforcement learning (RL) that improves upon the efficiency, generalization capacity, and interpretability of conventional approaches through structured perception and relational reasoning. It uses self-attention to iteratively reason about the relations between entities in a scene and to guide a model-free policy. Our results show that in a novel navigation and planning task called Box-World, our agent finds interpretable solutions that improve upon baselines in terms of sample complexity, ability to generalize to more complex scenes than experienced during training, and overall performance. In the StarCraft II Learning Environment, our agent achieves state-of-the-art performance on six mini-games-surpassing human grandmaster performance on four. By considering architectural inductive biases, our work opens new directions for overcoming important, but stubborn, challenges in deep RL.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>Recent advances in deep reinforcement learning (deep RL) <ref type="bibr" target="#b0">[1,</ref><ref type="bibr" target="#b1">2,</ref><ref type="bibr" target="#b2">3]</ref> are in part driven by a capacity to learn good internal representations to inform an agent's policy. Unfortunately, deep RL models still face important limitations, namely, low sample efficiency and a propensity not to generalize to seemingly minor changes in the task <ref type="bibr" target="#b3">[4,</ref><ref type="bibr" target="#b4">5,</ref><ref type="bibr" target="#b5">6,</ref><ref type="bibr" target="#b6">7]</ref>. These limitations suggest that large capacity deep RL models tend to overfit to the abundant data on which they are trained, and hence fail to learn an abstract, interpretable, and generalizable understanding of the problem they are trying to solve.</p><p>Here we improve on deep RL architectures by leveraging insights introduced in the RL literature over 20 years ago under the Relational RL umbrella (RRL, <ref type="bibr" target="#b7">[8,</ref><ref type="bibr" target="#b8">9]</ref>). RRL advocated the use of relational state (and action) space and policy representations, blending the generalization power of relational learning (or inductive logic programming) with reinforcement learning. We propose an approach that exploits these advantages concurrently with the learning power afforded by deep learning. Our approach advocates learned and reusable entity-and relation-centric functions <ref type="bibr" target="#b9">[10,</ref><ref type="bibr" target="#b10">11,</ref><ref type="bibr" target="#b11">12</ref>] to implicitly reason <ref type="bibr" target="#b12">[13]</ref> over relational representations.</p><p>Our contributions are as follows: <ref type="bibr" target="#b0">(1)</ref> we create and analyze an RL task called Box-World that explicitly targets relational reasoning, and demonstrate that agents with a capacity to produce relational representations using a non-local computation based on attention <ref type="bibr" target="#b13">[14]</ref> exhibit interesting generalization behaviors compared to those that do not, and (2) we apply the agent to a difficult problem -the StarCraft II mini-games <ref type="bibr" target="#b14">[15]</ref> -and achieve state-of-the-art performance on six minigames. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Relational reinforcement learning</head><p>The core idea behind RRL is to combine reinforcement learning with relational learning or Inductive Logic Programming <ref type="bibr" target="#b15">[16]</ref> by representing states, actions and policies using a first order (or relational) language <ref type="bibr" target="#b7">[8,</ref><ref type="bibr" target="#b8">9,</ref><ref type="bibr" target="#b16">17,</ref><ref type="bibr" target="#b17">18]</ref>. Moving from a propositional to a relational representation facilitates generalization over goals, states, and actions, exploiting knowledge learnt during an earlier learning phase. Additionally, a relational language also facilitates the use of background knowledge. Background knowledge can be provided by logical facts and rules relevant to the learning problem.</p><p>For example in a blocks world, one could use the predicate above(S, A, B) to indicate that block A is above block B in state S when specifying background knowledge. Such predicates can then be used during learning for blocks C and D, for example. The representational language, background, and assumptions form the inductive bias, which guides (and restricts) the search for good policies. The language (or declarative) bias determines the way concepts can be represented.</p><p>Neural nets have traditionally been associated with the attribute-value, or propositional, RL approaches <ref type="bibr" target="#b18">[19]</ref>. Here we translate ideas from RRL into architecturally specified inductive biases within a deep RL agent, using neural network models that operate on structured representations of a scene -sets of entities -and perform relational reasoning via iterated, message-passing-like modes of processing. The entities correspond to local regions of an image, and the agent learns to attend to key objects and compute their pairwise and higher-order interactions.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Architecture</head><p>We equip a deep RL agent with architectural inductive biases that may be better suited for learning (and computing) relations, rather than specifying them as background knowledge as in RRL. This approach builds off previous work suggesting that relational computations needn't necessarily be biased by entities' spatial proximity <ref type="bibr" target="#b19">[20,</ref><ref type="bibr" target="#b9">10,</ref><ref type="bibr" target="#b20">21,</ref><ref type="bibr" target="#b10">11,</ref><ref type="bibr" target="#b12">13,</ref><ref type="bibr" target="#b21">22]</ref>, and may also profit from iterative structured reasoning <ref type="bibr" target="#b22">[23,</ref><ref type="bibr" target="#b23">24,</ref><ref type="bibr" target="#b24">25,</ref><ref type="bibr" target="#b25">26]</ref>.</p><p>Our contribution is founded on two guiding principles: non-local computations using a shared function and iterative computation. We show that an agent which computes pairwise interactions between entities, independent of their spatial proximity, using a shared function, will be better suited for learning important relations than an agent that only computes local interactions, such as in translation invariant convolutions 1 . Moreover, an iterative computation may be better able to capture higher-order interactions between entities.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Computing non-local interactions using a shared function</head><p>Among a family of related approaches for computing non-local interactions <ref type="bibr" target="#b19">[20]</ref>, we chose a computationally efficient attention mechanism. This mechanism has parallels with graph neural networks and, more generally, message passing computations <ref type="bibr" target="#b26">[27,</ref><ref type="bibr" target="#b27">28,</ref><ref type="bibr" target="#b28">29,</ref><ref type="bibr" target="#b11">12,</ref><ref type="bibr" target="#b29">30]</ref>. In these models entity-entity</p><p>Intuitively, a ball can be related to a square by virtue of it being "left of", and this relation may hold whether the two objects are separated by a centimetre or a kilometer. ..</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Multi-head dot product attention</head><p>Conv. x 2, stride 1 <ref type="figure">Figure 2</ref>: Box-World agent architecture and multi-head dot-product attention. E is a matrix that compiles the entities produced by the visual front-end; f θ is a multilayer perceptron applied in parallel to each row of the output of an MHDPA step, A, and producing updated entities, E.</p><p>relations are explicitly computed when considering the messages passed between connected nodes of the graph. We start by assuming that we already have a set of entities for which interactions must be computed. We consider multi-head dot-product attention (MHDPA), or self-attention <ref type="bibr" target="#b13">[14]</ref>, as the operation that computes interactions between these entities.</p><p>For N entities (e 1:N ), MHDPA projects each entity i's state vector, e i , into query, key, and value vector representations: q i , k i , v i , respectively, whose activities are subsequently normalized to have mean and unit variance using the method from <ref type="bibr" target="#b30">[31]</ref>. Each q i is compared to all entities' keys k 1:N via a dot-product, to compute unnormalized saliencies, s i . These are normalized into weights, w i = softmax (s i ). For each entity, the cumulative interactions are computed by the weighted mixture of all entities' value vectors, a i = j=1:N w i,j v j . This can be compactly computed using matrix multiplications:</p><formula xml:id="formula_0">A = softmax QK T √ d attention weights V<label>(1)</label></formula><p>where A, Q, K, and V compile the cumulative interactions, queries, keys, and values into matrices, and d is the dimensionality of the key vectors used as a scaling factor. Like <ref type="bibr" target="#b13">[14]</ref>, we use multiple, independent attention "heads", applied in parallel, which our attention visualisation analyses (see Results 4.1) suggest may assume different relational semantics through training. The a h i vectors, where h indexes the head, are concatenated together, passed to a multilayer perceptron (2-layer MLP with ReLU non-linearities) with the same layers sizes as e i , summed with e i (i.e., a residual connection), and transformed via layer normalization <ref type="bibr" target="#b30">[31]</ref>, to produce an output. <ref type="figure">Figure 2</ref> depicts this mechanism.</p><p>We refer to one application of this process as an "attention block". A single block performs non-local pairwise relational computations, analogous to relation networks <ref type="bibr" target="#b12">[13]</ref> and non-local neural networks <ref type="bibr" target="#b19">[20]</ref>. Multiple blocks with shared (recurrent) or unshared (deep) parameters can be composed to more easily approximate higher order relations, analogous to message-passing on graphs.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Extracting entities</head><p>When dealing with unstructured inputs -e.g., RGB pixels -we need a mechanism to represent the relevant entities. We decide to make a minimal assumption that entities are things located in a particular point in space. We use a convolutional neural network (CNN) to parse pixel inputs into k feature maps of size n×n, where k is the number of output channels of the CNN. We then concatenate x and y coordinates to each k-dimensional pixel feature-vector to indicate the pixel's position in the map. We treat the resulting n 2 pixel-feature vectors as the set of entities by compiling them into a n 2 × k matrix E. As in <ref type="bibr" target="#b12">[13]</ref>, this provides an efficient and flexible way to learn representations of the relevant entities, while being agnostic to what may constitute an entity for the particular problem at hand.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Agent architecture for Box-World</head><p>We adopted an actor-critic set-up, using a distributed agent based on an Importance Weighted Actor-Learner Architecture <ref type="bibr" target="#b31">[32]</ref>. The agent consists of 100 actors, which generate trajectories of experience, and a single learner, which directly learns a policy π and a baseline function V , using the actors' experiences. The model updates were performed on GPU using mini-batches of trajectories provided by the actors via a queue.</p><p>The complete network architecture is as follows. The input observation is first processed through two convolutional layers with 12 and 24 kernels, 2 × 2 kernel sizes and a stride of 1, followed by a rectified linear unit (ReLU) activation function. The output is tagged with two extra channels indicating the spatial position (x and y) of each cell in the feature map using evenly spaced values between −1 and 1. This is then passed to the relational module (described above) consisting of a variable number of stacked MHDPA blocks, using shared weights. The output of the relational module is aggregated using feature-wise max-pooling across space (i.e., pooling a n × n × k tensor to a k-dimensional vector), and finally passed to a small MLP to produce policy logits (normalized and used as multinomial distribution from which the action was sampled) and a baseline scalar V .</p><p>Our baseline control agent replaces the MHDPA blocks with a variable number of residual convolution blocks. Please see the Appendix for further details, including hyperparameter choices.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Agent architecture for StarCraft II</head><p>The same set-up was used for the StarCraft II agent, with a few differences in the network architecture to accommodate the specific requirements of the StarCraft II Learning Environment (SC2LE, <ref type="bibr" target="#b14">[15]</ref>). In particular, we increased its capacity using 2 residual blocks, each consisting of 3 convolutional layers with 3 × 3 kernels, 32 channels and stride 1. We added a 2D-ConvLSTM immediately downstream of the residual blocks, to give the agent the ability to deal with recent history. We noticed that this was critical for StarCraft because the consequences of an agent's actions are not necessarily part of its future observations. For example, suppose the agent chooses to move a marine along a certain path at timestep t. At t + τ the agent's observation may depict the marine in a different location, but the details of the path are not depicted. In these situations, the agent is prone to re-select the path it had already chosen, rather than, say, move on to choose another action.</p><p>For the output, alongside action a and value V , the network produces two sets of action-related arguments: non-spatial arguments (Args) and spatial arguments (Args x,y ). These arguments are used as modifiers of particular actions (see <ref type="bibr" target="#b14">[15]</ref>). Args are produced from the output of the aggregation function, whereas Args x,y result from upsampling the output of the relational module.</p><p>As in Box-World, our baseline control agent replaces the MHDPA blocks with a variable number of residual convolution blocks. Please see the Appendix for further details. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Experiments and results</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Box-World</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Task description</head><p>Box-World 2 is a perceptually simple but combinatorially complex environment that requires abstract relational reasoning and planning. It consists of a × 12 pixel room with keys and boxes randomly scattered. The room also contains an agent, represented by a single dark gray pixel, which can move in four directions: up, down, left, right (see <ref type="figure" target="#fig_0">Figure 1</ref>).</p><p>Keys are represented by a single colored pixel. The agent can pick up a loose key (i.e., one not adjacent to any other colored pixel) by walking over it. Boxes are represented by two adjacent colored pixels -the pixel on the right represents the box's lock and its color indicates which key can be used to open that lock; the pixel on the left indicates the content of the box which is inaccessible while the box is locked.</p><p>To collect the content of a box the agent must first collect the key that opens the box (the one that matches the lock's color) and walk over the lock, which makes the lock disappear. At this point the content of the box becomes accessible and can be picked up by the agent. Most boxes contain keys that, if made accessible, can be used to open other boxes. One of the boxes contains a gem, represented by a single white pixel. The goal of the agent is to collect the gem by unlocking the box that contains it and picking it up by walking over it. Keys that an agent has in possession are depicted in the input observation as a pixel in the top-left corner.</p><p>In each level there is a unique sequence of boxes that need to be opened in order to reach the gem. Opening one wrong box (a distractor box) leads to a dead-end where the gem cannot be reached and the level becomes unsolvable. There are three user-controlled parameters that contribute to the difficulty of the level: (1) the number of boxes in the path to the goal (solution length); (2) the number of distractor branches; (3) the length of the distractor branches. In general, the task is computationally difficult for a few reasons. First, a key can only be used once, so the agent must be able to reason about whether a particular box is along a distractor branch or along the solution path. Second, keys and boxes appear in random locations in the room, emphasising a capacity to reason about keys and boxes based on their abstract relations, rather than based on their spatial positions.</p><p>The Box-World environment will be made publicly available online. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Training results</head><p>The training set-up consisted of Box-World levels with solution lengths of at least 1 and up to 4. This ensured that an untrained agent would have a small probability of reaching the goal by chance, at least on some levels. <ref type="bibr" target="#b2">3</ref> The number of distractor branches was randomly sampled from 0 to 4. Training was split into two variants of the task: one with distractor branches of length 1; another one with distractor branches of length 3 (see <ref type="figure" target="#fig_2">Figure 3)</ref>.</p><p>Agents augmented with our relational module achieved close to optimal performance in the two variants of this task, solving more than 98% of the levels. In the task variant with short distractor branches an agent with a single attention block was able to achieve top performance. In the variant with long distractor branches a greater number of attention blocks was required, consistent with the conjecture that more blocks allow higher-order relational computations. In contrast, our control agents, which can only rely on convolutional and fully-connected layers, performed significantly worse, solving less than 75% of the levels across the two task variants.</p><p>We repeated these experiments, this time with backward branching in the underlying graph used to generate the level. With backward branching the agent does not need to plan far into the future; when it is in possession of a key, a successful strategy is always to open the matching lock. In contrast, with forward branching the agent can use a key on the wrong lock (i.e. on a lock along a distractor branch). Thus, forward branching demands more complicated forward planning to determine the correct locks to open, in contrast to backward branching where an agent can adopt a more reactive policy, always opting to open the lock that matches the key in possession (see <ref type="figure">Figure 6</ref> in Appendix).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Visualization of attention weights</head><p>We next looked at specific rows of the matrix produced by softmax( QK T √ d ); specifically, those rows mapping onto to relevant objects in the observation space. <ref type="figure" target="#fig_3">Figure 4</ref> shows the result of this analysis when the attending entities (source of the attention) are objects along the solution path. For one of the attention heads, each key attends mostly to the locks that can be unlocked with that key. In other words, the attention weights reflect the options available to the agent once a key is collected. For another attention head, each key attends mostly to the agent icon. This suggests that it is relevant to relate each object with the agent, which may, for example, provide a measure of relative position and thus influence the agent's navigation.</p><p>In the case of RGB pixel inputs, the relationship between keys and locks that can be opened with that key is confounded with the fact that keys and the corresponding locks have the same RGB representation. We therefore repeated the analysis, this time using one-hot representation of the input, where the mapping between keys and the corresponding locks is arbitrary. We found evidence for the following: (1) keys attend to the locks they can unlock; (2) locks attend to the keys that can be used to unlock them; (3) all the objects attend to the agent location; (4) agent and gem attend to each other and themselves.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Generalization capability: testing on withheld environments</head><p>As we observed, the attention weights captured a link between a key and its corresponding lock, using a shared computation across entities. If the function used to compute the weights (and hence, used to determine that certain keys and locks are related) has learned to represent some general, abstract notion of what it means to "unlock" -e.g., unlocks(key, lock) -then this function should be able to generalize to key-lock combinations that it has never observed during training. Similarly, a capacity to understand "unlocking" shouldn't necessarily be affected by the number of locks that need to be unlocked to reach a solution.</p><p>And so, we tested the model under two conditions, without further training: (1) on levels that required opening a longer sequence of boxes than it had ever observed (6, 8 and 10), and (2) on levels that required using a key-lock combination that was never required for reaching the gem during training, instead only being placed on distractor paths. In the first condition the agent with the relational module solved more than 88% of the levels, across all three solution length conditions. In contrast, the agent trained without the relational module had its performance collapse to 5% when tested on sequences of 6 boxes and to 0% on sequences of 8 and 10. On levels with new key-lock combinations, the agent augmented with a relational module solved 97% of the new levels. The agent without the relational module performed poorly, reaching only 13%. Together, these results show that the relational module confers on our agents, at least to a certain extent, the ability to do zero-shot transfer to more complex and previously unseen problems, a skill that so far has been difficult to attain using neural networks.  </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">StarCraft II mini-games</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Task description</head><p>StarCraft II is a popular video game that presents a very hard challenge for reinforcement learning.</p><p>It is a multi-agent game where each player controls a large number (hundreds) of units that need to interact and collaborate (see <ref type="figure" target="#fig_0">Figure 1)</ref>. It is partially observable and has a large action space, with more than 100 possible actions. The consequences of any single action -in particular, early decisions in the game -are typically only observed many frames later, posing difficulties in temporal credit assignment and exploration. We trained our agents on the suite of 7 mini-games developed for the StarCraft II Learning Environment (SC2LE, <ref type="bibr" target="#b14">[15]</ref>). These mini-games were proposed as a set of specific scenarios that are representative of the mechanics of the full game and can be used to test agents in a simpler set up with a better defined reward structure, compared to the full game.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Training results</head><p>For these results we used the full action set provided by SC2LE and performance was measured as the mean score over 30 episodes for each mini-game. Our agent implementations achieved high scores across all the mini-games <ref type="table" target="#tab_1">(Table 1</ref>). In particular, the agent augmented with a relational module achieved state-of-the-art results in six mini-games and its performance surpassed that of the human grandmaster in four of them. <ref type="bibr" target="#b3">4</ref> Head-to-head comparisons between our two implementations show that the agent with the relational component (relational) achieves equal or better results than the one without (control) across all mini-games. We note that both models improved substantially over the previous best <ref type="bibr" target="#b14">[15]</ref>. This can be attributed to a number of factors: better RL algorithm <ref type="bibr" target="#b31">[32]</ref>, better hyperparameter tuning to address issues of credit assignment and exploration, longer training, improved architecture, and a different action selection procedure. Next, we focus on differences afforded by relational inductive biases and turn to particular generalization tests to determine the behavioural traits of the control and relational agents.</p><p>For replay videos visit: http://bit.ly/2kQWMzE</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Generalization capability</head><p>As observed in Box-World, a capacity to better understand underlying relational structure -rather than latch onto superficial statistics -may manifest in better generalization to never-before-seen situations. To test generalization in SC2 we took agents trained on Collect Mineral Shards, which involved using two marines to collect randomly scattered minerals and tested them, without further training, on modified levels that allowed the agents to instead control five marines. Intuitively, if an agent understands that marines are independent units that can be coordinated, yet controlled independently to collect resources, then increasing the number of marines available should only affect the underlying strategy of unit deployment, and should not catastrophically break model performance.</p><p>We observed that -at least for medium size networks -there may be some interesting generalization capabilities, with the best seed of the relational agent achieving better generalization scores in the test scenario. However, we noticed high variability in these results, with the effect diminishing when using larger models (which may be more prone to overfitting on the training set). Therefore, more work is needed to understand the generalization effects of using a relational agent in StarCraft II (see <ref type="figure" target="#fig_5">Figure 7</ref> in Appendix).</p><p>Given the combinatoric richness of the full-game, an agent is frequently exposed to situations on which it was not trained. Thus, an improved capacity to generalize to new situations caused by a better understanding of underlying, abstract relations is important.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Conclusion</head><p>By introducing structured perception and relational reasoning into deep RL architectures, our agents can learn interpretable representations, and exceed baseline agents in terms of sample complexity, ability to generalize, and overall performance. This demonstrates key benefits of marrying insights from RRL with the representational power of deep learning. Instead of trying to directly characterize the internal representations, we appealed to: (1) a behavioural analysis, and <ref type="formula">2</ref>an analysis of the internal mechanisms of the attention mechanism we used to compute entity-entity interactions. <ref type="bibr" target="#b0">(1)</ref> showed that the learned representations allowed for better generalization, which is characteristic of relational representations. <ref type="bibr" target="#b1">(2)</ref> showed that the model's internal computations were interpretable, and congruent with the computations we would expect from a model computing task-relevant relations.</p><p>Future work could draw on computer vision for more sophisticated structured perceptual reasoning mechanisms (e.g., <ref type="bibr" target="#b33">[34]</ref>), and hierarchical RL and planning <ref type="bibr" target="#b34">[35,</ref><ref type="bibr" target="#b35">36]</ref> to allow structured representations and reasoning to translate more fully into structured behaviors. It will also be important to further explore the semantics of the agent's learned representations, through the lens of what one might hard-code in traditional RRL.</p><p>More speculatively, this work blurs the line between model-free agents, and those with a capacity for more abstract planning. An important feature of model-based approaches is making general knowledge of the environment available for decision-making. Here our inductive biases for entity-and relation-centric representations and iterated reasoning reflect key knowledge about the structure of the world. While not a model in the technical sense, it is possible that the agent learns to exploit this relational architectural prior similarly to how an imagination-based agent's forward model operates <ref type="bibr" target="#b36">[37,</ref><ref type="bibr" target="#b37">38,</ref><ref type="bibr" target="#b38">39]</ref>. More generally, our work opens new directions for RL via a principled hybrid of flexible statistical learning and more structured approaches. loss scaling throughout training (see <ref type="table" target="#tab_3">Table 2</ref> for details). We ran approximately 100 experiments for each mini-game, following <ref type="table">Table 4</ref> hyperparameter settings and 3 seeds.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Relational Agent architecture</head><p>The StarCraft II (SC2) agent architecture follows closely the one we adopted in Box-World. Here we highlight the changes needed to satisfy SC2 constraints. Input-preprocessing. At each time step agents are presented with 4 sources of information: minimap, screen, player, and last-action. These tensors share the same pre-processing: numerical features are rescaled with a logarithmic transformation and categorical features are embedded into a continuous 10-dimensional space.</p><p>State encoding. Spatially encoded inputs (minimap and screen) are tiled with binary masks denoting whether the previous action constituted a screen-or minimap-related action. These tensors are then fed to independent residual convolutional blocks, each consisting of one convolutional layer (4 × 4 kernels and stride 2) followed by a residual block with 2 convolutional layers (3 × 3 kernels and stride 1), which process and downsample the inputs to [8 × 8 × #channels1] outputs. These tensors are concatenated along the depth dimension to form a singular spatial input (inputs 3D ). The remaining inputs (player and last-action) are concatenated and passed to a 2-layer MLP (128 units, ReLU, 64 units) to form a singular non-spatial input (inputs 2D ).</p><p>Memory processing. Next, inputs 2D is passed to the Conv2DLSTM along with its previous state to produce a new state and outputs 2D , which represents an aggregated history of input observations.</p><p>Relational processing. outputs 2D is flattened and passed to the stacked MHDPA blocks (see <ref type="table" target="#tab_4">Table 3</ref> for details). Its output tensors follow two separate pathways -relational-spatial: reshapes the tensors to their original spatial shape [8 × 8 × #channels2]; relational-nonspatial: aggregates through a feature-wise max-pooling operation and further processes using a 2-layer MLP (512 units per layer, ReLU activations).</p><p>Output processing. inputs 2D and relational-nonspatial are concatenated to form a set of shared features. Policy logits are produced by feeding shared features to a 2-layer MLP (256 units, ReLU, |actions| units) and masking unavailable actions (following <ref type="bibr" target="#b14">[15]</ref>). Similarly, baselines values V are generated by feeding shared features to a separate 2-layer MLP (256 units, ReLU, 1 unit).</p><p>Actions are sampled using computed policy logits and embedded into a 16 dimensional vector. This embedding is used to condition shared features and generate logits for non-spatial arguments (Args) through independent linear combinations (one for each argument). Finally, spatial arguments (Args x,y ) are obtained by first deconvolving relational-spatial to [32 × 32 × #channels3] tensors using Conv2DTranspose layers, conditioned by tiling the action embedding along the depth dimension and passed to a 1 × 1 × 1 convolution layers (one for each spatial argument). Spatial arguments (x, y) are produced by sampling resulting tensors and selecting the corresponding row and column indexes.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Control agent architecture</head><p>The baseline control agent architecture only differs on the relational processing part of the pipeline. Analogous to the relational agent, outputs2D are obtained from Conv2DLSTM layers. These tensors are first passed</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Hyperparameter</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Value</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Conv2DLSTM</head><p>Output channels (#channels1) 96 Kernel shape <ref type="table" target="#tab_4">(3, 3</ref>   to a 12-layer deep residual model -comprising 4 blocks of 3 convolutions layers (32 output channels, 4 × 4 kernel for the first convolution and × 3 for the second and third, and stride 1) interleaved with ReLU activations and skip-connections -as proposed by <ref type="bibr" target="#b39">[40]</ref>, to form the relational-spatial outputs. These tensors also follow a separate pathway where they are flattened and passed to a 2-layer MLP (512 units per layer, ReLU activations) to produce what we refer to above as relational-nonspatial. The remaining architecture is identical to the relational agent.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 :</head><label>1</label><figDesc>Box-World and StarCraft II tasks demand reasoning about entities and their relations.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 3 :</head><label>3</label><figDesc>Box-World task: example observations (left), underlying graph structure that determines the proper path to the goal and any distractor branches (middle) and training curves (right).</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 4 :</head><label>4</label><figDesc>Visualization of attention weights. (a) The underlying graph of one example level; (b) the result of the analysis for that level, using each of the entities along the solution path (1-5) as the source of attention. Arrows point to the entities that the source is attending to. An arrow's transparency is determined by the corresponding attention weight.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Figure 5 :</head><label>5</label><figDesc>An agent with a random policy solves by chance 2.3% of levels with solution lengths of 1 and 0.0% of levels with solution lengths of 4. Generalization in Box-World. Zero-shot transfer to levels that required: (a) opening a longer sequence of boxes; (b) using a key-lock combination that was never required during training.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>Figure 7 :</head><label>7</label><figDesc>Generalization results on the StarCraft II mini-game Collect Mineral Shards. Agents were trained on levels with 2 marines and tested on levels with 1, 2, 3, 4, 5 or 10 marines. Colored bars indicate mean score of the ten best seeds; error bars indicate standard error.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>Table 1 :</head><label>1</label><figDesc>Mean scores achieved in the StarCraft II mini-games using full action set.</figDesc><table><row><cell>↑ denotes a score</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_3"><head>Table 2 :</head><label>2</label><figDesc>Shared fixed hyperparameters across mini-games.</figDesc><table><row><cell>Setting</cell><cell>Value</cell></row><row><cell>MLP layers</cell><cell>2</cell></row><row><cell>Units per MLP layer</cell><cell>384</cell></row><row><cell>MLP activations</cell><cell>ReLU</cell></row><row><cell>Attention embedding size</cell><cell>32</cell></row><row><cell>Weight sharing</cell><cell>shared MLP across blocks</cell></row><row><cell></cell><cell>shared embedding across blocks</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_4"><head>Table 3 :</head><label>3</label><figDesc>Fixed MHDPA settings for StarCraft II mini-games.</figDesc><table /><note></note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgments</head><p>We would like to thank Richard Evans, Théophane Weber, André Barreto, Daan Wierstra, John Agapiou, Petko Georgiev, Heinrich Küttler, Andrew Dudzik, Aja Huang, Ivo Danihelka, Timo Ewalds and many others on the DeepMind team.</p></div>
+			</div>
+
+			<div type="annex">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Appendix A Box-world</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Task</head><p>Each level in Box-world is procedurally generated. We start by generating a random graph (a tree) that defines the correct path to the goal -i.e., the sequence of boxes that need to be opened to reach the gem. This graph also defines multiple distractor branches -boxes that lead to dead-ends. The agent, keys and boxes, including the one containing the gem, are positioned randomly in the room, assuring that there is enough space for the agent to navigate between boxes. There is a total of 20 keys and 20 locks that are randomly sampled to produce the level. An agent receives a reward of +10 for collecting the gem, +1 for opening a box in the solution path and −1 for opening a distractor box. A level terminates immediately after the gem is collected or a distractor box is opened.</p><p>The generation process produces a very large number of possible trees, making it extremely unlikely that the agent will face the same level twice. The procedural generation of levels also allows us to create different training-test splits by withholding levels that conform to a particular case during training and presenting them to the agent at test time.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Agent architecture</head><p>The agent had an entropy cost of 0.005, discount (γ) of 0.99 and unroll length of 40 steps. Queries, keys and values were produced by 2 to 4 attention heads and had an embedding size (d) of 64. The output of this module was aggregated using a feature-wise max pooling function and passed to a 4 fully connected layers, each followed by a ReLU. Policy logits (π, size 4) and baseline function (V , size 1) were produced by a linear projection. The policy logits were normalized and used as multinomial distribution from which the action (a) was sampled.</p><p>Training was done using RMSprop optimiser with momentum of 0, of 0.1 and a decay term of 0.99. The learning rate was tuned, taking values between 1e−5 and 2e−4. Informally, we note that we could replicate these results using an A3C setup, though training took longer.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Control agent architecture</head><p>As a baseline control agent we used the same architecture as the relational agent but replaced the relational module with a variable number (3 to 6) of residual-convolutional blocks. Each residual block comprised two convolutional layers, with 3 × 3 kernels, stride of 1 and 26 output channels.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>B StarCraft II mini-games</head><p>Starcraft II agents were trained with Adam optimiser for a total of 10 billion steps using batches of 32 trajectories, each unrolled for 80 steps. A linear decay was applied to the optimiser learning rate and entropy  </p></div>			</div>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Human-level control through deep reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Volodymyr</forename><surname>Mnih</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Koray</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Silver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrei</forename><forename type="middle">A</forename><surname>Rusu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Joel</forename><surname>Veness</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Marc</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Bellemare</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><surname>Graves</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andreas</forename><forename type="middle">K</forename><surname>Riedmiller</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Georg</forename><surname>Fidjeland</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ostrovski</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nature</title>
+		<imprint>
+			<biblScope unit="volume">518</biblScope>
+			<biblScope unit="issue">7540</biblScope>
+			<biblScope unit="page">529</biblScope>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Mastering the game of go with deep neural networks and tree search</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Silver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aja</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chris</forename><forename type="middle">J</forename><surname>Maddison</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Arthur</forename><surname>Guez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Laurent</forename><surname>Sifre</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">George</forename><surname>Van Den</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Julian</forename><surname>Driessche</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ioannis</forename><surname>Schrittwieser</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Veda</forename><surname>Antonoglou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marc</forename><surname>Panneershelvam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Lanctot</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">nature</title>
+		<imprint>
+			<biblScope unit="volume">529</biblScope>
+			<biblScope unit="issue">7587</biblScope>
+			<biblScope unit="page" from="484" to="489" />
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Sim-to-real robot learning from pixels with progressive nets</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrei</forename><forename type="middle">A</forename><surname>Rusu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Matej</forename><surname>Vecerik</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Thomas</forename><surname>Rothörl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nicolas</forename><surname>Heess</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Razvan</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Raia</forename><surname>Hadsell</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">1st Annual Conference on Robot Learning</title>
+		<meeting><address><addrLine>Mountain View, California, USA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2017-11-13" />
+			<biblScope unit="page" from="262" to="270" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marta</forename><surname>Garnelo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kai</forename><surname>Arulkumaran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Murray</forename><surname>Shanahan</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1609.05518</idno>
+		<title level="m">Towards deep symbolic reinforcement learning</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chiyuan</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Oriol</forename><surname>Vinyals</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1804.06893</idno>
+		<title level="m">Remi Munos, and Samy Bengio. A study on overfitting in deep reinforcement learning</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Building machines that learn and think like people</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Brenden M Lake</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Tomer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Joshua</forename><forename type="middle">B</forename><surname>Ullman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Samuel</forename><forename type="middle">J</forename><surname>Tenenbaum</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Gershman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Behavioral and Brain Sciences</title>
+		<imprint>
+			<biblScope unit="page">40</biblScope>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ken</forename><surname>Kansky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tom</forename><surname>Silver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>David</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mohamed</forename><surname>Mély</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Miguel</forename><surname>Eldawy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xinghua</forename><surname>Lázaro-Gredilla</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nimrod</forename><surname>Lou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Szymon</forename><surname>Dorfman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Scott</forename><surname>Sidor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dileep</forename><surname>Phoenix</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>George</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1706.04317</idno>
+		<title level="m">Schema networks: Zero-shot transfer with a generative causal model of intuitive physics</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Relational reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Saso</forename><surname>Dzeroski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hendrik</forename><surname>Luc De Raedt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Blockeel</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Inductive Logic Programming, 8th International Workshop, ILP-98</title>
+		<meeting><address><addrLine>Madison, Wisconsin, USA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="1998" />
+			<biblScope unit="page" from="11" to="22" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Relational reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Saso</forename><surname>Dzeroski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kurt</forename><surname>Luc De Raedt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Driessens</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Machine Learning</title>
+		<imprint>
+			<date type="published" when="2001" />
+			<biblScope unit="volume">43</biblScope>
+			<biblScope unit="page" from="7" to="52" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Interaction networks for learning about objects, relations and physics</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Peter</forename><surname>Battaglia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Razvan</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Matthew</forename><surname>Lai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Danilo</forename><surname>Jimenez Rezende</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="4502" to="4510" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<monogr>
+		<title level="m" type="main">Discovering objects and their relations from entangled scene representations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Raposo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adam</forename><surname>Santoro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Barrett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Razvan</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Timothy</forename><surname>Lillicrap</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Peter</forename><surname>Battaglia</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1702.05068</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Peter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jessica</forename><forename type="middle">B</forename><surname>Battaglia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Victor</forename><surname>Hamrick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alvaro</forename><surname>Bapst</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Vinicius</forename><surname>Sanchez-Gonzalez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mateusz</forename><surname>Zambaldi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrea</forename><surname>Malinowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Tacchetti</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adam</forename><surname>Raposo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ryan</forename><surname>Santoro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Caglar</forename><surname>Faulkner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Francis</forename><surname>Gulcehre</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><surname>Song</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Justin</forename><surname>Ballard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">George</forename><surname>Gilmer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ashish</forename><surname>Dahl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Vaswani</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2018" />
+			<pubPlace>Kelsey Allen, Charles Nash, Victoria Langston, Chris Dyer, Nicolas Heess, Daan Wierstra, Pushmeet Kohli, Matt Botvinick, Oriol Vinyals, Yujia Li, and Razvan Pascanu</pubPlace>
+		</imprint>
+	</monogr>
+	<note>Relational inductive biases, deep learning, and graph networks. arXiv</note>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">A simple neural network module for relational reasoning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adam</forename><surname>Santoro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Raposo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>David</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mateusz</forename><surname>Barrett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Razvan</forename><surname>Malinowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Peter</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tim</forename><surname>Battaglia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Lillicrap</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="4974" to="4983" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Attention is all you need</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ashish</forename><surname>Vaswani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Noam</forename><surname>Shazeer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Niki</forename><surname>Parmar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jakob</forename><surname>Uszkoreit</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Llion</forename><surname>Jones</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aidan</forename><forename type="middle">N</forename><surname>Gomez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Łukasz</forename><surname>Kaiser</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Illia</forename><surname>Polosukhin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="6000" to="6010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Oriol</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Timo</forename><surname>Ewalds</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sergey</forename><surname>Bartunov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Petko</forename><surname>Georgiev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alexander</forename><forename type="middle">Sasha</forename><surname>Vezhnevets</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michelle</forename><surname>Yeo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alireza</forename><surname>Makhzani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Heinrich</forename><surname>Küttler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><surname>Agapiou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Julian</forename><surname>Schrittwieser</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1708.04782</idno>
+		<title level="m">Starcraft ii: a new challenge for reinforcement learning</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Inductive logic programming: Theory and methods</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Stephen</forename><surname>Muggleton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Luc</forename><surname>De Raedt</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">J. Log. Program</title>
+		<imprint>
+			<biblScope unit="volume">19</biblScope>
+			<biblScope unit="page" from="629" to="679" />
+			<date type="published" when="1994" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Relational instance based regression for relational reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kurt</forename><surname>Driessens</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jan</forename><surname>Ramon</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Machine Learning, Proceedings of the Twentieth International Conference (ICML 2003)</title>
+		<meeting><address><addrLine>Washington, DC, USA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2003" />
+			<biblScope unit="page" from="123" to="130" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Integrating guidance into relational reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kurt</forename><surname>Driessens</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Saso</forename><surname>Dzeroski</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Machine Learning</title>
+		<imprint>
+			<date type="published" when="2004" />
+			<biblScope unit="volume">57</biblScope>
+			<biblScope unit="page" from="271" to="304" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Van Otterlo</surname></persName>
+		</author>
+		<title level="m">Relational representations in reinforcement learning: Review and open problems</title>
+		<imprint>
+			<date type="published" when="2002" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xiaolong</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ross</forename><surname>Girshick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Abhinav</forename><surname>Gupta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kaiming</forename><surname>He</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1711.07971</idno>
+		<title level="m">Non-local neural networks</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nicholas</forename><surname>Watters</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrea</forename><surname>Tacchetti</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Theophane</forename><surname>Weber</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Razvan</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Peter</forename><surname>Battaglia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daniel</forename><surname>Zoran</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1706.01433</idno>
+		<title level="m">Visual interaction networks</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<monogr>
+		<title level="m" type="main">Relation networks for object detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Han</forename><surname>Hu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jiayuan</forename><surname>Gu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zheng</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jifeng</forename><surname>Dai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yichen</forename><surname>Wei</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1711.11575</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Irwan</forename><surname>Bello</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hieu</forename><surname>Pham</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Quoc</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mohammad</forename><surname>Le</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Samy</forename><surname>Norouzi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bengio</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1611.09940</idno>
+		<title level="m">Neural combinatorial optimization with reinforcement learning</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Learning combinatorial optimization algorithms over graphs</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hanjun</forename><surname>Dai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Elias</forename><surname>Khalil</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yuyu</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bistra</forename><surname>Dilkina</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Le</forename><surname>Song</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="6351" to="6361" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">A simple neural attentive meta-learner</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nikhil</forename><surname>Mishra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mostafa</forename><surname>Rohaninejad</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xi</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pieter</forename><surname>Abbeel</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS 2017 Workshop on Meta-Learning</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Wwm</forename><surname>Kool</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Welling</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1803.08475</idno>
+		<title level="m">Attention solves your tsp</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">The graph neural network model</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Franco</forename><surname>Scarselli</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marco</forename><surname>Gori</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ah</forename><surname>Chung Tsoi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Markus</forename><surname>Hagenbuchner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Gabriele</forename><surname>Monfardini</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Neural Networks</title>
+		<imprint>
+			<biblScope unit="volume">20</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="61" to="80" />
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Learning convolutional neural networks for graphs</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mathias</forename><surname>Niepert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mohamed</forename><surname>Ahmed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Konstantin</forename><surname>Kutzkov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International conference on machine learning</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="2014" to="2023" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<monogr>
+		<title level="m" type="main">Semi-supervised classification with graph convolutional networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Thomas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Max</forename><surname>Kipf</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Welling</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1609.02907</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Misha</forename><surname>Denil</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sergio</forename><forename type="middle">Gómez</forename><surname>Colmenarejo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Serkan</forename><surname>Cabi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Saxton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nando</forename><surname>De Freitas</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1706.06383</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Programmable agents. arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jimmy</forename><forename type="middle">Lei</forename><surname>Ba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jamie</forename><forename type="middle">Ryan</forename><surname>Kiros</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geoffrey</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1607.06450</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Layer normalization. arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<monogr>
+		<title level="m" type="main">Importance weighted actor-learner architecture: Scalable distributed deep-rl with importance weighted actor-learner architectures</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lasse</forename><surname>Espeholt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hubert</forename><surname>Soyer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Remi</forename><surname>Munos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Karen</forename><surname>Simonyan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Volodymir</forename><surname>Mnih</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tom</forename><surname>Ward</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yotam</forename><surname>Doron</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Vlad</forename><surname>Firoiu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tim</forename><surname>Harley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Iain</forename><surname>Dunning</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1802.01561</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Max</forename><surname>Jaderberg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Valentin</forename><surname>Dalibard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Simon</forename><surname>Osindero</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Wojciech</forename><forename type="middle">M</forename><surname>Czarnecki</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jeff</forename><surname>Donahue</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ali</forename><surname>Razavi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Oriol</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tim</forename><surname>Green</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Iain</forename><surname>Dunning</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Karen</forename><surname>Simonyan</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1711.09846</idno>
+		<title level="m">Population based training of neural networks</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xinlei</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Li-Jia</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Li</forename><surname>Fei-Fei</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Abhinav</forename><surname>Gupta</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1803.11189</idno>
+		<title level="m">Iterative visual reasoning beyond convolutions</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alexander</forename><forename type="middle">Sasha</forename><surname>Vezhnevets</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Simon</forename><surname>Osindero</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tom</forename><surname>Schaul</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nicolas</forename><surname>Heess</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Max</forename><surname>Jaderberg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Silver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Koray</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1703.01161</idno>
+		<title level="m">Feudal networks for hierarchical reinforcement learning</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<monogr>
+		<title level="m" type="main">Learning to search with mctsnets</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Arthur</forename><surname>Guez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Théophane</forename><surname>Weber</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ioannis</forename><surname>Antonoglou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Karen</forename><surname>Simonyan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Oriol</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daan</forename><surname>Wierstra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rémi</forename><surname>Munos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Silver</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1802.04697</idno>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Jessica</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><forename type="middle">J</forename><surname>Hamrick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Razvan</forename><surname>Ballard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Oriol</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nicolas</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Peter</forename><forename type="middle">W</forename><surname>Heess</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Battaglia</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1705.02670</idno>
+		<title level="m">Metacontrol for adaptive imagination-based optimization</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<monogr>
+		<title level="m" type="main">Learning model-based planning from scratch</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Razvan</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yujia</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Oriol</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nicolas</forename><surname>Heess</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lars</forename><surname>Buesing</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sebastien</forename><surname>Racanière</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Reichert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Théophane</forename><surname>Weber</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daan</forename><surname>Wierstra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Peter</forename><surname>Battaglia</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1707.06170</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<monogr>
+		<title level="m" type="main">Imagination-augmented agents for deep reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Théophane</forename><surname>Weber</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sébastien</forename><surname>Racanière</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>David</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lars</forename><surname>Reichert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Arthur</forename><surname>Buesing</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Danilo</forename><surname>Guez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adria</forename><forename type="middle">Puigdomènech</forename><surname>Jimenez Rezende</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Oriol</forename><surname>Badia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nicolas</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yujia</forename><surname>Heess</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Li</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1707.06203</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">Identity mappings in deep residual networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kaiming</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xiangyu</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Shaoqing</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jian</forename><surname>Sun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">European Conference on Computer Vision</title>
+		<imprint>
+			<publisher>Springer</publisher>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="630" to="645" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<analytic>
+	</analytic>
+	<monogr>
+		<title level="m">Swept hyperparameters across mini-games</title>
+		<imprint>
+			<biblScope unit="volume">4</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

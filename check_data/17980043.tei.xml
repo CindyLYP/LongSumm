@@ -1,0 +1,880 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Net2Net: ACCELERATING LEARNING VIA KNOWLEDGE TRANSFER</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2016-04-23">23 Apr 2016</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tianqi</forename><surname>Chen</surname></persName>
+							<email>tqchen@cs.washington.edu</email>
+							<affiliation key="aff0">
+								<orgName type="institution">Google Inc</orgName>
+								<address>
+									<settlement>Mountain View</settlement>
+									<region>CA</region>
+								</address>
+							</affiliation>
+							<affiliation key="aff0">
+								<orgName type="institution">Google Inc</orgName>
+								<address>
+									<settlement>Mountain View</settlement>
+									<region>CA</region>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ian</forename><surname>Goodfellow</surname></persName>
+							<email>goodfellow@google.com</email>
+							<affiliation key="aff0">
+								<orgName type="institution">Google Inc</orgName>
+								<address>
+									<settlement>Mountain View</settlement>
+									<region>CA</region>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonathon</forename><surname>Shlens</surname></persName>
+							<email>shlens@google.com</email>
+							<affiliation key="aff0">
+								<orgName type="institution">Google Inc</orgName>
+								<address>
+									<settlement>Mountain View</settlement>
+									<region>CA</region>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Net2Net: ACCELERATING LEARNING VIA KNOWLEDGE TRANSFER</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2016-04-23">23 Apr 2016</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1511.05641v4[cs.LG]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:45+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>We introduce techniques for rapidly transferring the information stored in one neural net into another neural net. The main purpose is to accelerate the training of a significantly larger neural net. During real-world workflows, one often trains very many different neural networks during the experimentation and design process. This is a wasteful process in which each new model is trained from scratch. Our Net2Net technique accelerates the experimentation process by instantaneously transferring the knowledge from a previous network to each new deeper or wider network. Our techniques are based on the concept of functionpreserving transformations between neural network specifications. This differs from previous approaches to pre-training that altered the function represented by a neural net when adding layers to it. Using our knowledge transfer mechanism to add depth to Inception modules, we demonstrate a new state of the art accuracy rating on the ImageNet dataset.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">INTRODUCTION</head><p>We propose a new kind of operation to perform on large neural networks: rapidly transfering knowledge contained in one neural network to another neural network. We call this the Net2Net family of operations. We use Net2Net as a general term describing any process of training a student network significantly faster than would otherwise be possible by leveraging knowledge from a teacher network that was already trained on the same task. In this article, we propose two specific Net2Net methodologies. Both are based on the idea of function-preserving transformations of neural networks. Specifically, we initialize the student to be a neural network that represents the same function as the teacher, but using a different parameterization. One of these transformations, Net2WiderNet allows replacing a model with an equivalent model that is wider (has more units in each hidden layer). Another of these transformations, Net2DeeperNet allows replacing a model that satisfies some properties with an equivalent, deeper model. After initializing the larger network to contain all of the knowledge previously acquired by the smaller network, the larger network may be trained to improve its performance.</p><p>Traditionally, machine learning algorithms have been designed to receive a fixed dataset as input, initialize a new model with no knowledge, and train that model to convergence on that dataset. Real workflows are considerably more complicated than this idealized scenario. We advocate Net2Net operations as a useful tool for accelerating real-world workflows.</p><p>One way that real workflows deviate from the idealized scenario is that machine learning practitioners usually do not train only a single model on each dataset. Instead, one typically trains multiple models, with each model designed to improve upon the previous model in some way. Each step in the iterative design process relies on fully training and evaluating the innovation from the previous step. For many large models, training is a long process, lasting for a week or even for a month. This makes data-driven iterative design slow, due to the latency of evaluating whether each change to the model caused an improvement.</p><p>Net2Net operations accelerate these workflows by rapidly transferring knowledge from the previous best model into each new model that an experimenter proposes. Instead of training each considered design of model for as much as a month, the experimenter can use Net2Net to train the More ambitiously, real machine learning systems will eventually become lifelong learning systems <ref type="bibr" target="#b18">(Thrun, 1995;</ref><ref type="bibr" target="#b13">Silver et al., 2013;</ref><ref type="bibr" target="#b11">Mitchell et al., 2015)</ref>. These machine learning systems need to continue to function for long periods of time and continually experience new training examples as these examples become available. We can think of a lifelong learning system as experiencing a continually growing training set. The optimal model complexity changes as training set size changes over time. Initially, a small model may be preferred, in order to prevent overfitting and to reduce the computational cost of using the model. Later, a large model may be necessary to fully utilize the large dataset. Net2Net operations allow us to smoothly instantiate a significantly larger model and immediately begin using it in our lifelong learning system, rather than needing to spend weeks or months re-train a larger model from scratch on the latest, largest version of the training set.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">METHODOLOGY</head><p>In this section, we describe our new Net2Net operations and how we applied them on real deep neural nets.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1">FEATURE PREDICTION</head><p>We briefly experimented with a method that proved not to offer a significant advantage: training a large student network beginning from a random initialization, and introducing a set of extra "teacher prediction" layers into the student network. Specifically, several convolutional hidden layers of the student network were provided as input to new, learned, convolutional layers. The cost function was modified to include terms encouraging the output of these auxiliary layers to be close to a corresponding layer in the teacher network. In other words, the student is trained to use each of its hidden layers to predict the values of the hidden layers in the teacher.</p><p>The goal was that the teacher would provide a good internal representation for the task that the student could quickly copy and then begin to refine. The approach resembles the FitNets <ref type="bibr" target="#b12">(Romero et al., 2014)</ref> strategy for training very thin networks of moderate depth. Unfortunately, we did not find that this method offered any compelling speedup or other advantage relative to the baseline approach. This may be because our baseline was very strong, based on training with batch normalization <ref type="bibr" target="#b8">(Ioffe &amp; Szegedy, 2015)</ref>. <ref type="bibr" target="#b10">Mahayri et al. (2015)</ref> independently observed that the benefits of the FitNets training strategy were eliminated after changing the model to use batch normalization.</p><p>The FitNets-style approach to Net2Net learning is very general, in the sense that, if successful, it would allow any architecture of student network to learn from any architecture of teacher network. Though we were not able to make this general approach work, we encourage other researchers to attempt to design fully general Net2Net strategies in the future. We instead turned to different Net2Net strategies that were limited in scope but more effective.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">FUNCTION-PRESERVING INITIALIZATIONS</head><p>We introduce two effective Net2Net strategies. Both are based on initializing the student network to represent the same function as the teacher, then continuing to train the student network by normal means. Specifically, suppose that a teacher network is represented by a function y = f (x; θ) where</p><formula xml:id="formula_0">Algorithm 1: Net2WiderNet Input: {W (i) |i = 1, 2, • • •</formula><p>n}, the weight matrix of teacher net Use forward inference to generate a consistent random mapping {g <ref type="bibr">(i)</ref> </p><formula xml:id="formula_1">} for i ∈ 1, 2, • • • n do c j ← 0 for j ∈ 1, 2, • • • q do c g (i−1) (j) ← c g (i−1) (j) + 1 end for j ∈ 1, 2, • • • q do U (i) k,j ← 1 cj W (i) g (i−1) (k),g (i) (j) end end Output: {U (i) |i = 1, 2, • •</formula><p>• n}: the transformed weight matrix for wider net.</p><p>x is the input to the network, y is the output of the network, and θ is the parameters of the network. In our experiments, f is defined by a convolutional network, x is an input image, and y is a vector of probabilities representing the conditional distribution over object categories given x.</p><p>Our strategy is to choose a new set of parameters θ for a student network g(x; θ ) such that ∀x, f (x; θ) = g(x; θ ).</p><p>In our description of the method, we assume for simplicity that both the teacher and student networks contain compositions of standard linear neural network layers of the form</p><formula xml:id="formula_2">h (i) = φ(W (i) h (i−1) ) where h (i)</formula><p>is the activations of hidden layer i, W (i) is the matrix of incoming weights for this layer, and φ is an activation function, such as as the rectified linear activation function <ref type="bibr" target="#b9">(Jarrett et al., 2009;</ref><ref type="bibr" target="#b3">Glorot et al., 2011)</ref> or the maxout activation function <ref type="bibr" target="#b4">(Goodfellow et al., 2013)</ref>. We use this layer formalization for clarity, but our method generalizes to arbitrary composition structure of these layers, such as Inception <ref type="bibr" target="#b17">(Szegedy et al., 2014)</ref>. All of our experiments are in fact performed using Inception networks.</p><p>Though we describe the method in terms of matrix multiplication for simplicity, it readily extends to convolution (by observing that convolution is multiplication by a doubly block circulant matrix) and to the addition of biases (by treating biases as a row of W that are multiplied by a constant input of 1). We will also give a specific description for the convolutional case in subsequent discussions of the details of the method. Function-preserving initialization carries many advantages over other approaches to growing the network:</p><p>• The new, larger network immediately performs as well as the original network, rather than spending time passing through a period of low performance. • Any change made to the network after initialization is guaranteed to be an improvement, so long as each local step is an improvement. Previous methods could fail to improve over the baseline even if each local step was guaranteed to be an improvement, because the initial change to the larger model size could worsen performance. • It is always "safe" to optimize all parameters in the network. There is never a stage where some layers receive harmful gradients and must be frozen. This is in contrast to approaches such as cascade correlation, where the old units are frozen in order to avoid making poor adaptations while attempting to influence the behavior of new randomly connected units.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.3">NET2WIDERNET</head><p>Our first proposed transformation is Net2WiderNet transformation. This allows a layer to be replaced with a wider layer, meaning a layer that has more units. For convolution architectures, this means the layers will have more convolution channels.</p><p>Let us start with a simple special case to illustrate the operation. Suppose that layer i and layer i + 1 are both fully connected layers, and layer i uses an elementwise non-linearity. To widen layer i, we replace W <ref type="bibr">(i)</ref> and W (i+1) . If layer i has m inputs and n outputs, and layer i + 1 has p outputs, then W (i) ∈ R m×n and W (i+1) ∈ R n×p . Net2WiderNet allows us to replace . This outgoing weight must also be divided by 2 to compensate for the replication of h[2]. This is a simple example intended to illustrate the conceptual idea. For a practical application, we would simultaneously replicate many randomly chosen units, and we would add a small amount of noise to break symmetry after the replication. We also typically widen many layers rather than just one layer, by recursively applying the Net2WiderNet operator.</p><formula xml:id="formula_3">y h[1] h[2] x[1] x[2] a b c d e f y h[1] h[2] x[1] x[2] a b c d e f/2 h[3] c d f/2</formula><p>layer i with a layer that has q outputs, with q &gt; n. We will introduce a random mapping function g :</p><formula xml:id="formula_4">{1, 2, • • • , q} → {1, 2, • • • , n}, that satisfies g(j) = j j ≤ n random sample from {1, 2, • • • n} j &gt; n</formula><p>We introduce a new weight matrix U <ref type="bibr">(i)</ref> and U (i+1) representing the weights for these layers in the new student network. Then the new weights are given by</p><formula xml:id="formula_5">U (i) k,j = W (i) k,g(j) , U (i+1) j,h = 1 |{x|g(x) = g(j)}| W (i+1) g(j),h .</formula><p>Here, the first n columns of W (i) are copied directly into U <ref type="bibr">(i)</ref> . Columns n+1 through q of U <ref type="bibr">(i)</ref> are created by choosing a random as defined in g. The random selection is performed with replacement, so each column of W (i) is copied potentially many times. For weights in U (i+1) , we must account for the replication by dividing the weight by replication factor given by 1 |{x|g(x)=g(j)}| , so all the units have the exactly the same value as the unit in the original net. This description can be generalized to making multiple layers wider, with the layers composed as described by an arbitrary directed acyclic computation graph. This general procedure is illustrated by <ref type="figure" target="#fig_1">Fig. 2</ref>. So far we have only discussed the use of a single random mapping function to expand one layer. We can in fact introduce a random mapping function g <ref type="bibr">(i)</ref> for every non-output layer. Importantly, these g <ref type="bibr">(i)</ref> are subject to some constraints as defined by the computation graph. Care needs to be taken to ensure that the remapping functions do in fact result in function preservation.</p><p>To explain, we provide examples of two computational graph structures that impose specific constraints on the random remapping functions.</p><p>One example is the layer structure used by batch normalization <ref type="bibr" target="#b8">(Ioffe &amp; Szegedy, 2015)</ref>. The layer involves both a standard linear transformation, but also involves elementwise multiplication by learned parameters that allow the layer to represent any range of outputs despite the normalization operation. The random remapping for the multiplication parameters must match the random remapping for the weight matrix. Otherwise we could generate a new unit that uses the weight vector for pre-existing unit i but is scaled by the multiplication parameter for unit j. The new unit would not implement the same function as the old unit i or as the old unit j. Another example is concatenation. If we concatenate the output of layer 1 and layer 2, then pass this concatenated output to layer 3, the remapping function for layer 3 needs to take the concatenation into account. The width of the output of layer 1 will determine the offset of the coordinates of units originating in layer 2.</p><p>To make Net2WiderNet a fully general algorithm, we would need a remapping inference algorithm that makes a forward pass through the graph, querying each operation in the graph about how to make the remapping functions consistent. For our experiments, we manually designed all of the inference necessary rules for the Inception network, which also works for most feed forward network. This is similar to the existing shape inference functionality that allows us to predict the shape of any tensor in the computational graph by making a forward pass through the graph, beginning with input tensors of known shape.</p><p>After we get the random mapping, we can copy the weight over and divide by the replication factor, which is formally given by the following equation.</p><formula xml:id="formula_6">U (i) k,j = 1 |{x|g (i−1) (x) = g (i−1) (k)}| W (i) g (i−1) (k),g (i) (j)</formula><p>It is essential that each unit be replicated at least once, hence the constraint that the resulting layer be wider. This operator can be applied arbitrarily many times; we can expand only one layer of the network, or we can expand all non-output layers.</p><p>In the setting where several units need to share the same weights, for example convolution operations. We can add such constraint to the random mapping generation, such that source of weight is consistent. This corresponds to make a random mapping on the channel level, instead of unit level, the rest procedure remains the same.</p><p>When training with certain forms of randomization on the widened layer, such as dropout <ref type="bibr" target="#b16">(Srivastava et al., 2014)</ref>, it is acceptable to use perfectly transformation preserving Net2WiderNet, as we have described so far. When using a training algorithm that does not use randomization to encourage identical units to learn different functions, one should add a small amount of noise to all but the first copy of each column of weights. This results in the student network representing only approximately the same function as the teacher, but this approximation is necessary to ensure that the student can learn to use its full capacity when training resumes.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.4">NET2DEEPERNET</head><p>We also introduce a second function-preserving transformation, Net2DeeperNet. This allows us to transform an existing net into a deeper one. Specifically, the Net2DeeperNet replaces a layer</p><formula xml:id="formula_7">h (i) = φ(h (i−1) W (i) ) with two layers h (i) = φ U (i) φ W (i) h (i−1) .</formula><p>The new matrix U is initialized to an identity matrix, but remains free to learn to take on any value later. This operation is only applicable when φ is chosen such that φ(Iφ(v)) = φ(v) for all vectors v. This property holds for the rectified linear activation. To obtain Net2DeeperNet for maxout units, one must use a matrix that is similar to identity, but with replicated columns. Unfortunately, for some popular activation functions, such as the logistic sigmoid, it is not possible to insert a layer of the same type that represents an identity function over the required domain. When we apply it to convolution networks, we can simply set the convolution kernels to be identity filters.</p><p>In some cases, to build an identity layer requires additional work. For example, when using batch normalization, we must set the output scale and output bias of the normalization layer to undo the normalization of the layer's statistics. This requires running forward propagation through the network on training data in order to estimate the activation statistics.</p><p>The approach we take is a specific case of a more general approach, that is to build a multiple layer network that factorizes the original layer. Making a deeper but equivalent representation. However it is hard to do general factorization of layers which non-linear transformation units, such as rectified linear and batch normalization. Restricting to adding identity transformation allows us to handle such non-linear transformations, and apply the methodology to the network architectures that we care about. It also saves the computation cost of doing such factorization. We think support for general factorization of layers is an interesting future direction that is worth exploring.</p><p>When using Net2DeeperNet, there is no need to add noise. We can begin training with a student network that represents exactly the same function as the teacher network. Nevertheless, a small amount of noise can be added to break the symmetry more rapidly. At first glance, it appears that Net2Net can only add a new layer with the same width as the layer below it, due to the use of the identity operation. However, Net2WiderNet may be composed with Net2DeeperNet, so we may in fact add any hidden layer that is at least as wide as the layer below it.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>EXPERIMENTS 3.1 EXPERIMENTAL SETUP</head><p>We evaluated our Net2Net operators in three different settings. In all cases we used an Inception-BN network <ref type="bibr" target="#b8">(Ioffe &amp; Szegedy, 2015</ref>) trained on ImageNet. In the first setting, we demonstrate that Net2WiderNet can be used to accelerate the training of a standard Inception network by initializing it with a smaller network. In the second setting, we demonstrate that Net2DeeperNet allows us to increase the depth of the Inception modules. Finally, we use our Net2Net operators in a realistic setting, where we make more dramatic changes to the model size and explore the model space for better performance. In this setting, we demonstrate an improved result on ImageNet.</p><p>We will be comparing our method to some baseline methods:</p><p>• "Random pad": This is a baseline for Net2WiderNet. We widen the network by adding new units with random weights, rather than by replicating units to perform functionpreserving initialization. This operation is implemented by padding the pre-existing weight matrices with additional random values.</p><p>• "Random initialization" : This is a baseline for Net2DeeperNet. We compare the training of a deep network accelerated by initialization from a shallow one against the training of an identical deep network initialized randomly.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">NET2WIDERNET</head><p>We start by evaluating the method of Net2WiderNet. We began by constructing a teacher network that was narrower than the standard Inception. We reduced the number of convolution channels at each layer within all Inception modules by a factor of √ 0.3. Because both the input and output number of channels are reduced, this reduces the number of parameters in most layers to 30% of the original amount. To simplify the software for our experiments, we did not modify any component of the network other than the Inception modules. After training this small teacher network, we used it to accelerated the training of a standard-sized student network. <ref type="figure">Fig. 4</ref> shows the comparison of different approaches. We can find that the proposed approach gives faster convergence than the baseline approaches. Importantly, Net2WiderNet gives the same level of final accuracy as the model trained from random initialization. This indicates that the true size of the model governs the accuracy that the training process can attain. There is no loss in accuracy that comes from initializing the model to mimic a smaller one. Net2WiderNet can thus be safely used to get to the same accuracy quicker, reducing the time required to run new experiments.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">NET2DEEPERNET</head><p>We conducted experiments with using Net2DeeperNet to make the network deeper. For these experiments, we used a standard Inception model as the teacher network, and increased the depth of each inception module. The convolutional layers in Inception modules use rectangular kernels. The convolutional layers are arranged in pairs, with a layer using a vertical kernel followed by a layer using a horizontal kernel. Each of these layers is a complete layer with a rectifying nonlinearity and batch normalization; it is not just a factorization of a linear convolution operation into separable parts. Everywhere that a pair of vertical-horizontal convolution layers appears, we added two more pairs of such layers, configured to result in an identity transformation. The results are shown in <ref type="figure" target="#fig_6">Fig. 5</ref>. We find that Net2DeeperNet obtains good accuracy much faster than training from random initialization, both in terms of training and validation accuracy. Net2WiderNet learning-rate=0.002 Net2WiderNet learning-rate=0.005 Net2WiderNet learning-rate=0.01 random pad learning-rate=0.002 random pad learning-rate=0.005 random pad learning-rate=0.01 Training from random initialization Accuracy of Teacher Model Net2WiderNet learning-rate=0.002 Net2WiderNet learning-rate=0.005 Net2WiderNet learning-rate=0.01 random pad learning-rate=0.002 random pad learning-rate=0.005 random pad learning-rate=0.01 Training from random initialization Accuracy of Teacher Model  <ref type="figure">Figure 4</ref>: Comparison of various approaches for training a wider model. Net2Net provides a model that is useful almost immediately and reaches high levels of performance faster than the baseline approaches. In particular, Net2WiderNet converges to roughly its final validation set accuracy after roughly 3 × 10 6 minibatches. The randomly initialized baseline converges to the same validation set accuracy but requires roughly an additional × 10 6 minibatches to do so.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4">EXPLORING MODEL DESIGN SPACE WITH Net2Net</head><p>One of important property of Net2Net is that it enables quick exploration of modelp space, by transforming an existing state-of-art architecture. In this experiment, we made an ambitious exploration of model design space in both wider and deeper directions. Specifically, we enlarged the width of an Inception model to √ times of the original one. We also built another deeper net by adding four vertical-horizontal convolutional layer pairs on top of every inception modules in the original Inception model.</p><p>The results are shown in <ref type="figure">Fig. 6</ref>. This last approach paid off, yielding a model that sets a new state of the art of 78.5% on our ImageNet validation set. We did not train these larger models from scratch, due to resource and time constraints. However, we reported the convergence curve of the original inception model for reference, which should be easier to train than these larger models. We can find that the models initialized with Net2Net operations converge even faster than the standard model. This example really demonstrate the advantage of Net2Net approach which helps us to explore the design space faster and advance the results in deep learning.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>DISCUSSION</head><p>Our Net2Net operators have demonstrated that it is possible to rapidly transfer knowledge from a small neural network to a significantly larger neural network under some architectural constraints. We have demonstrated that we can train larger neural networks to improve performance on ImageNet recognition using this approach. Net2Net may also now be used as a technique for exploring model families more rapidly, reducing the amount of time needed for typical machine learning workflows. We hope that future research will uncover new ways of transferring knowledge between neural networks. In particular, we hope future research will reveal more general knowledge transfer methods  <ref type="figure">Figure 6</ref>: Using Net2Net to quickly explore designs of larger nets. By adding eight layers to each Inception module, we obtained a new state of the art test error on ImageNet. that can rapidly initialize a student network whose architecture is not constrained to resemble that of the teacher network.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>A CHOICE OF HYPERPARAMETERS FOR FINE TUNING Net2Net</head><p>TRANSFORMED MODELS</p><p>Net2Net involves training neural networks in a different setting than usual, so it is natural to wonder whether the hyperparameters must be changed in some way. We found that, fortunately, nearly all of the hyperparameters that are typically used to train a network from scratch may be used to train a network with Net2Net. The teacher network does not need to have any of its hyperparameters changed at all. In our experience, the student network needs only one modification, which is to use a smaller learning rate than usual. We find that the initial learning rate for the student network should be approximately the initial learning rate for the teacher network. This makes sense because we can think of the student network as continuing the training process begun by the teacher network, and typically the teacher network training process involves shrinking the learning rate to a smaller value than the initial learning rate.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>B RELATED WORK</head><p>Cascade-correlation <ref type="bibr" target="#b2">(Fahlman &amp; Lebiere, 1990</ref>) includes a strategy for learning by enlarging a pre-existing model architecture. This approach uses a very specific architecture where each new hidden unit receives input from all previous hidden units. Also, the pre-existing hidden units do not continue to learn after the latest hidden unit has been added. A related approach is to add whole new layers while leaving the lower layers fixed <ref type="bibr" target="#b5">(Gutstein et al., 2008)</ref>. Both these approaches can be considered part of the Net2Net family of operations for rapidly training a new model given a pre-existing one. However, these variants require passing through a temporary period of low performance after a new component has been added to the network but not yet been adapted. Our function-preserving initializations avoid that period of low performance. (In principle we could avoid this period entirely, but in practice we usually add some noise to the student model in order to break symmetry more rapidly-this results in a brief period of reduced performance, but it is a shorter period and the performance is less impaired than in previous approaches) Also, these approaches do not allow pre-existing portions of the model to co-adapt with new portions of the model to attain greater performance, while our method does. Some work on knowledge transfer between neural networks is motivated by a desire to train deeper networks than would otherwise be possible, by incrementally training deeper networks with knowledge provided by smaller ones <ref type="bibr" target="#b12">(Romero et al., 2014;</ref><ref type="bibr" target="#b14">Simonyan &amp; Zisserman, 2015)</ref>. These works trained convolutional networks with up to 19 weight layers. Somewhat perplexingly, we were able to train models of considerably greater depth without needing to use knowledge transfer, suggesting that deep models do not pose nearly as much difficulty as previous authors have believed. This may be due to our use of a very strong baseline: Inception <ref type="bibr" target="#b17">(Szegedy et al., 2014)</ref> networks with batch normalization <ref type="bibr" target="#b8">(Ioffe &amp; Szegedy, 2015)</ref> trained using RMSProp <ref type="bibr" target="#b19">(Tieleman &amp; Hinton, 2012)</ref>. The models we refer to as "standard size" have 25 weight layers on the shortest path from input to output, and 47 weight layers on the longest path (3 convolution layers + 11 Inception modules, each Inception module featuring a convolution layer followed by three forked paths, the shortest of which involves only one more convolution and the longest of which involves three more). Rather than using knowledge transfer to make greater depth possible, our goal is merely to accelerate the training of a new model when a pre-existing one is available.</p><p>Model compression <ref type="bibr" target="#b1">(Buciluǎ et al., 2006;</ref><ref type="bibr" target="#b6">Hinton et al., 2015</ref>) is a technique for transferring knowledge from many models to a single model. It serves a different purpose than our Net2Net technique. Model compression aims to regularize the final model by causing it to learn a function that is similar to the average function learned by many different models. Net2Net aims to train the final model very rapidly by leveraging the knowledge in a pre-existing model, but makes no attempt to cause the final model to be more regularized than if it had been trained from scratch.</p><p>Our Net2DeeperNet operator involves inserting layers initialized to represent identity functions into deep networks. Networks with identity weights at initialization have been used before by, for example, <ref type="bibr" target="#b15">Socher et al. (2013)</ref>, but to our knowledge that have not previously been used to design function-preserving transformations of pre-existing neural networks.</p><p>The specific operators we propose are both based on the idea of transformations of a neural network that preserve the function it represents. This is a closely related concept to the justification for greedy layerwise pretraining of deep belief networks <ref type="bibr" target="#b7">(Hinton et al., 2006)</ref>. A deep belief network is a generative model that draws samples by first drawing a sample from a restricted Boltzmann machine then using this sample as input to the ancestral sampling process through a directed sigmoid belief network. This can be transformed into a deep belief network with one more layer by inserting a new directed layer in between the RBM and the directed network. If the new directed layer is initialized with weights from the RBM, then this added layer is equivalent to performing one extra step of Gibbs sampling in the RBM. It thus does not change the probability distribution represented by the deep belief network. Our function-preserving transformations are similar in spirit. However, our transformations preserve the function represented by a feed-forward network. Note that DBN layer stacking does not preserve the function represented by the deterministic upward pass through DBNs that is commonly used to define a feed-forward neural network. Our function-preserving transformations are more general in the</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 :</head><label>1</label><figDesc>Comparison between a traditional workflow and the Net2Net Workflow; Net2Net reuses information from an already trained model to speed up the training of a new model. model for a shorter period of time beginning from the function learned by the previous best model.Fig 1 demonstratesthe difference of this approach from traditional one.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 2 :</head><label>2</label><figDesc>The Net2WiderNet transformation. In this example, the teacher network has an input layer with two inputs x[1] and x[2], a hidden layer with two rectified linear hidden units h[1] and h[2], and an output y. We use the Net2WiderNet operator to create a student network that represents the same function as the teacher network. The student network is larger because we replicate the h[2] unit of the teacher. The labels on the edges indicate the value of the associated weights. To replicate the h[2] unit, we copy its weights c and d to the new h[3] unit. The weight f , going out of h[2], must be copied to also go out of h[3]</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 3 :</head><label>3</label><figDesc>The Net2DeeperNet Transformation</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_6"><head>Figure 5 :</head><label>5</label><figDesc>Comparison of methods of training a deeper model</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_7"><head></head><label></label><figDesc>8 layers to each inception tower Net2WiderNet: Widen the channels in inception tower by factor of 2 Convergence of Original Inception Best Accuracy of Original Inception (a) Training Accuracy of Different Methods 8 layers to each inception tower Net2WiderNet: Widen the channels in inception tower by factor of 2 Convergence of Original Inception Best Accuracy of Original Inception (b) Validation Accuracy of Different Methods</figDesc></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot">Published as a conference paper at ICLR 2016 sense that they allow adding a layer with any width greater than the layer below it, while DBN growth is only known to be distribution-preserving for one specific size of new layer.</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>ACKNOWLEDGMENTS</head><p>We would like to thank Jeff Dean and George Dahl for helpful discussions. We also thank the developers of TensorFlow <ref type="bibr" target="#b0">(Abadi et al., 2015)</ref>, which we used for all of our experiments. We would like to thank Conrado Miranda for helpful feedback that we used to improve the clarity and comprehensiveness of this manuscript.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<title level="m" type="main">TensorFlow: Large-scale machine learning on heterogeneous systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martín</forename><surname>Abadi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ashish</forename><surname>Agarwal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Barham</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Paul</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Brevdo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Eugene</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Zhifeng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Citro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Craig</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Greg</forename><forename type="middle">S</forename><surname>Corrado</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andy</forename><surname>Davis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Dean</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Jeffrey</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Devin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Matthieu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ghemawat</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Sanjay</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Goodfellow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Harp</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Andrew</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geoffrey</forename><surname>Irving</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Isard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Michael</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Jia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Yangqing</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Jozefowicz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Kaiser</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Lukasz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Kudlur</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Manjunath</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Josh</forename><surname>Levenberg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Mané</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Dan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Monga</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Rajat</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Moore</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Sherry</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Murray</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Derek</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chris</forename><surname>Olah</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Schuster</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Mike</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonathon</forename><surname>Shlens</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Steiner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Benoit</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ilya</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Talwar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Tucker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Paul</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Vanhoucke</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Vincent</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Vasudevan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Vijay</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Viégas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Fernanda</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Oriol</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Warden</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Pete</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Wattenberg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Martin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Wicke</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Martin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yuan</forename><surname>Yu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xiaoqiang</forename><surname>Zheng</surname></persName>
+		</author>
+		<ptr target="http://tensorflow.org/.Softwareavailablefromtensorflow.org" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Alexandru. Model compression</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Cristian</forename><surname>Buciluǎ</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rich</forename><surname>Caruana</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Niculescu-Mizil</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 12th ACM SIGKDD international conference on Knowledge discovery and data mining</title>
+		<meeting>the 12th ACM SIGKDD international conference on Knowledge discovery and data mining</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2006" />
+			<biblScope unit="page" from="535" to="541" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<title level="m" type="main">The cascade-correlation learning architecture</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Scott</forename><forename type="middle">E</forename><surname>Fahlman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christian</forename><surname>Lebiere</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1990" />
+			<publisher>Morgan Kaufmann</publisher>
+			<biblScope unit="page" from="524" to="532" />
+			<pubPlace>Denver, CO; San Mateo</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Deep sparse rectifier neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Glorot</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bordes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">AISTATS&apos;2011</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Maxout networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ian</forename><forename type="middle">J</forename><surname>Goodfellow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Warde-Farley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>David</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Mirza</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Mehdi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aaron</forename><surname>Courville</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML&apos;2013</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Knowledge transfer in deep convolutional neural nets</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Steven</forename><surname>Gutstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Olac</forename><surname>Fuentes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Eric</forename><surname>Freudenthal</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">International Journal on Artificial Intelligence Tools</title>
+		<imprint>
+			<biblScope unit="volume">17</biblScope>
+			<biblScope unit="issue">03</biblScope>
+			<biblScope unit="page" from="555" to="567" />
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<monogr>
+		<title level="m" type="main">Distilling the knowledge in a neural network</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geoffrey</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Oriol</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jeff</forename><surname>Dean</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1503.02531</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">A fast learning algorithm for deep belief nets</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geoffrey</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Simon</forename><surname>Osindero</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yee</forename><surname>Teh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Whye</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural Computation</title>
+		<imprint>
+			<biblScope unit="volume">18</biblScope>
+			<biblScope unit="page" from="1527" to="1554" />
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<monogr>
+		<title level="m" type="main">Batch normalization: Accelerating deep network training by reducing internal covariate shift</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sergey</forename><surname>Ioffe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christian</forename><surname>Szegedy</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">What is the best multi-stage architecture for object recognition?</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kevin</forename><surname>Jarrett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Koray</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ranzato</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Marc'aurelio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yann</forename><surname>Lecun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. International Conference on Computer Vision (ICCV&apos;09)</title>
+		<meeting>International Conference on Computer Vision (ICCV&apos;09)</meeting>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2009" />
+			<biblScope unit="page" from="2146" to="2153" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<monogr>
+		<title level="m" type="main">FitNets and batch normalization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Amjad</forename><surname>Mahayri</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nicolas</forename><surname>Ballas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aaron</forename><surname>Courville</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Technical report</note>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Neverending learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mitchell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Cohen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Hruschka</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Talukdar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Betteridge</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Carlson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Dalvi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Gardner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Kisiel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Krishnamurthy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Lao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Mazaitis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mohamed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Nakashole</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Platanios</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Ritter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Samadi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Settles</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wijaya</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Gupta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Saparov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Greaves</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Welling</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Twenty-Ninth AAAI Conference on Artificial Intelligence (AAAI-15)</title>
+		<meeting>the Twenty-Ninth AAAI Conference on Artificial Intelligence (AAAI-15)</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<title level="m" type="main">FitNets: Hints for thin deep nets</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adriana</forename><surname>Romero</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nicolas</forename><surname>Ballas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ebrahimi</forename><surname>Kahou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Samira</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Chassang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Antoine</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Carlo</forename><surname>Gatta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<idno>Arxiv report 1412.6550</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv</note>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Lifelong machine learning systems: Beyond learning algorithms</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">L</forename><surname>Silver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Li</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">AAAI Spring Symposium</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Technical Report</note>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Very deep convolutional networks for large-scale image recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Karen</forename><surname>Simonyan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><surname>Zisserman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICLR</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Parsing with compositional vector grammars</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Richard</forename><surname>Socher</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bauer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>John</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christopher</forename><forename type="middle">D</forename><surname>Manning</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><forename type="middle">Y</forename><surname>Ng</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the ACL conference</title>
+		<meeting>the ACL conference</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Dropout: A simple way to prevent neural networks from overfitting</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nitish</forename><surname>Srivastava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geoffrey</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ilya</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ruslan</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+		<ptr target="http://jmlr.org/papers/v15/srivastava14a.html" />
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">15</biblScope>
+			<biblScope unit="page" from="1929" to="1958" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<title level="m" type="main">Going deeper with convolutions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christian</forename><surname>Szegedy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Wei</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Jia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Yangqing</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Sermanet</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Pierre</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Reed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Scott</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Anguelov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Dragomir</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Erhan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Dumitru</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Vincent</forename><surname>Vanhoucke</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><surname>Rabinovich</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1409.4842</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Technical report</note>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<monogr>
+		<title level="m" type="main">Lifelong learning: A case study</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sebastian</forename><surname>Thrun</surname></persName>
+		</author>
+		<idno>CMU-CS-95-208</idno>
+		<imprint>
+			<date type="published" when="1995-11" />
+			<pubPlace>Pittsburgh, PA 15213</pubPlace>
+		</imprint>
+		<respStmt>
+			<orgName>School of Computer Science, Carnegie Mellon University</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">Technical Report</note>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Lecture 6.5-rmsprop: Divide the gradient by a running average of its recent magnitude</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Tieleman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">COURSERA: Neural Networks for Machine Learning</title>
+		<imprint>
+			<date type="published" when="2012" />
+			<biblScope unit="volume">4</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

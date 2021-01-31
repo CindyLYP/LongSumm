@@ -1,0 +1,769 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Cyclical Learning Rates for Training Neural Networks</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author role="corresp">
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Leslie</forename><forename type="middle">N</forename><surname>Smith</surname></persName>
+							<email>leslie.smith@nrl.navy.mil</email>
+							<affiliation key="aff0">
+								<orgName type="institution">U.S. Naval Research Laboratory</orgName>
+								<address>
+									<addrLine>4555 Overlook Ave</addrLine>
+									<postCode>5514</postCode>
+									<settlement>Code</settlement>
+								</address>
+							</affiliation>
+							<affiliation key="aff1">
+								<orgName type="institution">SW</orgName>
+								<address>
+									<postCode>20375</postCode>
+									<settlement>Washington</settlement>
+									<region>D.C</region>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Cyclical Learning Rates for Training Neural Networks</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:43+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>It is known that the learning rate is the most important hyper-parameter to tune for training deep neural networks. This paper describes a new method for setting the learning rate, named cyclical learning rates, which practically eliminates the need to experimentally find the best values and schedule for the global learning rates. Instead of monotonically decreasing the learning rate, this method lets the learning rate cyclically vary between reasonable boundary values. Training with cyclical learning rates instead of fixed values achieves improved classification accuracy without a need to tune and often in fewer iterations. This paper also describes a simple way to estimate &quot;reasonable bounds&quot;-linearly increasing the learning rate of the network for a few epochs. In addition, cyclical learning rates are demonstrated on the CIFAR-10 and CIFAR-100 datasets with ResNets, Stochastic Depth networks, and DenseNets, and the ImageNet dataset with the AlexNet and GoogLeNet architectures. These are practical tools for everyone who trains neural networks.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.">Introduction</head><p>Deep neural networks are the basis of state-of-the-art results for image recognition <ref type="bibr" target="#b16">[17,</ref><ref type="bibr" target="#b22">23,</ref><ref type="bibr" target="#b24">25]</ref>, object detection <ref type="bibr" target="#b6">[7]</ref>, face recognition <ref type="bibr" target="#b25">[26]</ref>, speech recognition <ref type="bibr" target="#b7">[8]</ref>, machine translation <ref type="bibr" target="#b23">[24]</ref>, image caption generation <ref type="bibr" target="#b27">[28]</ref>, and driverless car technology <ref type="bibr" target="#b13">[14]</ref>. However, training a deep neural network is a difficult global optimization problem.</p><p>A deep neural network is typically updated by stochastic gradient descent and the parameters θ (weights) are updated by θ t = θ t−1 − t ∂L ∂θ , where L is a loss function and t is the learning rate. It is well known that too small a learning rate will make a training algorithm converge slowly while too large a learning rate will make the training algorithm diverge <ref type="bibr" target="#b1">[2]</ref>. Hence, one must experiment with a variety of learning rates and schedules.</p><p>Conventional wisdom dictates that the learning rate should be a single value that monotonically decreases dur- ing training. This paper demonstrates the surprising phenomenon that a varying learning rate during training is beneficial overall and thus proposes to let the global learning rate vary cyclically within a band of values instead of setting it to a fixed value. In addition, this cyclical learning rate (CLR) method practically eliminates the need to tune the learning rate yet achieve near optimal classification accuracy. Furthermore, unlike adaptive learning rates, the CLR methods require essentially no additional computation.</p><p>The potential benefits of CLR can be seen in <ref type="figure" target="#fig_0">Figure  1</ref>, which shows the test data classification accuracy of the CIFAR-10 dataset during training <ref type="bibr" target="#b0">1</ref> . The baseline (blue curve) reaches a final accuracy of 81.4% after 70, 000 iterations. In contrast, it is possible to fully train the network using the CLR method instead of tuning (red curve) within 25,000 iterations and attain the same accuracy.</p><p>The contributions of this paper are:</p><p>1. A methodology for setting the global learning rates for training neural networks that eliminates the need to perform numerous experiments to find the best values and schedule with essentially no additional computation.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">A surprising phenomenon is demonstrated -allowing</head><p>Hyper-parameters and architecture were obtained in April 2015 from caffe.berkeleyvision.org/gathered/examples/cifar10.html arXiv:1506.01186v6 [cs.CV] 4 Apr 2017 the learning rate to rise and fall is beneficial overall even though it might temporarily harm the network's performance.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">Cyclical learning rates are demonstrated with ResNets,</head><p>Stochastic Depth networks, and DenseNets on the CIFAR-10 and CIFAR-100 datasets, and on ImageNet with two well-known architectures: AlexNet <ref type="bibr" target="#b16">[17]</ref> and GoogleNet <ref type="bibr" target="#b24">[25]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">Related work</head><p>The book "Neural Networks: Tricks of the Trade" is a terrific source of practical advice. In particular, Yoshua Bengio <ref type="bibr" target="#b1">[2]</ref> discusses reasonable ranges for learning rates and stresses the importance of tuning the learning rate. A technical report by Breuel <ref type="bibr" target="#b2">[3]</ref> provides guidance on a variety of hyper-parameters. There are also a numerous websites giving practical suggestions for setting the learning rates.</p><p>Adaptive learning rates: Adaptive learning rates can be considered a competitor to cyclical learning rates because one can rely on local adaptive learning rates in place of global learning rate experimentation but there is a significant computational cost in doing so. CLR does not possess this computational costs so it can be used freely.</p><p>A review of the early work on adaptive learning rates can be found in George and Powell <ref type="bibr" target="#b5">[6]</ref>. Duchi, et al. <ref type="bibr" target="#b4">[5]</ref> proposed AdaGrad, which is one of the early adaptive methods that estimates the learning rates from the gradients.</p><p>RMSProp is discussed in the slides by Geoffrey Hinton 2 <ref type="bibr" target="#b26">[27]</ref>. RMSProp is described there as "Divide the learning rate for a weight by a running average of the magnitudes of recent gradients for that weight." RMSProp is a fundamental adaptive learning rate method that others have built on.</p><p>Schaul et al. <ref type="bibr" target="#b21">[22]</ref> discuss an adaptive learning rate based on a diagonal estimation of the Hessian of the gradients. One of the features of their method is that they allow their automatic method to decrease or increase the learning rate. However, their paper seems to limit the idea of increasing learning rate to non-stationary problems. On the other hand, this paper demonstrates that a schedule of increasing the learning rate is more universally valuable.</p><p>Zeiler <ref type="bibr" target="#b28">[29]</ref> describes his AdaDelta method, which improves on AdaGrad based on two ideas: limiting the sum of squared gradients over all time to a limited window, and making the parameter update rule consistent with a units evaluation on the relationship between the update and the Hessian.</p><p>More recently, several papers have appeared on adaptive learning rates. Gulcehre and Bengio <ref type="bibr" target="#b8">[9]</ref> propose an adaptive learning rate algorithm, called AdaSecant, that utilizes the www.cs.toronto.edu/ tijmen/csc321/slides/lecture slides lec6.pdf root mean square statistics and variance of the gradients. Dauphin et al. <ref type="bibr" target="#b3">[4]</ref> show that RMSProp provides a biased estimate and go on to describe another estimator, named ESGD, that is unbiased. Kingma and Lei-Ba <ref type="bibr" target="#b15">[16]</ref> introduce Adam that is designed to combine the advantages from Ada-Grad and RMSProp. Bache, et al. <ref type="bibr" target="#b0">[1]</ref> propose exploiting solutions to a multi-armed bandit problem for learning rate selection. A summary and tutorial of adaptive learning rates can be found in a recent paper by Ruder <ref type="bibr" target="#b19">[20]</ref>.</p><p>Adaptive learning rates are fundamentally different from CLR policies, and CLR can be combined with adaptive learning rates, as shown in Section 4.1. In addition, CLR policies are computationally simpler than adaptive learning rates. CLR is likely most similar to the SGDR method <ref type="bibr" target="#b17">[18]</ref> that appeared recently.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">Optimal Learning Rates</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1.">Cyclical Learning Rates</head><p>The essence of this learning rate policy comes from the observation that increasing the learning rate might have a short term negative effect and yet achieve a longer term beneficial effect. This observation leads to the idea of letting the learning rate vary within a range of values rather than adopting a stepwise fixed or exponentially decreasing value. That is, one sets minimum and maximum boundaries and the learning rate cyclically varies between these bounds. Experiments with numerous functional forms, such as a triangular window (linear), a Welch window (parabolic) and a Hann window (sinusoidal) all produced equivalent results This led to adopting a triangular window (linearly increasing then linearly decreasing), which is illustrated in <ref type="figure" target="#fig_1">Figure  2</ref>, because it is the simplest function that incorporates this idea. The rest of this paper refers to this as the triangular learning rate policy. An intuitive understanding of why CLR methods work comes from considering the loss function topology. Dauphin et al. <ref type="bibr" target="#b3">[4]</ref> argue that the difficulty in minimizing the loss arises from saddle points rather than poor local minima.</p><p>Saddle points have small gradients that slow the learning process. However, increasing the learning rate allows more rapid traversal of saddle point plateaus. A more practical reason as to why CLR works is that, by following the methods in Section 3.3, it is likely the optimum learning rate will be between the bounds and near optimal learning rates will be used throughout training.</p><p>The red curve in <ref type="figure" target="#fig_0">Figure 1</ref> shows the result of the triangular policy on CIFAR-10. The settings used to create the red curve were a minimum learning rate of 0.001 (as in the original parameter file) and a maximum of 0.006. Also, the cycle length (i.e., the number of iterations until the learning rate returns to the initial value) is set to 4, 000 iterations (i.e., stepsize = 2000) and <ref type="figure" target="#fig_0">Figure 1</ref> shows that the accuracy peaks at the end of each cycle.</p><p>Implementation of the code for a new learning rate policy is straightforward. An example of the code added to Torch 7 in the experiments shown in Section 4.1.2 is the following few lines: </p><formula xml:id="formula_0">= o p t . LR + ( maxLR − o p t . LR ) * math . max ( 0 , (1−x ) )</formula><p>where opt.LR is the specified lower (i.e., base) learning rate, epochCounter is the number of epochs of training, and lr is the computed learning rate. This policy is named triangular and is as described above, with two new input parameters defined: stepsize (half the period or cycle length) and max lr (the maximum learning rate boundary). This code varies the learning rate linearly between the minimum (base lr) and the maximum (max lr).</p><p>In addition to the triangular policy, the following CLR policies are discussed in this paper:</p><p>1. triangular2; the same as the triangular policy except the learning rate difference is cut in half at the end of each cycle. This means the learning rate difference drops after each cycle.</p><p>2. exp range; the learning rate varies between the minimum and maximum boundaries and each boundary value declines by an exponential factor of gamma iteration .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2.">How can one estimate a good value for the cycle length?</head><p>The length of a cycle and the input parameter stepsize can be easily computed from the number of iterations in an epoch. An epoch is calculated by dividing the number of training images by the batchsize used. For example, CIFAR-10 has 50, 000 training images and the batchsize is 100 so an epoch = 50, 000/100 = 500 iterations. The final accuracy results are actually quite robust to cycle length but experiments show that it often is good to set stepsize equal to 2 − 10 times the number of iterations in an epoch. For example, setting stepsize = 8 * epoch with the CIFAR-10 training run (as shown in <ref type="figure" target="#fig_0">Figure 1</ref>) only gives slightly better results than setting stepsize = 2 * epoch.</p><p>Furthermore, there is a certain elegance to the rhythm of these cycles and it simplifies the decision of when to drop learning rates and when to stop the current training run. Experiments show that replacing each step of a constant learning rate with at least 3 cycles trains the network weights most of the way and running for 4 or more cycles will achieve even better performance. Also, it is best to stop training at the end of a cycle, which is when the learning rate is at the minimum value and the accuracy peaks.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3.">How can one estimate reasonable minimum and maximum boundary values?</head><p>There is a simple way to estimate reasonable minimum and maximum boundary values with one training run of the network for a few epochs. It is a "LR range test"; run your model for several epochs while letting the learning rate increase linearly between low and high LR values. This test is enormously valuable whenever you are facing a new architecture or dataset. The triangular learning rate policy provides a simple mechanism to do this. For example, in Caffe, set base lr to the minimum value and set max lr to the maximum value. Set both the stepsize and max iter to the same number of iterations. In this case, the learning rate will increase linearly from the minimum value to the maximum value during this short run. Next, plot the accuracy versus learning rate. Note the learning rate value when the accuracy starts to increase and when the accuracy slows, becomes ragged, or starts to fall. These two learning rates are good choices for bounds; that is, set base lr to the first value and set max lr to the latter value. Alternatively, one can use the rule of thumb that the optimum learning rate is usually within a factor of two of the largest one that converges <ref type="bibr" target="#b1">[2]</ref> and set base lr to 1 or 1 of max lr. <ref type="figure" target="#fig_3">Figure 3</ref> shows an example of making this type of run with the CIFAR-10 dataset, using the architecture and hyper-parameters provided by Caffe. One can see from <ref type="figure" target="#fig_3">Figure 3</ref> that the model starts converging right away, so it is reasonable to set base lr = 0.001. Furthermore, above a learning rate of 0.006 the accuracy rise gets rough and eventually begins to drop so it is reasonable to set max lr = 0.006.</p><p>Whenever one is starting with a new architecture or dataset, a single LR range test provides both a good LR value and a good range. Then one should compare runs with a fixed LR versus CLR with this range. Whichever wins can be used with confidence for the rest of one's experiments.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">Experiments</head><p>The purpose of this section is to demonstrate the effectiveness of the CLR methods on some standard datasets and with a range of architectures. In the subsections below, CLR policies are used for training with the CIFAR-10, CIFAR-100, and ImageNet datasets. These three datasets and a variety of architectures demonstrate the versatility of CLR.   to 500 iterations and a good setting for stepsize is 2, 000. Section 3.3 discussed how to estimate reasonable minimum and maximum boundary values for the learning rate from <ref type="figure" target="#fig_3">Figure 3</ref>. All that is needed to optimally train the network is to set base lr = 0.001 and max lr = 0.006. This is all that is needed to optimally train the network. For the triangular2 policy run shown in <ref type="figure" target="#fig_0">Figure 1</ref>, the stepsize and learning rate bounds are shown in <ref type="table" target="#tab_2">Table 2</ref>   <ref type="figure" target="#fig_0">Figure 1</ref> shows the result of running with the triangular2 policy with the parameter setting in <ref type="table" target="#tab_2">Table 2</ref>. As shown in <ref type="table" target="#tab_0">Table 1</ref>, one obtains the same test classification accuracy of 81.4% after only 25, 000 iterations with the triangular2 policy as obtained by running the standard hyper-parameter settings for 70, 000 iterations. One might speculate that the benefits from the triangular policy derive from reducing the learning rate because this is when the accuracy climbs the most. As a test, a decay policy was implemented where the learning rate starts at the max lr value and then is linearly reduced to the base lr value for stepsize number of iterations. After that, the learning rate is fixed to base lr. For the decay policy, max lr = 0.007, base lr = 0.001, and stepsize = 4000. <ref type="table" target="#tab_0">Table 1</ref> shows that the final accuracy is only 78.5%, providing evidence that both increasing and decreasing the learning rate are essential for the benefits of the CLR method. <ref type="figure" target="#fig_5">Figure 4</ref> compares the exp learning rate policy in Caffe with the new exp range policy using gamma = 0.99994 for both policies. The result is that when using the exp range policy one can stop training at iteration 42, 000 with a test accuracy of 82.2% (going to iteration 70, 000 does not improve on this result). This is substantially better than the best test accuracy of 79.1% one obtains from using the exp learning rate policy.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.">CIFAR-10 and CIFAR-</head><p>The current Caffe download contains additional architectures and hyper-parameters for CIFAR-10 and in particular there is one with sigmoid non-linearities and batch normalization. <ref type="figure" target="#fig_7">Figure 6</ref> compares the training accuracy using the downloaded hyper-parameters with a fixed learning rate (blue curve) to using a cyclical learning rate (red curve). As can be seen in this <ref type="figure">Figure,</ref> the final accuracy for the fixed learning rate (60.8%) is substantially lower than the cyclical learning rate final accuracy (72.2%). There is clear performance improvement when using CLR with this architecture containing sigmoids and batch normalization.</p><p>Experiments were carried out with architectures featuring both adaptive learning rate methods and CLR. <ref type="table" target="#tab_3">Table 3</ref> lists the final accuracy values from various adaptive learning rate methods, run with and without CLR. All of the adaptive methods in <ref type="table" target="#tab_3">Table 3</ref> were run by invoking the respective option in Caffe. The learning rate boundaries are given in <ref type="table" target="#tab_3">Table 3</ref> (just below the method's name), which were determined by using the technique described in Section 3.3. Just the lower bound was used for base lr for the f ixed policy.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>LR type/bounds LR policy</head><p>Iterations Accuracy (%) Nesterov <ref type="bibr" target="#b18">[19]</ref> f ixed 70,000 82  <ref type="table" target="#tab_3">Table 3</ref> shows that for some adaptive learning rate methods combined with CLR, the final accuracy after only 25,000 iterations is equivalent to the accuracy obtained without CLR after 70,000 iterations. For others, it was necessary (even with CLR) to run until 70,000 iterations to obtain similar results. <ref type="figure" target="#fig_6">Figure 5</ref> shows the curves from running the Nesterov method with CLR (reached 81.3% accuracy in only 25,000 iterations) and the Adam method both with and without CLR (both needed 70,000 iterations). When using adaptive learning rate methods, the benefits from CLR are sometimes reduced, but CLR can still valuable as it sometimes provides benefit at essentially no cost.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.2">ResNets, Stochastic Depth, and DenseNets</head><p>Residual networks <ref type="bibr" target="#b9">[10,</ref><ref type="bibr" target="#b10">11]</ref>, and the family of variations that have subsequently emerged, achieve state-of-the-art results on a variety of tasks. Here we provide comparison experiments between the original implementations and versions with CLR for three members of this residual network family: the original ResNet <ref type="bibr" target="#b9">[10]</ref>, Stochastic Depth networks <ref type="bibr" target="#b12">[13]</ref>, and the recent DenseNets <ref type="bibr" target="#b11">[12]</ref>. Our experiments can be readily replicated because the authors of these papers make their Torch code available <ref type="bibr" target="#b2">3</ref> . Since all three implementation are available using the Torch 7 framework, the experiments in this section were performed using Torch. In addition to the experiment in the previous Section, these networks also incorporate batch normalization <ref type="bibr" target="#b14">[15]</ref> and demonstrate the value of CLR for architectures with batch normalization.</p><p>Both CIFAR-10 and the CIFAR-100 datasets were used in these experiments. The CIFAR-100 dataset is similar to the CIFAR-10 data but it has 100 classes instead of 10 and each class has 600 labeled examples.  <ref type="table">Table 4</ref>. Comparison of CLR with ResNets <ref type="bibr" target="#b9">[10,</ref><ref type="bibr" target="#b10">11]</ref>, Stochastic Depth (SD) <ref type="bibr" target="#b12">[13]</ref>, and DenseNets <ref type="bibr" target="#b11">[12]</ref>. The table shows the average accuracy of 5 runs for the CIFAR-10 and CIFAR-100 datasets on test data at the end of the training.</p><p>The results for these two datasets on these three architectures are summarized in <ref type="table">Table 4</ref>. The left column give the architecture and whether CLR was used in the experiments. The other two columns gives the average final accuracy from five runs and the initial learning rate or range used in parenthesis, which are reduced (for both the fixed learning rate and the range) during the training according to the same schedule used in the original implementation. For all three architectures, the original implementation uses an initial LR of 0.1 which we use as a baseline.</p><p>The accuracy results in <ref type="table">Table 4</ref> in the right two columns are the average final test accuracies of five runs. The Stochastic Depth implementation was slightly different than the ResNet and DenseNet implementation in that the authors split the 50,000 training images into 45,000 training images and 5,000 validation images. However, the reported results in <ref type="table">Table 4</ref> for the SD architecture is only test accuracies for the five runs. The learning rate range used by CLR was determined by the LR range test method and the cycle length was choosen as a tenth of the maximum number of epochs that was specified in the original implementation.</p><p>In addition to the accuracy results shown in <ref type="table">Table 4</ref>, similar results were obtained in Caffe for DenseNets <ref type="bibr" target="#b11">[12]</ref> on CIFAR-10 using the prototxt files provided by the authors. The average accuracy of five runs with learning rates of 0.1, 0.2, 0.3 was 91.67%, 92.17%, 92.46%, respectively, but running with CLR within the range of 0.1 to 0.3, the average accuracy was 93.33%.</p><p>The results from all of these experiments show similar or better accuracy performance when using CLR versus using a fixed learning rate, even though the performance drops at  some of the learning rate values within this range. These experiments confirm that it is beneficial to use CLR for a variety of residual architectures and for both CIFAR-10 and CIFAR-100.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.">ImageNet</head><p>The ImageNet dataset <ref type="bibr" target="#b20">[21]</ref> is often used in deep learning literature as a standard for comparison. The ImageNet classification challenge provides about 1, 000 training images for each of the 1, 000 classes, giving a total of 1, 281, 167 labeled training images.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.1">AlexNet</head><p>The Caffe website provides the architecture and hyperparameter files for a slightly modified AlexNet <ref type="bibr" target="#b16">[17]</ref>. These were downloaded from the website and used as a baseline. In the training results reported in this section, all weights were initialized the same so as to avoid differences due to different random initializations.</p><p>Since the batchsize in the architecture file is 256, an epoch is equal to 1, 281, 167/256 = 5, 005 iterations. Hence, a reasonable setting for stepsize is 6 epochs or 30, 000 iterations.</p><p>Next, one can estimate reasonable minimum and maximum boundaries for the learning rate from <ref type="figure" target="#fig_8">Figure 7</ref>. It can be seen from this figure that the training doesn't start converging until at least 0.006 so setting base lr = 0.006 is reasonable. However, for a fair comparison to the baseline where base lr = 0.01, it is necessary to set the base lr to 0.01 for the triangular and triangular2 policies or else the majority of the apparent improvement in the accuracy will be from the smaller learning rate. As for the maximum boundary value, the training peaks and drops above a learning rate of 0.015 so max lr = 0.015 is reasonable. For comparing the exp range policy to the exp policy, setting base lr = 0.006 and max lr = 0.014 is reasonable and in this case one expects that the average accuracy of the exp range policy to be equal to the accuracy from the exp policy. <ref type="figure" target="#fig_10">Figure 9</ref> compares the results of running with the f ixed versus the triangular2 policy for the AlexNet architecture. Here, the peaks at iterations that are multiples of 60,000 should produce a classification accuracy that corresponds to the f ixed policy. Indeed, the accuracy peaks at the end of a cycle for the triangular2 policy are similar to the accuracies from the standard f ixed policy, which implies that the baseline learning rates are set quite well (this is also implied by <ref type="figure" target="#fig_8">Figure 7</ref>). As shown in <ref type="table" target="#tab_0">Table 1</ref>, the final accuracies from the CLR training run are only 0.4% better than the accuracies from the f ixed policy. <ref type="figure" target="#fig_0">Figure 10</ref> compares the results of running with the exp versus the exp range policy for the AlexNet architecture with gamma = 0.999995 for both policies. As expected,   <ref type="figure" target="#fig_0">Figure 10</ref> shows that the accuracies from the exp range policy do oscillate around the exp policy accuracies. The advantage of the exp range policy is that the accuracy of 56.5% is already obtained at iteration 300, 000 whereas the exp policy takes until iteration 460, 000 to reach 56.5%.</p><p>Finally, a comparison between the f ixed and exp policies in <ref type="table" target="#tab_0">Table 1</ref> shows the f ixed and triangular2 policies produce accuracies that are almost 2% better than their exponentially decreasing counterparts, but this difference is probably due to not having tuned gamma.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.2">GoogLeNet/Inception Architecture</head><p>The GoogLeNet architecture was a winning entry to the ImageNet 2014 image classification competition. Szegedy et al. <ref type="bibr" target="#b24">[25]</ref> describe the architecture in detail but did not provide the architecture file. The architecture file publicly available from Princeton 4 was used in the following experiments. The GoogLeNet paper does not state the learning rate values and the hyper-parameter solver file is not avail- able for a baseline but not having these hyper-parameters is a typical situation when one is developing a new architecture or applying a network to a new dataset. This is a situation that CLR readily handles. Instead of running numerous experiments to find optimal learning rates, the base lr was set to a best guess value of 0.01.</p><p>The first step is to estimate the stepsize setting. Since the architecture uses a batchsize of 128 an epoch is equal to 1, 281, 167/128 = 10, 009 iterations. Hence, good settings for stepsize would be 20, 000, 30, 000, or possibly 40, 000. The results in this section are based on stepsize = 30000.</p><p>The next step is to estimate the bounds for the learning rate, which is found with the LR range test by making a run for 4 epochs where the learning rate linearly increases from 0.001 to 0.065 ( <ref type="figure" target="#fig_0">Figure 11</ref>). This figure shows that one can use bounds between 0.01 and 0.04 and still have the model reach convergence. However, learning rates above 0.025 cause the training to converge erratically. For both triangular2 and the exp range policies, the base lr was set to 0.01 and max lr was set to 0.026. As above, the accuracy peaks for both these learning rate policies correspond to the same learning rate value as the f ixed and exp policies. Hence, the comparisons below will focus on the peak accuracies from the LCR methods. <ref type="figure">Figure compares</ref> the results of running with the f ixed versus the triangular2 policy for this architecture (due to time limitations, each training stage was not run until it fully plateaued). In this case, the peaks at the end of each cycle for the triangular2 policy produce better accuracies than the f ixed policy. The final accuracy shows an improvement from the network trained by the triangular2 policy (Table 1) to be 1.4% better than the accuracy from the f ixed policy. This demonstrates that the triangular2 policy improves on a "best guess" for a fixed learning rate. <ref type="figure" target="#fig_0">Figure 13</ref> compares the results of running with the exp versus the exp range policy with gamma = 0.99998. Once again, the peaks at the end of each cycle for the exp range policy produce better validation accuracies than the exp policy. The final accuracy from the exp range policy <ref type="table" target="#tab_0">(Table 1</ref>) is 2% better than from the exp policy.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.">Conclusions</head><p>The results presented in this paper demonstrate the benefits of the cyclic learning rate (CLR) methods. A short run of only a few epochs where the learning rate linearly increases is sufficient to estimate boundary learning rates for the CLR policies. Then a policy where the learning rate cyclically varies between these bounds is sufficient to obtain near optimal classification results, often with fewer iterations. This policy is easy to implement and unlike adaptive learning rate methods, incurs essentially no additional computational expense.</p><p>This paper shows that use of cyclic functions as a learning rate policy provides substantial improvements in performance for a range of architectures. In addition, the cyclic nature of these methods provides guidance as to times to drop the learning rate values (after 3 -5 cycles) and when to stop the the training. All of these factors reduce the guesswork in setting the learning rates and make these methods practical tools for everyone who trains neural networks.</p><p>This work has not explored the full range of applications for cyclic learning rate methods. We plan to determine if equivalent policies work for training different architectures, such as recurrent neural networks. Furthermore, we believe that a theoretical analysis would provide an improved understanding of these methods, which might lead to improvements in the algorithms.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 .</head><label>1</label><figDesc>Classification accuracy while training CIFAR-10. The red curve shows the result of training with one of the new learning rate policies.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 2 .</head><label>2</label><figDesc>Triangular learning rate policy. The blue lines represent learning rate values changing between bounds. The input parameter stepsize is the number of iterations in half a cycle.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head></head><label></label><figDesc>l o c a l c y c l e = math . f l o o r ( 1 + e p o c h C o u n t e r / ( 2 * s t e p s i z e ) ) l o c a l x = math . a b s ( e p o c h C o u n t e r / s t e p s i z e − 2 * c y c l e + 1 ) l o c a l l r</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 3 .</head><label>3</label><figDesc>Classification accuracy as a function of increasing learning rate for 8 epochs (LR range test).</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head></head><label></label><figDesc>100 4.1.1 Caffe's CIFAR-10 architectureThe CIFAR-10 architecture and hyper-parameter settings on the Caffe website are fairly standard and were used here as a baseline. As discussed in Section 3.2, an epoch is equal</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>Figure 4 .</head><label>4</label><figDesc>Classification accuracy as a function of iteration for 70, 000 iterations.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_6"><head>Figure 5 .</head><label>5</label><figDesc>Classification accuracy as a function of iteration for the CIFAR-10 dataset using adaptive learning methods. See text for explanation.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_7"><head>Figure 6 .</head><label>6</label><figDesc>Batch Normalization CIFAR-10 example (provided with the Caffe download).</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_8"><head>Figure 7 .</head><label>7</label><figDesc>AlexNet LR range test; validation classification accuracy as a function of increasing learning rate.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_9"><head>Figure 8 .</head><label>8</label><figDesc>Validation data classification accuracy as a function of iteration for f ixed versus triangular.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_10"><head>Figure 9 .</head><label>9</label><figDesc>Validation data classification accuracy as a function of iteration for f ixed versus triangular.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_11"><head>Figure 10 .</head><label>10</label><figDesc>Validation data classification accuracy as a function of iteration for exp versus exp range.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_12"><head>Figure 11 .</head><label>11</label><figDesc>GoogleNet LR range test; validation classification accuracy as a function of increasing learning rate.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_13"><head>Figure 12 .</head><label>12</label><figDesc>Validation data classification accuracy as a function of iteration for f ixed versus triangular.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_14"><head>Figure 13 .</head><label>13</label><figDesc>Validation data classification accuracy as a function of iteration for exp versus exp range.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head>Table 1 .</head><label>1</label><figDesc>Comparison of accuracy results on test/validation data at the end of the training.</figDesc><table><row><cell>Dataset</cell><cell>LR policy</cell><cell cols="2">Iterations Accuracy (%)</cell></row><row><cell>CIFAR-10</cell><cell>f ixed</cell><cell>70,000</cell><cell>81.4</cell></row><row><cell cols="3">CIFAR-10 triangular2 25, 000</cell><cell>81.4</cell></row><row><cell>CIFAR-10</cell><cell>decay</cell><cell>25,000</cell><cell>78.5</cell></row><row><cell>CIFAR-10</cell><cell>exp</cell><cell>70,000</cell><cell>79.1</cell></row><row><cell>CIFAR-10</cell><cell>exp range</cell><cell>42,000</cell><cell>82.2</cell></row><row><cell>AlexNet</cell><cell>f ixed</cell><cell>400,000</cell><cell>58.0</cell></row><row><cell>AlexNet</cell><cell cols="2">triangular2 400,000</cell><cell>58.4</cell></row><row><cell>AlexNet</cell><cell>exp</cell><cell>300,000</cell><cell>56.0</cell></row><row><cell>AlexNet</cell><cell>exp</cell><cell>460,000</cell><cell>56.5</cell></row><row><cell>AlexNet</cell><cell>exp range</cell><cell>300,000</cell><cell>56.5</cell></row><row><cell>GoogLeNet</cell><cell>f ixed</cell><cell>420,000</cell><cell>63.0</cell></row><row><cell cols="3">GoogLeNet triangular2 420,000</cell><cell>64.4</cell></row><row><cell>GoogLeNet</cell><cell>exp</cell><cell>240,000</cell><cell>58.2</cell></row><row><cell>GoogLeNet</cell><cell>exp range</cell><cell>240,000</cell><cell>60.2</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_2"><head>Table 2 .</head><label>2</label><figDesc>Hyper-parameter settings for CIFAR-10 example in Figure 1.</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_3"><head>Table 3 .</head><label>3</label><figDesc>Comparison of CLR with adaptive learning rate methods. The table shows accuracy results for the CIFAR-10 dataset on test data at the end of the training.</figDesc><table><row><cell>1</cell></row></table><note></note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="3">https://github.com/facebook/fb.resnet.torch, https://github.com/yueatsprograms/Stochastic Depth, https://github.com/liuzhuang13/DenseNet</note>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="4">vision.princeton.edu/pvt/GoogLeNet/</note>
+		</body>
+		<back>
+			<div type="annex">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>A. Instructions for adding CLR to Caffe</head><p>Modify SGDSolver¡Dtype¿::GetLearningRate() which is in sgd solver.cpp (near line 38): } e l s e i f ( l r p o l i c y == " t r i a n g u l a r " ) </p></div>			</div>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<title level="m" type="main">Hot swapping for online adaptation of optimization hyperparameters</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Bache</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Decoste</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Smyth</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.6599</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<monogr>
+		<title level="m" type="main">Neural Networks: Tricks of the Trade, chapter Practical recommendations for gradient-based training of deep architectures</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2012" />
+			<publisher>Springer</publisher>
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="page">4</biblScope>
+			<pubPlace>Berlin Heidelberg</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">M</forename><surname>Breuel</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1508.02788</idno>
+		<title level="m">The effects of hyperparameters on sgd training of neural networks</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<monogr>
+		<title level="m" type="main">Rmsprop and equilibrated adaptive learning rates for non-convex optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><forename type="middle">N</forename><surname>Dauphin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Vries</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Chung</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1502.04390</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Adaptive subgradient methods for online learning and stochastic optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Duchi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Hazan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Singer</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">The Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">12</biblScope>
+			<biblScope unit="page" from="2121" to="2159" />
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Adaptive stepsizes for recursive estimation with applications in approximate dynamic programming</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">P</forename><surname>George</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><forename type="middle">B</forename><surname>Powell</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Machine learning</title>
+		<imprint>
+			<biblScope unit="volume">65</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="167" to="198" />
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Rich feature hierarchies for accurate object detection and semantic segmentation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Girshick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Donahue</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Darrell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Malik</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Computer Vision and Pattern Recognition (CVPR), 2014 IEEE Conference on</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="580" to="587" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Towards end-to-end speech recognition with recurrent neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Graves</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Jaitly</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 31st International Conference on Machine Learning (ICML-14)</title>
+		<meeting>the 31st International Conference on Machine Learning (ICML-14)</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="1764" to="1772" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<monogr>
+		<title level="m" type="main">Adasecant: Robust adaptive secant method for stochastic gradient</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Gulcehre</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.7419</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Deep residual learning for image recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Computer Vision and Pattern Recognition (CVPR), 2016 IEEE Conference on</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="volume">5</biblScope>
+			<biblScope unit="page">6</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sun</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1603.05027</idno>
+		<title level="m">Identity mappings in deep residual networks</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="volume">5</biblScope>
+			<biblScope unit="page">6</biblScope>
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">Q</forename><surname>Weinberger</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1608.06993</idno>
+		<title level="m">Densely connected convolutional networks</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="volume">5</biblScope>
+			<biblScope unit="page">6</biblScope>
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Sun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Sedra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Weinberger</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1603.09382</idno>
+		<title level="m">Deep networks with stochastic depth</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="volume">5</biblScope>
+			<biblScope unit="page">6</biblScope>
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<monogr>
+		<title level="m" type="main">An empirical evaluation of deep learning on highway driving</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Huval</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Tandon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Kiske</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Song</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Pazhayampallil</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Andriluka</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Cheng-Yue</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Mujica</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Coates</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1504.01716</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<monogr>
+		<title level="m" type="main">Batch normalization: Accelerating deep network training by reducing internal covariate shift</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ioffe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Szegedy</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1502.03167</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Lei-Ba</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.6980</idno>
+		<title level="m">Adam: a method for stochastic optimization</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page">5</biblScope>
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<monogr>
+		<title level="m" type="main">Imagenet classification with deep convolutional neural networks. Advances in neural information processing systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Loshchilov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Hutter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Sgdr</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1608.03983</idno>
+		<title level="m">Stochastic gradient descent with restarts</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">A method of solving a convex programming problem with convergence rate o (1/k2)</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Nesterov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Soviet Mathematics Doklady</title>
+		<imprint>
+			<date type="published" when="1983" />
+			<biblScope unit="volume">27</biblScope>
+			<biblScope unit="page" from="372" to="376" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<title level="m" type="main">An overview of gradient descent optimization algorithms</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ruder</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1600.04747</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">ImageNet Large Scale Visual Recognition Challenge</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Russakovsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Deng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Su</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Krause</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Satheesh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Karpathy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Khosla</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Bernstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">C</forename><surname>Berg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Fei-Fei</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">International Journal of Computer Vision</title>
+		<imprint>
+			<biblScope unit="issue">6</biblScope>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Schaul</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1206.1106</idno>
+		<title level="m">No more pesky learning rates</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Simonyan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Zisserman</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1409.1556</idno>
+		<title level="m">Very deep convolutional networks for large-scale image recognition</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Sequence to sequence learning with neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><forename type="middle">V</forename><surname>Le</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="3104" to="3112" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Szegedy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Jia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Sermanet</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Reed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Anguelov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Erhan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Vanhoucke</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Rabinovich</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1409.4842</idno>
+		<title level="m">Going deeper with convolutions</title>
+		<imprint>
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Deepface: Closing the gap to human-level performance in face verification</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Taigman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Ranzato</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Wolf</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Computer Vision and Pattern Recognition (CVPR), 2014 IEEE Conference on</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="1701" to="1708" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Lecture 6.5-rmsprop: Divide the gradient by a running average of its recent magnitude</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Tieleman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">COURSERA: Neural Networks for Machine Learning</title>
+		<imprint>
+			<date type="published" when="2012" />
+			<biblScope unit="volume">4</biblScope>
+			<biblScope unit="page">5</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<monogr>
+		<title level="m" type="main">Show and tell: A neural image caption generator</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Toshev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Erhan</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1411.4555</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">D</forename><surname>Zeiler</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1212.5701</idno>
+		<title level="m">Adadelta: an adaptive learning rate method</title>
+		<imprint>
+			<date type="published" when="2012" />
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page">5</biblScope>
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

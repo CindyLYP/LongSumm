@@ -1,0 +1,817 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Refining Source Representations with Relation Networks for Neural Machine Translation</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2018-09-09">9 Sep 2018</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Wen</forename><surname>Zhang</surname></persName>
+							<email>zhangwen@ict.ac.cn</email>
+							<affiliation key="aff0">
+								<orgName type="department">Institute of Computing Technology</orgName>
+								<orgName type="laboratory">Key Laboratory of Intelligent Information Processing</orgName>
+								<orgName type="institution">CAS</orgName>
+							</affiliation>
+							<affiliation key="aff1">
+								<orgName type="institution">University of Chinese Academy of Sciences</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jiawei</forename><surname>Hu</surname></persName>
+							<email>hujiawei@ict.ac.cn</email>
+							<affiliation key="aff0">
+								<orgName type="department">Institute of Computing Technology</orgName>
+								<orgName type="laboratory">Key Laboratory of Intelligent Information Processing</orgName>
+								<orgName type="institution">CAS</orgName>
+							</affiliation>
+							<affiliation key="aff1">
+								<orgName type="institution">University of Chinese Academy of Sciences</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yang</forename><surname>Feng</surname></persName>
+							<email>fengyang@ict.ac.cn</email>
+							<affiliation key="aff0">
+								<orgName type="department">Institute of Computing Technology</orgName>
+								<orgName type="laboratory">Key Laboratory of Intelligent Information Processing</orgName>
+								<orgName type="institution">CAS</orgName>
+							</affiliation>
+							<affiliation key="aff1">
+								<orgName type="institution">University of Chinese Academy of Sciences</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Qun</forename><surname>Liu</surname></persName>
+							<email>qun.liu@dcu.ie</email>
+							<affiliation key="aff0">
+								<orgName type="department">Institute of Computing Technology</orgName>
+								<orgName type="laboratory">Key Laboratory of Intelligent Information Processing</orgName>
+								<orgName type="institution">CAS</orgName>
+							</affiliation>
+							<affiliation key="aff2">
+								<orgName type="department" key="dep1">ADAPT Centre</orgName>
+								<orgName type="department" key="dep2">School of Computing</orgName>
+								<address>
+									<settlement>Dublin City University</settlement>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Refining Source Representations with Relation Networks for Neural Machine Translation</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2018-09-09">9 Sep 2018</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1805.11154v2[cs.CL]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:45+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Although neural machine translation with the encoder-decoder framework has achieved great success recently, it still suffers drawbacks of forgetting distant information, which is an inherent disadvantage of recurrent neural network structure, and disregarding relationship between source words during encoding step. Whereas in practice, the former information and relationship are often useful in current step. We target on solving these problems and thus introduce relation networks to learn better representations of the source. The relation networks are able to facilitate memorization capability of recurrent neural network via associating source words with each other, this would also help retain their relationships. Then the source representations and all the relations are fed into the attention component together while decoding, with the main encoderdecoder framework unchanged. Experiments on several datasets show that our method can improve the translation performance significantly over the conventional encoder-decoder model and even outperform the approach involving supervised syntactic knowledge.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Introduction</head><p>In recent years, Neural Machine Translation (NMT) <ref type="bibr" target="#b11">(Kalchbrenner and Blunsom, 2013;</ref><ref type="bibr" target="#b22">Sutskever et al., 2014;</ref><ref type="bibr" target="#b2">Bahdanau et al., 2015)</ref> has achieved great success in some language pairs, rivalling the state-ofthe-art Statistical Machine Translation (SMT). The Recurrent Neural Network (RNN) encoder-decoder architecture is widely used framework for NMT, the principle behind which is that: encoding the meaning of the input bidirectionally into a concept space via RNNs and decoding into target words with RNNs based on this encoding <ref type="bibr" target="#b22">(Sutskever et al., 2014;</ref><ref type="bibr" target="#b2">Bahdanau et al., 2015)</ref>. This means that encoding principle leads to a deeper understanding and learning of the translation rules, and hence better translation than conventional SMT that considers only surface forms, e.g., words and phrases.</p><p>The RNNs with gating, such as Gated Recurrent Unit (GRU) <ref type="bibr" target="#b4">(Cho et al., 2014)</ref> or Long Short-Term Memory (LSTM) <ref type="bibr" target="#b8">(Hochreiter and Schmidhuber, 1997)</ref>, are designed to memorize useful history information and meanwhile forget irrelative information. Together with attention technique which makes the decoding process only focus on the most related source words, the RNN encoder-decoder framework is expected to be able to handle long sequences and consider the globally related information. However, the practical situation is that RNNs tend to forget old history information, especially the far older one. Sometimes the older information is indispensable for generating proper translation, e.g., for the source sentence "take the heavy box away", when translating "away", "take" should be considered together. In addition, it has been proven that using phrases rather than words in SMT <ref type="bibr" target="#b12">(Koehn et al., 2003)</ref> brings performance improvement, while in NMT the attention is only modeled in the unit of words. In the same sense, improvement is expected if attention is operated on more words rather than one.</p><p>Moreover, NMT produces the representation for the source by running through the source words sequentially with a bidirectional RNN <ref type="bibr" target="#b17">(Schuster and Paliwal, 1997)</ref>, so it only employs word order information and ignores the relation between words. Although some researchers have demonstrated that NMT is able to capture certain syntactic phenomena (e.g. subject-verb agreement) without external syntactic information <ref type="bibr" target="#b14">(Linzen et al., 2016;</ref><ref type="bibr" target="#b20">Shi et al., 2016)</ref>, there are some other works which has shown their superior performance by modeling word relationship explicitly. However, these works usually need to introduce external syntactic knowledge or connect words according to their relations in the syntactic structure <ref type="bibr" target="#b3">Bastings et al., 2017;</ref><ref type="bibr" target="#b1">Aharoni and Goldberg, 2017;</ref><ref type="bibr" target="#b13">Li et al., 2017)</ref>.</p><formula xml:id="formula_0">• • • • • • • • • • • • ↵ j2 • • • ↵ jl s ↵ j1 x 1 x 2 x l s y j Encoder Decoder Attention Layer ! h l s h l s ! h h 1 ! h 2 h 2 h 1 h 2 h l s W v y j 1 a j = P l s i=1 ↵ ij h i</formula><p>In this paper, we present a method to refine the NMT based on the above two points. The main idea is to learn relationship between the source word pairs. Corresponding to the first point, our method employs Convolutional Neural Networks (CNNs) to collect local information around one word and relates each word with its neighbors, which ensures the subsequent operations are performed in the unit of multiple words. As for the second point, Relation Network (RN) <ref type="bibr" target="#b16">(Santoro et al., 2017)</ref> is introduced to establish pairwise relationship between words, meanwhile, there's no need to attain external input of syntactic knowledge. In this way, our model can memorize all words ahead and behind via additional connection between words no matter how distant they are. In the RNs, the representations of the source words produced by RNNs are taken as objects and the relationships between them are reasoned.</p><p>Specifically, our method introduces a RN component between the encoder and the attention layer in the RNN encoder-decoder framework <ref type="bibr" target="#b22">(Sutskever et al., 2014;</ref><ref type="bibr" target="#b2">Bahdanau et al., 2015)</ref>. The RN component is composed of three layers: first, the CNN layer slides window along the output of the encoder to capture information among multiple words around one word, then the graph propagation layer constructs a fully connected graph with the information of one window as one node and transfers messages along the edges, so that each node can collect the information from all other nodes, and last the multi-layer perceptron layer transforms the information of each node to the form which is suitable for the attention component to use. We performed experiments on several datasets and got significant improvements over vanilla NMT and SMT systems. Besides, our model significantly outperforms two other models, which introduced latent variables to capture the implicit semantics and employed explicitly external syntactic knowledge respectively.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Background</head><p>As the main idea of our method is to introduce relation networks into the attention-based NMT <ref type="bibr" target="#b2">(Bahdanau et al., 2015)</ref> to learn word relationship and keep all source words in memory, in this section we will briefly describe the baseline model -the attention-based NMT first and the technique used in this paper -relation networks.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1">Attention-based NMT</head><p>The attention-based NMT follows the encoder-decoder framework, with an additional attention module. It works on the assumption that the source sentence and the target translation share a common continuous space. It first encodes the source sentence into a continuous space and then performs decoding based on this space, meanwhile, employing attention to indicate the relevance of each source word to the current translation. <ref type="figure" target="#fig_0">Figure 1</ref> shows the architecture of the attention-based NMT <ref type="bibr" target="#b2">(Bahdanau et al., 2015)</ref>, which is composed of three components: the encoder, the attention layer and the decoder.</p><p>The Encoder The encoder uses a pair of GRUs to run through source words bidirectionally to get two sequences of hidden states, which are concatenated to produce corresponding hidden state for the i-th source word</p><formula xml:id="formula_1">− → h i = −−−→ GRU x i , − → h i−1 ; ← − h i = ←−−− GRU x i , ← − h i+1 ; h i = − → h i ; ← − h i (1)</formula><p>The Attention Layer The attention layer aims to extract the source information (called attention) which is highly related to the generation of the current target word. To get the attention of the j-th decoding step, the correlation degree between current target word y j and h i is first evaluated as</p><formula xml:id="formula_2">e ij = v T a tanh(W a s j−1 + U a h i )<label>(2)</label></formula><p>Then, for the j-th decoding step, the correlation degree is normalized over the whole source sequence, all source hidden states are added weightedly according to the normalized correlation degree to obtain the attention a j</p><formula xml:id="formula_3">α ij = exp (e ij ) ls i =1 exp e i j ; a j = ls i=1 α ij h i (3)</formula><p>The Decoder The decoder first employs a variant of GRU to roll the target information according to previous target word y j−1 , previous hidden state s j−1 and the attention a j . The details are described in <ref type="bibr" target="#b2">Bahdanau et al. (2015)</ref>. The current target hidden state s j is calculated by</p><formula xml:id="formula_4">s j = g(y j−1 , s j−1 , a j )<label>(4)</label></formula><p>After that, the decoder gives a probability distribution over all the words in the target vocabulary and selects the target word with the highest probability as the output of the current step</p><formula xml:id="formula_5">p(y j |y &lt;j , x) ∝ exp(f (s j , y j−1 , a j ) • W v )<label>(5)</label></formula><p>where f stands for a linear transformation and W v is a weight matrix.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">Relation Networks</head><p>A relation network (RN) is a neural network with a structure integrated for relational reasoning. The RN is designed to constrain the functional form of a neural network so that it can capture the core common properties of relational reasoning. Hence its capability of computing relations is inherent without needing to be learned specially. Formally, given a set of input "objects" denoted as</p><formula xml:id="formula_6">O = {o 1 , o 2 , • • • , o n }</formula><p>, RN can be formed as a composition function of objects <ref type="bibr" target="#b16">(Santoro et al., 2017)</ref>, represented as</p><formula xml:id="formula_7">RN(O) = f φ i,j g θ (o i , o j )<label>(6)</label></formula><p>where o i is the i-th object, and f φ and g θ are functions used to calculate relations. Multi-layer perceptrons are often used for f φ and g θ , as their parameters are learnable synaptic weights, making RNs end-to-end differentiable. Here the role of g θ is to infer how two objects are related, or whether they are related, and hence the output of g θ can be treated as "relations".</p><formula xml:id="formula_8">Encoder CNN Layer Concat MLP RNL Attention Layer MLP Layer GP Layer Mean h 1 h 3 h 2 • • • • • • a 3 a 2 a 1 r 2 r 1 r 3 o 3 o 2 o 1 c 1 c 2 c</formula><p>Figure 2: NMT with one RNL. Residual connection is not embodied here. The kernel width of the CNN layer is 3. We take the second word colored in red as an example to show the operations in the RNL, where three colors of green, red and blue indicate the information from the CNN layer of the first, second and third word, respectively.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">NMT with Relation Networks</head><p>In this paper, we introduce a Relation Network Layer (denoted as RNL) on the basis of the attentionbased NMT <ref type="bibr" target="#b2">(Bahdanau et al., 2015)</ref> and frame it between the encoder and the attention layer. The RNL first employs CNNs to collect information in the unit of multi-words rather than one single word, then takes the outputs of CNNs as objects and makes them fully connected to build a graph propagation layer and associate with each other, finally transforms the acquired representations with word relations via MLP into the form suitable for the attention layer to use. Next, the outputs of the RNL are directly fed into the attention layer, so the RNL can still fit the encoder-decoder framework well. The architecture of our RNL is shown in <ref type="figure">Figure 2</ref>. Briefly, the RNL is composed of three components: the CNN layer, the Graph Propagation (GP) layer and the Multi-layer Perceptron (MLP) layer. The CNN Layer CNNs are used to collect local information around one word. In this way, not only the information of a single word but their neighbors are considered. The number of neighbors to be considered depends on the kernel width k but can also vary by stacking several convolution layers, e.g., stacking 2 convolution layers with the kernel width k = 3 can collect information from 5 words at the same time.</p><p>In the CNN layer, the input is the hidden states produced by the bidirectional GRUs (Bi-GRUs), denoted as h = {h 1 , ..., h i , ..., h ls }, so each source word is represented by its hidden state. A filter is applied to convolute over a window of k words to get the convolutional representation. Given the i-th source word and its hidden state h i ∈ R d , the hidden states covered by the window with the width of k are concatenated and then are fed to the filter where we denote the concatenated vector as</p><formula xml:id="formula_9">h k i = h i− (k−1)/2 ; • • • ; h i ; • • • ; h i+ (k−1)/2</formula><p>. For the first and last (k − 1)/2 words of a sentence, the hidden state h i with i &lt; 1 or i &gt; l s are set to zeros (padding). Then the filtering process mentioned above can be formed as</p><formula xml:id="formula_10">c i = f W cnn h k i + b cnn<label>(7)</label></formula><p>W cnn ∈ R k×d is the convolution weights and b cnn is the bias, where the two together define a linear operation. f is the leaky RELU with the coefficient 0.1 to control the angle of the negative slope. In the RNL, leaky RELU is used as all the nonlinear activation functions. The output of the CNN layer is</p><formula xml:id="formula_11">c = {c 1 , ..., c i , ..., c ls }.</formula><p>The GP Layer The GP layer is used to learn the relationships between source words. It adopts the outputs of the CNN layer c = {c 1 , c 2 , ..., c ls } as input and formulates the relationships between them into a graph. Here c i can be thought as the object mentioned in Section 2.2. In this graph, each input c i is taken as a node and has edges connected to all other nodes. Then information flows along the edges and each node receives messages from all its direct neighbors. We call this process graph propagation.</p><p>After graph propagation process, another sequence of vectors {r 1 , r 2 , ..., r ls } is produced. The generation of r i can be decomposed into three steps:</p><p>• Each input vector c i in c is concatenated with all vectors in c (including itself) to get a set of vectors</p><formula xml:id="formula_12">C i = {c i1 , • • • c ij , • • • , c ils } where c ij = [c i ; c j ].</formula><p>• Each c ij is converted into vector r ij by a 4-hidden-layers MLP. The conversion with 1-hidden-layer MLP can be represented as</p><formula xml:id="formula_13">r ij = f (W gp c ij + b gp )<label>(8)</label></formula><p>• Average over all the outputs above to get the final representation for the i-th source word</p><formula xml:id="formula_14">r i = 1 l s ls j=1 r ij (9)</formula><p>The MLP Layer There are several nonlinear transformations which map the inputs into different vector spaces in the GP layer. In order to reduce computation complexity, the output features size of the nonlinear transformations is set to small. Hence we use another MLP layer to map the feature back into the original space, usually the same as that of h i to have more powerful representation. The final state o i for the i-th source word after the entire RN layer can be got by another 2-hidden-layers MLP, 1-hidden-layer MLP can be written as</p><formula xml:id="formula_15">o i = f (W mlp r i + b mlp )<label>(10)</label></formula><p>Residual Stacking technique is used in our method. Concretely, we stack multiple layers inside the encoder and meanwhile apply residual connection for two adjacent layers. Assume h l in and h l out are the input and the output of the l-th layer, respectively, then residual connection is conducted to get the final output of the l-th layer in the following two steps. First, the input and the output of the l-th layer are added together:</p><formula xml:id="formula_16">h l = h l in + h l out<label>(11)</label></formula><p>Next, dense concatenation <ref type="bibr" target="#b9">(Huang et al., 2017</ref>) is employed to receives features from all previous layers and the final output of the l-th layer is produced by</p><formula xml:id="formula_17">h l dc = W dc h 1 ; h 2 ; • • • ; h l + b dc<label>(12)</label></formula><p>where weight matrix W dc and bias b dc are adjusted to map the dense-concatenated vectors into the same feature space as the input. Then h l dc is fed to the next layer which means h l+1 in = h l dc .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Related Work</head><p>Many researchers have worked on learning the relationships of the source words to improve translation performance. One line is to refine source presentations by adding relationships between source words or between source and target words, with the main architecture remaining the RNN encoder-decoder framework.  enriched source representations with POS tags, dependency labels and other linguistic features. <ref type="bibr" target="#b3">Bastings et al. (2017)</ref> employed graph convolutional networks to model relations of words in dependency trees for the source embeddings to include these relations. These two models both require extra supervised syntax input while our method does not need external knowledge and learn the relationship by its own. Another line is to change the structure of the neural network. <ref type="bibr" target="#b6">Gehring et al. (2017a)</ref> and <ref type="bibr" target="#b7">Gehring et al. (2017b)</ref> proposed to substitute the conventional RNN encoder with the CNN encoder in order to train faster. They employed stacked CNNs to capture relationships between source words which can be calculated simultaneously, not like RNNs, the computation of which is constrained by temporal dependencies. The attention scores are also computed based on the output of the CNNs and the decoder is still the RNN-based decoder. <ref type="bibr" target="#b23">Vaswani et al. (2017)</ref> is another work to eschew the recurrence. It instead relied entirely on the attention mechanism to draw the global dependencies between input and output. <ref type="bibr" target="#b21">Su et al. (2018)</ref> introduced latent random variables into the decoder of NMT and generated these variables recurrently to capture the global semantic contexts and model strong and complex dependencies among target words at different timesteps.</p><p>Our method still follows the RNN encoder-decoder framework, giving full play to the advantages of RNNs, which transfers information through words bidirectionally. In addition, we also employs RNs in our method to connect the source words explicitly, further captures relationships between source words without any external knowledge injection, which enables the model to learn the relationships itself and facilitates easy application.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Experiments</head><p>In the experiment section, we first compare our system with two baseline systems on a Chinese-English (Zh-En) dataset and the WMT17 English-German (En-De) dataset, then compare our method with a related approach on the WMT16 En-De dataset. Finally, we give some analyses about our method in different aspects.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1">Data Preparation</head><p>We performed experiments on three datasets:</p><p>NIST The training data consisted of 1.25M Zh-En parallel sentence pairs with 25M Chinese tokens and 27M English tokens <ref type="bibr" target="#b0">1</ref> . We used NIST 2002 test dataset (878 sentences) as the validation set, and another four NIST test datasets as the test datasets: NIST 2003 (MT03), NIST 2004 (MT04), NIST 2005 (MT05) and NIST 2006 (MT06), which contain 919, 1788, 1082 and 1357 sentences respectively. WMT17 The training data was composed of 5.6M En-De preprocessed parallel sentence pairs 2 with 141M English tokens and 194M German tokens. The test dataset of newstest2014 (3003 sentences) was used as the validation set and the following test datasets were used as the test datasets: newstest2015 (2169 sentences), newstest2016 (2999 sentences) and newstest2017 (3004 sentences). Besides, 8k merging operations were performed to learn byte-pair encodings (BPE)  on the target side of the parallel training data.</p><p>WMT16 We conducted experiments on WMT16 dataset, the same dataset as the work of Bastings et al. (2017) for comparison. We kept the same settings as those in <ref type="bibr" target="#b3">Bastings et al. (2017)</ref>: The original dataset consists of 4500966 sentence pairs, with 4173550 left after filtering pairs which contains more than 50 tokens on either side after tokenization. newstest2015 and newstest2016 were used as the validation set and test dataset, respectively. 16k BPE merging operations were conducted on the target side of the bilingual training data.</p><p>For WMT16 dataset, case-sensitive 4-gram BLEU score <ref type="bibr" target="#b15">(Papineni et al., 2002)</ref> was reported by using the multi-bleu.pl script. The results on the other two datasets were evaluated with case-insensitive 4-gram BLEU score.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2">Systems</head><p>Results of five systems on different datasets were reported:</p><p>RNNsearch We implemented the attention-based NMT of <ref type="bibr" target="#b2">Bahdanau et al. (2015)</ref> by PyTorch framework 3 with the following settings: the length of the sentences on both sides was limited up to tokens with 30K vocabulary, and the source and target word embedding sizes were both set to 512, the size of all hidden units in both encoder and decoder RNNs was also set to 512, and all parameters were initialized by using uniform distribution over <ref type="bibr">[−0.1, 0.1]</ref>. The mini-batch stochastic gradient descent (SGD) algorithm was employed to train the model with batch size of 80. In addition, the learning rate was adjusted by Adadelta optimizer (Zeiler, 2012) with ρ = 0.95 and = 1e-6. Dropout was applied on the output layer with dropout rate of 0.5. The beam size was set to 10.   RNNsearch This system is an improved version of RNNsearch where the decoder employs a conditional GRU layer with attention module, consisting of two GRUs and an attention module for each step 4 . Specifically, Equation 4 is substituted with the following two equations:</p><formula xml:id="formula_18">s j = GRU 1 (y j−1 , s j−1 ); s j = GRU 2 (a j ,s j )<label>(13)</label></formula><p>Besides, for the calculation of attention in Equation 2, s j−1 is replaced withs j−1 . The other components of the system keep the same as RNNsearch. We used the same settings for RNNsearch and RNNsearch . VRNMT A novel Variational Recurrent NMT (VRNMT) model, proposed by <ref type="bibr" target="#b21">Su et al. (2018)</ref>, captures more semantic context and complex dependencies among target words by generating latent random variables recurrently in the NMT decoder.</p><p>BiRNN+GCN This is the model presented by <ref type="bibr" target="#b3">Bastings et al. (2017)</ref>. They incorporated dependency syntactic structure into the bidirectional RNN (BiRNN) encoder of NMT and modeled the relation among the source words by using graph convolutional networks (GCNs).</p><p>RNMT Our system was implemented by embedding the RNLs into the Bi-GRUs of RNNsearch . The overall structure used alternatively stacked GRUs and RNLs, in which the two GRU layers are in opposite direction. Inside the RNL, the GP layer employed a 4-hidden-layers MLP (shown in Equation 8) and the MLP layer contained 2 hidden layers (as in Equation 10). For the Zh-En translation task, two convolution layers with kernel width of 1 and 3 were stacked, the output channel sizes of CNN were 128 and 256 respectively, followed by batch normalization (BN) (Ioffe and Szegedy, 2015) with learnable parameters, and MLP contained 256 units. For the En-De translation task, only one convolution layer was used with kernel width of 3, the output channel size was 96, 128 was adopted as the hidden size of MLP. All of the other settings were the same with those of RNNsearch .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3">Performance Comparison</head><p>We compared our system RNMT with the two baseline systems RNNsearch and RNNsearch both on the NIST Zh-En and the WMT17 En-De translation tasks. As RNMT was implemented on the basis of RNNsearch , in the strict sense, RNNsearch is the baseline. From the results shown in <ref type="table" target="#tab_0">Table 1</ref>, we can see that RNMT significantly improves translation quality on all test datasets and outperforms RNNsearch by 1.48 BLEU points averagely on the Zh-En dataset. Besides, comparison between our model to VRNMT shows that proposed simple model stably produces better performance on all test datasets and outperforms VRNMT 1.04 BLEU score on average.</p><p>https://github.com/nyu-dl/dl4mt-tutorial/blob/master/docs/cgru.pdf On the WMT17 En-De dataset, as shown in <ref type="table" target="#tab_1">Table 2</ref>, RNMT shows superiority on three test datasets stably, and averagely achieves the gains of 1.7 BLEU points over RNNsearch , with only 4.1M parameters more. Given the above results, we can conclude that RN can indeed learn the relationships between the source words and these relationships are useful and bring improvement on the translation performance.</p><p>We also compared our method with the work of <ref type="bibr" target="#b3">Bastings et al. (2017)</ref> which requires the injection of external syntactic knowledge, to see whether the relationships produced by RNs can lead to better translation than the syntax from supervised learning. The results in <ref type="table" target="#tab_2">Table 3</ref> show that our system can achieve an improvement of 1.5 BLEU scores. We believe that the relationships of the source words derived from RNs do not necessarily conform to human cognition, but it can be simultaneously tailored with the other parts of the translation system. In this way, RNs can generate the relationships more suitable for the NMT.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.4">Impact of Input Length</head><p>One motivation of adding RNs is that RNNs tend to forget the distant history which RNs memorize it by explicitly introducing relations between pairs of words. Therefore, we assume that our method suppose to bring greater improvement on relative long sentences, which contains more distant history information than shorter ones that usually forgotten by RNNs. Based on this sense, we split the source sentences in the MT03 test dataset into different bins according to their length and evaluated BLEU scores of the translations from RNNsearch and RNMT on the different bins, respectively.</p><p>The results are shown in <ref type="figure" target="#fig_1">Figure 3</ref>. In the bins holding sentences no longer than 50, the BLEU scores of the two systems are close to each other. When the sentence length surpasses 50, RNMT shows its superiority over RNNsearch . As the sentence length grows, the difference becomes increasingly large. This verifies the deduce that our method can not only memorize history information but capture the relationship between words, both of which are beneficial to translate long sentences.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.5">Word Alignment</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Systems</head><p>BLEU AER RNNsearch 22.40 46.76 RNMT 24.12 45.66 <ref type="table">Table 4</ref>: Comparison of alignment quality on NIST Zh-En translation task.</p><p>In this section, we will verify the translation performance of our model from another perspective. Intuitively, the better translation should have better alignment to the source sentence, so we evaluated the quality of the alignments derived from the attention module of the NMT using Alignment Error Rate (AER) <ref type="bibr" target="#b25">(Och, 2003)</ref>. We did this experiment on the artificially aligned dataset from <ref type="bibr" target="#b26">Liu and Sun (2015)</ref> which contains 900 Zh-En sentence pairs. The alignments were got in this way for both RNNsearch system and our system. When one target word was generated, we retained the alignment link with the highest probability α ij in Equation 3.</p><p>The comparison results are shown in <ref type="table">Table 4</ref>. It illustrates that our system RNMT can produce better translations than the baseline RNNsearch , a difference of 1.72 BLEU points. Besides, the AER score is 1.1 points lower than the baseline model. Note that the smaller the AER score, the better the alignment quality.</p><p>Along with the translation results, we also produce the word alignment matrix based on each target word's attention probability distribution over the whole source sentence. Two source sentences are randomly sampled from websites, both comparisons between baseline alignment and improved alignment generated by RNNsearch and RNMT are shown in <ref type="figure" target="#fig_2">Figure 4</ref>.</p><p>For the first example, from the view of source side, it is obviously unreasonable that the Chinese word yi is contributed to generate three discontinuous English words the, is and for, grammatical knowledge show that the word yi should be only aligned to the English word for, just like the result of our model. Besides, on the target's ground, if one Chinese word is translated into an English phrase, all words in the phrase should be aligned to the Chinese word, RNNsearch model improperly aligns new and is to some other irrelevant words besides the correct one. When generating word is, almost the whole source sentence should be considered, our model gets more centralized alignment for it.</p><p>In the second case, unlike the baseline model, our model produces correct translation jazz music for jueshi yinyue and alignment. the together with origin is aligned to the source word fayuan, while RNNsearch mistakenly aligns the to two source words almost with equal probability.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.6">Translation Examples</head><p>As shown in <ref type="table" target="#tab_3">Table 5</ref>, we give two example translations generated from baseline model and proposed model. Comparing the translation results between two systems, we can observe that RNNsearch often miss some information of the source sentence, especially for the long sentence. Both of the sentences are complex sentences with long dependent adversative relation, for the first example, the baseline model forgets the information of the long distance clause about women jinnian yizhi • • • toumingdu and ignores to translate the second clause. It similarly happens that, when producing the target text for the second sample, RNNsearch loses the information after chengnuo dongaohui and fails to capture the latter clause with adversative relation. In addition, another phenomenon observed is that the longer the source sentence is, it is easier to ignore important information for RNNsearch . However, as can be seen from the boldfaced sections marked in results generated with RNMT, proposed model with CNN could captures more source information successfully.</p><p>Specifically, RNNs are skilled in modeling the order information of a sequence, while CNNs mainly focus on local features around some specific word. Both of them are weak to capture the long-distance dependency information, However, facts prove that proposed relation layer succeeds in alleviating the deficiencies of the two by integrating CNNs with bidirectional RNNs subtly. Source 我们 近年 一直 倡导 " 诚信 " , 要 " 打造 阳光 政府 " , 要 尊重 公众 的 " 知情权 " , 要 提高 行政 " 透明 度 " , 然而 , 事实 距离 理想 还 有 很 大 差距 。 Reference in recent years, we have been advocating "integrity" and we want to "forge a government-in-sunshine", improve the "transparency" of government administration, and respect the public's "right to know". however, the reality is still very far from ideal. RNNsearch in recent years , we have always advocated " honesty " and " build a sunshine government , " and we must respect the public 's " right to understand " and to enhance the " transparency " of the " transparency " of the public . RNMT in recent years , we have advocated " integrity " and " build up the sun . " we should respect public " right to know " and improve the " transparency " of the public . however , there is still a big gap between reality and ideals .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Source</head><p>经过 国际 奥委会 的 不懈 努力 , 意大利 方面 在 冬奥会 开幕 前 四 天 作出 让步 , 承诺 冬奥会 期间 警 方 不 会 进入 奥运村 搜查 运动员 驻地 , 但是 , 药检 呈 阳性 的 运动员 仍将 接受 意大利 检察 机关 的 调查 。 Reference through the untiring efforts of the ioc, the italian side made concession four days before the winter olympics opened, promising that police would not enter the olympic village to raid athletes' quarters during the winter olympics, but athletes tested positive for drugs are still subject to investigations of italian prosecutors. RNNsearch through the unremitting efforts of the ioc , the italian side made a concession four days prior to the opening of the international olympic committee . RNMT with the unremitting efforts of the international olympic committee , the italian side made a concession in four days before the opening of the UNK and promised that the police would not be able to search for the athlete 's place during the opening period . </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6">Conclusion</head><p>As RNNs are not good at remembering the old history and cannot consider word relationship either, sometimes conventional NMT cannot get enough source information and hence emphasizes too much on the fluency of the target. As a result, it suffers from meaning-drift and generates "inaccurate" translation. Even so, NMT can still benefit from the recurrence of RNNs. In this paper, we propose to incorporate RNLs into the attentional NMT. The RNs employs CNNs to collect information around one word and explicitly connect each word with all the other words. In this way, it provides the opportunities for NMT to capture relationship between source words and hence leads to a better source representation. Our method can get better translation on the NIST Zh-En dataset and the WMT En-De dataset and can even outperform the system with supervised syntactic knowledge.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 :</head><label>1</label><figDesc>The architecture of attention-based NMT</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 3 :</head><label>3</label><figDesc>Results on different bins contain sentences of length within corresponding spans.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 4 :</head><label>4</label><figDesc>Word alignment comparison. The green boxes show the manual golden alignments.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head>Table 1 :</head><label>1</label><figDesc>42.01 * 37.79 * 37.81 * 39.21 Performance comparison on NIST datasets. * is used to indicate the improvement over RNNsearch is statistically significant<ref type="bibr" target="#b5">(Collins et al., 2005)</ref> (p &lt; 0.01).</figDesc><table><row><cell></cell><cell cols="2">Systems</cell><cell cols="4">MT03 MT04 MT05 MT06 Average</cell></row><row><cell></cell><cell cols="2">RNNsearch</cell><cell>33.70</cell><cell>36.15</cell><cell>31.81</cell><cell>32.71</cell><cell>33.59</cell></row><row><cell></cell><cell cols="2">RNNsearch</cell><cell>37.93</cell><cell>40.53</cell><cell>36.65</cell><cell>35.80</cell><cell>37.73</cell></row><row><cell></cell><cell cols="2">VRNMT</cell><cell>38.08</cell><cell>41.07</cell><cell>36.82</cell><cell>36.72</cell><cell>38.17</cell></row><row><cell cols="5">RNMT 39.24  Systems test15 test16 test17 Avg.</cell><cell></cell></row><row><cell>RNNsearch</cell><cell>17.3</cell><cell>20.9</cell><cell>16.6</cell><cell>18.3</cell><cell></cell></row><row><cell>RNNsearch</cell><cell>21.4</cell><cell>25.6</cell><cell>20.1</cell><cell>22.4</cell><cell></cell></row><row><cell>RNMT</cell><cell>22.7</cell><cell></cell><cell></cell><cell></cell><cell></cell></row></table><note>** 27.8* 21.8* 24.1</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>Table 2</head><label>2</label><figDesc></figDesc><table><row><cell>Systems</cell><cell>test16</cell></row><row><cell>BiRNN+GCN</cell><cell>23.9</cell></row><row><cell>RNMT</cell><cell>25.4</cell></row><row><cell>: Performance comparison on WMT17</cell><cell></cell></row><row><cell>En-De datasets.</cell><cell></cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_2"><head>Table 3 :</head><label>3</label><figDesc>Performance comparison with the related work on the WMT16 En-De dataset.</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_3"><head>Table 5 :</head><label>5</label><figDesc>Translation examples.</figDesc><table /><note></note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgements</head><p>We highly appreciate the anonymous reviewers for their precious comments. This work was supported in part by National Natural Science Foundation of China (Nos. 61472428 and 61662077).</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Hansard&apos;s portion of LDC2004T07, LDC2004T08 and LDC2005T06 from the LDC corpora. There were 1.11M sentence pairs left after filtering</title>
+		<ptr target="http://data.statmt.org/wmt17/translation-task/preprocessed3http://pytorch.org" />
+	</analytic>
+	<monogr>
+		<title level="m">We chose LDC2002E18, LDC2003E07, LDC2003E14</title>
+		<imprint>
+			<biblScope unit="volume">2</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Towards string-to-tree neural machine translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Roee</forename><surname>Aharoni</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoav</forename><surname>Goldberg</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 55th Annual Meeting of the Association for Computational Linguistics</title>
+		<meeting>the 55th Annual Meeting of the Association for Computational Linguistics<address><addrLine>Vancouver, Canada</addrLine></address></meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2017-07" />
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page" from="132" to="140" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<title level="m" type="main">Neural machine translation by jointly learning to align and translate</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dzmitry</forename><surname>Bahdanau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kyunghyun</forename><surname>Cho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Graph convolutional encoders for syntax-aware neural machine translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Joost</forename><surname>Bastings</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ivan</forename><surname>Titov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Wilker</forename><surname>Aziz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Diego</forename><surname>Marcheggiani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Khalil</forename><surname>Simaan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2017 Conference on Empirical Methods in Natural Language Processing</title>
+		<meeting>the 2017 Conference on Empirical Methods in Natural Language Processing<address><addrLine>Copenhagen, Denmark</addrLine></address></meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2017-09" />
+			<biblScope unit="page" from="1957" to="1967" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Learning phrase representations using rnn encoder-decoder for statistical machine translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kyunghyun</forename><surname>Cho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bart</forename><surname>Van Merrienboer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Caglar</forename><surname>Gulcehre</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dzmitry</forename><surname>Bahdanau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Fethi</forename><surname>Bougares</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Holger</forename><surname>Schwenk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2014 Conference on Empirical Methods in Natural Language Processing (EMNLP)</title>
+		<meeting>the 2014 Conference on Empirical Methods in Natural Language Processing (EMNLP)<address><addrLine>Doha, Qatar</addrLine></address></meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2014-10" />
+			<biblScope unit="page" from="1724" to="1734" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Clause restructuring for statistical machine translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Collins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Philipp</forename><surname>Koehn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ivona</forename><surname>Kucerova</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 43rd Annual Meeting of the Association for Computational Linguistics (ACL&apos;05)</title>
+		<meeting>the 43rd Annual Meeting of the Association for Computational Linguistics (ACL&apos;05)<address><addrLine>Ann Arbor, Michigan</addrLine></address></meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2005-06" />
+			<biblScope unit="page" from="531" to="540" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">A convolutional encoder model for neural machine translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonas</forename><surname>Gehring</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Auli</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Grangier</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yann</forename><surname>Dauphin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 55th Annual Meeting of the Association for Computational Linguistics</title>
+		<meeting>the 55th Annual Meeting of the Association for Computational Linguistics<address><addrLine>Vancouver, Canada</addrLine></address></meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2017-07" />
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="page" from="123" to="135" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Convolutional sequence to sequence learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonas</forename><surname>Gehring</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Auli</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Grangier</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Denis</forename><surname>Yarats</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yann</forename><forename type="middle">N</forename><surname>Dauphin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 34th International Conference on Machine Learning</title>
+		<editor>Doina Precup and Yee Whye Teh</editor>
+		<meeting>the 34th International Conference on Machine Learning<address><addrLine>Sydney, Australia</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2017-08" />
+			<biblScope unit="volume">70</biblScope>
+			<biblScope unit="page" from="6" to="11" />
+		</imprint>
+	</monogr>
+	<note>International Convention Centre</note>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Long short-term memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sepp</forename><surname>Hochreiter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jürgen</forename><surname>Schmidhuber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural Computation</title>
+		<imprint>
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="issue">8</biblScope>
+			<biblScope unit="page" from="1735" to="1780" />
+			<date type="published" when="1997" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Densely connected convolutional networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">V D</forename><surname>Maaten</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">Q</forename><surname>Weinberger</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2017 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)</title>
+		<imprint>
+			<date type="published" when="2017-07" />
+			<biblScope unit="page" from="2261" to="2269" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Batch normalization: Accelerating deep network training by reducing internal covariate shift</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sergey</forename><surname>Ioffe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christian</forename><surname>Szegedy</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 32nd International Conference on Machine Learning</title>
+		<editor>Francis Bach and David Blei</editor>
+		<meeting>the 32nd International Conference on Machine Learning<address><addrLine>Lille, France</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2015-07" />
+			<biblScope unit="volume">37</biblScope>
+			<biblScope unit="page" from="7" to="09" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Recurrent continuous translation models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nal</forename><surname>Kalchbrenner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Phil</forename><surname>Blunsom</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2013 Conference on Empirical Methods in Natural Language Processing</title>
+		<meeting>the 2013 Conference on Empirical Methods in Natural Language Processing<address><addrLine>Seattle, Washington, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2013-10" />
+			<biblScope unit="page" from="1700" to="1709" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Statistical phrase-based translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Philipp</forename><surname>Koehn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Franz</forename><forename type="middle">Josef</forename><surname>Och</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daniel</forename><surname>Marcu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2003 Conference of the North American Chapter of the Association for Computational Linguistics on Human Language Technology</title>
+		<meeting>the 2003 Conference of the North American Chapter of the Association for Computational Linguistics on Human Language Technology</meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2003" />
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="page" from="48" to="54" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Modeling source syntax for neural machine translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Junhui</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Deyi</forename><surname>Xiong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zhaopeng</forename><surname>Tu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Muhua</forename><surname>Zhu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Min</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Guodong</forename><surname>Zhou</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 55th Annual Meeting of the Association for Computational Linguistics</title>
+		<meeting>the 55th Annual Meeting of the Association for Computational Linguistics<address><addrLine>Vancouver, Canada</addrLine></address></meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2017-07" />
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="page" from="688" to="697" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Assessing the ability of lstms to learn syntax-sensitive dependencies</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tal</forename><surname>Linzen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Emmanuel</forename><surname>Dupoux</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoav</forename><surname>Goldberg</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Transactions of the Association for Computational Linguistics</title>
+		<imprint>
+			<biblScope unit="volume">4</biblScope>
+			<biblScope unit="page" from="521" to="535" />
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Bleu: a method for automatic evaluation of machine translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kishore</forename><surname>Papineni</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Salim</forename><surname>Roukos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Todd</forename><surname>Ward</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Wei-Jing</forename><surname>Zhu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of 40th Annual Meeting of the Association for Computational Linguistics</title>
+		<meeting>40th Annual Meeting of the Association for Computational Linguistics<address><addrLine>Philadelphia, Pennsylvania, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2002-07" />
+			<biblScope unit="page" from="311" to="318" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">A simple neural network module for relational reasoning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adam</forename><surname>Santoro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Raposo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>David</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mateusz</forename><surname>Barrett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Razvan</forename><surname>Malinowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Peter</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tim</forename><surname>Battaglia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Lillicrap</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<editor>I. Guyon, U. V. Luxburg, S. Bengio, H. Wallach, R. Fergus, S. Vishwanathan, and R. Garnett</editor>
+		<imprint>
+			<publisher>Curran Associates, Inc</publisher>
+			<date type="published" when="2017" />
+			<biblScope unit="volume">30</biblScope>
+			<biblScope unit="page" from="4974" to="4983" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Bidirectional recurrent neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Schuster</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">K</forename><surname>Paliwal</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Signal Processing</title>
+		<imprint>
+			<biblScope unit="volume">45</biblScope>
+			<biblScope unit="issue">11</biblScope>
+			<biblScope unit="page" from="2673" to="2681" />
+			<date type="published" when="1997-11" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Linguistic input features improve neural machine translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rico</forename><surname>Sennrich</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Barry</forename><surname>Haddow</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the First Conference on Machine Translation</title>
+		<meeting>the First Conference on Machine Translation<address><addrLine>Berlin, Germany, August</addrLine></address></meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="83" to="91" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Neural machine translation of rare words with subword units</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rico</forename><surname>Sennrich</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Barry</forename><surname>Haddow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alexandra</forename><surname>Birch</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics</title>
+		<meeting>the 54th Annual Meeting of the Association for Computational Linguistics<address><addrLine>Berlin, Germany</addrLine></address></meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2016-08" />
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="page" from="1715" to="1725" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Does string-based neural mt learn source syntax?</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xing</forename><surname>Shi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Inkit</forename><surname>Padhi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kevin</forename><surname>Knight</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2016 Conference on Empirical Methods in Natural Language Processing</title>
+		<meeting>the 2016 Conference on Empirical Methods in Natural Language Processing<address><addrLine>Austin, Texas</addrLine></address></meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2016-11" />
+			<biblScope unit="page" from="1526" to="1534" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jinsong</forename><surname>Su</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Shan</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Deyi</forename><surname>Xiong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yaojie</forename><surname>Lu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xianpei</forename><surname>Han</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Biao</forename><surname>Zhang</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1801.05119</idno>
+		<title level="m">Variational recurrent neural machine translation</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Sequence to sequence learning with neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ilya</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Oriol</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Quoc V</forename><surname>Le</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<editor>Z. Ghahramani, M. Welling, C. Cortes, N. D. Lawrence, and K. Q. Weinberger</editor>
+		<imprint>
+			<publisher>Curran Associates, Inc</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="volume">27</biblScope>
+			<biblScope unit="page" from="3104" to="3112" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Attention is all you need</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ashish</forename><surname>Vaswani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Noam</forename><surname>Shazeer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Niki</forename><surname>Parmar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jakob</forename><surname>Uszkoreit</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Llion</forename><surname>Jones</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aidan</forename><forename type="middle">N</forename><surname>Gomez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Illia</forename><surname>Kaiser</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Polosukhin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<editor>I. Guyon, U. V. Luxburg, S. Bengio, H. Wallach, R. Fergus, S. Vishwanathan, and R. Garnett</editor>
+		<imprint>
+			<publisher>Curran Associates, Inc</publisher>
+			<date type="published" when="2017" />
+			<biblScope unit="volume">30</biblScope>
+			<biblScope unit="page" from="6000" to="6010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Matthew</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Zeiler</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1212.5701</idno>
+		<title level="m">Adadelta: an adaptive learning rate method</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Minimum error rate training in statistical machine translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Franz Josef</forename><surname>Och</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 41st Annual Meeting of the Association for Computational Linguistics</title>
+		<meeting>the 41st Annual Meeting of the Association for Computational Linguistics<address><addrLine>Sapporo, Japan</addrLine></address></meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2003-07" />
+			<biblScope unit="page" from="160" to="167" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Contrastive unsupervised word alignment with non-local features</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yang</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Maosong</forename><surname>Sun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Twenty-Ninth AAAI Conference on Artificial Intelligence, AAAI&apos;15</title>
+		<meeting>the Twenty-Ninth AAAI Conference on Artificial Intelligence, AAAI&apos;15</meeting>
+		<imprint>
+			<publisher>AAAI Press</publisher>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="2295" to="2301" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

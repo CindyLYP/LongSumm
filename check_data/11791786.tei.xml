@@ -1,0 +1,1629 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Continuous online sequence learning with an unsupervised neural network model</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yuwei</forename><surname>Cui</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">Numenta, Inc</orgName>
+								<address>
+									<settlement>Redwood City</settlement>
+									<region>California</region>
+									<country>United States of America</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Subutai</forename><surname>Ahmad</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">Numenta, Inc</orgName>
+								<address>
+									<settlement>Redwood City</settlement>
+									<region>California</region>
+									<country>United States of America</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jeff</forename><surname>Hawkins</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">Numenta, Inc</orgName>
+								<address>
+									<settlement>Redwood City</settlement>
+									<region>California</region>
+									<country>United States of America</country>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Continuous online sequence learning with an unsupervised neural network model</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:46+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>The ability to recognize and predict temporal sequences of sensory inputs is vital for survival in natural environments. Based on many known properties of cortical neurons, hierarchical temporal memory (HTM) sequence memory is recently proposed as a theoretical framework for sequence learning in the cortex. In this paper, we analyze properties of HTM sequence memory and apply it to sequence learning and prediction problems with streaming data. We show the model is able to continuously learn a large number of variable-order temporal sequences using an unsupervised Hebbian-like learning rule. The sparse temporal codes formed by the model can robustly handle branching temporal sequences by maintaining multiple predictions until there is sufficient disambiguating evidence. We compare the HTM sequence memory with other sequence learning algorithms, including statistical methods: autoregressive integrated moving average (ARIMA), feedforward neural networks: online sequential extreme learning machine (ELM), and recurrent neural networks: long short-term memory (LSTM) and echo-state networks (ESN), on sequence prediction problems with both artificial and real-world data. The HTM model achieves comparable accuracy to other state-of-the-art algorithms. The model also exhibits properties that are critical for sequence learning, including continuous online learning, the ability to handle multiple predictions and branching sequences with high order statistics, robustness to sensor noise and fault tolerance, and good performance without task-specific hyperparameters tuning. Therefore the HTM sequence memory not only advances our understanding of how the brain may solve the sequence learning problem, but is also applicable to a wide range of real-world problems such as discrete and continuous sequence prediction, anomaly detection, and sequence classification.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.">Introduction</head><p>In natural environments, the cortex continuously processes streams of sensory information and builds a rich spatiotemporal model of the world. The ability to recognize and predict ordered temporal sequences is critical to almost every function of the brain, including speech recognition, active tactile perception, and natural vision. Neuroimaging studies have demonstrated that multiple cortical regions are involved in temporal sequence processing <ref type="bibr" target="#b9">(Clegg et al., 1998;</ref><ref type="bibr" target="#b42">Mauk and Buonomano, 2004)</ref>. Recent neurophysiology studies have shown that even neurons in primary visual cortex can learn to recognize and predict spatiotemporal sequences <ref type="bibr" target="#b70">(Xu et al., 2012;</ref><ref type="bibr" target="#b18">Gavornik and Bear, 2014)</ref> and that neurons in primary visual and auditory cortex exhibit sequence sensitivity <ref type="bibr" target="#b7">(Brosch and Schreiner, 2000;</ref><ref type="bibr" target="#b48">Nikolić et al., 2009)</ref>. These studies suggest that sequence learning is an important problem that is solved by many cortical regions.</p><p>Machine learning researchers have also extensively studied sequence learning independently of neuroscience. Statistical models, such as hidden-markov models (HMM) <ref type="bibr" target="#b53">(Rabiner and Juang, 1986;</ref><ref type="bibr" target="#b14">Fine et al., 1998)</ref> and autoregressive integrated moving average (ARIMA) <ref type="bibr" target="#b13">(Durbin and Koopman, 2012)</ref> have been developed for temporal pattern recognition and timeseries prediction respectively. A variety of neural network models have been proposed to model sequential data. Feedforward networks, such as time delay neural networks (TDNN), have been used to model sequential data by adding a set of delays to the input <ref type="bibr" target="#b66">(Waibel et al., 1989)</ref>. Recurrent neural networks can model sequence structure with recurrent lateral connections and process the data sequentially one record at a time. For example, long short-term memory (LSTM) has the ability to selectively pass information across time and can model very long term dependencies using gating mechanisms <ref type="bibr" target="#b25">(Hochreiter and Schmidhuber, 1997)</ref> and gives impressive performance on a wide variety of real-world problems <ref type="bibr" target="#b38">(Lipton et al., 2015)</ref>. Echo state network (ESN) uses a randomly connected recurrent network as a dynamics reservoir and model a sequence as trainable linear combination of these response signals <ref type="bibr" target="#b32">(Jaeger and Haas, 2004)</ref>.</p><p>Can machine learning algorithms gain any insight from cortical algorithms? The current state-of-the-art statistical and machine-learning algorithms achieve impressive prediction accuracy on benchmark problems. However, most time-series prediction benchmarks do not focus on model performance in dynamic, non-stationary scenarios. Benchmarks typically have separate training and testing datasets, where the underlying assumption is that the test data share similar statistics as the training data <ref type="bibr" target="#b10">(Crone et al., 2011;</ref><ref type="bibr" target="#b3">Ben Taieb et al., 2012)</ref>. In contrast, sequence learning in the brain has to occur continuously to deal with the noisy, constantly changing streams of sensory inputs. Notably, with the increasing availability of streaming data, there is also an increasing demand for online sequence algorithms that can handle complex, noisy data streams. Therefore, reverseengineering the computational principles used in the brain could offer additional insights into the sequence learning problem that lies at the heart of many machine learning applications.</p><p>The exact neural mechanisms underlying sequence memory in the brain remain unknown but biologically plausible models based on spiking neurons have been studied. For example, <ref type="bibr" target="#b54">(Rao and Sejnowski, 2001)</ref> showed that spike-time-dependent plasticity rules can lead to predictive sequence learning in recurrent neocortical circuits. Spiking recurrent network models have been shown to recognize and recall precisely timed sequences of inputs using supervised learning rules <ref type="bibr" target="#b51">(Ponulak and Kasiński, 2010;</ref><ref type="bibr" target="#b5">Brea et al., 2013)</ref>. These studies demonstrate that certain limited types of sequence learning can be solved with biologically plausible mechanisms. However, only a few practical sequence learning applications use spiking network models as these models only recognize relatively simple and limited types of sequences. These models also do not match performance of non-biological statistical and machine learning approaches on real-world problems.</p><p>In this paper we present a comparative study of HTM sequence memory, a detailed model of sequence learning in the cortex <ref type="bibr" target="#b20">(Hawkins and Ahmad, 2016)</ref>. The HTM neuron model incorporates many recently discovered properties of pyramidal cells and active dendrites <ref type="bibr" target="#b2">(Antic et al., 2010;</ref><ref type="bibr" target="#b40">Major et al., 2013)</ref>. Complex sequences are represented using sparse distributed temporal codes <ref type="bibr" target="#b33">(Kanerva, 1988;</ref><ref type="bibr" target="#b1">Ahmad and Hawkins, 2016)</ref> and the network is trained using an online unsupervised Hebbian-style learning rule. The algorithms have been applied to many practical problems, including discrete and continuous sequence prediction, anomaly detection <ref type="bibr" target="#b34">(Lavin and Ahmad, 2015)</ref>, and sequence recognition and classification.</p><p>We compare HTM sequence memory with four popular statistical and machine learning techniques, including ARIMA, a statistical method for time-series forecasting <ref type="bibr" target="#b13">(Durbin and Koopman, 2012)</ref>; extreme learning machine (ELM), a feedforward network with sequential online learning <ref type="bibr" target="#b27">(Huang et al., 2006;</ref><ref type="bibr" target="#b37">Liang et al., 2006)</ref> and two recurrent networks LSTM and ESN. We show that HTM sequence memory achieves comparable prediction accuracy to these other techniques. In addition it exhibits a set of features that is desirable for real-world sequence learning from streaming data. We demonstrate that HTM networks learns complex high-order sequences from data streams, rapidly adapts to changing statistics in the data, naturally handles multiple predictions and branching sequences and exhibits high tolerance to system faults.</p><p>The paper is organized as follows. In section 2, we discuss a list of desired properties of sequence learning algorithms for real-time streaming data analysis. In section 3, we introduce the HTM temporal memory model. In sections 4 and 5, we apply the HTM temporal memory and other sequence learning algorithms to discrete artificial data and continuous real world data respectively. Discussion and conclusions are given in section 6.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">Criteria for a good sequence learning algorithm</head><p>With the increasing availability of streaming data, there is an increasing demand for online sequence learning algorithms.</p><p>Here, a data stream is an ordered sequence of data records that must be processed in real-time using limited computing and storage capabilities. In the field of data stream mining, the goal is to extract knowledge from continuous data streams such as computer network traffic, sensor data, financial transactions, etc. <ref type="bibr" target="#b12">(Domingos and Hulten, 2000;</ref><ref type="bibr" target="#b16">Gaber et al., 2005;</ref><ref type="bibr" target="#b17">Gama, 2010)</ref>, which often have changing statistics (non-stationary) (Sayed-Mouchaweh and Lughofer, 2012). Real-world sequence learning from such complex, noisy data streams requires many other properties in addition to prediction accuracy. This stands in contrast to many machine learning algorithms, which are developed to optimize performance on static datasets, and lack the flexibility to solve real-time streaming data analysis tasks. In contrast to these algorithms, the cortex solves the sequence learning problem in a drastically different way. Rather than achieving optimal performance for a specific problem (e.g., through gradient-based optimization), the cortex learns continuously from noisy sensory input streams and quickly adapts to the changing statistics of the data. When information is insufficient or ambiguous, the cortex can make multiple plausible predictions given the available sensory information.</p><p>Real-time sequence learning from data streams presents unique challenges for machine learning algorithms. In addition to prediction accuracy, below we list a set of criteria that applies to both biological systems and real-world streaming applications.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>1) Continuous learning</head><p>Continuous data streams often have changing statistics. As a result, the algorithm needs to continuously learn from the data streams and rapidly adapt to changes. This property is important for processing continuous real-time sensory streams, but has not been well studied in machine learning. For real-time data stream analysis, it is much valuable if the algorithm can recognize and learn new patterns rapidly.</p><p>Machine learning algorithms can be classified into batch or online learning algorithms. Both types of algorithms can be adopted for continuous learning applications. To apply a batch-learning algorithm to continuous data stream analysis, one needs to keep a buffered dataset of past data records. The model is retrained at regular intervals as the statistics of the data can change over time. The batch-training paradigm potentially requires significant computing and storage resources, particularly in situations where the data velocity is high. In contrast, online sequential algorithms can learn sequences in a single-pass and do not require a buffered dataset.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>2) High-order predictions</head><p>Real-world sequences contain contextual dependencies that span multiple time steps, i.e. the ability to make high-order predictions. The term "order" refers to Markov order, specifically the minimum number of previous time steps the algorithm needs to consider in order to make accurate predictions. An ideal algorithm should learn the order automatically and efficiently.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>3) Multiple simultaneous predictions</head><p>For a given temporal context, there could be multiple possible future outcomes. With real-world data, it is often insufficient to only consider the single best prediction when information is ambiguous. A good sequence learning algorithm should be able to make multiple predictions simultaneously and evaluate the likelihood of each prediction online. This requires the algorithm to output a distribution of possible future outcomes. This property is present in HMMs <ref type="bibr" target="#b53">(Rabiner and Juang, 1986)</ref> and generative recurrent neural network models <ref type="bibr" target="#b25">(Hochreiter and Schmidhuber, 1997)</ref>, but not in other approaches like ARIMA, which are limited to maximum likelihood prediction.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>4) Noise robustness and fault tolerance</head><p>Real world sequence learning deals with noisy data sources where sensor noise, data transmission errors and inherent device limitations frequently result in inaccurate or missing data. A good sequence learning algorithm should exhibit robustness to noise in the inputs.</p><p>The algorithm should also be able to learn properly in the event of system faults, such as loss of synapses and neurons in a neural network. The property of fault tolerance and robustness to failure is present in the brain. This property is important for the development of next-generation neuromorphic processors <ref type="bibr" target="#b65">(Tran et al., 2011)</ref>. Noise robustness and fault tolerance ensures flexibility and wide applicability of the algorithm to a wide variety of problems.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>5) No hyperparameter tuning</head><p>Learning in the cortex is extremely robust for a wide range of problems. In contrast, most machine-learning algorithms require optimizing a set of hyperparameters for each task. It typically involves searching through a manually specified subset of the hyperparameter space, guided by performance metrics on a cross-validation dataset. Hyperparameter tuning presents a major challenge for applications that require a high degree of automation, like data stream mining. An ideal algorithm should have acceptable performance on a wide range of problems without any task-specific hyperparameter tuning.</p><p>Many of the existing machine learning techniques demonstrate these properties to various degrees. A truly flexible and powerful system for streaming analytics would meet all of them. In the rest of the paper, we will compare HTM sequence memory with other common sequence learning algorithms (ARIMA, ELM, ESN and LSTM) on various tasks using the above criteria.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">HTM sequence memory</head><p>In this section we describe the computational details of HTM sequence memory. We first describe our neuron model. We then describe the representation of high order sequences, followed by a formal description of our learning rules. We point out some of the relevant neuroscience experimental evidence in our description, but a detailed mapping to the biology can be found in <ref type="bibr" target="#b20">(Hawkins and Ahmad, 2016)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1.">HTM neuron model</head><p>The HTM neuron ( <ref type="figure">Fig. 1B</ref>) implements non-linear synaptic integration inspired by recent neuroscience findings regarding the function of cortical neurons and dendrites <ref type="bibr" target="#b63">(Spruston, 2008;</ref><ref type="bibr" target="#b40">Major et al., 2013)</ref>. Each neuron in the network contains two separate zones: a proximal zone containing a single dendritic segment and a distal zone containing a set of independent dendritic segments. Each segment maintains a set of synapses. The source of the synapses is different depending on the zone <ref type="figure">(Fig. 1B)</ref>. Proximal synapses represent feedforward inputs into the layer whereas distal synapses represent lateral connections within a layer and feedback connections from a higher region. In this paper, we only consider a single region and ignore feedback connections.</p><p>Each distal dendritic segment contains a set of lateral synaptic connections from other neurons within the layer. A segment becomes active if the number of simultaneously active connections exceeds a threshold. An active segment does not cause the cell to fire but instead causes the cell to enter a depolarized state, which we call the "predictive state". In this way each segment detects a particular temporal context and makes predictions based on that context. Each neuron can be in one of three internal states: an active state, a predictive state, or a non-active state. The output of the neuron is always binary: it is either active or not.</p><p>The above neuron model is inspired by a large number of recent experimental findings that suggest neurons do not perform a simple weighted sum of their inputs and fire based on that sum <ref type="bibr" target="#b50">(Polsky et al., 2004;</ref><ref type="bibr" target="#b62">Smith et al., 2013)</ref>, as in most neural network models <ref type="bibr" target="#b43">(McFarland et al., 2013;</ref><ref type="bibr" target="#b59">Schmidhuber, 2014;</ref><ref type="bibr" target="#b35">LeCun et al., 2015)</ref>. Instead, dendritic branches are active processing elements. The activation of several synapses within close spatial and temporal proximity on a dendritic branch can initiate a local NMDA spike, which then cause a significant and sustained depolarization of the cell body <ref type="bibr" target="#b2">(Antic et al., 2010;</ref><ref type="bibr" target="#b40">Major et al., 2013)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2.">Two separate sparse representations</head><p>The HTM network consists of a layer of HTM neurons organized into a set of columns <ref type="figure" target="#fig_3">(Fig. 1A)</ref>. The network represents high-order sequences using a composition of two separate sparse representations. At any time, both the current feedforward input and the previous sequence context are simultaneously represented using sparse distributed representations.</p><p>The first representation is at the column level. We assume that all neurons within a column detect identical feed-forward input patterns on their proximal dendrites <ref type="bibr" target="#b47">(Mountcastle, 1997;</ref><ref type="bibr" target="#b8">Buxhoeveden, 2002)</ref>. Through an inter-columnar inhibition mechanism, each input element is encoded as a sparse distributed activation of columns at any point in time. At any time, the top 2% columns that receive most active feedforward inputs are activated. The second representation is at the level of individual cells within these columns. At any given point a subset of cells in the active columns will represent information regarding the learned temporal context of the current pattern. These cells in turn lead to predictions of the upcoming input through lateral projections to other cells within the same network. The predictive state of a cell controls inhibition within a column. If a column contains predicted cells and later receives sufficient feed-forward input, these cells become active and inhibit others within that column. If there were no cells in the predicted state, all cells within the column become active.</p><p>To illustrate the intuition behind these representations, consider two abstract sequences A-B-C-D and X-B-C-Y ( <ref type="figure">Fig.  1C-D)</ref>. In this example remembering that the sequence started with A or X is required to make the correct prediction following "C". The current inputs are represented by the subset of columns that contains active cells (black, <ref type="figure">Fig. 1C</ref>-D). This set of active columns does not depend on temporal context, just on the current input. After learning, different cells in this subset of columns will be active depending on predications based on the past context (B' vs. B'', C' vs. C'', <ref type="figure">Fig. 1D</ref>). These cells then lead to predictions of the element following C (D or Y) based on the set of cells containing lateral connections to columns representing C.</p><p>This dual representation paradigm leads to a number of interesting properties. First, the use of sparse representations allows the model to make multiple predictions simultaneously. For example, if we present input "B" to the network without any context, all cells in columns representing the "B" input will fire, which leads to a prediction of both C' and C''. Second, because information is stored by coactivation of multiple cells in a distributed manner, the model is naturally robust to both noise in the input and system faults such as loss of neurons and synapses. A detailed discussion on this topic can be found in <ref type="bibr" target="#b20">(Hawkins and Ahmad, 2016)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3.">HTM activation and learning rules</head><p>The previous sections provided an intuitive description of network behavior. In this section we describe the formal activation and learning rules for the HTM network. Consider a network with N columns and M neurons per column; we denote the activation state at time step t with an × binary matrix ! , where !" ! is the activation state of the 'th cell in the 'th column. Similarly, an × binary matrix ! denotes cells in a predictive state at time , where !" ! is the predictive state of the 'th cell in the 'th column. We model each synapse with a scalar permanence value, and consider a synapse connected if its permanence value is above a <ref type="figure">Figure 1</ref> The HTM sequence memory model. A. The cortex is organized into 6 cellular layers. Each cellular layer consists of a set of mini-columns, with each mini-column containing multiple cells. B. An HTM neuron (left) has three distinct dendritic integration zones, corresponding to different parts of the dendritic tree of pyramidal neurons (right). An HTM neuron models dendrites and NMDA spikes asç an array of coincident detectors, each with a set of synapses. The co-activation of a set of synapses on a distal dendrite will cause an NMDA spike and depolarize the soma (predicted state). C-D. Learning high-order Markov sequences with shared subsequences (ABCD vs. XBCY). Each sequence element invokes a sparse set of mini-columns due to intercolumn inhibition. C. Prior to learning the sequences, all the cells in a mini-column become active. D. After learning, cells that are depolarized through lateral connections become active faster and prevent other cells in the same column from firing through intra-column inhibition. The model maintains two simultaneous representations: one at the mini-column level representing the current feedforward input, and the other at individual cell level representing the context of the input. Because different cells respond to "C" in the two sequences (C' and C''), they can invoke the correct high-order prediction of either D or Y. connection threshold. We use an × matrix !" ! to denote the permanence of 'th segment of the 'th cell in the 'th column. The synaptic permanence matrix is bounded between and 1. We use a binary matrix !" ! to denote only the connected synapses. The network can be initialized such that each segment contains a set of potential synapses (i.e. with non-zero permanence value) to a randomly chosen subset of cells in the layer. To speed up simulation, instead of explicitly initializing a complete set of synapses across every segment and every cell, we greedily create segments at run time (see Appendix).</p><p>The predictive state of the neuron is handled as follows: if a dendritic segment receives enough input, it becomes active and subsequently depolarizes the cell body without causing an immediate spike. Mathematically, the predictive state at time step t is calculated as follows:</p><formula xml:id="formula_0">!" ! = 1 if ∃ ! !" ! ∘ ! ! &gt; 0 otherwise (1)</formula><p>Threshold represents the segment activation threshold and ∘ represents element-wise multiplication. Since the distal synapses receive inputs from previously active cells in the same layer, it contains contextual information about future inputs ( <ref type="figure">Fig. 1B)</ref>.</p><p>At any time, an inter-columnar inhibitory process select a sparse set of columns that best match the current feed forward input pattern. We calculate the number of active proximal synapses for each column, and activate the top 2% of the columns that receive the most synaptic inputs. We denote this set as ! . The proximal synapses were initialized such that each column is randomly connected to 50% of the inputs. Since we focused sequence learning in this paper, the proximal synapses were fixed during learning. In principle, the proximal synapses can also adapt continuously during learning according to a spatial competitive learning rule <ref type="bibr" target="#b21">(Hawkins et al., 2011;</ref><ref type="bibr" target="#b45">Mnatzaganian et al., 2016)</ref>.</p><p>Neurons in the predictive state (i.e. depolarized) will have competitive advantage over other neurons receiving the same feed-forward inputs. Specifically, a depolarized cell fires faster than other non-depolarized cells if it subsequently receives sufficient feed-forward input. By firing faster, it prevents neighboring cells in the same column from activating with intra-column inhibition. The active state for each cell is calculated as follows:</p><formula xml:id="formula_1">!" ! = 1 if ∈ ! and !" !!! = 1 1 if ∈ ! and !" !!! ! = 0 0 otherwise (2)</formula><p>The first conditional expression of Eq. 2 represents a cell in a winning column becoming active if it was in a predictive state during the preceding time step. If none of the cells in a winning column are in a predictive state, all cells in that column become active, as in the second conditional of Eq. 2.</p><p>The lateral connections in the sequence memory model are learned using a Hebbian-like rule. Specifically, if a cell is depolarized and subsequently becomes active, we reinforce the dendritic segment that caused the depolarization. If no cell in an active column is predicted, we select the cell with the most activated segment and reinforce that segment. Reinforcement of a dendritic segment involves decreasing permanence values of inactive synapses by a small value ! and increasing the permanence for active synapses by a larger value ! :</p><formula xml:id="formula_2">∆ !" ! = ! !" ! ∘ !!! − ! !" ! ∘ ( − !!! )<label>(3)</label></formula><p>!"</p><p>! denotes a binary matrix containing only the positive entries in !" ! . We also apply a very small decay to active segments of cells that did not become active, mimicking the effect of long-term depression <ref type="bibr" target="#b41">(Massey and Bashir, 2007)</ref>:</p><formula xml:id="formula_3">∆ !" ! = !! !"</formula><p>! where !"</p><formula xml:id="formula_4">! = 0 and !" ! ∘ !!! ! &gt;<label>(4)</label></formula><p>where</p><formula xml:id="formula_5">!! ≪ ! .</formula><p>The learning rule is inspired by neuroscience studies of activity-dependent synaptogenesis <ref type="bibr" target="#b71">(Zito and Svoboda, 2002)</ref>, which showed that the adult cortex generates new synapses in response to sensory activity rapidly. The mathematical formula we chose captured this Hebbian synaptogenesis learning rule. We did not derive the rule by implementing gradient descent on a cost function. There could be other mathematical formulations that give similar or better results.</p><p>A complete set of parameters and further implementation details can be found in the appendix. These parameters were set based on properties of sparse distributed representations <ref type="bibr" target="#b1">(Ahmad and Hawkins, 2016)</ref>. Notably, we used the same set of parameters for all the different types of sequence learning tasks in this paper.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4.">SDR encoder and classifier</head><p>The HTM sequence memory operates with sparse distributed representations (SDRs) internally. To apply HTM to realworld sequence learning problems, we need to first convert the original data to SDRs using an encoder. We have created a variety of encoders to deal with different data types <ref type="bibr" target="#b52">(Purdy, 2016)</ref>. In this paper, we used a random SDR encoder for categorical data, and used scalar and date-time encoders for the taxi passenger prediction experiment.</p><p>To decode prediction values from the output SDRs of HTM, we considered two classifiers: a simple classifier based on SDR overlaps and a maximum-likelihood classifier. For the single-step discrete sequence prediction task, we computed the overlap of the predicted cells with the SDRs of all observed elements and selected the one with the highest overlap. For the continuous scalar value prediction task, we divided the whole range of scalar value into 22 disjoint buckets, and used a single layer feedforward classification network. Given a large array of cell activation pattern , the classification network computes a probability distribution over all possible classes using a softmax activation function <ref type="bibr" target="#b6">(Bridle, 1989</ref>). There are as many output units as the number of possible classes. The jth output unit receives a weighted summation of all the inputs,</p><formula xml:id="formula_6">! = !" ! ! !!! (5)</formula><p>!" is the connection weight from the ith input neuron to the jth output neuron. The estimated class probability is given by the activation level of the output units,</p><formula xml:id="formula_7">! = ! = ! (6)</formula><p>Using a maximum likelihood optimization, we derived the learning rule for the weight matrix w.</p><formula xml:id="formula_8">!" = ! − ! ! (7)</formula><p>! is the observed (target) distribution and is the learning rate. Note that since x is highly sparse, we only need to update a very small fraction of the weight matrix at any time. Therefore the learning algorithm for the classifier is fast despite the high dimensionality of the weight matrix.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">High-order sequence prediction with artificial data</head><p>We conducted experiments to test whether the HTM sequence memory model, online sequential extreme learning machine (OS-ELM) and the LSTM network are able to learn highorder sequences in an online manner, recover after modification to the sequences, and make multiple predictions simultaneously. LSTM represents the state-of-the-art recurrent neural network model for sequence learning tasks <ref type="bibr" target="#b25">(Hochreiter and Schmidhuber, 1997;</ref><ref type="bibr" target="#b19">Graves, 2012)</ref>. OS-ELM is a feedforward neural network model that is widely used for time-series predictions <ref type="bibr" target="#b26">(Huang et al., 2011;</ref><ref type="bibr" target="#b67">Wang and Han, 2014)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Figure 2</head><p>Functional steps for using HTM on real-world sequence learning tasks.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.">Continuous online learning from streaming data</head><p>We created a discrete high-order temporal sequence dataset.</p><p>Sequences are designed such that any learning algorithm would have to maintain context of at least the first two elements of each sequence in order to correctly predict the last element of the sequence <ref type="figure" target="#fig_0">(Figure 3)</ref>. We used the sequence dataset in a continuous streaming scenario ( <ref type="figure" target="#fig_0">Fig. 3C)</ref>. At the beginning of a trial, we randomly chose a sequence from the dataset and sequentially presented each of its elements. At the end of each sequence, we presented a single noise element to the model. The noise element is randomly chosen from a large set of 50,000 noise symbols (not used among the set of sequences). This is a difficult learning problem, since sequences are embedded in random noise; the start and end points are not marked. The set of noise symbols is large so the algorithm cannot learn every possible noise transition. We tested the algorithms for predicting the last element of each sequence continuously as the algorithm observed a stream of sequences, and reported the percentage of correct predictions over time.</p><p>We encoded each symbol in the sequence as a random SDR for HTM sequence memory, with 40 randomly chosen active bits in a vector of 2048 bits. This SDR representation matches the internal representation used in HTM, which has 2048 columns with 40 active at any time (see Implementation Details). We initially tried to use the same SDR encoding for ELM and LSTM. This high dimensional representation does not work well for ELM and LSTM due to the large number of parameters required. Instead, we used a random real-valued dense distributed representation for ELM and LSTM. Each symbol is encoded as a 25-dimensional vector with each dimension's value randomly chosen from [-1, 1] 1 . We chose this encoding format because it both gives better accuracy and has large representational capacity, which is required for streaming data analysis. Similar dense distributed representations are commonly used for LSTM in natural language processing applications <ref type="bibr" target="#b44">(Mikolov et al., 2013)</ref>.</p><p>Since the sequences are presented in a streaming fashion and predictions are required continuously, this task represents a continuous online learning problem. The HTM sequence memory is naturally suitable for online learning as it learns from every new data point and does not require the data stream to be broken up into predefined chunks. ELM also has a well-established online sequential learning model <ref type="bibr" target="#b37">(Liang et al., 2006)</ref>. Online sequential algorithm, such as real-time recurrent learning (RTRL) has been proposed for LSTM in the past, <ref type="bibr" target="#b69">(Williams and Zipser, 1989;</ref><ref type="bibr" target="#b25">Hochreiter and Schmidhuber, 1997)</ref>. However, most LSTM applications used batch learning due to the high computational cost of RTRL <ref type="bibr" target="#b31">(Jaeger, 2002)</ref>. We use two variants of LSTM networks for this task. First, we retrained an LSTM network at regular intervals on a buffered dataset of the previous time steps using a variant of the resilient backpropagation algorithm until convergence <ref type="bibr" target="#b30">(Igel and Hüsken, 2003)</ref>. The experiments include several LSTM models with varying buffer sizes. Second, we trained a LSTM network with online truncated back-propagation through time (BPTT) <ref type="bibr" target="#b68">(Williams and Peng, 1990)</ref>. At each time point, we calculated the gradient using BPTT over the last 100 elements and adjusted the parameters along the gradient by a small amount.</p><p>We tested sequences with either single or multiple possible endings <ref type="figure" target="#fig_0">(Fig. 3A-B</ref>). To quantify model performance, we classified the state of the model before presenting the last element of each sequence to retrieve the top K predictions, where K = 1 for the single prediction case and K = 2 or 4 for the multiple predictions case. We considered the prediction correct if the actual last element was among the top K predictions of the model. Since these are online learning tasks, there are no separate training and test phases. Instead, we continuously report the prediction accuracy of the end of each sequence before the model has seen it.</p><p>In the single prediction experiment <ref type="figure">(Fig. 4</ref>, left of the black dashed line), each sequence in the dataset has only one possible ending given its high-order context <ref type="figure" target="#fig_0">(Fig. 3A)</ref>. The HTM sequence memory quickly achieves perfect prediction accuracy on this task <ref type="figure">(Fig. 4, red)</ref>. Given a large enough learning window, LSTM also learns to predict the high-order sequences <ref type="figure">(Fig. 4, green)</ref>. Despite comparable model performance, TM and LSTM use the data in different ways: LSTM requires many passes over the learning window each time it is retrained to perform gradient-descent optimization, whereas HTM only needs to see each element once (one-pass learning). LSTM also takes longer than HTM to achieve perfect accuracy; we speculate that since LSTM optimizes over all transitions in the data stream, including the random ones between sequences, it is initially overfitting on the training data. Online LSTM and ELM are also trained in an online, sequential fashion similar to HTM. But both algorithms require keeping a short history buffer of the past elements. ELM learned the sequences slower than HTM, and never achieved perfect performance <ref type="figure">(Fig. 4, blue)</ref>. Online LSTM has the best performance initially, but does not achieve perfect performance in the end. HTM and LSTM are the only algorithms to achieve perfect prediction accuracy on this task. After the model learned one set of sequences, we switched to a new set of sequences with contradictory endings to test the adaptation to changes in the data stream.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.">Adaptation to changes in the data stream</head><p>Once the models have achieved stable performance, we altered the dataset by swapping the last elements of pairs of high-order sequences <ref type="figure" target="#fig_3">(Fig. 4, black dashed line)</ref>. This forces the model to forget the old sequences and subsequently learn the new ones. HTM sequence memory and online LSTM quickly recover from the modification. In contrast, it takes a long time for batch LSTM and ELM to recover from the modification as its buffered dataset contains contradictory information before and after the modification. Although using a smaller learning window can speed up the recovery <ref type="figure">(Fig. 4,  blue; purple)</ref>, it also causes worse prediction performance due to limited number of training samples.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Figure 4</head><p>Prediction accuracy of HTM (red) and LSTM (blue, green, purple) on an artificial dataset. The dataset contains four 6 th order sequences and four 7 th order sequences. Prediction accuracy is calculated as a moving average over the last 100 sequences. The sequences are changed after 10,000 elements have been seen (black dashed line). HTM sees each element once, and learns continuously. ELM is trained continuously using a time-lag of 10 steps. LSTM is either retrained every 1000 elements (orange vertical lines) on the last 1000 elements (yellow) or 9000 elements (green), or continuously adapted using truncated BPTT (purple).</p><p>A summary of the model performance on the high-order sequence prediction task is shown in <ref type="figure" target="#fig_1">Fig. 5</ref>. In general, there is a tradeoff between prediction accuracy and flexibility. For batch learning algorithms, a shorter learning window is required for fast adaptation to changes in the data, but a longer learning window is required to perfectly learn highorder sequences <ref type="figure" target="#fig_1">(Fig. 5</ref>, green vs. yellow). Although online LSTM and ELM do not require batch learning, it does require the user to specify the maximal lag, which limits the maximum sequence order it can learn. The HTM sequence memory model dynamically learns high-order sequences without requiring a learning window or a maximum sequence length. It achieved the best final prediction accuracy with a small number of data samples. After the modification to the sequences, HTM's recovery is much faster than ELM and LSTM trained with batch learning, demonstrating its ability to adapt quickly to changes in data streams.  </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3.">Simultaneous multiple predictions</head><p>In the experiment with multiple predictions <ref type="figure" target="#fig_0">(Fig. 3)</ref>, each sequence in the dataset has 2 or 4 possible endings, given its high-order context. The HTM sequence memory model rapidly achieves perfect prediction accuracy for both the 2predictions and the 4-predictions cases. While only these two cases are shown, in reality HTM is able to make many multiple predictions correctly if the dataset requires it. Given a large learning window, LSTM is able to achieve good prediction accuracy for the 2-predictions case, but when the number of predictions is increased to 4 or greater, it is not able to make accurate predictions.</p><p>HTM sequence memory is able to simultaneously make multiple predictions due to its use of SDRs. Because there is little overlap between two random SDRs, it is possible to predict a union of many SDRs and classify a particular SDR as being a member of the union with low chance of a false positive <ref type="bibr" target="#b1">(Ahmad and Hawkins, 2016)</ref>. On the other hand, the real-valued dense distributed encoding used in LSTM is not suitable for multiple predictions, because the average of multiple dense representations in the encoding space is not necessarily close to any of the component encodings, especially when the number of predictions being made is large. The problem can be solved by using local one-hot representations to code target inputs, but such representations have very limited capacity and do not work well when the number of possible inputs is large or unknown upfront. This suggests that modifying LSTMs to use SDRs might enable better performance on this task.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Figure 6</head><p>Performance on high order sequence prediction tasks that require two (left) or four (right) simultaneous predictions. Shaded regions represent standard deviations (calculated with different sets of sequences). The dataset contains four sets of 6 th order sequences and four sets of 7 th order sequences.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.4.">Learning long term dependencies from high-order sequences</head><p>For feedforward networks like ELM, the number of time lags that can be included in the input layer significantly limits the maximum sequence order a network can learn. The conventional recurrent neural networks cannot handle sequences with long term dependencies because error signals "flowing backwards in time" tend to either blow up or vanish with the classical back-propagation through time (BPTT) algorithm. LSTM is capable of learning very long-term dependencies using gating mechanisms <ref type="bibr" target="#b23">(Henaff et al., 2016</ref>).</p><p>Here we tested whether HTM sequence memory can learn long-term dependencies by varying the Markov order of the sequences, which is determined by the length of shared subsequences <ref type="figure" target="#fig_0">(Fig. 3A)</ref>.</p><p>We examined the prediction accuracy over training while HTM sequence memory learns variable order sequences. The model is able to achieve perfect prediction performance up to 100-order sequences <ref type="figure" target="#fig_3">(Fig. 7A)</ref>. The number of sequences that are required to achieve perfect prediction performance increases linearly as a function of the order of sequences <ref type="figure">(Fig.  7B)</ref>. Note that the model quickly achieves 50% accuracy much faster because it requires only first-order knowledge, yet it requires high-order knowledge to make perfect prediction <ref type="figure" target="#fig_0">(Fig. 3A)</ref>. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.5.">Disruption of high-order context with temporal noise</head><p>In the previous experiments noise was presented between sequences. In this experiment, we tested the effect of noise within sequences. At run time, we randomly replaced either the second, third or fourth element in each sequence with a random symbol. Such temporal noise could disrupt the highorder sequence context and make it much harder to predict the sequence endings. We considered two scenarios: (1) temporal noise throughout training; (2) noise introduced only after the models achieved perfect performance.</p><p>The performance of HTM and LSTM are shown in <ref type="figure" target="#fig_4">Fig. 8</ref>. If temporal noise is present throughout training, neither HTM nor LSTM can make perfect predictions <ref type="figure" target="#fig_3">(Fig. 8A</ref>). LSTM has slightly better performance than HTM in this scenario, presumably because the gating mechanisms in LSTM can maintain some of the high-order sequence context. HTM behaves like a first order model and has an accuracy of about 0.5. This experiment demonstrates the sensitivity of the HTM model to temporal noise.</p><p>If we inject temporal noise after the models achieved perfect performance on the noise-free sequences, the performance of both models drop rapidly <ref type="figure" target="#fig_4">(Fig. 8B)</ref>. The performance of HTM drops to 0.5 (performance of the first-order model), whereas LSTM has worse performance. This result demonstrates that if the high-order sequence context is disrupted, HTM would robustly behave as a low-order model, whereas the performance of LSTM is dependent on the training history. Temporal noise were added after 12000 elements. The sequence dataset is same as in <ref type="figure">Fig. 4</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.6.">Robustness of the network to damage</head><p>We tested the robustness of ELM, LSTM and HTM network with respective to removal of neurons. This fault tolerance property is important for hardware implementations of neural network models. After the models achieved stable performance on the high--order sequence prediction task (at the black dashed line, <ref type="figure">Fig.  2</ref>), we eliminated a fraction of the cells and their associated synaptic connections from the network. We then measured the prediction accuracy of both networks on the same data streams for an additional 5000 steps without further learning. There is no impact on HTM sequence memory model performance at up to 30% cell death, whereas performance of ELM and LSTM network declined rapidly with small fraction of cell death <ref type="figure">(Fig. 9</ref>).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Figure 9</head><p>Robustness of the network to damage. The prediction accuracy after cell death is shown as a function of the fraction of cells that were removed from the network.</p><p>Fault tolerance of traditional artificial neural networks depends on many factors, such as the network size and training methods <ref type="bibr" target="#b36">(Lee et al., 2014)</ref>. The experiments here applied commonly used training methods for ELM and LSTM (see Appendix). It is possible that the fault tolerance of LSTM or any other artificial neural network may be improved by introducing redundancy (replicating trained network) <ref type="bibr" target="#b64">(Tchernev et al., 2005)</ref> or by special training method such as dropout <ref type="bibr" target="#b24">(Hinton et al., 2012)</ref>. In contrast, the fault tolerance of HTM is naturally derived from properties of sparse distributed representations <ref type="bibr" target="#b1">(Ahmad and Hawkins, 2016)</ref>, in analogy to biological neural networks.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.">Prediction of taxi passenger demand</head><p>In order to compare the performance of HTM sequence memory with other sequence learning techniques in realworld scenarios, we consider the problem of predicting taxi passenger demand. Specifically, we aggregated the passenger counts in New York City taxi rides at 30-minute intervals using a public data stream provided by the New York City Transportation Authority 2 . This leads to sequences exhibiting rich patterns at different time scales <ref type="figure" target="#fig_3">(Fig. 10A)</ref>. The task is to predict the taxi passenger demand 5 steps (2.5 hours) in advance. This problem is an example of a large class of sequence learning problems that require rapid processing of streaming data to deliver information for real-time decision making <ref type="bibr" target="#b46">(Moreira-Matias et al., 2013)</ref>.</p><p>We applied HTM sequence memory and other sequence prediction algorithms to this problem. The ARIMA model is a widely used statistical approach for time series analysis <ref type="bibr" target="#b28">(Hyndman and Athanasopoulos, 2013)</ref>. As before, we converted ARIMA and LSTM to an online learning algorithm by re-training the model on every week of data with a buffered dataset of the previous 1000, 3000, or 6000 samples, and by re-training ARIMA at every time step on a buffered dataset of 6000 samples. ELM and ESN were adapted at every time step using sequential online learning methods. The parameters of the ESN, ELM and LSTM network were extensively hand-tuned to provide the best possible accuracy on this dataset. The ARIMA model was optimized using R's "auto ARIMA" package <ref type="bibr" target="#b29">(Hyndman and Khandakar, 2008</ref>). The HTM model did not undergo any parameter tuning -it uses the same parameters that were used for the previous artificial sequence task.</p><p>We used two error metrics to evaluate model performance: mean absolute percentage error (MAPE), and negative loglikelihood. The MAPE metrics focus on the single best point estimation, while negative log-likelihood evaluates the models' predicted probability distributions of future inputs (see Appendix for details). We found that the HTM sequence memory had comparable performance to LSTM on both error metrics. Both techniques had much lower error than ELM, ESN and ARIMA <ref type="figure">(Fig. 10B</ref>). Note that HTM sequence memory achieves this performance with a single-pass training paradigm, whereas LSTM require multiple-passes on a buffered dataset. Prediction of the New York City taxi passenger data. A. Example portion of taxi passenger data (aggregated at 30 min intervals). The data has rich temporal patterns at both daily and weekly time scales. B-C. Prediction error of different sequence prediction algorithms using two metrics: mean absolute percentage error (B), and negative loglikelihood (C).</p><p>We then tested how fast different sequence learning algorithms can adapt to changes in the data. We artificially modified the data by decreasing weekday morning traffic (7am-11am) by 20% and increasing weekday night traffic (9pm-11pm) by 20% starting from April 1 st . These changes in the data caused an immediate increase in prediction error for both HTM and LSTM <ref type="figure" target="#fig_3">(Fig. 11A)</ref>. The prediction error of HTM sequence memory quickly dropped back in about two weeks, whereas the LSTM prediction error stayed high for a much longer period of time. As a result, HTM sequence memory had better prediction accuracy than LSTM and other models after the data modification ( <ref type="figure">Fig. 11B-C</ref>).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Figure 11</head><p>Prediction accuracy of LSTM and HTM after introduction of new patterns. A. The mean absolute percent error of HTM sequence memory (red) and LSTM networks (green, blue) after artificial manipulation of the data (black dashed line). The LSTM networks are re-trained every week at the yellow vertical lines (B-C). Prediction error after the manipulation. HTM sequence memory has better accuracy on both the MAPE and the negative log-likelihood metrics.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.">Discussion and conclusions</head><p>In this paper we have applied HTM sequence memory, a recently developed neural network model, to real-time sequence learning problems with time-varying input streams. The sequence memory model is derived from computational principles of cortical pyramidal neurons <ref type="bibr" target="#b20">(Hawkins and Ahmad, 2016)</ref>. We discussed model performance on both artificially generated and real-world datasets. The model satisfies a set of properties that are important for online sequence learning from noisy data streams with continuously changing statistics, a problem the cortex has to solve in natural environments. These properties govern the overall flexibility of an algorithm and its ability to be used in an automated fashion. Although HTM is still at a very early stage compared to other traditional neural network models, it satisfies these properties and shows promising results on realtime sequence learning problems.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.1.">Continuous learning with streaming data</head><p>Most supervised sequence learning algorithms use a batchtraining paradigm, where a cost function, such as prediction error, is minimized on a batch training dataset <ref type="bibr" target="#b11">(Dietterich, 2002;</ref><ref type="bibr" target="#b4">Bishop, 2006)</ref>. Although we can train these algorithms continuously using a sliding window <ref type="bibr" target="#b60">(Sejnowski and Rosenberg, 1987)</ref>, this batch-training paradigm is not a good match for time-series prediction on continuous streaming data. A small window may not contain enough training samples for learning complex sequences, while a large window introduces a limit on how fast the algorithm can adapt to changing statistics in the data. In either case a buffer must be maintained and the algorithm must make multiple passes for every retraining step. It may be possible to use a smooth forgetting mechanism instead of hard retraining <ref type="bibr" target="#b69">(Williams and Zipser, 1989;</ref><ref type="bibr" target="#b39">Lughofer and Angelov, 2011)</ref>, but this requires the user to tune parameters governing the forgetting speed to achieve good performance.</p><p>In contrast HTM sequence memory adopts a continuous learning paradigm. The model does not need to store a batch of data as the "training dataset". Instead, it learns from each data point using unsupervised Hebbian-like associative learning mechanisms <ref type="bibr" target="#b22">(Hebb, 1949)</ref>. As a result the model rapidly adapts to changing statistics in the data.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.2.">Using sparse distributed representations for sequence learning</head><p>A key difference between HTM sequence memory and previous biologically inspired sequence learning models <ref type="bibr" target="#b0">(Abeles, 1982;</ref><ref type="bibr" target="#b54">Rao and Sejnowski, 2001;</ref><ref type="bibr" target="#b51">Ponulak and Kasiński, 2010;</ref><ref type="bibr" target="#b5">Brea et al., 2013)</ref> is the use of sparse distributed representations (SDRs). In the cortex, information is primarily represented by strong activation of a small set of neurons at any time, known as sparse coding <ref type="bibr" target="#b15">(Földiák, 2002;</ref><ref type="bibr" target="#b49">Olshausen and Field, 2004)</ref>. HTM sequence memory uses SDRs to represent temporal sequences. Based on mathematical properties of SDRs <ref type="bibr" target="#b33">(Kanerva, 1988;</ref><ref type="bibr" target="#b1">Ahmad and Hawkins, 2016)</ref>, each neuron in the HTM sequence memory model can robustly learn and classify a large number of patterns under noisy conditions <ref type="bibr" target="#b20">(Hawkins and Ahmad, 2016)</ref>. Passenger Count in 30 min window A rich distributed neural representation for temporal sequences emerges from computation in HTM sequence memory. Although we focus on sequence prediction in this paper, this representation is valuable for a number of tasks, such as anomaly detection <ref type="bibr" target="#b34">(Lavin and Ahmad, 2015)</ref> and sequence classification.</p><formula xml:id="formula_9">A R I M A E L M E S N L S T M -o n li n e L S T M 1 0 0 0 L S T M<label>3</label></formula><p>The use of a flexible coding scheme is particularly important for online streaming data analysis, where the number of unique symbols is often not known upfront. It is desirable to be able to change the range of the coding scheme at run-time without affecting the previous learning. This requires the algorithm to use a flexible coding scheme that can represent a large number of unique symbols or a wide range of data. The SDRs used in HTM have a very large coding capacity and allow simultaneous representations of multiple predictions with minimal collisions. These properties make SDR an ideal coding format for the next generation of neural network models.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.3.">Robustness and generalization</head><p>An intelligent learning algorithm should be able to automatically deal with a large variety of problems without parameter tuning, yet most machine learning algorithms require a task-specific parameter search when applied to a novel problem. Learning in the cortex does not require an external tuning mechanism, and the same cortical region can be used for different functional purposes if the sensory input changes <ref type="bibr" target="#b55">(Sadato et al., 1996;</ref><ref type="bibr" target="#b61">Sharma et al., 2000)</ref>. Using computational principles derived from the cortex, we show that HTM sequence memory achieves performance comparable to LSTM networks on very different problems using the same set of parameters. These parameters were chosen according to known properties of real cortical neurons <ref type="bibr" target="#b20">(Hawkins and Ahmad, 2016)</ref> and basic properties of sparse distributed representations <ref type="bibr" target="#b1">(Ahmad and Hawkins, 2016)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.4.">Limitations of HTM and future directions</head><p>We have identified a few limitations of HTM. First, as a strict one-pass algorithm with access to only the current input, it may take longer for HTM to learn sequences with very longterm dependencies <ref type="figure">(Fig. 7</ref>) than algorithms that have access to a longer history buffer. Learning of sequences with long-term dependencies can be sped up if we maintain a history buffer and run HTM on it multiple times. Indeed, it has been argued that an intelligent agent should store the entire raw history of sensory inputs and motor actions during interaction with the world <ref type="bibr" target="#b58">(Schmidhuber, 2009)</ref>. Although it may be computationally challenging to store the entire history, doing so may improve performance given the same amount of sensory experience.</p><p>Second, although HTM is robust to spatial noise due to the use of sparse distributed representations, the current HTM sequence memory model is sensitive to temporal noise. It can lose high-order sequence context if elements in the sequence are replaced by a random symbol <ref type="figure" target="#fig_4">(Fig. 8)</ref>. In contrast, the gating mechanisms of LSTM networks appear to be more robust to temporal noise. The noise robustness of HTM can be improved by using a hierarchy of sequence memory models that operate on different time scales. A sequence memory model that operates over longer time scales would be less sensitive to temporal noise. A lower region in the hierarchy may inherit the robustness to temporal noise through feedback connections to a higher region.</p><p>Third, the HTM model as discussed does not perform as well as LSTM on grammar learning tasks. We found that on the Reber grammar task <ref type="bibr" target="#b25">(Hochreiter and Schmidhuber, 1997)</ref>, HTM achieves an accuracy of 98.4% and ELM an accuracy of 86.7% (online training after observing 500 sequences), whereas LSTM achieves an accuracy of 100%. HTM can approximately learn artificial grammars by memorizing example sentences. This strategy could require more training samples to fully learn recursive grammars with arbitrary sequence lengths. In contrast, LSTM learn grammars much faster using the gating mechanisms.</p><p>Finally, we have only tested HTM on low-dimensional categorical or scalar data streams in this paper. It remains to be determined whether HTM can handle high-dimensional data such as speech and video streams. The high capacity of the sparse distributed representations in HTM should be able to represent high-dimensional data. However, it is more challenging to learn sequence structure in high-dimensional space, as the raw data could be much less repeatable. It may require additional pre-processing, such as dimensionality reduction and feature extractions, before HTM can learn meaningful sequences with high-dimensional data. It would be an interesting future direction to explore how to combine HTM with other machine learning methods, such as deep networks, to solve high-dimensional sequence learning problems.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.">Appendix</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.1.">HTM sequence model implementation details</head><p>In our software implementation, we made a few simplifying assumptions to speed up simulation for large networks. We did not explicitly initialize a complete set of synapses across every segment and every cell. Instead, we greedily created segments on the least used cells in an unpredicted column and initialized potential synapses on that segment by sampling from previously active cells. This happened only when there is no match to any existing segment. The initial synaptic permanence for newly created synapses is set as 0.21 <ref type="table" target="#tab_1">(Table 1)</ref>, which is below the connection threshold (0.5).</p><p>The HTM sequence model operates with sparse distributed representations (SDRs). Specialized encoders are required to encode real-world data into SDRs. For the artificial datasets with categorical elements, we simply encoded each symbol in the sequence as a random SDR, with 40 randomly chosen active bits in a vector of 2048 bits.</p><p>For the NYC taxi dataset, three pieces of information were fed into the HTM model: raw passenger count, the time of day, and the day of week (LSTM received the same information as input). We used NuPIC's standard scalar encoder to convert each piece of information into an SDR. The encoder converts a scalar value into a large binary vector with a small number of ON bits clustered within a sliding window, where the center position of the window corresponds to the data value. We subsequently combined three SDRs via a competitive sparse spatial pooling process, which also resulted in 40 active bits in a vector of 2048 bits as in the artificial dataset. The spatial pooling process is described in detail here <ref type="bibr" target="#b21">(Hawkins et al., 2011)</ref>.</p><p>The HTM sequence memory model used an identical set of model parameters for all the experiments described in the paper. A complete list of model parameters is shown below. The full source code for the implementation is available on Github at https://github.com/numenta/nupic </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.2.">Implementation details of other sequence learning algorithms</head><p>ELM We used the online sequential learning algorithm for ELM <ref type="bibr" target="#b37">(Liang et al., 2006)</ref>. The network used 50 hidden neurons and a time lag of 100 for the taxi data and 200 hidden neurons and a time lag of 10 for the artificial dataset.</p><p>ESN We used the Matlab toolbox for Echo State Network developed by Jaeger's group (http://reservoircomputing.org/node/129). The ESN network 100 internal units, a spectral radius of 0.1, a teacher scaling of 0.01 and a learning rate of 0.1 for the ESN model. The parameters were hand tuned to achieve the best performance. We used the online learning mode and adapted the weight at every time step.</p><p>LSTM We used the PyBrain implementation of LSTM <ref type="bibr" target="#b57">(Schaul et al., 2010)</ref>. For the artificial sequence learning task, the network contains 25 input units, 20 internal LSTM neurons and 25 output units. For the NYC taxi task, the network contains 3 input units, 20 LSTM cells, 1 output units for calculation of the MAPE metric and 22 output units for calculation of the sequence likelihood metric. The LSTM cells have forget gates but not peephole connections. The output units have a biased term. The maximum time lag is the same as the buffer size for the batch-learning LSTMs. We used two training paradigms. For the batch-learning paradigm, the network were retrained every 1000 iterations with a popular version of the resilient backpropagation method <ref type="bibr" target="#b30">(Igel and Hüsken, 2003)</ref>. For the online-learning paradigm, we calculated the gradient at every time step using truncated backpropgation through time over the last 100 elements <ref type="bibr" target="#b68">(Williams and Peng, 1990)</ref>, and adjusted the parameters along the gradient with a learning rate of 0.01.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.3.">Evaluation of model performance in the continuous sequence learning task</head><p>Two error metrics were used to evaluate the prediction accuracy of the model. First, we considered mean absolute percentage error (MAPE) metric, an error metric that is less sensitive to outliers than root mean squared error.</p><formula xml:id="formula_10">MAPE = | ! − ! | ! !!! | ! | ! !!!<label>(1)</label></formula><p>In Eq. 1, ! is the observed data at time t, ! is the model prediction for the data observed at time t, and N is the length of the dataset.</p><p>A good prediction algorithm should output a probability distribution of future elements of the sequence. However, MAPE only consider the single best prediction from the model, and thus do not incorporate other possible predictions from the model. We used negative log-likelihood as a complementary error metric to address this problem. The sequence probability can be decomposed into:</p><formula xml:id="formula_11">! , ! , … , ! = ! ! | ! ! | ! , ! ! | ! , … , !!!<label>(2)</label></formula><p>The conditional probability distribution is modeled by HTM or LSTM based on network state at the previous time step.</p><formula xml:id="formula_12">! | ! , … , !!! = ( ! |network state !!! )<label>(3)</label></formula><p>The negative log-likelihood of the sequence is then given by:</p><formula xml:id="formula_13">= 1 log ( ! |model) ! !!!<label>(4)</label></formula></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 3</head><label>3</label><figDesc>Design of the high-order sequence prediction task. A. Structure of high order sequences with shared subsequences. B. High order sequences with multiple possible endings. C. Stream of sequences with noise between sequences. Both learning and testing occur continuously.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 5</head><label>5</label><figDesc>Final prediction accuracy as a function of the number of samples required to achieve final accuracy before (left) and after (right) modification of the sequences. Error bars represent standard deviations.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure A .</head><label>A</label><figDesc>Prediction accuracy over learning with sequences of different orders. B. Number of sequences required to achieve perfect prediction as a function of sequence order. The sequence dataset contains 4 high-order sequences with the structure shown inFig. 3A.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Figure 8 A.</head><label>8</label><figDesc>Prediction accuracy over learning with the presence of temporal noise for LSTM (blue) and HTM (green). B. HTM and LSTM are trained with clean sequences.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head></head><label></label><figDesc>2http://www.nyc.gov/html/tlc/html/about/trip_record_data.sh tml</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>Table 1 Model parameters for HTM</head><label>1</label><figDesc></figDesc><table><row><cell>Parameter name</cell></row></table><note></note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="1">We manually tuned the number of dimensions and found that 25 dimensions gave the best performance on our tasks.</note>
+		</body>
+		<back>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<title level="m" type="main">Local cortical circuits: an electrophysiological study</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Abeles</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1982" />
+			<publisher>Springer</publisher>
+			<pubPlace>Berlin</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<monogr>
+		<title level="m" type="main">How do neurons operate on sparse distributed representations? A mathematical theory of sparsity, neurons and active dendrites</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ahmad</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Hawkins</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1601.00720</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note>q -bio.NC</note>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">The decade of the dendritic NMDA spike</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">D</forename><surname>Antic</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><forename type="middle">L</forename><surname>Zhou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">R</forename><surname>Moore</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">M</forename><surname>Short</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">D</forename><surname>Ikonomu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">J Neurosci Res</title>
+		<imprint>
+			<biblScope unit="volume">88</biblScope>
+			<biblScope unit="page" from="2991" to="3001" />
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">A review and comparison of strategies for multi-step ahead time series forecasting based on the NN5 forecasting competition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ben Taieb</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Bontempi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">F</forename><surname>Atiya</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Sorjamaa</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Expert Syst Appl</title>
+		<imprint>
+			<biblScope unit="volume">39</biblScope>
+			<biblScope unit="page" from="7067" to="7083" />
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<monogr>
+		<title level="m" type="main">Pattern recognition and machine learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Bishop</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2006" />
+			<publisher>Springer</publisher>
+			<pubPlace>Singapore</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Matching recall and storage in sequence learning with spiking neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Brea</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Senn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J-P</forename><surname>Pfister</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">J Neurosci</title>
+		<imprint>
+			<biblScope unit="volume">33</biblScope>
+			<biblScope unit="page" from="9565" to="9575" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Probabilistic interpretation of feedforward classification network outputs, with relationships to statistical pattern recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Bridle</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neurocomputing − Algorithms, Architectures and Applications</title>
+		<imprint>
+			<biblScope unit="page" from="227" to="236" />
+			<date type="published" when="1989" />
+			<publisher>Springer-Verlag</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Sequence sensitivity of neurons in cat primary auditory cortex</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Brosch</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">E</forename><surname>Schreiner</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Cereb Cortex</title>
+		<imprint>
+			<biblScope unit="volume">10</biblScope>
+			<biblScope unit="page" from="1155" to="1167" />
+			<date type="published" when="2000" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">The minicolumn hypothesis in neuroscience</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Buxhoeveden</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Brain</title>
+		<imprint>
+			<biblScope unit="volume">125</biblScope>
+			<biblScope unit="page" from="935" to="951" />
+			<date type="published" when="2002" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Sequence learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">A</forename><surname>Clegg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">J</forename><surname>Digirolamo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">W</forename><surname>Keele</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Trends Cogn Sci</title>
+		<imprint>
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page" from="275" to="281" />
+			<date type="published" when="1998" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Advances in forecasting with neural networks? Empirical evidence from the NN3 competition on time series prediction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">F</forename><surname>Crone</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Hibon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Nikolopoulos</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Int J Forecast</title>
+		<imprint>
+			<biblScope unit="volume">27</biblScope>
+			<biblScope unit="page" from="635" to="660" />
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Machine learning for sequential data: a review</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">G</forename><surname>Dietterich</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Joint IAPR International Workshop on Structural, Syntactic, and Statistical Pattern Recognition</title>
+		<meeting>the Joint IAPR International Workshop on Structural, Syntactic, and Statistical Pattern Recognition</meeting>
+		<imprint>
+			<publisher>Springer-Verlag</publisher>
+			<date type="published" when="2002" />
+			<biblScope unit="page" from="15" to="30" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Mining high-speed data streams</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Domingos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hulten</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the sixth ACM SIGKDD international conference on Knowledge discovery and data mining -KDD &apos;00</title>
+		<meeting>the sixth ACM SIGKDD international conference on Knowledge discovery and data mining -KDD &apos;00<address><addrLine>New York, New York, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>ACM Press</publisher>
+			<date type="published" when="2000" />
+			<biblScope unit="page" from="71" to="80" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<monogr>
+		<title level="m" type="main">Time series analysis by state space methods</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Durbin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">J</forename><surname>Koopman</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2012" />
+			<publisher>Oxford University Press</publisher>
+		</imprint>
+	</monogr>
+	<note>2 edition</note>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">The hierarchical hidden markov model: analysis and applications</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Fine</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Singer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Tishby</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Mach Learn</title>
+		<imprint>
+			<biblScope unit="volume">32</biblScope>
+			<biblScope unit="page" from="41" to="62" />
+			<date type="published" when="1998" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">The handbook of brain theory and neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Földiák</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Second Edi. (Arbib M</title>
+		<imprint>
+			<publisher>MIT Press</publisher>
+			<date type="published" when="2002" />
+			<biblScope unit="page" from="1064" to="1068" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Mining data streams</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">M</forename><surname>Gaber</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Zaslavsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Krishnaswamy</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM SIGMOD Rec</title>
+		<imprint>
+			<biblScope unit="volume">34</biblScope>
+			<biblScope unit="page">18</biblScope>
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<title level="m" type="main">Knowledge discovery from data streams</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Gama</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2010" />
+			<publisher>Chapman and Hall/CRC</publisher>
+			<pubPlace>Boca Raton, Florida</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Learned spatiotemporal sequence recognition and prediction in primary visual cortex</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">P</forename><surname>Gavornik</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">F</forename><surname>Bear</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nat Neurosci</title>
+		<imprint>
+			<biblScope unit="volume">17</biblScope>
+			<biblScope unit="page" from="732" to="737" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<title level="m" type="main">Supervised sequence labelling with recurrent neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Graves</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2012" />
+			<publisher>Springer</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Why neurons have thousands of synapses, a theory of sequence memory in neocortex</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Hawkins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ahmad</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Front Neural Circuits</title>
+		<imprint>
+			<biblScope unit="volume">10</biblScope>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<monogr>
+		<title level="m" type="main">Cortical learning algorithm and hierarchical temporal memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Hawkins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ahmad</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Dubinsky</surname></persName>
+		</author>
+		<ptr target="http://numenta.org/resources/HTM_CorticalLearningAlgorithms.pdf" />
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+	<note>Numenta Whitepaper:1-68 Available at</note>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">The organization of behavior: a neuropsychological theory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Hebb</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Sci Educ</title>
+		<imprint>
+			<biblScope unit="volume">44</biblScope>
+			<biblScope unit="page">335</biblScope>
+			<date type="published" when="1949" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<monogr>
+		<title level="m" type="main">Orthogonal RNNs and long-memory tasks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Henaff</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Szlam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1602.06662</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note>cs.NE</note>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<monogr>
+		<title level="m" type="main">Improving neural networks by preventing coadaptation of feature detectors</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Srivastava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1207.0580</idno>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Long short-term memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Hochreiter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schmidhuber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural Comput</title>
+		<imprint>
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="page" from="1735" to="1780" />
+			<date type="published" when="1997" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Extreme learning machines: a survey</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G-B</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">H</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Int J Mach Learn Cybern</title>
+		<imprint>
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page" from="107" to="122" />
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Extreme learning machine: theory and applications</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G-B</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q-Y</forename><surname>Zhu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C-K</forename><surname>Siew</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neurocomputing</title>
+		<imprint>
+			<biblScope unit="volume">70</biblScope>
+			<biblScope unit="page" from="489" to="501" />
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<monogr>
+		<title level="m" type="main">Forecasting: principles and practice</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">J</forename><surname>Hyndman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Athanasopoulos</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2013" />
+			<publisher>OTexts</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Automatic time series forecasting: The forecast package for R</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">J</forename><surname>Hyndman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Khandakar</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">J Stat Softw</title>
+		<imprint>
+			<biblScope unit="volume">26</biblScope>
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Empirical evaluation of the improved Rprop learning algorithms</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Igel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Hüsken</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neurocomputing</title>
+		<imprint>
+			<biblScope unit="volume">50</biblScope>
+			<biblScope unit="page" from="105" to="123" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">Tutorial on training recurrent neural networks, covering BPPT, RTRL, EKF and the &quot;echo state network</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Jaeger</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">approach. GMD Rep</title>
+		<imprint>
+			<biblScope unit="volume">159</biblScope>
+			<biblScope unit="page">48</biblScope>
+			<date type="published" when="2002" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Harnessing nonlinearity: predicting chaotic systems and saving energy in wireless communication</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Jaeger</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Haas</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Science</title>
+		<imprint>
+			<biblScope unit="volume">304</biblScope>
+			<biblScope unit="page" from="78" to="80" />
+			<date type="published" when="2004" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Kanerva</surname></persName>
+		</author>
+		<title level="m">Sparse Distributed Memory</title>
+		<imprint>
+			<publisher>The MIT Press</publisher>
+			<date type="published" when="1988" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">Evaluating real-time anomaly detection algorithms -the numenta anomaly benchmark</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lavin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ahmad</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">14th International Conference on Machine Learning and Applications</title>
+		<imprint>
+			<publisher>IEEE ICMLA</publisher>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<analytic>
+		<title level="a" type="main">Deep learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nature</title>
+		<imprint>
+			<biblScope unit="volume">521</biblScope>
+			<biblScope unit="page" from="436" to="444" />
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<analytic>
+		<title level="a" type="main">Fault tolerance analysis of digital feed-forward deep neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Lee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Hwang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Sung</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="5031" to="5035" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">A fast and accurate online sequential learning algorithm for feedforward networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N-Y</forename><surname>Liang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G-B</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Saratchandran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Sundararajan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Trans Neural Netw</title>
+		<imprint>
+			<biblScope unit="volume">17</biblScope>
+			<biblScope unit="page" from="1411" to="1423" />
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<monogr>
+		<title level="m" type="main">A critical review of recurrent neural networks for sequence learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><forename type="middle">C</forename><surname>Lipton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Berkowitz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Elkan</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">Handling drifts and shifts in on-line data streams with evolving fuzzy systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Lughofer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Angelov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Appl Soft Comput</title>
+		<imprint>
+			<biblScope unit="volume">11</biblScope>
+			<biblScope unit="page" from="2057" to="2068" />
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<analytic>
+		<title level="a" type="main">Active properties of neocortical pyramidal neuron dendrites</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Major</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">E</forename><surname>Larkum</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schiller</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Annu Rev Neurosci</title>
+		<imprint>
+			<biblScope unit="volume">36</biblScope>
+			<biblScope unit="page" from="1" to="24" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<analytic>
+		<title level="a" type="main">Long-term depression: multiple forms and implications for brain function</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P V</forename><surname>Massey</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><forename type="middle">I</forename><surname>Bashir</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Trends Neurosci</title>
+		<imprint>
+			<biblScope unit="volume">30</biblScope>
+			<biblScope unit="page" from="176" to="184" />
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<analytic>
+		<title level="a" type="main">The neural basis of temporal processing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">D</forename><surname>Mauk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Buonomano</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Annu Rev Neurosci</title>
+		<imprint>
+			<biblScope unit="volume">27</biblScope>
+			<biblScope unit="page" from="307" to="340" />
+			<date type="published" when="2004" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<analytic>
+		<title level="a" type="main">Inferring nonlinear neuronal computation based on physiologically plausible inputs</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">M</forename><surname>Mcfarland</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Cui</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">A</forename><surname>Butts</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">PLoS Comput Biol</title>
+		<imprint>
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="page">1003143</biblScope>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<monogr>
+		<title level="m" type="main">Efficient Estimation of Word Representations in Vector Space</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mikolov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Corrado</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Dean</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1301.3781</idno>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<monogr>
+		<title level="m" type="main">A mathematical formalization of hierarchical temporal memory&apos;s spatial pooler</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Mnatzaganian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Fokoué</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Kudithipudi</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1601.06116</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note>stat.ML</note>
+</biblStruct>
+
+<biblStruct xml:id="b46">
+	<analytic>
+		<title level="a" type="main">Predicting taxi-passenger demand using streaming data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Moreira-Matias</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Gama</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Ferreira</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Mendes-Moreira</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Damas</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Trans Intell Transp Syst</title>
+		<imprint>
+			<biblScope unit="volume">14</biblScope>
+			<biblScope unit="page" from="1393" to="1402" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b47">
+	<analytic>
+		<title level="a" type="main">The columnar organization of the neocortex</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><forename type="middle">B</forename><surname>Mountcastle</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Brain</title>
+		<imprint>
+			<biblScope unit="volume">120</biblScope>
+			<biblScope unit="page" from="701" to="722" />
+			<date type="published" when="1997" />
+		</imprint>
+	</monogr>
+	<note>Pt</note>
+</biblStruct>
+
+<biblStruct xml:id="b48">
+	<analytic>
+		<title level="a" type="main">Distributed fading memory for stimulus properties in the primary visual cortex</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Nikolić</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Häusler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Singer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Maass</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">PLoS Biol</title>
+		<imprint>
+			<biblScope unit="volume">7</biblScope>
+			<biblScope unit="page">1000260</biblScope>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b49">
+	<analytic>
+		<title level="a" type="main">Sparse coding of sensory inputs</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">A</forename><surname>Olshausen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Field</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Curr Opin Neurobiol</title>
+		<imprint>
+			<biblScope unit="volume">14</biblScope>
+			<biblScope unit="page" from="481" to="487" />
+			<date type="published" when="2004" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b50">
+	<analytic>
+		<title level="a" type="main">Computational subunits in thin dendrites of pyramidal cells</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Polsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">W</forename><surname>Mel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schiller</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nat Neurosci</title>
+		<imprint>
+			<biblScope unit="volume">7</biblScope>
+			<biblScope unit="page" from="621" to="627" />
+			<date type="published" when="2004" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b51">
+	<analytic>
+		<title level="a" type="main">Supervised learning in spiking neural networks with ReSuMe: sequence learning, classification, and spike shifting</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Ponulak</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kasiński</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural Comput</title>
+		<imprint>
+			<biblScope unit="volume">22</biblScope>
+			<biblScope unit="page" from="467" to="510" />
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b52">
+	<monogr>
+		<title level="m" type="main">Encoding Data for HTM Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Purdy</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1602.05925</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b53">
+	<analytic>
+		<title level="a" type="main">An introduction to hidden Markov models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Rabiner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Juang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE ASSP Mag</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page" from="4" to="16" />
+			<date type="published" when="1986" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b54">
+	<analytic>
+		<title level="a" type="main">Predictive learning of temporal sequences in recurrent neocortical circuits</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">P</forename><surname>Rao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">J</forename><surname>Sejnowski</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Novartis Found Symp</title>
+		<imprint>
+			<biblScope unit="volume">239</biblScope>
+			<biblScope unit="page" from="208" to="229" />
+			<date type="published" when="2001" />
+		</imprint>
+	</monogr>
+	<note>discussion 229-240</note>
+</biblStruct>
+
+<biblStruct xml:id="b55">
+	<analytic>
+		<title level="a" type="main">Activation of the primary visual cortex by Braille reading in blind subjects</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Sadato</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Pascual-Leone</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Grafman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Ibañez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">P</forename><surname>Deiber</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Dold</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Hallett</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nature</title>
+		<imprint>
+			<biblScope unit="volume">380</biblScope>
+			<biblScope unit="page" from="526" to="528" />
+			<date type="published" when="1996" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b56">
+	<monogr>
+		<title level="m" type="main">Learning in non-stationary environments: methods and applications</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Sayed-Mouchaweh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Lughofer</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2012" />
+			<publisher>Springer</publisher>
+			<pubPlace>New York</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b57">
+	<analytic>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Schaul</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Bayer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wierstra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Sun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Felder</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Sehnke</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Rückstieß</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schmidhuber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">PyBrain. J Mach Learn Res</title>
+		<imprint>
+			<biblScope unit="volume">11</biblScope>
+			<biblScope unit="page" from="743" to="746" />
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b58">
+	<analytic>
+		<title level="a" type="main">Simple algorithmic theory of subjective beauty, novelty, surprise, interestingness, attention, curiosity, creativity, art, science, music, jokes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schmidhuber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">J SICE</title>
+		<imprint>
+			<biblScope unit="volume">48</biblScope>
+			<biblScope unit="page" from="21" to="32" />
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b59">
+	<analytic>
+		<title level="a" type="main">Deep learning in neural networks: An overview</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schmidhuber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural Networks</title>
+		<imprint>
+			<biblScope unit="volume">61</biblScope>
+			<biblScope unit="page" from="85" to="117" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b60">
+	<analytic>
+		<title level="a" type="main">Parallel networks that Learn to pronounce English text</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Sejnowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Rosenberg</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">J Complex Syst</title>
+		<imprint>
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="page" from="145" to="168" />
+			<date type="published" when="1987" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b61">
+	<analytic>
+		<title level="a" type="main">Induction of visual orientation modules in auditory cortex</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sharma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Angelucci</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Sur</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nature</title>
+		<imprint>
+			<biblScope unit="volume">404</biblScope>
+			<biblScope unit="page" from="841" to="847" />
+			<date type="published" when="2000" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b62">
+	<analytic>
+		<title level="a" type="main">Dendritic spikes enhance stimulus selectivity in cortical neurons in vivo</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">L</forename><surname>Smith</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><forename type="middle">T</forename><surname>Smith</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Branco</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Häusser</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nature</title>
+		<imprint>
+			<biblScope unit="volume">503</biblScope>
+			<biblScope unit="page" from="115" to="120" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b63">
+	<analytic>
+		<title level="a" type="main">Pyramidal neurons: dendritic structure and synaptic integration</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Spruston</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nat Rev Neurosci</title>
+		<imprint>
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="page" from="206" to="221" />
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b64">
+	<analytic>
+		<title level="a" type="main">Investigating the fault tolerance of neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">B</forename><surname>Tchernev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">G</forename><surname>Mulvaney</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">S</forename><surname>Phatak</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural Comput</title>
+		<imprint>
+			<biblScope unit="volume">17</biblScope>
+			<biblScope unit="page" from="1646" to="1664" />
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b65">
+	<analytic>
+		<title level="a" type="main">Design of neuromorphic logic networks and fault-tolerant computing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">H</forename><surname>Tran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">N</forename><surname>Yanushkevich</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">E</forename><surname>Lyshevski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><forename type="middle">P</forename><surname>Shmerko</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">11th IEEE International Conference on Nanotechnology</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="457" to="462" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b66">
+	<analytic>
+		<title level="a" type="main">Phoneme recognition using time-delay neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Waibel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Hanazawa</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Shikano</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">J</forename><surname>Lang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Trans Acoust</title>
+		<imprint>
+			<biblScope unit="volume">37</biblScope>
+			<biblScope unit="page" from="328" to="339" />
+			<date type="published" when="1989" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b67">
+	<analytic>
+		<title level="a" type="main">Online sequential extreme learning machine with kernels for nonstationary time series prediction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Han</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neurocomputing</title>
+		<imprint>
+			<biblScope unit="volume">145</biblScope>
+			<biblScope unit="page" from="90" to="97" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b68">
+	<analytic>
+		<title level="a" type="main">An efficient gradient-based algorithm for on-line training of recurrent network trajectories</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">J</forename><surname>Williams</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Peng</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural Comput</title>
+		<imprint>
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page" from="490" to="501" />
+			<date type="published" when="1990" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b69">
+	<analytic>
+		<title level="a" type="main">A learning algorithm for continually running fully recurrent neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">J</forename><surname>Williams</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Zipser</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural Comput</title>
+		<imprint>
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="page" from="270" to="280" />
+			<date type="published" when="1989" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b70">
+	<analytic>
+		<title level="a" type="main">Activity recall in a visual cortical ensemble</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Xu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Jiang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M-M</forename><surname>Poo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dan</forename><forename type="middle">Y</forename></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nat Neurosci</title>
+		<imprint>
+			<biblScope unit="volume">15</biblScope>
+			<biblScope unit="page" from="1" to="2" />
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b71">
+	<analytic>
+		<title level="a" type="main">Activity-dependent synaptogenesis in the adult Mammalian cortex</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Zito</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Svoboda</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neuron</title>
+		<imprint>
+			<biblScope unit="volume">35</biblScope>
+			<biblScope unit="page" from="1015" to="1017" />
+			<date type="published" when="2002" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

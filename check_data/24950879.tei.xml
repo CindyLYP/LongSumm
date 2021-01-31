@@ -1,0 +1,917 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">StarSpace: Embed All The Things!</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2017-11-21">21 Nov 2017</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ledell</forename><surname>Wu</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adam</forename><surname>Fisch</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sumit</forename><surname>Chopra</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Keith</forename><surname>Adams</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Antoine</forename><surname>Bordes</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jason</forename><surname>Weston</surname></persName>
+						</author>
+						<title level="a" type="main">StarSpace: Embed All The Things!</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2017-11-21">21 Nov 2017</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1709.03856v5[cs.CL]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:46+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>We present StarSpace, a general-purpose neural embedding model that can solve a wide variety of problems: labeling tasks such as text classification, ranking tasks such as information retrieval/web search, collaborative filtering-based or content-based recommendation, embedding of multirelational graphs, and learning word, sentence or document level embeddings. In each case the model works by embedding those entities comprised of discrete features and comparing them against each other-learning similarities dependent on the task. Empirical results on a number of tasks show that StarSpace is highly competitive with existing methods, whilst also being generally applicable to new cases where those methods are not.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>We introduce StarSpace, a neural embedding model that is general enough to solve a wide variety of problems:</p><p>• Text classification, or other labeling tasks, e.g. sentiment classification.</p><p>• Ranking of sets of entities, e.g. ranking web documents given a query. • Collaborative filtering-based recommendation, e.g. recommending documents, music or videos. • Content-based recommendation where content is defined with discrete features, e.g. words of documents. • Embedding graphs, e.g. multi-relational graphs such as Freebase. • Learning word, sentence or document embeddings.</p><p>StarSpace can be viewed as a straight-forward and efficient strong baseline for any of these tasks. In experiments it is shown to be on par with or outperforming several competing methods, whilst being generally applicable to cases where many of those methods are not.</p><p>The method works by learning entity embeddings with discrete feature representations from relations among collections of those entities directly for the task of ranking or classification of interest. In the general case, StarSpace embeds entities of different types into a vectorial embedding space, hence the "star" ("*", meaning all types) and "space" in the name, and in that common space compares them against each other. It learns to rank a set of entities, documents or objects given a query entity, document or object, where the query is not necessarily of the same type as the items in the set.</p><p>We evaluate the quality of our approach on six different tasks, namely text classification, link prediction in knowledge bases, document recommendation, article search, sentence matching and learning general sentence embeddings. StarSpace is available as an open-source project at https: //github.com/facebookresearch/Starspace.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Related Work</head><p>Latent text representations, or embeddings, are vectorial representations of words or documents, traditionally learned in an unsupervised way over large corpora. Work on neural embeddings in this domain includes <ref type="bibr" target="#b1">(Bengio et al. 2003)</ref>, <ref type="bibr" target="#b7">(Collobert et al. 2011)</ref>, word2vec <ref type="bibr" target="#b20">(Mikolov et al. 2013)</ref> and more recently fastText <ref type="bibr" target="#b2">(Bojanowski et al. 2017)</ref>. In our experiments we compare to word2vec and fastText as representative scalable models for unsupervised embeddings; we also compare on the SentEval tasks <ref type="bibr" target="#b9">(Conneau et al. 2017)</ref> against a wide range of unsupervised models for sentence embedding.</p><p>In the domain of supervised embeddings, SSI <ref type="bibr" target="#b0">(Bai et al. 2009)</ref> and WSABIE <ref type="bibr" target="#b28">(Weston, Bengio, and Usunier 2011)</ref> are early approaches that showed promise in NLP and information retrieval tasks <ref type="bibr" target="#b29">((Weston et al. 2013)</ref>, <ref type="bibr" target="#b13">(Hermann et al. 2014)</ref>). Several more recent works including <ref type="bibr" target="#b27">(Tang, Qin, and Liu 2015)</ref>, <ref type="bibr" target="#b32">(Zhang and LeCun 2015)</ref>, <ref type="bibr" target="#b8">(Conneau et al. 2016)</ref>, TagSpace <ref type="bibr" target="#b30">(Weston, Chopra, and Adams 2014)</ref> and fastText <ref type="bibr" target="#b15">(Joulin et al. 2016)</ref> have yielded good results on classification tasks such as sentiment analysis or hashtag prediction.</p><p>In the domain of recommendation, embedding models have had a large degree of success, starting from SVD <ref type="bibr" target="#b12">(Goldberg et al. 2001)</ref> and its improvements such as SVD++ <ref type="bibr" target="#b17">(Koren and Bell 2015)</ref>, as well as a host of other techniques, e.g. <ref type="bibr" target="#b24">(Rendle 2010;</ref><ref type="bibr" target="#b18">Lawrence and Urtasun 2009;</ref><ref type="bibr" target="#b26">Shi et al. 2012)</ref>. Many of those methods have focused on the collaborative filtering setup where user IDs and movie IDs have individual embeddings, such as in the Netflix challenge setup (see e.g., <ref type="bibr" target="#b17">(Koren and Bell 2015)</ref>, and so new users or items cannot naturally be incorporated. We show how StarSpace can naturally cater for both that setting and the content-based setting where users and items are represented as features, and hence have natural out-of-sample extensions rather than considering only a fixed set.</p><p>Performing link prediction in knowledge bases (KBs) with embedding-based methods has also shown promising results in recent years. A series of work has been done in this direction, such as <ref type="bibr" target="#b4">(Bordes et al. 2013)</ref> and <ref type="bibr" target="#b11">(Garcia-Duran, Bordes, and Usunier 2015)</ref>. In our work, we show that StarSpace can be used for this task as well, outperforming several methods, and matching the TransE method presented in <ref type="bibr" target="#b4">(Bordes et al. 2013)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">Model</head><p>The StarSpace model consists of learning entities, each of which is described by a set of discrete features (bag-offeatures) coming from a fixed-length dictionary. An entity such as a document or a sentence can be described by a bag of words or n-grams, an entity such as a user can be described by the bag of documents, movies or items they have liked, and so forth. Importantly, the StarSpace model is free to compare entities of different kinds. For example, a user entity can be compared with an item entity (recommendation), or a document entity with label entities (text classification), and so on. This is done by learning to embed them in the same space such that comparisons are meaningfulby optimizing with respect to the metric of interest.</p><p>Denoting the dictionary of D features as F which is a D × d matrix, where F i indexes the i th feature (row), yielding its d-dimensional embedding, we embed an entity a with i∈a F i . That is, like other embedding models, our model starts by assigning a d-dimensional vector to each of the discrete features in the set that we want to embed directly (which we call a dictionary, it can contain features like words, etc.). Entities comprised of features (such as documents) are represented by a bag-of-features of the features in the dictionary and their embeddings are learned implicitly. Note an entity could consist of a single (unique) feature like a single word, name or user or item ID if desired.</p><p>To train our model, we need to learn to compare entities. Specifically, we want to minimize the following loss function:</p><formula xml:id="formula_0">(a,b)∈E + b − ∈E − L batch (sim(a, b), sim(a, b − 1 ), . . . , sim(a, b − k ))</formula><p>There are several ingredients to this recipe: • The generator of positive entity pairs (a, b) coming from the set E + . This is task dependent and will be described subsequently.</p><p>• The generator of negative entities b − i coming from the set E − . We utilize a k-negative sampling strategy <ref type="bibr" target="#b20">(Mikolov et al. 2013)</ref> to select k such negative pairs for each batch update. We select randomly from within the set of entities that can appear in the second argument of the similarity function (e.g., for text labeling tasks a are documents and b are labels, so we sample b − from the set of labels). An analysis of the impact of k is given in Sec. 4.</p><p>• The similarity function sim(•, •). In our system, we have implemented both cosine similarity and inner product, and selected the choice as a hyperparameter. Generally, they work similarly well for small numbers of label features (e.g. for classification), while cosine works better for larger numbers, e.g. for sentence or document similarity. • The loss function L batch that compares the positive pair (a, b) with the negative pairs (a, b − i ), i = 1, . . . , k. We also implement two possibilities: margin ranking loss (i.e. max(0, µ − sim(a, b), where µ is the margin parameter), and negative log loss of softmax. All experiments use the former as it performed on par or better.</p><p>We optimize by stochastic gradient descent (SGD), i.e., each SGD step is one sample from E + in the outer sum, using Adagrad <ref type="bibr" target="#b10">(Duchi, Hazan, and Singer 2011)</ref> and hogwild <ref type="bibr" target="#b23">(Recht et al. 2011</ref>) over multiple CPUs. We also apply a max norm of the embeddings to restrict the vectors learned to lie in a ball of radius r in space R d , as in other works, e.g. <ref type="bibr" target="#b28">(Weston, Bengio, and Usunier 2011)</ref>.</p><p>At test time, one can use the learned function sim(•, •) to measure similarity between entities. For example, for classification, a label is predicted at test time for a given input a using maxb sim(a,b) over the set of possible labelsb. Or in general, for ranking one can sort entities by their similarity. Alternatively the embedding vectors can be used directly for some other downstream task, e.g., as is typically done with word embedding models. However, if sim(•, •) directly fits the needs of your application, this is recommended as this is the objective that StarSpace is trained to be good at.</p><p>We now describe how this model can be applied to a wide variety of tasks, in each case describing how the generators E + and E − work for that setting.</p><p>Multiclass Classification (e.g. Text Classification) The positive pair generator comes directly from a training set of labeled data specifying (a, b) pairs where a are documents (bags-of-words) and b are labels (singleton features). Negative entities b − are sampled from the set of possible labels.</p><p>Multilabel Classification In this case, each document a can have multiple positive labels, one of them is sampled as b at each SGD step to implement multilabel classification.</p><p>Collaborative Filtering-based Recommendation The training data consists of a set of users, where each user is described by a bag of items (described as unique features from the dictionary) that the user likes. The positive pair generator picks a user, selects a to be the unique singleton feature for that user ID, and a single item that they like as b. Negative entities b − are sampled from the set of possible items.</p><p>Collaborative Filtering-based Recommendation with out-of-sample user extension One problem with classical collaborative filtering is that it does not generalize to new users, as a separate embedding is learned for each user ID. Using the same training data as before, one can learn an alternative model using StarSpace. The positive pair generator instead picks a user, selects a as all the items they like except one, and b as the left out item. That is, the model learns to estimate if a user would like an item by modeling the user not as a single embedding based on their ID, but by representing the user as the sum of embeddings of items they like.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Content-based Recommendation</head><p>This task consists of a set of users, where each user is described by a bag of items, where each item is described by a bag of features from the dictionary (rather than being a unique feature). For example, for document recommendation, each user is described by the bag-of-documents they like, while each document is described by the bag-of-words it contains. Now a can be selected as all of the items except one, and b as the left out item. The system now extends to both new items and new users as both are featurized.</p><p>Multi-Relational Knowledge Graphs (e.g. Link Prediction) Given a graph of (h, r, t) triples, consisting of a head concept h, a relation r and a tail concept t, e.g. <ref type="bibr">(Beyoncé, born-in, Houston)</ref>, one can learn embeddings of that graph. Instantiations of h, r and t are all defined as unique features in the dictionary. We select uniformly at random either: (i) a consists of the bag of features h and r, while b consists only of t; or (ii) a consists of h, and b consists of r and t. Negative entities b − are sampled from the set of possible concepts. The learnt embeddings can then be used to answer link prediction questions such as <ref type="bibr">(Beyoncé, born-in, ?)</ref> or <ref type="bibr">(?, born-in, Houston)</ref> via the learnt function sim(a, b).</p><p>Information Retrieval (e.g. Document Search) and Document Embeddings Given supervised training data consisting of (search keywords, relevant document) pairs one can directly train an information retrieval model: a contains the search keywords, b is a relevant document and b − are other irrelevant documents. If only unsupervised training data is available consisting of a set of unlabeled documents, an alternative is to select a as random keywords from the document and b as the remaining words. Note that both these approaches implicitly learn document embeddings which could be used for other purposes.</p><p>Learning Word Embeddings We can also use StarSpace to learn unsupervised word embeddings using training data consisting of raw text. We select a as a window of words (e.g., four words, two either side of a middle word), and b as the middle word, following <ref type="bibr" target="#b7">(Collobert et al. 2011;</ref><ref type="bibr" target="#b20">Mikolov et al. 2013;</ref><ref type="bibr" target="#b2">Bojanowski et al. 2017)</ref>.</p><p>Learning Sentence Embeddings Learning word embeddings (e.g. as above) and using them to embed sentences does not seem optimal when you can learn sentence embeddings directly. Given a training set of unlabeled documents, each consisting of sentences, we select a and b as a pair of sentences both coming from the same document; b − are sentences coming from other documents. The intuition is that semantic similarity between sentences is shared within a document (one can also only select sentences within a certain distance of each other if documents are very long). Further, the embeddings will automatically be optimized for sets of words of sentence length, so train time matches test time, rather than training with short windows as typically learned with word embeddings -window-based embeddings can deteriorate when the sum of words in a sentence gets too large.</p><p>Multi-Task Learning Any of these tasks can be combined, and trained at the same time if they share some features in the base dictionary F . For example one could combine supervised classification with unsupervised word or sentence embedding, to give semi-supervised learning.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Experiments Text Classification</head><p>We employ StarSpace for the task of text classification and compare it with a host of competing methods, including fastText, on three datasets which were all previously used in <ref type="bibr" target="#b15">(Joulin et al. 2016)</ref>. To ensure fair comparison, we use an identical dictionary to fastText and use the same implementation of n-grams and pruning (those features are implemented in our open-source distribution of StarSpace). In these experiments we set the dimension of embeddings to be 10, as in <ref type="bibr" target="#b15">(Joulin et al. 2016)</ref>.</p><p>We use three datasets:</p><p>• AG news 1 is a 4 class text classification task given title and description fields as input. • The Yelp reviews dataset is obtained from the 2015 Yelp Dataset Challenge . The task is to predict the full number of stars the user has given (from 1 to 5). It consists of 1.2M training examples, 157k test examples, 5 classes, ∼500K words and 193M tokens in total.</p><p>Results are given in <ref type="table">Table 2</ref>. Baselines are quoted from the literature (some methods are only reported on AG news and DBPedia, others only on Yelp15). StarSpace outperforms a number of methods, and performs similarly to fastText. We measure the training speed for n-grams &gt; 1 in <ref type="table" target="#tab_3">Table 3</ref>. fastText and StarSpace are both efficient compared to deep learning approaches, e.g. (Zhang and LeCun 2015) takes 5h per epoch on DBpedia, 375x slower than StarSpace. Still, fastText is faster than StarSpace. However, as we will see in the following sections, StarSpace is a more general system. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Content-based Document Recommendation</head><p>We consider the task of recommending new documents to a user given their past history of liked documents. We follow a very similar process described in (Weston, Chopra, and Adams 2014) in our experiment. The data for this task is comprised of anonymized two-weeks long interaction histories for a subset of people on a popular social networking service. For each of the 641,385 people considered, we collected the text of public articles that s/he clicked to read, giving a total of 3,119,909 articles. Given the person's trailing (n − 1) clicked articles, we use our model to predict the n'th article by ranking it against 10,000 other unrelated articles, and evaluate using ranking metrics. The score of the n'th article is obtained by applying StarSpace: the input a is the previous (n− 1) articles, and the output b is the n'th candidate article. We measure the results by computing hits@k, i.e. the proportion of correct entities ranked in the top k for k = 1, 10, 20, and the mean predicted rank of the clicked article among the 10,000 articles.  As this is not a classification task (i.e. there are not a fixed set of labels to classify amongst, but a variable set of never seen before documents to rank per user) we cannot use supervised classification models directly. Starspace however can deal directly with this task, which is one of its major benefits. Following (Weston, Chopra, and Adams 2014), we hence use the following models as baselines:</p><p>• Word2vec model. We use the publicly available word2vec model trained on Google News articles 3 , and use the word embeddings to generate article embeddings (by bag-ofwords) and users' embedding (by bag-of-articles in users' click history). We then use cosine similarity for ranking. • Unsupervised fastText model. We try both the previously trained publicly available model on Wikipedia 4 , and train on our own dataset. Unsupervised fastText is an enhancement of word2Vec that also includes subwords. • Linear SVM ranker, using either bag-of-words features or fastText embeddings (component-wise multiplication of a's and b's features, which are of the same dimension). • Tagspace model trained on a hashtag task, and then the embeddings are used for document recommendation, a reproduction of the setup in <ref type="bibr" target="#b30">(Weston, Chopra, and Adams 2014)</ref>. In that work, the Tagspace model was shown to outperform word2vec. • TFIDF bag-of-words cosine similarity model.</p><p>For fair comparison, we set the dimension of all embedding models to be 300. We show the results of our StarSpace model comparing with the baseline models in <ref type="table">Table 1</ref>. Training time for StarSpace and fastText <ref type="bibr" target="#b2">(Bojanowski et al. 2017)</ref> trained on our dataset is also provided.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Metric</head><p>Hits@10 r. Mean Rank r. Hits@10 f. Mean Rank f. Train Time SE* <ref type="bibr" target="#b3">(Bordes et al. 2011)</ref> 28   <ref type="table">Table 5</ref>: Adapting the number of negative samples k for a 50-dim model for 1 hour of training on Freebase 15k.</p><p>Tagspace was previously shown to provide superior performance to word2vec, and we observe the same result here. Unsupervised FastText, which is an enhancement of word2vec is also slightly inferior to Tagspace, but better than word2vec. However, StarSpace, which is naturally more suited to this task, outperforms all those methods, including Tagspace and SVMs by a significant margin. Overall, from the evaluation one can see that unsupervised methods of learning word embeddings are inferior to training specifically for the document recommendation task at hand, which StarSpace does.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Link Prediction: Embedding Multi-relation Knowledge Graphs</head><p>We show that one can also use StarSpace on tasks of knowledge representation. We use the Freebase 15k dataset from <ref type="bibr" target="#b4">(Bordes et al. 2013)</ref>, which consists of a collection of triplets (head, relation type, tail) extracted from Freebase 5 . This data set can be seen as a 3-mode tensor depicting ternary relationships between synsets. There are 14,951 concepts (mids) and 1,345 relation types among them. The training set contains 483,142 triplets, the validation set 50,000 and the test set 59,071. As described in <ref type="bibr" target="#b4">(Bordes et al. 2013)</ref>, evaluation is performed by, for each test triplet, removing the head and replacing by each of the entities in the dictionary in turn. Scores for those corrupted triplets are first computed by the models and then sorted; the rank of the correct entity is finally stored. This whole procedure is repeated while removing the tail instead of the head. We report the mean of those predicted ranks and the hits@10. We also conduct a filtered evaluation that is the same, except all other valid heads or tails from the train or test set are discarded in the ranking, following <ref type="bibr" target="#b4">(Bordes et al. 2013)</ref>.</p><p>We compare with a number of methods, including transE http://www.freebase.com presented in <ref type="bibr" target="#b4">(Bordes et al. 2013)</ref>. TransE was shown to outperform RESCAL <ref type="bibr" target="#b22">(Nickel, Tresp, and Kriegel 2011)</ref>, RFM <ref type="bibr" target="#b14">(Jenatton et al. 2012)</ref>, SE <ref type="bibr" target="#b3">(Bordes et al. 2011)</ref> and SME <ref type="bibr" target="#b5">(Bordes et al. 2014)</ref> and is considered a standard benchmark method. TransE uses an L2 similarity ||head + relation -tail|| 2 and SGD updates with single entity corruptions of head or tail that should have a larger distance. In contrast, StarSpace uses a dot product, k-negative sampling, and two different embeddings to represent the relation entity, depending on whether it appears in a or b.</p><p>The results are given in <ref type="table" target="#tab_5">Table 4</ref>. Results for SE, SME and LFM are reported from <ref type="bibr" target="#b4">(Bordes et al. 2013)</ref> and optimize the dimension from the choices 20, 50 and 75 as a hyperparameter. RESCAL is reported from <ref type="bibr" target="#b21">(Nickel et al. 2016)</ref>. For TransE we ran it ourselves so that we could report the results for different embedding dimensions, and because we obtained better results by fine tuning it than previously reported. Comparing TransE and StarSpace for the same embedding dimension, these two methods then give similar performance. Note there are some recent improved results on this dataset using larger embeddings <ref type="bibr" target="#b16">(Kadlec, Bajgar, and Kleindienst 2017)</ref> or more complex, but less general, methods <ref type="bibr" target="#b25">(Shen et al. 2017)</ref>.</p><p>Influence of k In this section, we ran experiments on the Freebase 15k dataset to illustrate the complexity of our model in terms of the number of negative search examples. We set dim = 50, and the max training time of the algorithm to be 1 hour for all experients. We report the number of epochs the algorithm completes within the time limit and the best filtered hits@10 result over possible learning rate choices, for different k (number of negatives searched for each positive training example). We set k = <ref type="bibr">[1,</ref><ref type="bibr">5,</ref><ref type="bibr">10,</ref><ref type="bibr">25,</ref><ref type="bibr">50,</ref><ref type="bibr">100,</ref><ref type="bibr">250,</ref><ref type="bibr">500,</ref><ref type="bibr">1000]</ref>.</p><p>The result is presented in <ref type="table">Table 5</ref>. We observe that the number of epochs finished within the 1 hour training time   </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Wikipedia Article Search &amp; Sentence Matching</head><p>In this section, we apply our model on a Wikipedia article search and a sentence match problem. We use the Wikipedia dataset introduced by <ref type="bibr" target="#b6">(Chen et al. 2017)</ref>, which is the 2016-12-21 dump of English Wikipedia. For each article, only the plain text is extracted and all structured data sections such as lists and figures are stripped. It contains a total of 5,075,182 articles with 9,008,962 unique uncased token types. The dataset is split into 5,035,182 training examples, 10,000 validation examples and 10,000 test examples. We then consider the following evaluation tasks:</p><p>• Task 1: given a sentence from a Wikipedia article as a search query, we try to find the Wikipedia article it came from. We rank the true Wikipedia article (minus the sentence) against 10,000 other Wikipedia articles using ranking evaluation metrics. This mimics a web search like scenario where we would like to search for the most relevant Wikipedia articles (web documents). Note that we effectively have supervised training data for this task.</p><p>• Task 2: pick two random sentences from a Wikipedia article, use one as the search query, and try to find the other sentence coming from the same original document. We rank the true sentence against 10,000 other sentences from different Wikipedia articles. This fits the scenario where we want to find sentences that are closely semantically related by topic (but do not necessarily have strong word overlap). Note also that we effectively have supervised training data for this task.</p><p>We can train our Starspace model in the following way: each update step selects a Wikipedia article from our training set. Then, one random sentence is picked from the article as the input, and for Task 2 another random sentence (different from the input) is picked from the article as the label (otherwise the rest of the article for Task 1). Negative entities can be selected at random from the training set. In the case of training for Task 1, for label features we use a feature dropout probability of 0.8 which both regularizes and greatly speeds up training. We also try StarSpace word-level training, and multi-tasking both sentence and word-level for Task 2.</p><p>We compare StarSpace with the publicly released fastText model, as well as a fastText model trained on the text of our dataset. We also compare to a TFIDF baseline. For fair comparison, we set the dimension of all embedding models to be 300. The results for tasks 1 and 2 are summarized in Table 6 and 7 respectively. StarSpace outperforms TFIDF and fastText by a significant margin, this is because StarSpace can train directly for the tasks of interest whereas it is not in the declared scope of fastText. Note that StarSpace wordlevel training, which is similar to fastText in method, obtains similar results to fastText. Crucially, it is StarSpace's ability to do sentence and document level training that brings the performance gains.</p><p>A comparison of the predictions of StarSpace and fastText on the article search task (Task 1) on a few random queries FastText training is unsupervised even on our dataset since its original design does not support directly using supervised data here.    <ref type="bibr" target="#b9">(Conneau et al. 2017)</ref>. For MR, CR, SUBJ, MPQA, SST, TREC, SICK-R we report accuracies; for MRPC, we report accuracy/F1; for SICK-R we report Pearson correlation with relatedness score; for STS we report Pearson/Spearman correlations between the cosine distance of two sentences and human-labeled similarity score.   <ref type="table" target="#tab_10">Table 8</ref>. While fastText results are semantically in roughly the right part of the space, they lack finer precision. For example, the first query is looking for articles about an olympic skater, which StarSpace correctly understands whereas fastText picks an olympic gymnast. Note that the query does not specifically mention the word skater, StarSpace can only understand this by understanding related phrases, e.g. the phrase "Blue Swords" refers to an international figure skating competition. The other two examples given yield similar conclusions.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Learning Sentence Embeddings</head><p>In this section, we evaluate sentence embeddings generated by our model and use SentEval 7 which is a tool from <ref type="bibr" target="#b9">(Conneau et al. 2017)</ref> for measuring the quality of general purpose sentence embeddings. We use a total of 14 transfer tasks including binary classification, multi-class classification, entailment, paraphrase detection, semantic relatedness and semantic textual similarity from SentEval. Detailed description of these transfer tasks and baseline models can be found in <ref type="bibr" target="#b9">(Conneau et al. 2017)</ref>. https://github.com/facebookresearch/SentEval</p><p>We train the following models on the Wikipedia Task 2 from the previous section, and evaluate sentence embeddings generated by those models: • StarSpace trained on word level.</p><p>• StarSpace trained on sentence level.</p><p>• StarSpace trained (multi-tasked) on both word and sentence level. • Ensemble of StarSpace models trained on both word and sentence level: we train a set of 13 models, multi-tasking on Wikipedia sentence match and word-level training then concatenate all embeddings together to generate a 13 × 300 = 3900 dimension embedding for each word.</p><p>We present the results in <ref type="table" target="#tab_11">Table 9 and Table 10</ref>. StarSpace performs well, outperforming many methods on many of the tasks, although no method wins outright across all tasks. Particularly on the STS (Semantic Textual Similarity) tasks Starspace has very strong results. Please refer to <ref type="bibr" target="#b9">(Conneau et al. 2017)</ref> for further results and analysis of these datasets.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Discussion and Conclusion</head><p>In this paper, we propose StarSpace, a method of embedding and ranking entities using the relationships between entities, and show that the method we propose is a general system capable of working on many tasks:</p><p>• Text Classification / Sentiment Analysis: we show that our method achieves good results, comparable to fastText <ref type="bibr" target="#b15">(Joulin et al. 2016)</ref> on three different datasets. • Content-based Document recommendation: it can directly solve these tasks well, whereas applying off-the-shelf fastText, Tagspace or word2vec gives inferior results. • Link Prediction in Knowledge Bases: we show that our method outperforms several methods, and matches TransE <ref type="bibr" target="#b4">(Bordes et al. 2013)</ref> on Freebase 15K. • Wikipedia Search and Sentence Matching tasks: it outperforms off-the-shelf embedding models due to directly training sentence and document-level embeddings. • Learning Sentence Embeddings: It performs well on the 14 SentEval transfer tasks of <ref type="bibr" target="#b9">(Conneau et al. 2017)</ref> compared to a host of embedding methods.</p><p>StarSpace should also be highly applicable to other tasks we did not evaluate here such as other classification, ranking, retrieval or metric learning tasks. Importantly, what is more general about our method compared to many existing embedding models is: (i) the flexibility of using features to represent labels that we want to classify or rank, which enables it to train directly on a downstream prediction/ranking task; and (ii) different ways of selecting positives and negatives suitable for those tasks. Choosing the wrong generators E + and E − gives greatly inferior results, as shown e.g. in <ref type="table" target="#tab_8">Table 7</ref>.</p><p>Future work will consider the following enhancements: going beyond discrete features, e.g. to continuous features, considering nonlinear representations and experimenting with other entities such as images. Finally, while our model is relatively efficient, we could consider hierarchical classification schemes as in FastText to try to make it more efficient; the trick here would be to do this while maintaining the generality of our model which is what makes it so appealing.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head></head><label></label><figDesc>It consists of 120K training examples, 7600 test examples, 4 classes, ∼100K words and 5M tokens in total. • DBpedia (Lehmann et al. 2015) is a 14 class classification problem given the title and abstract of Wikipedia articles as input. It consists of 560K training examples, 70k test examples, 14 classes, ∼800K words and 32M tokens in total.</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>Table 1 :Table 2</head><label>12</label><figDesc>http://www.di.unipi.it/oegulli/AG_corpus_of_news_articles.html 2 https://www.yelp.com/dataset_challenge Test metrics and training time on the Content-based Document Recommendation task. † Tagspace training is supervised but for another task (hashtag prediction) not our task of interest here.</figDesc><table><row><cell>Metric</cell><cell></cell><cell></cell><cell cols="4">Hits@1 Hits@10 Hits@20 Mean Rank Training Time</cell></row><row><cell cols="2">Unsupervised methods</cell><cell></cell><cell></cell><cell></cell><cell></cell></row><row><cell>TFIDF</cell><cell></cell><cell></cell><cell>0.97%</cell><cell>3.3%</cell><cell>4.3%</cell><cell>3921.9</cell><cell>-</cell></row><row><cell>word2vec</cell><cell></cell><cell></cell><cell>0.5%</cell><cell>1.2%</cell><cell>1.7%</cell><cell>4161.3</cell><cell>-</cell></row><row><cell cols="2">fastText (public Wikipedia model)</cell><cell></cell><cell>0.5%</cell><cell>1.7%</cell><cell>2.5%</cell><cell>4154.4</cell><cell>-</cell></row><row><cell cols="2">fastText (our dataset)</cell><cell></cell><cell>0.79%</cell><cell>2.5%</cell><cell>3.7%</cell><cell>3910.9</cell><cell>4h30m</cell></row><row><cell>Tagspace †</cell><cell></cell><cell></cell><cell>1.1%</cell><cell>2.7%</cell><cell>4.1%</cell><cell>3455.6</cell><cell>-</cell></row><row><cell cols="2">Supervised methods</cell><cell></cell><cell></cell><cell></cell><cell></cell></row><row><cell cols="2">SVM Ranker: BoW features</cell><cell></cell><cell>0.99%</cell><cell>3.3%</cell><cell>4.6%</cell><cell>2440.1</cell><cell>-</cell></row><row><cell cols="3">SVM Ranker: fastText features (our dataset)</cell><cell>0.92%</cell><cell>3.3%</cell><cell>4.2%</cell><cell>3833.8</cell><cell>-</cell></row><row><cell>StarSpace</cell><cell></cell><cell></cell><cell>3.1%</cell><cell>12.6%</cell><cell>17.6%</cell><cell>1704.2</cell><cell>12h18m</cell></row><row><cell>Model</cell><cell cols="3">AG news DBpedia Yelp15</cell><cell></cell><cell></cell></row><row><cell>BoW*</cell><cell>88.8</cell><cell>96.6</cell><cell>-</cell><cell></cell><cell></cell></row><row><cell>ngrams*</cell><cell>92.0</cell><cell>98.6</cell><cell>-</cell><cell></cell><cell></cell></row><row><cell>ngrams TFIDF*</cell><cell>92.4</cell><cell>98.7</cell><cell>-</cell><cell></cell><cell></cell></row><row><cell>char-CNN*</cell><cell>87.2</cell><cell>98.3</cell><cell>-</cell><cell></cell><cell></cell></row><row><cell>char-CRNN⋆</cell><cell>91.4</cell><cell>98.6</cell><cell>-</cell><cell></cell><cell></cell></row><row><cell>VDCNN⋄</cell><cell>91.3</cell><cell>98.7</cell><cell>-</cell><cell></cell><cell></cell></row><row><cell>SVM+TF †</cell><cell>-</cell><cell>-</cell><cell>62.4</cell><cell></cell><cell></cell></row><row><cell>CNN †</cell><cell>-</cell><cell>-</cell><cell>61.5</cell><cell></cell><cell></cell></row><row><cell>Conv-GRNN †</cell><cell>-</cell><cell>-</cell><cell>66.0</cell><cell></cell><cell></cell></row><row><cell>LSTM-GRNN †</cell><cell>-</cell><cell>-</cell><cell>67.6</cell><cell></cell><cell></cell></row><row><cell>fastText (ngrams=1) ‡</cell><cell>91.5</cell><cell cols="2">98.1  *  *  62.2</cell><cell></cell><cell></cell></row><row><cell>StarSpace (ngrams=1)</cell><cell>91.6</cell><cell>98.3</cell><cell>62.4</cell><cell></cell><cell></cell></row><row><cell>fastText (ngrams=2) ‡</cell><cell>92.5</cell><cell>98.6</cell><cell>-</cell><cell></cell><cell></cell></row><row><cell>StarSpace (ngrams=2)</cell><cell>92.7</cell><cell>98.6</cell><cell>-</cell><cell></cell><cell></cell></row><row><cell>fastText (ngrams=5) ‡</cell><cell>-</cell><cell>-</cell><cell>66.6</cell><cell></cell><cell></cell></row><row><cell>StarSpace (ngrams=5)</cell><cell>-</cell><cell>-</cell><cell>65.3</cell><cell></cell><cell></cell></row></table><note>: Text classification test accuracy. * indicates mod- els from (Zhang and LeCun 2015); ⋆ from (Xiao and Cho 2016); ⋄ from (Conneau et al. 2016); † from (Tang, Qin, and Liu 2015); ‡ from (Joulin et al. 2016); * * we ran ourselves.</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_3"><head>Table 3 :</head><label>3</label><figDesc></figDesc><table /><note>Training speed on the text classification tasks.</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_5"><head>Table 4 :</head><label>4</label><figDesc>Test metrics on Freebase 15k dataset. * indicates results cited from<ref type="bibr" target="#b4">(Bordes et al. 2013)</ref>.</figDesc><table><row><cell>† indicates results cited from</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_7"><head>Table 6 :</head><label>6</label><figDesc>Test metrics and training time on Wikipedia Article Search (Task 1).</figDesc><table><row><cell>Metric</cell><cell cols="5">Hits@1 Hits@10 Hits@20 Mean Rank Training Time</cell></row><row><cell>Unsupervised methods</cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell></row><row><cell>TFIDF</cell><cell>24.79%</cell><cell>35.53%</cell><cell>38.25%</cell><cell>2523.68</cell><cell>-</cell></row><row><cell>fastText (public Wikipedia model)</cell><cell>5.77%</cell><cell>14.08%</cell><cell>17.79%</cell><cell>2393.38</cell><cell>-</cell></row><row><cell>fastText (our dataset)</cell><cell>5.47%</cell><cell>13.54%</cell><cell>17.60%</cell><cell>2363.74</cell><cell>40h</cell></row><row><cell>StarSpace (word-level training)</cell><cell>5.89%</cell><cell>16.41%</cell><cell>20.60%</cell><cell>1614.21</cell><cell>45h</cell></row><row><cell>Supervised methods</cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell></row><row><cell>SVM Ranker BoW features</cell><cell>26.36%</cell><cell>36.48%</cell><cell>39.25%</cell><cell>2368.37</cell><cell>-</cell></row><row><cell>SVM Ranker: fastText features (public)</cell><cell>5.81%</cell><cell>12.14%</cell><cell>15.20%</cell><cell>1442.05</cell><cell>-</cell></row><row><cell>StarSpace (sentence pair training)</cell><cell>30.07%</cell><cell>50.89%</cell><cell>57.60%</cell><cell>422.00</cell><cell>36h</cell></row><row><cell>StarSpace (word+sentence training)</cell><cell>25.54%</cell><cell>45.21%</cell><cell>52.08%</cell><cell>484.27</cell><cell>69h</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_8"><head>Table 7 :</head><label>7</label><figDesc>Test metrics and training time on Wikipedia Sentence Matching (Task 2).</figDesc><table /><note>constraint is close to an inverse linear function of k. In this particular setup, [1, 100] is a good range of k and the best result is achieved at K = 50.</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_9"><head></head><label></label><figDesc>Eva Groajov , later Bergerov-Groajov , is a former competitive figure skater who represented Czechoslovakia. She placed 7th at the 1961 European Championships and 13th at the 1962 World Championships. She was coached by Hilda Mdra. Swiss gymnast and Olympic Champion.He competed at the 1936 Summer Olympics in Berlin, where he received silver medals in parallel bars and team combined exercises...</figDesc><table><row><cell>Input Query</cell><cell>StarSpace result</cell><cell>fastText result</cell></row><row><cell></cell><cell cols="2">Article: Eva Groajov. Paragraph: Article: Michael Reusch. Paragraph: Michael Reusch (February 3, 1914April 6 ,</cell></row><row><cell cols="3">She is the Blue Swords champion and 1960 Winter Universiade silver medalist. 1989) was a The islands are accessible by a one-hour speedboat Article: Mantanani Islands. Paragraph: The Mantanani Islands form a small group Article: Gum-Gum of three islands off the north-west coast of the state of Paragraph: Gum-Gum is a township of Sandakan, journey from Kuala Abai jetty, Kota Belud, 80 km Sabah, Malaysia, opposite the town of Kota Belud, in Sabah, Malaysia. It is situated about 25km from north-east of Kota Kinabalu, the capital of Sabah. northern Borneo. The largest island is Mantanani Besar; Sandakan town along Labuk Road.</cell></row><row><cell></cell><cell>the other two are Mantanani Kecil and Lungisan...</cell><cell></cell></row><row><cell>Maggie withholds her conversation with Neil from Tom and goes to the meeting herself, and Neil tells her the spirit that contacted Tom has asked for something and will grow upset if it does not get done.</cell><cell>Article: Stir of Echoes Paragraph: Stir of Echoes is a 1999 American supernatural horror-thriller released in the United States on September 10 , 1999 , starring Kevin Bacon and directed by David Koepp . The film is loosely based on the novel "A Stir of Echoes" by Richard Matheson...</cell><cell>Article: The Fabulous Five Paragraph: The Fabulous Five is an American book series by Betsy Haynes in the late 1980s . Written mainly for preteen girls , it is a spin-off of Haynes ' other series about Taffy Sinclair...</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_10"><head>Table 8 :</head><label>8</label><figDesc>StarSpace predictions for some example Wikipedia Article Search (Task 1) queries where StarSpace is correct.</figDesc><table><row><cell>Task</cell><cell>MR</cell><cell cols="5">CR SUBJ MPQA SST TREC</cell><cell cols="3">MRPC SICK-R SICK-E</cell><cell>STS14</cell></row><row><cell>Unigram-TFIDF*</cell><cell cols="2">73.7 79.2</cell><cell>90.3</cell><cell>82.4</cell><cell>-</cell><cell cols="2">85.0 73.6 / 81.7</cell><cell>-</cell><cell cols="2">-0.58 / 0.57</cell></row><row><cell>ParagraphVec (DBOW)*</cell><cell cols="2">60.2 66.9</cell><cell>76.3</cell><cell>70.7</cell><cell>-</cell><cell cols="2">59.4 72.9 / 81.1</cell><cell>-</cell><cell cols="2">-0.42 / 0.43</cell></row><row><cell>SDAE*</cell><cell cols="2">74.6 78.0</cell><cell>90.8</cell><cell>86.9</cell><cell>-</cell><cell cols="2">78.4 73.7 / 80.7</cell><cell>-</cell><cell cols="2">-0.37 / 0.38</cell></row><row><cell>SIF(GloVe+WR)*</cell><cell>-</cell><cell>-</cell><cell>-</cell><cell>82.2</cell><cell>-</cell><cell>-</cell><cell>-</cell><cell>-</cell><cell>84.6</cell><cell>0.69 / -</cell></row><row><cell>word2vec*</cell><cell cols="2">77.7 79.8</cell><cell>90.9</cell><cell cols="2">88.3 79.7</cell><cell cols="2">83.6 72.5 / 81.4</cell><cell>0.80</cell><cell cols="2">78.7 0.65 / 0.64</cell></row><row><cell>GloVe*</cell><cell cols="2">78.7 78.5</cell><cell>91.6</cell><cell cols="2">87.6 79.8</cell><cell cols="2">83.6 72.1 / 80.9</cell><cell>0.80</cell><cell cols="2">78.6 0.54 / 0.56</cell></row><row><cell cols="3">fastText (public Wikipedia model)* 76.5 78.9</cell><cell>91.6</cell><cell cols="2">87.4 78.8</cell><cell cols="2">81.8 72.4 / 81.2</cell><cell>0.80</cell><cell cols="2">77.9 0.63 / 0.62</cell></row><row><cell>StarSpace [word]</cell><cell cols="3">73.8 77.5 91.53</cell><cell cols="2">86.6 77.2</cell><cell cols="2">82.2 73.1 / 81.8</cell><cell>0.79</cell><cell cols="2">78.8 0.65 / 0.62</cell></row><row><cell>StarSpace [sentence]</cell><cell cols="2">69.1 75.1</cell><cell>85.4</cell><cell cols="2">80.5 72.0</cell><cell cols="2">63.0 69.2 / 79.7</cell><cell>0.76</cell><cell cols="2">76.2 0.70 / 0.67</cell></row><row><cell>StarSpace [word + sentence]</cell><cell cols="2">72.1 77.1</cell><cell>89.6</cell><cell cols="2">84.1 77.5</cell><cell>79.0</cell><cell>70.2 80.3</cell><cell>0.79</cell><cell>77.8</cell><cell>0.69/0.66</cell></row><row><cell>StarSpace [ensemble w+s]</cell><cell cols="2">76.6 80.3</cell><cell>91.8</cell><cell cols="2">88.0 79.9</cell><cell cols="2">85.2 71.8 / 80.6</cell><cell>0.78</cell><cell cols="2">82.1 0.69 / 0.65</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_11"><head>Table 9 :</head><label>9</label><figDesc>Transfer test results on SentEval. * indicates model results that have been extracted from</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_13"><head>Table 10 :</head><label>10</label><figDesc>Transfer test results on STS tasks using Pearson/Spearman correlations between sentence similarity and human scores. .</figDesc><table /><note>are given in</note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot">https://code.google.com/archive/p/word2vec/ https://github.com/facebookresearch/fastText/blob/master/ pretrained-vectors.md</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6">Acknowledgement</head><p>We would like to thank Timothee Lacroix for sharing with us his implementation of TransE. We also thank Edouard Grave, Armand Joulin and Arthur Szlam for helpful discussions on the StarSpace model.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Supervised semantic indexing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Bai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Grangier</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Collobert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Sadamasa</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Qi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Chapelle</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Weinberger</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 18th ACM conference on Information and knowledge management</title>
+		<meeting>the 18th ACM conference on Information and knowledge management</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2009" />
+			<biblScope unit="page" from="187" to="196" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">A neural probabilistic language model</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Ducharme</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Vincent</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Jauvin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of machine learning research</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page" from="1137" to="1155" />
+			<date type="published" when="2003-02" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Enriching word vectors with subword information</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Bojanowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Grave</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Joulin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mikolov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Transactions of the Association for Computational Linguistics</title>
+		<imprint>
+			<biblScope unit="volume">5</biblScope>
+			<biblScope unit="page" from="135" to="146" />
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Learning structured embeddings of knowledge bases</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bordes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Collobert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">AAAI</title>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="volume">6</biblScope>
+			<biblScope unit="page">6</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Translating embeddings for modeling multi-relational data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bordes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Usunier</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Garcia-Duran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Yakhnenko</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="2787" to="2795" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">A semantic matching energy function for learning with multirelational data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bordes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Glorot</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Machine Learning</title>
+		<imprint>
+			<biblScope unit="volume">94</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="233" to="259" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Reading Wikipedia to answer open-domain questions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Fisch</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bordes</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Association for Computational Linguistics (ACL)</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Natural language processing (almost) from scratch</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Collobert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Bottou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Karlen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Kuksa</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">12</biblScope>
+			<biblScope unit="page" from="2493" to="2537" />
+			<date type="published" when="2011-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Conneau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Schwenk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Barrault</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1606.01781</idno>
+		<title level="m">Very deep convolutional networks for natural language processing</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<monogr>
+		<title level="m" type="main">Supervised learning of universal sentence representations from natural language inference data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Conneau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Kiela</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Schwenk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Barrault</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bordes</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1705.02364</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Adaptive subgradient methods for online learning and stochastic optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Duchi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Hazan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Singer</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">12</biblScope>
+			<biblScope unit="page" from="2121" to="2159" />
+			<date type="published" when="2011-07" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<monogr>
+		<title level="m" type="main">Composing relationships with translations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Garcia-Duran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bordes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Usunier</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015" />
+			<publisher>Ph.D. Dissertation, CNRS, Heudiasyc</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Eigentaste: A constant time collaborative filtering algorithm</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Goldberg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Roeder</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Gupta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Perkins</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Information Retrieval</title>
+		<imprint>
+			<biblScope unit="volume">4</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="133" to="151" />
+			<date type="published" when="2001" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Semantic frame identification with distributed word representations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">M</forename><surname>Hermann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Das</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Ganchev</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ACL</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="1448" to="1458" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">A latent factor model for highly multi-relational data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Jenatton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><forename type="middle">L</forename><surname>Roux</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bordes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">R</forename><surname>Obozinski</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="3167" to="3175" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<monogr>
+		<title level="m" type="main">Bag of tricks for efficient text classification</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Joulin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Grave</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Bojanowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mikolov</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1607.01759</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Kadlec</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Bajgar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Kleindienst</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1705.10744</idno>
+		<title level="m">Baselines strike back</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Advances in collaborative filtering</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Koren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Bell</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Recommender systems handbook</title>
+		<imprint>
+			<publisher>Springer</publisher>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="77" to="118" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Non-linear matrix factorization with gaussian processes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><forename type="middle">D</forename><surname>Lawrence</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Urtasun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 26th Annual International Conference on Machine Learning</title>
+		<meeting>the 26th Annual International Conference on Machine Learning</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2009" />
+			<biblScope unit="page" from="601" to="608" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Dbpedia-a large-scale, multilingual knowledge base extracted from wikipedia</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Lehmann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Isele</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Jakob</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Jentzsch</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Kontokostas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">N</forename><surname>Mendes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Hellmann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Morsey</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Van Kleef</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Auer</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Semantic Web</title>
+		<imprint>
+			<biblScope unit="volume">6</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="167" to="195" />
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<monogr>
+		<title level="m" type="main">Efficient estimation of word representations in vector space</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mikolov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Corrado</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Dean</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1301.3781</idno>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<monogr>
+		<title level="m" type="main">Holographic embeddings of knowledge graphs</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Nickel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Rosasco</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">A</forename><surname>Poggio</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">A threeway model for collective learning on multi-relational data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Nickel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Tresp</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H.-P</forename><surname>Kriegel</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 28th international conference on machine learning</title>
+		<meeting>the 28th international conference on machine learning</meeting>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="809" to="816" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Hogwild: A lock-free approach to parallelizing stochastic gradient descent</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Recht</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Re</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Wright</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Niu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="693" to="701" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">Factorization machines</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Rendle</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE 10th International Conference on</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="995" to="1000" />
+		</imprint>
+	</monogr>
+	<note>Data Mining (ICDM)</note>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Modeling large-scale structured relationships with shared memory for knowledge base completion</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Shen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P.-S</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M.-W</forename><surname>Chang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Gao</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2nd Workshop on Representation Learning for NLP</title>
+		<meeting>the 2nd Workshop on Representation Learning for NLP</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="57" to="68" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Climf: learning to maximize reciprocal rank with collaborative less-is-more filtering</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Shi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Karatzoglou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Baltrunas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Larson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Oliver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Hanjalic</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the sixth ACM conference on Recommender systems</title>
+		<meeting>the sixth ACM conference on Recommender systems</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="139" to="146" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Document modeling with gated recurrent neural network for sentiment classification</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Tang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Qin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Liu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">EMNLP</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="1422" to="1432" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">Wsabie: Scaling up to large vocabulary image annotation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Usunier</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">In IJCAI</title>
+		<imprint>
+			<biblScope unit="volume">11</biblScope>
+			<biblScope unit="page" from="2764" to="2770" />
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<monogr>
+		<title level="m" type="main">Connecting language and knowledge bases with embedding models for relation extraction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bordes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Yakhnenko</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Usunier</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1307.7973</idno>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main"># tagspace: Semantic embeddings from hashtags</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Chopra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Adams</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2014 Conference on Empirical Methods in Natural Language Processing</title>
+		<meeting>the 2014 Conference on Empirical Methods in Natural Language Processing</meeting>
+		<imprint>
+			<publisher>EMNLP</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="1822" to="1827" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<monogr>
+		<title level="m" type="main">Efficient character-level document classification by combining convolution and recurrent layers</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Xiao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Cho</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1602.00367</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1502.01710</idno>
+		<title level="m">Text understanding from scratch</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

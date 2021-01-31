@@ -1,7 +1,12 @@
-from utils.gen_train_data import *
+from utils.build_data import *
+import tensorflow_datasets as tfds
+import json
 
-x, y, _, _ = gen_training_data()
+with open('./dataset/raw.json', 'r') as f:
+    d = json.load(f)
 
-print(x[0])
-print("$$"*128)
-print(y[0])
+section_name = set()
+for ex in d:
+    for sec in ex['sections']:
+        if sec['heading']:
+            section_name.add(sec['heading'])

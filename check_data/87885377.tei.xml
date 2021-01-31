@@ -1,0 +1,1103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">What Does BERT Look At? An Analysis of BERT&apos;s Attention</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2019-06-11">11 Jun 2019</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kevin</forename><surname>Clark</surname></persName>
+							<email>kevclark@cs.stanford.edu</email>
+							<affiliation key="aff0">
+								<orgName type="department">Computer Science Department</orgName>
+								<orgName type="institution">Stanford University</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Urvashi</forename><surname>Khandelwal</surname></persName>
+							<email>urvashik@cs.stanford.edu</email>
+							<affiliation key="aff0">
+								<orgName type="department">Computer Science Department</orgName>
+								<orgName type="institution">Stanford University</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Omer</forename><surname>Levy</surname></persName>
+							<email>omerlevy@fb.com</email>
+							<affiliation key="aff1">
+								<orgName type="department">Facebook AI Research</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christopher</forename><forename type="middle">D</forename><surname>Manning</surname></persName>
+							<email>manning@cs.stanford.edu</email>
+							<affiliation key="aff0">
+								<orgName type="department">Computer Science Department</orgName>
+								<orgName type="institution">Stanford University</orgName>
+							</affiliation>
+						</author>
+						<title level="a" type="main">What Does BERT Look At? An Analysis of BERT&apos;s Attention</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2019-06-11">11 Jun 2019</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1906.04341v1[cs.CL]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:41+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Large pre-trained neural networks such as BERT have had great recent success in NLP, motivating a growing body of research investigating what aspects of language they are able to learn from unlabeled data. Most recent analysis has focused on model outputs (e.g., language model surprisal) or internal vector representations (e.g., probing classifiers). Complementary to these works, we propose methods for analyzing the attention mechanisms of pre-trained models and apply them to BERT. BERT&apos;s attention heads exhibit patterns such as attending to delimiter tokens, specific positional offsets, or broadly attending over the whole sentence, with heads in the same layer often exhibiting similar behaviors. We further show that certain attention heads correspond well to linguistic notions of syntax and coreference. For example, we find heads that attend to the direct objects of verbs, determiners of nouns, objects of prepositions, and coreferent mentions with remarkably high accuracy. Lastly, we propose an attention-based probing classifier and use it to further demonstrate that substantial syntactic information is captured in BERT&apos;s attention. Code will be released at https://github.com/ clarkkev/attention-analysis. 2 We use the English base-sized model.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>Large pre-trained language models achieve very high accuracy when fine-tuned on supervised tasks <ref type="bibr" target="#b7">(Dai and Le, 2015;</ref><ref type="bibr" target="#b25">Peters et al., 2018;</ref><ref type="bibr" target="#b27">Radford et al., 2018)</ref>, but it is not fully understood why. The strong results suggest pre-training teaches the models about the structure of language, but what specific linguistic features do they learn?</p><p>Recent work has investigated this question by examining the outputs of language models on carefully chosen input sentences <ref type="bibr" target="#b18">(Linzen et al., 2016)</ref> or examining the internal vector representations of the model through methods such as probing classifiers <ref type="bibr" target="#b0">(Adi et al., 2017;</ref>. Complementary to these approaches, we study 1 the attention maps of a pre-trained model. Attention <ref type="bibr" target="#b1">(Bahdanau et al., 2015)</ref> has been a highly successful neural network component. It is naturally interpretable because an attention weight has a clear meaning: how much a particular word will be weighted when computing the next representation for the current word. Our analysis focuses on the 144 attention heads in BERT <ref type="bibr" target="#b8">(Devlin et al., 2019)</ref>, a large pre-trained Transformer <ref type="bibr" target="#b36">(Vaswani et al., 2017)</ref> network that has demonstrated excellent performance on many tasks.</p><p>We first explore generally how BERT's attention heads behave. We find that there are common patterns in their behavior, such as attending to fixed positional offsets or attending broadly over the whole sentence. A surprisingly large amount of BERT's attention focuses on the deliminator token <ref type="bibr">[SEP]</ref>, which we argue is used by the model as a sort of no-op. Generally we find that attention heads in the same layer tend to behave similarly.</p><p>We next probe each attention head for linguistic phenomena. In particular, we treat each head as a simple no-training-required classifier that, given a word as input, outputs the most-attended-to other word. We then evaluate the ability of the heads to classify various syntactic relations. While no single head performs well at many relations, we find that particular heads correspond remarkably well to particular relations. For example, we find heads that find direct objects of verbs, determiners of nouns, objects of prepositions, and objects of possessive pronouns with &gt;75% accuracy. We perform a similar analysis for coreference resolution, also finding a BERT head that performs quite well. These results are intriguing because the behavior of the attention heads emerges purely from self-supervised training on unlabeled data, without explicit supervision for syntax or coreference. Our findings show that particular heads specialize to specific aspects of syntax. To get a more overall measure of the attention heads' syntactic ability, we propose an attention-based probing classifier that takes attention maps as input. The classifier achieves 77 UAS at dependency parsing, showing BERT's attention captures a substantial amount about syntax. Several recent works have proposed incorporating syntactic information to improve attention <ref type="bibr" target="#b9">(Eriguchi et al., 2016;</ref><ref type="bibr" target="#b31">Strubell et al., 2018)</ref>. Our work suggests that to an extent this kind of syntax-aware attention already exists in BERT, which may be one of the reason for its success.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Background: Transformers and BERT</head><p>Although our analysis methods are applicable to any model that uses an attention mechanism, in this paper we analyze BERT <ref type="bibr" target="#b8">(Devlin et al., 2019)</ref>, a large Transformer <ref type="bibr" target="#b36">(Vaswani et al., 2017)</ref> network. Transformers consist of multiple layers where each layer contains multiple attention heads. An attention head takes as input a sequence of vectors h = [h 1 , ..., h n ] corresponding to the n tokens of the input sentence. Each vector h i is transformed into query, key, and value vectors q i , k i , v i through separate linear transformations. The head computes attention weights α between all pairs of words as softmax-normalized dot products between the query and key vectors. The output o of the attention head is a weighted sum of the value vectors.</p><formula xml:id="formula_0">α ij = exp (q T i k j ) n l=1 exp (q T i k l ) o i = n j=1 α ij v j</formula><p>Attention weights can be viewed as governing how "important" every other token is when producing the next representation for the current token.</p><p>BERT is pre-trained on 3.3 billion tokens of English text to perform two tasks. In the "masked language modeling" task, the model predicts the identities of words that have been masked-out of the input text. In the "next sentence prediction" task, the model predicts whether the second half of the input follows the first half of the input in the corpus, or is a random paragraph. Further training the model on supervised data results in impressive performance across a variety of tasks ranging from sentiment analysis to question answering. An important detail of BERT is the preprocessing used for the input text. A special token [CLS] is added to the beginning of the text and another token [SEP] is added to the end. If the input consists of multiple separate texts (e.g., a reading comprehension example consists of a separate question and context), <ref type="bibr">[SEP]</ref> tokens are also used to separate them. As we show in the next section, these special tokens play an important role in BERT's attention. We use the "base" sized BERT model, which has 12 layers containing 12 attention heads each. We use &lt;layer&gt;-&lt;head number&gt; to denote a particular attention head.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Surface-Level Patterns in Attention</head><p>Before looking at specific linguistic phenomena, we first perform an analysis of surface-level patterns in how BERT's attention heads behave. Examples of heads exhibiting these patterns are shown in <ref type="figure" target="#fig_0">Figure 1</ref>. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">Relative Position</head><p>First, we compute how often BERT's attention heads attend to the current token, the previous token, or the next token. We find that most heads put little attention on the current token. However, there are heads that specialize to attending heavily on the next or previous token, especially in earlier layers of the network. In particular four attention heads (in layers 2, 4, 7, and 8) on average put &gt;50% of their attention on the previous token and five attention heads (in layers 1, 2, 2, 3, and 6) put &gt;50% of their attention on the next token. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">Attending to Separator Tokens</head><p>Interestingly, we found that a substantial amount of BERT's attention focuses on a few tokens (see <ref type="figure">Figure 2</ref>). For example, over half of BERT's attention in layers 6-10 focuses on <ref type="bibr">[SEP]</ref>. To put this in context, since most of our segments are 128 tokens long, the average attention for a token occurring twice in a segments like [SEP] would normally be around 1/64. <ref type="bibr">[SEP]</ref> and <ref type="bibr">[CLS]</ref> are guaranteed to be present and are never masked out, while periods and commas are the most common tokens in the data excluding "the," which might be why the model treats these tokens differently. A similar pattern occurs for the uncased BERT model, suggesting there is a systematic reason for the attention to special tokens rather than it being an artifact of stochastic training.</p><p>One possible explanation is that [SEP] is used to aggregate segment-level information which can then be read by other heads. However, further analysis makes us doubtful this is the case. If this explanation were true, we would expect attention heads processing [SEP] to attend broadly over the whole segment to build up these representations. However, they instead almost entirely (more than 90%; see bottom of <ref type="figure">Figure 2</ref>) attend to themselves and the other <ref type="bibr">[SEP]</ref> token. Furthermore, qualitative analysis (see <ref type="figure" target="#fig_3">Figure 5</ref>) shows that heads with specific functions attend to [SEP] when the function is not called for. For example, in head 8-10 direct objects attend to their verbs. For this head, non-nouns mostly attend to <ref type="bibr">[SEP]</ref>. Therefore, we speculate that attention over these special tokens might be used as a sort of "no-op" when the attention head's function is not applicable.</p><p>To further investigate this hypothesis, we apply gradient-based measures of feature importance <ref type="bibr" target="#b32">(Sundararajan et al., 2017)</ref>. In particular, we compute the magnitude of the gradient of the loss from BERT's masked language modeling task with respect to each attention weight. Intuitively, this value measures how much changing the attention to a token will change BERT's outputs. Results are shown in <ref type="figure">Figure 3</ref>. Starting in layer 5 -the same layer where attention to [SEP] becomes high -the gradients for attention to [SEP] become very small. This indicates that attending more or less to [SEP] does not substantially change BERT's outputs, supporting the theory that attention to <ref type="bibr">[SEP]</ref> is used as a no-op for attention heads.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">Focused vs Broad Attention</head><p>Lastly, we measure whether attention heads focus on a few words or attend broadly over many words. To do this, we compute the average entropy of each head's attention distribution (see <ref type="figure">Figure 4</ref>). We find that some attention heads, especially in lower layers, have very broad attention. These high-entropy attention heads typically spend at most 10% of their attention mass on any single word. The output of these heads is roughly a bag-of-vectors representation of the sentence.</p><p>We also measured entropies for all attention heads from only the [CLS] token. While the average entropies from [CLS] for most layers are very close to the ones shown in <ref type="figure">Figure 4</ref>, the last layer has a high entropy from [CLS] of 3.89 nats, indicating very broad attention. This finding makes sense given that the representation for the <ref type="bibr">[CLS]</ref> token is used as input for the "next sentence prediction" task during pre-training, so it attends broadly to aggregate a representation for the whole input in the last layer.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Probing Individual Attention Heads</head><p>Next, we investigate individual attention heads to probe what aspects of language they have learned. In particular, we evaluate attention heads on labeled datasets for tasks like dependency parsing. An overview of our results is shown in <ref type="figure" target="#fig_3">Figure 5</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Method</head><p>We wish to evaluate attention heads at word-level tasks, but BERT uses byte-pair tokenization (Sennrich et al., 2016), which means some words (∼8% in our data) are split up into multiple tokens. We therefore convert token-token attention maps to word-word attention maps. For attention to a split-up word, we sum up the attention weights over its tokens. For attention from a split-up word, we take the mean of the attention weights over its tokens. These transformations preserve the property that the attention from each word sums to 1. For a given attention head and word, we take whichever other word receives the most attention weight as that model's prediction 3</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Dependency Syntax</head><p>Setup. We extract attention maps from BERT on the Wall Street Journal portion of the Penn Treebank <ref type="bibr" target="#b20">(Marcus et al., 1993)</ref> annotated with Stanford Dependencies. We evaluate both "directions" of prediction for each attention head: the head word attending to the dependent and the dependent attending to the head word. Some dependency relations are simpler to predict than others: for example a noun's determiner is often the immediately preceding word. Therefore as a point of comparison, we show predictions from a simple fixedoffset baseline. For example, a fixed offset of -2 means the word two positions to the left of the dependent is always considered to be the head.</p><p>Results. <ref type="table" target="#tab_2">Table 1</ref> shows that there is no single attention head that does well at syntax "overall"; the best head gets 34.5 UAS, which is not much better than the right-branching baseline, which gets 26.3 UAS. This finding is similar to the one reported by <ref type="bibr" target="#b28">Raganato and Tiedemann (2018)</ref>, who also evaluate individual attention heads for syntax.</p><p>However, we do find that certain attention heads specialize to specific dependency relations, some-    times achieving high accuracy and substantially outperforming the fixed-offset baseline. We find that for all relations in <ref type="table" target="#tab_2">Table 1</ref> except pobj, the dependent attends to the head word rather than the other way around, likely because each dependent has exactly one head but heads have multiple dependents. We also note heads can disagree with standard annotation conventions while still performing syntactic behavior. For example, head 7marks 's as the dependent for the poss relation, while gold-standard labels mark the complement of an 's as the dependent (the accuracy in <ref type="table" target="#tab_2">Table 1</ref> counts 's as correct). Such disagreements highlight how these syntactic behaviors in BERT are learned as a by-product of self-supervised training, not by copying a human design. <ref type="figure" target="#fig_3">Figure 5</ref> shows some examples of the attention behavior. While the similarity between machinelearned attention weights and human-defined syntactic relations are striking, we note these are relations for which attention heads do particularly well on. There are many relations for which BERT only slightly improves over the simple baseline, so we would not say individual attention heads capture dependency structure as a whole. We think it would be interesting future work to extend our analysis to see if the relations well-captured by attention are similar or different for other languages.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">Coreference Resolution</head><p>Having shown BERT attention heads reflect certain aspects of syntax, we now explore using attention heads for the more challenging semantic task of coreference resolution. Coreference links are usually longer than syntactic dependencies and state-of-the-art systems generally perform much worse at coreference compared to parsing.</p><p>Setup. We evaluate the attention heads on coreference resolution using the CoNLL-2012 dataset 4 (Pradhan et al., 2012). In particular, we compute antecedent selection accuracy: what percent of the time does the head word of a coreferent mention most attend to the head of one of that mention's antecedents. We compare against three baselines for selecting an antecedent:</p><p>• Picking the nearest other mention.</p><p>• Picking the nearest other mention with the same head word as the current mention.</p><p>• A simple rule-based system inspired by <ref type="bibr" target="#b17">Lee et al. (2011)</ref>. It proceeds through 4 sieves: (1) full string match, (2) head word match, (3) number/gender/person match, (4) all other mentions. The nearest mention satisfying the earliest sieve is returned.</p><p>We also show the performance of a recent neural coreference system from <ref type="bibr" target="#b40">Wiseman et al. (2015)</ref>.</p><p>Results. Results are shown in <ref type="table" target="#tab_4">Table 2</ref>. We find that one of BERT's attention heads achieves decent coreference resolution performance, improving by over 10 accuracy points on the stringmatching baseline and performing close to the rule-based system. It is particularly good with nominal mentions, perhaps because it is capable of fuzzy matching between synonyms as seen in the bottom right of <ref type="figure" target="#fig_3">Figure 5</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Probing Attention Head Combinations</head><p>Since individual attention heads specialize to particular aspects of syntax, the model's overall "knowledge" about syntax is distributed across multiple attention heads. We now measure this overall ability by proposing a novel family of attention-based probing classifiers and applying  them to dependency parsing. For these classifiers we treat the BERT attention outputs as fixed, i.e., we do not back-propagate into BERT and only train a small number of parameters. The probing classifiers are basically graphbased dependency parsers. Given an input word, the classifier produces a probability distribution over other words in the sentence indicating how likely each other word is to be the syntactic head of the current one.</p><p>Attention-Only Probe. Our first probe learns a simple linear combination of attention weights.</p><formula xml:id="formula_1">p(i|j) ∝ exp n k=1 w k α k ij + u k α k ji</formula><p>where p(i|j) is the probability of word i being word j's syntactic head, α k ij is the attention weight from word i to word j produced by head k, and n is the number of attention heads. We include both directions of attention: candidate head to dependent as well as dependent to candidate head. The weight vectors w and u are trained using standard supervised learning on the train set.</p><p>Attention-and-Words Probe. Given our finding that heads specialize to particular syntactic relations, we believe probing classifiers should benefit from having information about the input words. In particular, we build a model that sets the weights of the attention heads based on the GloVe (Pennington et al., 2014) embeddings for the input words. Intuitively, if the dependent and candidate head are "the" and "cat," the probing classifier should learn to assign most of the weight to the head 8-11, which achieves excellent performance at the determiner relation. The attention-and-words probing classifier assigns the probability of word i being word j's head as</p><formula xml:id="formula_2">p(i|j) ∝ exp n k=1 W k,: (v i ⊕ v j )α k ij + U k,: (v i ⊕ v j )α k ji</formula><p>Where v denotes GloVe embeddings and ⊕ denotes concatenation. The GloVe embeddings are held fixed in training, so only the two weight matrices W and U are learned. The dot product W k,: (v i ⊕v j ) produces a word-sensitive weight for the particular attention head.</p><p>Results. We evaluate our methods on the Penn Treebank dev set annotated with Stanford dependencies. We compare against three baselines:</p><p>• A right-branching baseline that always predicts the head is to the dependent's right.</p><p>• A simple one-hidden-layer network that takes as input the GloVe embeddings for the dependent and candidate head as well as distance features between the two words. 5</p><p>• Our attention-and-words probe, but with attention maps from a BERT network with pretrained word/positional embeddings but randomly initialized other weights. This kind of baseline is surprisingly strong at other probing tasks <ref type="bibr" target="#b6">(Conneau et al., 2018)</ref>.</p><p>Results are shown in <ref type="table" target="#tab_6">Table 3</ref>. We find the Attn + GloVe probing classifier substantially outperforms our baselines and achieves a decent UAS of 77, suggesting BERT's attention maps have a fairly thorough representation of English syntax.</p><p>As a rough comparison, we also report results from the structural probe from Hewitt and Manning (2019), which builds a probing classifier on top of BERT's vector representations rather than attention. The scores are not directly comparable because the structural probe only uses a single layer of BERT, produces undirected rather than directed parse trees, and is trained to produce the syntactic distance between words rather than directly predicting the tree structure. Nevertheless, the similarity in score to our Attn + Glove probing classifier suggests there is not much more syntactic information in BERT's vector representations compared to its attention maps.</p><p>Indicator features for short distances as well as continuous distance features, with distance ahead/behind treated separately to capture word order  Overall, our results from probing both individual and combinations of attention heads suggest that BERT learns some aspects syntax purely as a by-product of self-supervised training. Other work has drawn a similar conclusions from examining BERT's predictions on agreement tasks (Goldberg, 2019) or internal vector representations <ref type="bibr" target="#b13">(Hewitt and Manning, 2019;</ref><ref type="bibr" target="#b19">Liu et al., 2019)</ref>. Traditionally, syntax-aware models have been developed through architecture design (e.g., recursive neural networks) or from direct supervision from human-curated treebanks. Our findings are part of a growing body of work indicating that indirect supervision from rich pre-training tasks like language modeling can also produce models sensitive to language's hierarchical structure.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6">Clustering Attention Heads</head><p>Are attention heads in the same layer similar to each other or different? Can attention heads be clearly grouped by behavior? We investigate these questions by computing the distances between all pairs of attention heads. Formally, we measure the distance between two heads H i and H j as:</p><formula xml:id="formula_3">token∈data JS(H i (token), H j (token))</formula><p>Where JS is the Jensen-Shannon Divergence between attention distributions. Using these distances, we visualize the attention heads by applying multidimensional scaling <ref type="bibr" target="#b16">(Kruskal, 1964)</ref> to embed each head in two dimensions such that the Euclidean distance between embeddings reflects the Jensen-Shannon distance between the corresponding heads as closely as possible.</p><p>Results are shown in <ref type="figure">Figure 6</ref>. We find that there are several clear clusters of heads that be- <ref type="figure">Figure 6</ref>: BERT attention heads embedded in twodimensional space. Distance between points approximately matches the average Jensen-Shannon divergences between the outputs of the corresponding heads. Heads in the same layer tend to be close together. Attention head "behavior" was found through the analysis methods discussed throughout this paper. have similarly, often corresponding to behaviors we have already discussed in this paper. Heads within the same layer are often fairly close to each other, meaning that heads within the layer have similar attention distributions. This finding is a bit surprising given that <ref type="bibr" target="#b35">Tu et al. (2018)</ref> show that encouraging attention heads to have different behaviors can improve Transformer performance at machine translation. One possibility for the apparent redundancy in BERT's attention heads is the use of attention dropout, which causes some attention weights to be zeroed-out during training.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7">Related Work</head><p>There has been substantial recent work performing analysis to better understand what neural networks learn, especially from language model pretraining. One line of research examines the outputs of language models on carefully chosen input sentences <ref type="bibr" target="#b18">(Linzen et al., 2016;</ref><ref type="bibr" target="#b15">Khandelwal et al., 2018;</ref><ref type="bibr" target="#b12">Gulordava et al., 2018;</ref><ref type="bibr" target="#b22">Marvin and Linzen, 2018)</ref>. For example, the model's performance at subject-verb agreement (generating the correct number of a verb far away from its subject) provides a measure of the model's syntactic ability, although it does not reveal how that ability is captured by the network.</p><p>Another line of work investigates the internal vector representations of the model <ref type="bibr" target="#b0">(Adi et al., 2017;</ref><ref type="bibr" target="#b10">Giulianelli et al., 2018;</ref><ref type="bibr" target="#b41">Zhang and Bowman, 2018)</ref>, often using probing classifiers. Probing classifiers are simple neural networks that take the vector representations of a pre-trained model as input and are trained to do a supervised task (e.g., part-of-speech tagging). If a probing classifier achieves high accuracy, it suggests that the input representations reflect the corresponding aspect of language (e.g., low-level syntax). Like our work, some of these studies have also demonstrated models capturing aspects of syntax <ref type="bibr" target="#b30">(Shi et al., 2016;</ref><ref type="bibr" target="#b3">Blevins et al., 2018)</ref> or coreference <ref type="bibr" target="#b34">(Tenney et al., 2018</ref><ref type="bibr" target="#b33">(Tenney et al., , 2019</ref><ref type="bibr" target="#b19">Liu et al., 2019)</ref> without explicitly being trained for the tasks.</p><p>With regards to analyzing attention, Vig (2019) builds a visualization tool for the BERT's attention and reports observations about the attention behavior, but does not perform quantitative analysis. <ref type="bibr" target="#b4">Burns et al. (2018)</ref> analyze the attention of memory networks to understand model performance on a question answering dataset. There has also been some initial work in correlating attention with syntax. <ref type="bibr" target="#b28">Raganato and Tiedemann (2018)</ref> evaluate the attention heads of a machine translation model on dependency parsing, but only report overall UAS scores instead of investigating heads for specific syntactic relations or using probing classifiers. <ref type="bibr" target="#b21">Marecek and Rosa (2018)</ref> propose heuristic ways of converting attention scores to syntactic trees, but do not quantitatively evaluate their approach. For coreference, <ref type="bibr" target="#b38">Voita et al. (2018)</ref> show that the attention of a context-aware neu-ral machine translation system captures anaphora, similar to our finding for BERT.</p><p>Concurrently with our work Voita et al. (2019) identify syntactic, positional, and rare-wordsensitive attention heads in machine translation models. They also demonstrate that many attention heads can be pruned away without substantially hurting model performance. Interestingly, the important attention heads that remain after pruning tend to be ones with identified behaviors. <ref type="bibr" target="#b23">Michel et al. (2019)</ref> similarly show that many of BERT's attention heads can be pruned. Although our analysis in this paper only found interpretable behaviors in a subset of BERT's attention heads, these recent works suggest that there might not be much to explain for some attention heads because they have little effect on model perfomance.</p><p>Jain and Wallace (2019) argue that attention often does not "explain" model predictions. They show that attention weights frequently do not correlate with other measures of feature importance. Furthermore, attention weights can often be substantially changed without altering model predictions. However, our motivation for looking at attention is different: rather than explaining model predictions, we are seeking to understand information learned by the models. For example, if a particular attention head learns a syntactic relation, we consider that an important finding from an analysis perspective even if that head is not always used when making predictions for some downstream task.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="8">Conclusion</head><p>We have proposed a series of analysis methods for understanding the attention mechanisms of models and applied them to BERT. While most recent work on model analysis for NLP has focused on probing vector representations or model outputs, we have shown that a substantial amount of linguistic knowledge can be found not only in the hidden states, but also in the attention maps. We think probing attention maps complements these other model analysis techniques, and should be part of the toolkit used by researchers to understand what neural networks learn about language.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 :</head><label>1</label><figDesc>Examples of heads exhibiting the patterns discussed in Section 3. The darkness of a line indicates the strength of the attention weight (some attention weights are so low they are invisible).</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 3 :Figure 4 :</head><label>34</label><figDesc>Gradient-based feature importance estimates for attention to[SEP], periods/commas, and other tokens. Entropies of attention distributions. In the first layer there are particularly high-entropy heads that produce bag-of-vector-like representations.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>---</head><label></label><figDesc>We ignore[SEP]  and[CLS], although in practice this does not significantly change the accuracies for most heads.Head 9-6 Prepositions attend to their objects -76.3% accuracy at the pobj relationHead 8-11 -Noun modifiers (e.g., determiners) attend to their noun -94.3% accuracy at the det relation Head 8-10 -Direct objects attend to their verbs -86.8% accuracy at the dobj relation Head 7-6 Possessive pronouns and apostrophes attend to the head of the corresponding NP -80.5% accuracy at the poss relation Head 4-10-Passive auxiliary verbs attend to the verb they modify -82.5% accuracy at the auxpass relationHead 5-4 Coreferent mentions attend to their antecedents -65.1% accuracy at linking the head of a coreferent mention to the head of an antecedent</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 5 :</head><label>5</label><figDesc>BERT attention heads that correspond to linguistic phenomena. In the example attention maps, the darkness of a line indicates the strength of the attention weight. All attention to/from red words is colored red; these colors are there to highlight certain parts of the attention heads' behaviors. For Head 9-6, we don't show attention to [SEP] for clarity. Despite not being explicitly trained on these tasks, BERT's attention heads perform remarkably well, illustrating how syntax-sensitive behavior can emerge from self-supervised training alone.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_2"><head>Table 1 :</head><label>1</label><figDesc></figDesc><table /><note>The best performing attentions heads of BERT on WSJ dependency parsing by dependency type. Numbers after baseline accuracies show the best offset found (e.g., (1) means the word to the right is predicted as the head). We show the 10 most common relations as well as 5 other ones attention heads do well on. Bold highlights particularly effective heads.</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_4"><head>Table 2</head><label>2</label><figDesc></figDesc><table><row><cell>: Accuracies (%) for systems at selecting a</cell></row><row><cell>correct antecedent given a coreferent mention in the</cell></row><row><cell>CoNLL-2012 data. One of BERT's attention heads per-</cell></row><row><cell>forms fairly well at coreference.</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_6"><head>Table 3</head><label>3</label><figDesc></figDesc><table><row><cell>: Results of attention-based probing classifiers</cell></row><row><cell>on dependency parsing. A simple model taking BERT</cell></row><row><cell>attention maps and GloVe embeddings as input per-</cell></row><row><cell>forms quite well. *Not directly comparable to our num-</cell></row><row><cell>bers; see text.</cell></row></table><note></note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="4">We truncate documents to 128 tokens long to keep memory usage manageable.</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgements</head><p>We thank the anonymous reviews for their thoughtful comments and suggestions. Kevin is supported by a Google PhD Fellowship.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Fine-grained analysis of sentence embeddings using auxiliary prediction tasks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yossi</forename><surname>Adi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Einat</forename><surname>Kermany</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yonatan</forename><surname>Belinkov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ofer</forename><surname>Lavi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoav</forename><surname>Goldberg</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICLR</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Neural machine translation by jointly learning to align and translate</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dzmitry</forename><surname>Bahdanau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kyunghyun</forename><surname>Cho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICLR</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">What do neural machine translation models learn about morphology</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yonatan</forename><surname>Belinkov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nadir</forename><surname>Durrani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Fahim</forename><surname>Dalvi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hassan</forename><surname>Sajjad</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">James</forename><forename type="middle">R</forename><surname>Glass</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ACL</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Deep rnns encode soft hierarchical syntax</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Terra</forename><surname>Blevins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Omer</forename><surname>Levy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Luke</forename><forename type="middle">S</forename><surname>Zettlemoyer</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ACL</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Exploiting attention to reveal shortcomings in memory models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kaylee</forename><surname>Burns</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aida</forename><surname>Nematzadeh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alison</forename><surname>Gopnik</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Thomas</forename><forename type="middle">L</forename><surname>Griffiths</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Black-boxNLP@EMNLP</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Syntax-directed attention for neural machine translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kehai</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rui</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Masao</forename><surname>Utiyama</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Eiichiro</forename><surname>Sumita</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tiejun</forename><surname>Zhao</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">AAAI</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">What you can cram into a single $&amp;!#* vector: Probing sentence embeddings for linguistic properties</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alexis</forename><surname>Conneau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Germán</forename><surname>Kruszewski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Guillaume</forename><surname>Lample</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Loïc</forename><surname>Barrault</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marco</forename><surname>Baroni</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ACL</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Semi-supervised sequence learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Andrew</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Quoc V</forename><surname>Dai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Le</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">BERT: Pre-training of deep bidirectional transformers for language understanding</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jacob</forename><surname>Devlin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ming-Wei</forename><surname>Chang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kenton</forename><surname>Lee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kristina</forename><surname>Toutanova</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NAACL-HLT</title>
+		<imprint>
+			<date type="published" when="2019" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Tree-to-sequence attentional neural machine translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Akiko</forename><surname>Eriguchi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kazuma</forename><surname>Hashimoto</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshimasa</forename><surname>Tsuruoka</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ACL</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Under the hood: Using diagnostic classifiers to investigate and improve how language models track agreement information</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mario</forename><surname>Giulianelli</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jack</forename><surname>Harding</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Florian</forename><surname>Mohnert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dieuwke</forename><surname>Hupkes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Willem</forename><forename type="middle">H</forename><surname>Zuidema</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">BlackboxNLP@EMNLP</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoav</forename><surname>Goldberg</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1901.05287</idno>
+		<title level="m">Assessing BERT&apos;s syntactic abilities</title>
+		<imprint>
+			<date type="published" when="2019" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Colorless green recurrent networks dream hierarchically</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kristina</forename><surname>Gulordava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Piotr</forename><surname>Bojanowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Edouard</forename><surname>Grave</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tal</forename><surname>Linzen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marco</forename><surname>Baroni</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NAACL-HLT</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<monogr>
+		<title level="m" type="main">Finding syntax with structural probes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><surname>Hewitt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christopher</forename><forename type="middle">D</forename><surname>Manning</surname></persName>
+		</author>
+		<editor>NAACL-HLT</editor>
+		<imprint>
+			<date type="published" when="2019" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<monogr>
+		<title level="m" type="main">Attention is not explanation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sarthak</forename><surname>Jain</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Byron</forename><forename type="middle">C</forename><surname>Wallace</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1902.10186</idno>
+		<imprint>
+			<date type="published" when="2019" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Sharp nearby, fuzzy far away: How neural language models use context</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Urvashi</forename><surname>Khandelwal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">He</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Peng</forename><surname>Qi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daniel</forename><surname>Jurafsky</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ACL</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Multidimensional scaling by optimizing goodness of fit to a nonmetric hypothesis</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Joseph</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Kruskal</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Psychometrika</title>
+		<imprint>
+			<biblScope unit="volume">29</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="1" to="27" />
+			<date type="published" when="1964" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Stanford&apos;s multi-pass sieve coreference resolution system at the conll-2011 shared task</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Heeyoung</forename><surname>Lee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yves</forename><surname>Peirsman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Angel</forename><surname>Chang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nathanael</forename><surname>Chambers</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mihai</forename><surname>Surdeanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dan</forename><surname>Jurafsky</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CoNLL</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<monogr>
+		<title level="m" type="main">Assessing the ability of lstms to learn syntaxsensitive dependencies</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tal</forename><surname>Linzen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Emmanuel</forename><surname>Dupoux</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoav</forename><surname>Goldberg</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Linguistic knowledge and transferability of contextual representations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nelson</forename><forename type="middle">F</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Matt</forename><surname>Gardner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yonatan</forename><surname>Belinkov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Peters</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Noah</forename><forename type="middle">A</forename><surname>Smith</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NAACL-HLT</title>
+		<imprint>
+			<date type="published" when="2019" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Building a large annotated corpus of english: The Penn treebank</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Mitchell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mary</forename><forename type="middle">Ann</forename><surname>Marcus</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Beatrice</forename><surname>Marcinkiewicz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Santorini</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Computational linguistics</title>
+		<imprint>
+			<biblScope unit="volume">19</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="313" to="330" />
+			<date type="published" when="1993" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<monogr>
+		<title level="m" type="main">Extracting syntactic trees from transformer encoder selfattentions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Marecek</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rudolf</forename><surname>Rosa</surname></persName>
+		</author>
+		<editor>BlackboxNLP@EMNLP</editor>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Targeted syntactic evaluation of language models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rebecca</forename><surname>Marvin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tal</forename><surname>Linzen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">EMNLP</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Paul</forename><surname>Michel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Omer</forename><surname>Levy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Graham</forename><surname>Neubig</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1905.10650</idno>
+		<title level="m">Are sixteen heads really better than one? arXiv preprint</title>
+		<imprint>
+			<date type="published" when="2019" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">Glove: Global vectors for word representation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jeffrey</forename><surname>Pennington</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Richard</forename><surname>Socher</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christopher</forename><surname>Manning</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">EMNLP</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Deep contextualized word representations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Matthew</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mark</forename><surname>Peters</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mohit</forename><surname>Neumann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Matt</forename><surname>Iyyer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christopher</forename><surname>Gardner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kenton</forename><surname>Clark</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Luke</forename><surname>Lee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Zettlemoyer</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NAACL-HLT</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Conll-2012 shared task: Modeling multilingual unrestricted coreference in ontonotes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alessandro</forename><surname>Sameer Pradhan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nianwen</forename><surname>Moschitti</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Olga</forename><surname>Xue</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yuchen</forename><surname>Uryupina</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Zhang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Joint Conference on EMNLP and CoNLL-Shared Task</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<monogr>
+		<title level="m" type="main">Improving language understanding by generative pre-training</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alec</forename><surname>Radford</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Karthik</forename><surname>Narasimhan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tim</forename><surname>Salimans</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ilya</forename><surname>Sutskever</surname></persName>
+		</author>
+		<ptr target="https://blog.openai.com/language-unsupervised" />
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">An analysis of encoder representations in transformer-based machine translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alessandro</forename><surname>Raganato</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jörg</forename><surname>Tiedemann</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Black-boxNLP@EMNLP</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Neural machine translation of rare words with subword units</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rico</forename><surname>Sennrich</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Barry</forename><surname>Haddow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alexandra</forename><surname>Birch</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ACL</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Does string-based neural mt learn source syntax</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xing</forename><surname>Shi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Inkit</forename><surname>Padhi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kevin</forename><surname>Knight</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">EMNLP</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">Linguistically-informed self-attention for semantic role labeling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Emma</forename><surname>Strubell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Patrick</forename><surname>Verga</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daniel</forename><surname>Andor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>David</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><surname>Weiss</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Mccallum</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">EMNLP</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Axiomatic attribution for deep networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mukund</forename><surname>Sundararajan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ankur</forename><surname>Taly</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Qiqi</forename><surname>Yan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ian</forename><surname>Tenney</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dipanjan</forename><surname>Das</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ellie</forename><surname>Pavlick</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1905.05950</idno>
+		<title level="m">Bert rediscovers the classical nlp pipeline</title>
+		<imprint>
+			<date type="published" when="2019" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">What do you learn from context? probing for sentence structure in contextualized word representations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ian</forename><surname>Tenney</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Patrick</forename><surname>Xia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Berlin</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adam</forename><surname>Poliak</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Thomas</forename><surname>Mccoy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Najoung</forename><surname>Kim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Benjamin</forename><surname>Van Durme</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Samuel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dipanjan</forename><surname>Bowman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Das</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICLR</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<analytic>
+		<title level="a" type="main">Multi-head attention with disagreement regularization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zhaopeng</forename><surname>Tu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Baosong</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><forename type="middle">R</forename><surname>Lyu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tong</forename><surname>Zhang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">EMNLP</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<analytic>
+		<title level="a" type="main">Attention is all you need</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ashish</forename><surname>Vaswani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Noam</forename><surname>Shazeer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Niki</forename><surname>Parmar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jakob</forename><surname>Uszkoreit</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Llion</forename><surname>Jones</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aidan</forename><forename type="middle">N</forename><surname>Gomez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lukasz</forename><surname>Kaiser</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Illia</forename><surname>Polosukhin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<monogr>
+		<title level="m" type="main">Visualizing attention in transformerbased language models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jesse</forename><surname>Vig</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1904.02679</idno>
+		<imprint>
+			<date type="published" when="2019" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<analytic>
+		<title level="a" type="main">Context-aware neural machine translation learns anaphora resolution</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Elena</forename><surname>Voita</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pavel</forename><surname>Serdyukov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rico</forename><surname>Sennrich</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ivan</forename><surname>Titov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ACL</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<monogr>
+		<title level="m" type="main">Analyzing multihead self-attention: Specialized heads do the heavy lifting, the rest can be pruned</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Elena</forename><surname>Voita</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Talbot</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Fedor</forename><surname>Moiseev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rico</forename><surname>Sennrich</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ivan</forename><surname>Titov</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1905.09418</idno>
+		<imprint>
+			<date type="published" when="2019" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<analytic>
+		<title level="a" type="main">Learning anaphoricity and antecedent ranking features for coreference resolution</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sam Joshua</forename><surname>Wiseman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alexander</forename><forename type="middle">Matthew</forename><surname>Rush</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Stuart</forename><forename type="middle">Merrill</forename><surname>Shieber</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jason</forename><surname>Weston</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ACL</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<monogr>
+		<title level="m" type="main">Language modeling teaches you more syntax than translation does: Lessons learned through auxiliary task analysis</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Kelly</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Samuel</forename><forename type="middle">R</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bowman</surname></persName>
+		</author>
+		<editor>BlackboxNLP@EMNLP</editor>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

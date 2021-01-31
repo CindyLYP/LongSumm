@@ -1,0 +1,1113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Learning Representations for Counterfactual Inference</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Fredrik</forename><forename type="middle">D</forename><surname>Johansson</surname></persName>
+							<affiliation key="aff2">
+								<orgName type="department">Equal contribution</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Uri</forename><surname>Shalit</surname></persName>
+							<email>shalit@cs.nyu.edu</email>
+							<affiliation key="aff2">
+								<orgName type="department">Equal contribution</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Sontag</surname></persName>
+							<email>dsontag@cs.nyu.edu</email>
+						</author>
+						<author>
+							<affiliation key="aff0">
+								<orgName type="department">CSE</orgName>
+								<orgName type="institution">Chalmers University of Technology</orgName>
+								<address>
+									<postCode>SE-412 96</postCode>
+									<settlement>Göteborg</settlement>
+									<country key="SE">Sweden</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff1">
+								<orgName type="institution" key="instit1">CIMS</orgName>
+								<orgName type="institution" key="instit2">New York University</orgName>
+								<address>
+									<addrLine>251 Mercer Street</addrLine>
+									<postCode>10012</postCode>
+									<settlement>New York</settlement>
+									<region>NY</region>
+									<country key="US">USA</country>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Learning Representations for Counterfactual Inference</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:43+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Observational studies are rising in importance due to the widespread accumulation of data in fields such as healthcare, education, employment and ecology. We consider the task of answering counterfactual questions such as, &quot;Would this patient have lower blood sugar had she received a different medication?&quot;. We propose a new algorithmic framework for counterfactual inference which brings together ideas from domain adaptation and representation learning. In addition to a theoretical justification, we perform an empirical comparison with previous approaches to causal inference from observational data. Our deep learning algorithm significantly outperforms the previous state-of-the-art.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.">Introduction</head><p>Inferring causal relations is a fundamental problem in the sciences and commercial applications. The problem of causal inference is often framed in terms of counterfactual questions <ref type="bibr" target="#b20">(Lewis, 1973;</ref><ref type="bibr" target="#b32">Rubin, 1974;</ref><ref type="bibr" target="#b25">Pearl, 2009)</ref> such as "Would this patient have lower blood sugar had she received a different medication?", or "Would the user have clicked on this ad had it been in a different color?". In this paper we propose a method to learn representations suited for counterfactual inference, and show its efficacy in both simulated and real world tasks.</p><p>We focus on counterfactual questions raised by what are known as observational studies. Observational studies are studies where interventions and outcomes have been recorded, along with appropriate context. For example, consider an electronic health record dataset collected over several years, where for each patient we have lab tests and past diagnoses, as well as data relating to their diabetic status, and the causal question of interest is which of two existing anti-diabetic medications A or B is better for a given patient. Observational studies are rising in importance due to the widespread accumulation of data in fields such as healthcare, education, employment and ecology. We believe machine learning will be called on more and more to help make better decisions in these fields, and that researchers should be careful to pay attention to the ways in which these studies differ from classic supervised learning, as explained in Section 2 below.</p><p>In this work we draw a connection between counterfactual inference and domain adaptation. We then introduce a form of regularization by enforcing similarity between the distributions of representations learned for populations with different interventions. For example, the representations for patients who received medication A versus those who received medication B. This reduces the variance from fitting a model on one distribution and applying it to another. In Section 3 we give several methods for learning such representations. In Section 4 we show our methods approximately minimizes an upper bound on a regret term in the counterfactual regime. The general method is outlined in <ref type="figure">Figure 1</ref>. Our work has commonalities with recent work on learning fair representations <ref type="bibr" target="#b42">(Zemel et al., 2013;</ref><ref type="bibr" target="#b21">Louizos et al., 2015)</ref> and learning representations for transfer learning <ref type="bibr" target="#b2">(Ben-David et al., 2007;</ref><ref type="bibr" target="#b13">Gani et al., 2015)</ref>. In all these cases the learned representation has some invariance to specific aspects of the data: either an identity of a certain group such as racial minorities for fair representations, or the identity of the data source for domain adaptation, or, in the case of counterfactual learning, the type of intervention enacted in each population.</p><p>In machine learning, counterfactual questions typically arise in problems where there is a learning agent which performs actions, and receives feedback or reward for that arXiv:1605.03661v3 <ref type="bibr">[stat.ML]</ref> 6 Jun 2018</p><p>choice without knowing what would be the feedback for other possible choices. This is sometimes referred to as bandit feedback <ref type="bibr" target="#b4">(Beygelzimer et al., 2010)</ref>. This setup comes up in diverse areas, for example off-policy evaluation in reinforcement learning <ref type="bibr" target="#b36">(Sutton &amp; Barto, 1998)</ref>, learning from "logged implicit exploration data" <ref type="bibr" target="#b35">(Strehl et al., 2010)</ref> or "logged bandit feedback" <ref type="bibr" target="#b37">(Swaminathan &amp; Joachims, 2015)</ref>, and in understanding and designing complex real world ad-placement systems <ref type="bibr" target="#b5">(Bottou et al., 2013)</ref>. Note that while in contextual bandit or robotics applications the researcher typically knows the method underlying the action choice (e.g. the policy in reinforcement learning), in observational studies we usually do not have control or even a full understanding of the mechanism which chooses which actions are performed and which feedback or reward is revealed. For instance, for anti-diabetic medication, more affluent patients might be insensitive to the price of a drug, while less affluent patients could bring this into account in their choice.</p><p>Given that we do not know beforehand the particulars determining the choice of action, the question remains, how can we learn from data which course of action would have better outcomes. By bringing together ideas from representation learning and domain adaptation, our method offers a novel way to leverage increasing computation power and the rise of large datasets to tackle consequential questions of causal inference.</p><p>The contributions of our paper are as follows. First, we show how to formulate the problem of counterfactual inference as a domain adaptation problem, and more specifically a covariate shift problem. Second, we derive new families of representation algorithms for counterfactual inference: one is based on linear models and variable selection, and the other is based on deep learning of representations <ref type="bibr" target="#b3">(Bengio et al., 2013)</ref>. Finally, we show that learning representations that encourage similarity (balance) between the treated and control populations leads to better counterfactual inference; this is in contrast to many methods which attempt to create balance by re-weighting samples (e.g., <ref type="bibr" target="#b1">Bang &amp; Robins, 2005;</ref><ref type="bibr" target="#b12">Dudík et al., 2011;</ref><ref type="bibr" target="#b0">Austin, 2011;</ref><ref type="bibr" target="#b37">Swaminathan &amp; Joachims, 2015)</ref>. We show the merit of learning balanced representations both theoretically in Theorem 1, and empirically in a set of experiments across two datasets.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">Problem setup</head><p>Let T be the set of potential interventions or actions we wish to consider, X the set of contexts, and Y the set of possible outcomes. For example, for a patient x ∈ X the set T of interventions of interest might be two different treatments, and the set of outcomes might be Y = <ref type="bibr">[0,</ref><ref type="bibr">200]</ref> indicating blood sugar levels in mg/dL. For an ad slot on a webpage x, the set of interventions T might be all possi-ble ads in the inventory that fit that slot, while the potential outcomes could be Y = {click, no click}. For a context x (e.g. patient, webpage), and for each potential intervention t ∈ T , let Y t (x) ∈ Y be the potential outcome for x. The fundamental problem of causal inference is that only one potential outcome is observed for a given context x: even if we give the patient one medication and later the other, the patient is not in exactly the same state. In machine learning this type of partial feedback is often called "bandit feedback". The model described above is known as the Rubin-Neyman causal model <ref type="bibr" target="#b32">(Rubin, 1974;</ref>.</p><p>We are interested in the case of a binary action set T = {0, 1}, where action 1 is often known as the "treated" and action 0 is the "control". In this case the quantity Y 1 (x) − Y 0 (x) is of high interest: it is known as the individualized treatment effect (ITE) for context x <ref type="bibr" target="#b39">(van der Laan &amp; Petersen, 2007;</ref><ref type="bibr" target="#b41">Weiss et al., 2015)</ref>. Knowing this quantity enables choosing the best of the two actions when confronted with the choice, for example choosing the best treatment for a specific patient. However, the fact that we only have access to the outcome of one of the two actions prevents the ITE from being known. Another commonly sought after quantity is the average treatment effect,</p><formula xml:id="formula_0">ATE = E x∼p(x) [ITE(x)] for a population with distribution p(x).</formula><p>In the binary action setting, we refer to the observed and unobserved outcomes as the factual outcome y F (x), and counterfactual outcome y CF (x) respectively.</p><p>A common approach for estimating the ITE is by direct modelling: given n samples</p><formula xml:id="formula_1">{(x i , t i , y F i )} n i=1 , where y F i = t i •Y 1 (x i )+(1−t i )Y 0 (x i ), learn a function h : X ×T → Y such that h(x i , t i ) ≈ y F i . The estimated transductive ITE is then:Î TE(x i ) = y F i − h(x i , 1 − t i ), t i = 1. h(x i , 1 − t i ) − y F i , t i = 0.<label>(1)</label></formula><p>While in principle any function fitting model might be used for estimating the ITE <ref type="bibr" target="#b27">(Prentice, 1976;</ref><ref type="bibr" target="#b14">Gelman &amp; Hill, 2006;</ref><ref type="bibr" target="#b8">Chipman et al., 2010;</ref><ref type="bibr" target="#b40">Wager &amp; Athey, 2015;</ref><ref type="bibr" target="#b41">Weiss et al., 2015)</ref>, it is important to note how this task differs from standard supervised learning. The problem is as follows: the observed sample consists of the set</p><formula xml:id="formula_2">P F = {(x i , t i )} n i=1</formula><p>. However, calculating the ITE requires inferring the outcome on the setP <ref type="bibr">CF</ref> </p><formula xml:id="formula_3">= {(x i , 1 − t i )} n i=1</formula><p>. We call the setP F ∼ P F the empirical factual distribution, and the setP CF ∼ P CF the empirical counterfactual distribution, respectively. Because P F and P CF need not be equal, the problem of causal inference by counterfactual prediction might require inference over a different distribution than the one from which samples are given. In machine learning terms, this means that the feature distribution of the test set differs from that of the train set. This is a case of covariate shift, which is a special case of do- <ref type="figure">Figure 1</ref>. Contexts x are representated by Φ(x), which are used, with group indicator t, to predict the response y while minimizing the imbalance in distributions measured by disc(ΦC , ΦT ).</p><formula xml:id="formula_4">Context x Representation Φ Outcome error loss(h (Φ, t), y) Treatment t Imbalance disc(Φ C , Φ T )</formula><p>Algorithm 1 Balancing counterfactual regression 1: Input: <ref type="bibr" target="#b10">(Daume III &amp; Marcu, 2006;</ref><ref type="bibr" target="#b17">Jiang, 2008;</ref><ref type="bibr" target="#b22">Mansour et al., 2009)</ref>. A somewhat similar connection was noted in <ref type="bibr" target="#b34">Schölkopf et al. (2012)</ref> with respect to covariate shift, in the context of a very simple causal model. Specifically, we have that P F (x, t) = P (x) • P (t|x) and P CF (x, t) = P (x) • P (¬t|x). The difference between the observed (factual) sample and the sample we must perform inference on lies precisely in the treatment assignment mechanism, P (t|x). For example, in a randomized control trial, we typically have that t and x are independent. In the contextual bandit setting, there is typically an algorithm which determines the choice of the action t given the context x. In observational studies, which are the focus of this work, the treatment assignment mechanism is not under our control and in general will not be independent of the context x. Therefore, in general, the counterfactual distribution will be different from the factual distribution.</p><formula xml:id="formula_5">X, T, Y F ; H, N ; α, γ, λ 2: Φ * , g * = arg min Φ∈N ,g∈H B H,α,γ (Φ, g) (2) 3: h * = arg min h∈H 1 n n i=1 (h(Φ, t i ) − y F i ) 2 + λ h H 4: Output: h * , Φ * main adaptation</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">Balancing counterfactual regression</head><p>We propose to perform counterfactual inference by amending the direct modeling approach, taking into account the fact that the learned estimator h must generalize from the factual distribution to the counterfactual distribution.</p><p>Our method, see <ref type="figure">Figure 1</ref>, learns a representation Φ : X → R d , (either using a deep neural network, or by feature reweighting and selection), and a function h : R d × T → R, such that the learned representation trades off three objectives: (1) enabling low-error prediction of the observed outcomes over the factual representation, (2) enabling lowerror prediction of unobserved counterfactuals by taking into account relevant factual outcomes, and (3) the distributions of treatment populations are similar or balanced.</p><p>We accomplish low-error prediction by the usual means of error minimization over a training set and regularization in order to enable good generalization error. We accomplish the second objective by a penalty that encourages counterfactual predictions to be close to the nearest observed outcome from the respective treated or control set. Finally, we accomplish the third objective by minimizing the so-called discrepancy distance, introduced by Mansour et al. <ref type="formula">2009</ref>, which is a hypothesis class dependent distance measure tailored for domain adaptation. For hypothesis space H, we denote the discrepancy distance by disc H . See Section 4 for the formal definition and motivation. Other discrepancy measures such as Maximum Mean Discrepancy <ref type="bibr" target="#b15">(Gretton et al., 2012)</ref> could also be used for this purpose.</p><p>Intuitively, representations that reduce the discrepancy between the treated and control populations prevent the learner from using "unreliable" aspects of the data when trying to generalize from the factual to counterfactual domains. For example, if in our sample almost no men ever received medication A, inferring how men would react to medication A is highly prone to error and a more conservative use of the gender feature might be warranted.</p><formula xml:id="formula_6">Let X = {x i } n i=1 , T = {t i } n i=1</formula><p>, and</p><formula xml:id="formula_7">Y F = {y F i } n i=1</formula><p>denote the observed units, treatment assignments and factual outcomes respectively. We assume X is a metric space with</p><formula xml:id="formula_8">a metric d. Let j(i) ∈ arg min j∈{1...n} s.t. tj =1−ti d(x j , x i )</formula><p>be the nearest neighbor of x i among the group that received the opposite treatment from unit i. Note that the nearest neighbor is computed once, in the input space, and does not change with the representation Φ. The objective we minimize over representations Φ and hypotheses h ∈ H is</p><formula xml:id="formula_9">B H,α,γ (Φ, h) = 1 n n i=1 |h(Φ(x i ), t i ) − y F i | + (2) α disc H (P F Φ ,P CF Φ ) + γ n n i=1 |h(Φ(x i ), 1 − t i ) − y F j(i) | ,</formula><p>where α, γ &gt; 0 are hyperparameters to control the strength of the imbalance penalties, and disc is the discrepancy measure defined in 4.1. When the hypothesis class H is the class of linear functions, the term disc H (P F Φ ,P CF Φ ) has a closed form brought in 4.1 below, and</p><formula xml:id="formula_10">h(Φ, t i ) = h [Φ(x i ) t i ]</formula><p>. For more complex hypothesis spaces there is in general no exact closed form for disc H (P F Φ ,P CF Φ ). Once the representation Φ is learned, we fit a final hypothesis minimizing a regularized squared loss objective on the factual data. Our algorithm is summarized in Algorithm 1. Note that our algorithm involves two minimization procedures. In Section 4 we motivate our method, by showing that our method of learning representations minimizes an upper bound on the regret error over the counterfactual distribution, using results of <ref type="bibr" target="#b9">Cortes &amp; Mohri (2014)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1.">Balancing variable selection</head><p>A naïve way of obtaining a balanced representation is to use only features that are already well balanced, i.e. features which have a similar distribution over both treated and control sets. However, imbalanced features can be highly predictive of the outcome, and should not always be discarded. A middle-ground is to restrict the influence of imbalanced features on the predicted outcome. We build on this idea by learning a sparse re-weighting of the features that minimizes the bound in Theorem 1. The re-weighting determines the influence of a feature by trading off its predictive capabilities and its balance.</p><p>We implement the re-weighting as a diagonal matrix W , forming the representation Φ(x) = W x, with diag(W ) subject to a simplex constraint to achieve sparsity. Let N = {x → W x :</p><formula xml:id="formula_11">W = diag(w), w i ∈ [0, 1],</formula><p>i w i = 1} denote the space of such representations. We can now apply Algorithm 1 with H l the space of linear hypotheses. Because the hypotheses are linear, disc(Φ) is a function of the distance between the weighted population means, see Section 4.1.</p><formula xml:id="formula_12">With p = E[t], c = p − 1/2, n t = n i=1 t i , µ 1 = 1 nt n i:ti=1 x i , and µ 0 analogously defined, disc H l (XW ) = c + c 2 + W (pµ 1 − (1 − p)µ 0 )] 2 2</formula><p>To minimize the discrepancy, features k that differ a lot between treatment groups will receive a smaller weight w k . Minimizing the overall objective B, involves a trade-off between maximizing balance and predictive accuracy. We minimize (2) using alternating sub-gradient descent.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2.">Deep neural networks</head><p>Deep neural networks have been shown to successfully learn good representations of high-dimensional data in many tasks <ref type="bibr" target="#b3">(Bengio et al., 2013</ref>). Here we show that they can be used for counterfactual inference and, crucially, for accommodating imbalance penalties. We propose a modification of the standard feed-forward architecture with fully connected layers, see <ref type="figure">Figure 2</ref>. The first d r hidden layers are used to learn a representation Φ(x) of the input x. The output of the d r :th layer is used to calculate the discrepancy disc H (P F Φ ,P CF Φ ). The d o layers following the first d r layers take as additional input the treatment assignment t i and generate a prediction h([Φ(x i ), t i ]) of the outcome.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3.">Non-linear hypotheses and individual effect</head><p>We note that both in the case of variable re-weighting, and for neural nets with a single linear outcome layer, the hypothesis space H comprises linear functions of <ref type="bibr">[Φ, t]</ref> and the discrepancy, disc H (Φ) can be expressed in closedform. A less desirable consequence is that such models cannot capture difference in the individual treatment ef- <ref type="figure">Figure 2</ref>. Neural network architecture.</p><formula xml:id="formula_13">t x loss(h (Φ, t), y) … … Φ t Φ disc(Φ t=0 , Φ t=1 ) d r d o</formula><p>fect, as they involve no interactions between Φ(x) and t. Such interactions could be introduced by for example (polynomial) feature expansion, or in the case of neural networks, by adding non-linear layers after the concatenation</p><formula xml:id="formula_14">[Φ(x), t].</formula><p>For both approaches however, we no longer have a closed form expression for disc H (P F Φ ,P CF Φ ).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">Theory</head><p>In this section we derive an upper bound on the relative counterfactual generalization error of a representation function Φ. The bound only uses quantities we can measure directly from the available data. In the previous section we gave several methods for learning representations which approximately minimize the upper bound.</p><p>Recall that for an observed context or instance x i ∈ X with observed treatment t i ∈ {0, 1}, the two potential outcomes are</p><formula xml:id="formula_15">Y 0 (x i ), Y 1 (x i ) ∈ Y, of which we observe the factual outcome y F i = t i Y 1 (x i ) + (1 − t i )Y 0 (x i ). Let (x 1 , t 1 , y F 1 ), . . . , (x n , t n , y F n ) be a sample from the factual distribution. Similarly, let (x 1 , 1 − t 1 , y CF 1 ), . . . , (x n , 1 − t n , y CF</formula><p>n ) be the counterfactual sample. Note that while we know the factual outcomes y F i , we do not know the counterfactual outcomes y CF i . Let Φ : X → R d be a representation function, and let R(Φ) denote its range. Denote byP F Φ the empirical distribution over the representations and treatment assignments (Φ(x 1 ), t 1 ), . . . , (Φ(x n ), t n ), and similarlyP CF Φ the empirical distribution over the representations and counterfactual treatment assignments</p><formula xml:id="formula_16">(Φ(x 1 ), 1 − t 1 ), . . . , (Φ(x n ), 1 − t n )</formula><p>. Let H l be the hypothesis set of linear functions β : R(Φ) × {0, 1} → Y. Definition 1 <ref type="bibr" target="#b22">(Mansour et al. 2009)</ref>. Given a hypothesis set H and a loss function L, the empirical discrepancy between the empirical distributionsP F Φ andP CF Φ is:</p><formula xml:id="formula_17">disc H (P F Φ ,P CF Φ ) = max β,β ∈H E x∼P F Φ [L(β(x), β (x))] − E x∼P CF Φ [L(β(x), β (x))]</formula><p>where L is a loss function L : Y × Y → R with weak Lipschitz constant µ relative to H 1 . Note that the discrepancy is defined with respect to a hypothesis class and a loss function, and is therefore very useful for obtaining generalization bounds involving different distributions. Throughout this section we always have L denote the squared loss. We prove the following, based on <ref type="bibr" target="#b9">Cortes &amp; Mohri (2014)</ref>:</p><formula xml:id="formula_18">Theorem 1. For a sample {(x i , t i , y F i )} n i=1 , x i ∈ X , t i ∈ {0, 1}</formula><p>and y i ∈ Y, and a given representation function Φ :</p><formula xml:id="formula_19">X → R d , letP F Φ = (Φ(x 1 ), t 1 ), . . . , (Φ(x n ), t n ),P CF Φ = (Φ(x 1 ), 1−t 1 ), . . . , (Φ(x n ), 1−t n )</formula><p>. We assume that X is a metric space with metric d, and that the potential outcome functions Y 0 (x) and Y 1 (x) are Lipschitz continuous with constants K 0 and K 1 respectively, such that</p><formula xml:id="formula_20">d(x a , x b ) ≤ c =⇒ |Y t (x a ) − Y t (x b )| ≤ K t • c for t = 0, 1.</formula><p>Let H l ⊂ R d+1 be the space of linear functions β : X × {0, 1} → Y, and for β ∈ H l , let</p><formula xml:id="formula_21">L P (β) = E (x,t,y)∼P [L(β(x, t), y)] be the ex- pected loss of β over distribution P . Let r = max E (x,t)∼P F [ [Φ(x), t] 2 ] , E (x,t)∼P CF [ [Φ(x), t] 2 ]</formula><p>be the maximum expected radius of the distributions. For</p><formula xml:id="formula_22">λ &gt; 0, letβ F (Φ) = arg min β∈H l LP F Φ (β) + λ β 2 2 , andβ CF (Φ) similarly forP CF Φ , i.e.β F (Φ) andβ CF (Φ)</formula><p>are the ridge regression solutions for the factual and counterfactual empirical distributions, respectively.</p><formula xml:id="formula_23">Letŷ F i (Φ, h) = h [Φ(x i ), t i ] andŷ CF i (Φ, h) = h [Φ(x i ), 1 − t i ]</formula><p>be the outputs of the hypothesis h ∈ H l over the representation Φ(x i ) for the factual and counterfactual settings of t i , respectively. Finally, for each i, j ∈ {1 . . . n}, let</p><formula xml:id="formula_24">d i,j ≡ d(x i , x j ) and j(i) ∈ arg min j∈{1...n} s.t. tj =1−ti d(x j , x i )</formula><p>be the nearest neighbor in X of x i among the group that received the opposite treatment from unit i. Then for both Q = P F and Q = P CF we have:</p><formula xml:id="formula_25">λ µr (L Q (β F (Φ)) − L Q (β CF (Φ))) 2 ≤ disc H l (P F Φ ,P CF Φ ) + (3) min h∈H l 1 n n i=1 |ŷ F i (Φ, h) − y F i | + |ŷ CF i (Φ, h) − y CF i | ≤ (4) disc H l (P F Φ ,P CF Φ )+ min h∈H l 1 n n i=1 |ŷ F i (Φ, h) − y F i | + |ŷ CF i (Φ, h) − y F j(i) | + (5) K 0 n i:ti=1 d i,j(i) + K 1 n i:ti=0 d i,j(i) .<label>(6)</label></formula><p>The proof is in the supplemental material.</p><p>Theorem 1 gives, for all fixed representations Φ, a bound on the relative error for a ridge regression model fit on the factual outcomes and evaluated on the counterfactual, as compared with ridge regression had it been fit on the unobserved counterfactual outcomes. It does not take into account how Φ is obtained, and applies even if h(Φ(x), t) is not convex in x, e.g. if Φ is a neural net. Since the bound in the theorem is true for all representations Φ, we can attempt to minimize it over Φ, as done in Algorithm 1.</p><p>The term on line (4) of the bound includes the unknown counterfactual outcomes y CF i . It measures how well could we in principle fit the factual and counterfactual outcomes together using a linear hypothesis over the representation Φ. For example, if the dimension of the representation is greater than the number of samples, and in addition if there exist constants b and such that |y F i − y CF i − b| ≤ , then this term is upper bounded by . In general however, we cannot directly control its magnitude.</p><p>The term on line (3) measures the discrepancy between the factual and counterfactual distributions over the representation Φ. In 4.1 below, we show that this term is closely related to the norm of the difference in means between the representation of the control group and the treated group. A representation for which the means of the treated and control are close (small value of (3)), but at the same time allows for a good prediction of the factuals and counterfactuals (small value of (4)), is guaranteed to yield structural risk minimizers with similar generalization errors between factual and counterfactual.</p><p>We further show that the term on line (4), which cannot be evaluated since we do not know y CF i , can be upper bounded by a sum of the terms on lines (5) and (6). The term (5) includes two empirical data fitting terms:</p><formula xml:id="formula_26">|ŷ F i (Φ, v)−y F i | and |ŷ CF i (Φ, v)−y F j(i) |.</formula><p>The first is simply fitting the observed factual outcomes using a linear function over the representation Φ. The second term is a form of nearest-neighbor regression, where the counterfactual outcomes for a treated (resp. control) instance are fit to the most similar factual outcome among the control (resp. treated) set, where similarity is measured in the original space X . Finally, the term on line (6), is the only quantity which is independent of the representation Φ. It measures the average distance between each treated instance to the nearest control, and vice-versa, scaled by the Lipschitz constants of the true treated and control outcome functions. This term will be small when: (a) the true outcome functions Y 0 (x) and Y 1 (x) are relatively smooth, and (b) there is overlap between the treated and control groups, leading to small average nearest neighbor distance across the groups. It is well-known that when there is not much overlap between treated and control, causal inference in general is more difficult since the extrapolation from treated to control and vice-versa is more extreme <ref type="bibr" target="#b30">(Rosenbaum, 2009)</ref>.</p><p>The upper bound in Theorem 1 suggests the following approach for counterfactual regression. First minimize the terms (3) and (5) as functions of the representation Φ. Once Φ is obtained, perform a ridge regression on the factual outcomes using the representations Φ(x) and the treatment assignments as input. The terms in the bound ensure that Φ would have a good fit for the data (term (5)), while removing aspects of the treated and control which create a large discrepancy term (3)). For example, if there is a feature which is much more strongly associated with the treatment assignment than with the outcome, it might be advisable to not use it <ref type="bibr" target="#b26">(Pearl, 2011)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.">Linear discrepancy</head><p>A straightforward calculation shows that for a class H l of linear hypotheses,</p><formula xml:id="formula_27">disc H l (P, Q) = µ 2 (P ) − µ 2 (Q) 2 .</formula><p>Here, A 2 is the spectral norm of A and µ 2 (P ) = E x∼P [xx ] is the second-order moment of x ∼ P . In the special case of counterfactual inference, P and Q differ only in the treatment assignment. Specifically,</p><formula xml:id="formula_28">disc(P F Φ ,P CF Φ ) = 0 d,d v v 2p − 1 2 (7) = p − 1 + (2p − 1) 2 + v 2 2 (8)</formula><p>where</p><formula xml:id="formula_29">v = E (x,t)∼P F Φ [Φ(x) • t] − E (x,t)∼P F Φ [Φ(x) • (1 − t)] and p = E[t]. Let µ 1 (Φ) = E (x,t)∼P F Φ [Φ(x)|t = 1] and µ 0 (Φ) = E (x,t)∼P F Φ</formula><p>[Φ(x)|t = 0] be the treated and control means in Φ space.</p><formula xml:id="formula_30">Then v = p • µ 1 (Φ) − (1 − p)</formula><p>• µ 0 (Φ), exactly the difference in means between the treated and control groups, weighted by their respective sizes. As a consequence, minimizing the discrepancy with linear hypotheses constitutes matching means in feature space.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.">Related work</head><p>Counterfactual inference for determining causal effects in observational studies has been studied extensively in statistics, economics, epidemiology and sociology <ref type="bibr" target="#b23">(Morgan &amp; Winship, 2014;</ref><ref type="bibr" target="#b28">Robins et al., 2000;</ref><ref type="bibr" target="#b33">Rubin, 2011;</ref><ref type="bibr" target="#b6">Chernozhukov et al., 2013)</ref> as well as in machine learning <ref type="bibr" target="#b19">(Langford et al., 2011;</ref><ref type="bibr" target="#b5">Bottou et al., 2013;</ref><ref type="bibr" target="#b37">Swaminathan &amp; Joachims, 2015)</ref>.</p><p>Non-parametric methods do not attempt to model the relation between the context, intervention, and outcome. The methods include nearest-neighbor matching, propensity score matching, and propensity score re-weighting <ref type="bibr" target="#b31">(Rosenbaum &amp; Rubin, 1983;</ref><ref type="bibr" target="#b29">Rosenbaum, 2002;</ref><ref type="bibr" target="#b0">Austin, 2011)</ref>.</p><p>Parametric methods, on the other hand, attempt to concretely model the relation between the context, intervention, and outcome. These methods include any type of regression including linear and logistic regression <ref type="bibr" target="#b27">(Prentice, 1976;</ref><ref type="bibr" target="#b14">Gelman &amp; Hill, 2006)</ref>, random forests <ref type="bibr" target="#b40">(Wager &amp; Athey, 2015)</ref> and regression trees <ref type="bibr" target="#b8">(Chipman et al., 2010)</ref>.</p><p>Doubly robust methods combine aspects of parametric and non-parametric methods, typically by using a propensity score weighted regression <ref type="bibr" target="#b1">(Bang &amp; Robins, 2005;</ref><ref type="bibr" target="#b12">Dudík et al., 2011)</ref>. They are especially of use when the treatment assignment probability is known, as is the case for off-policy evaluation or learning from logged bandit data. Once the treatment assignment probability has to be estimated, as is the case in most observational studies, their efficacy might wane considerably <ref type="bibr" target="#b18">(Kang &amp; Schafer, 2007)</ref>. <ref type="bibr" target="#b38">Tian et al. (2014)</ref> presented one of the few methods that achieve balance by transforming or selecting covariates, modeling interactions between treatment and covariates.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.">Experiments</head><p>We evaluate the two variants of our algorithm proposed in Section 3 with focus on two questions: 1) What is the effect of imposing imbalance regularization on representations? 2) How do our methods fare against established methods for counterfactual inference? We refer to the variable selection method of Section 3.1 as Balancing Linear Regression (BLR) and the neural network approach as BNN for Balancing Neural Network.</p><p>We report the RMSE of the estimated individual treatment effect, denoted IT E , and the absolute error in estimated average treatment effect, denoted AT E , see Section 2. Further, following Hill (2011), we report the Precision in Estimation of Heterogeneous Effect The neural network architectures used for all experiments consist of fully-connected ReLU layers trained using RM-SProp, with a small l 2 weight decay, λ = 10 −3 . We evaluate two architectures. BNN-4-0 consists of 4 ReLU representation-only layers and a single linear output layer, d r = 4, d o = 0. BNN-2-2 consists of 2 ReLU representation-only layers, 2 ReLU output layers after the treatment has been added, and a single linear output layer, <ref type="figure">Figure 2</ref>. For the IHDP data we use layers of 25 hidden units each. For the News data representation layers have 400 units and output layers 200 units. The nearest neighbor term, see Section 3, did not improve empirical performance, and was omitted for the BNN models. For the neural network models, the hypothesis and the representation were fit jointly.</p><formula xml:id="formula_31">(PEHE), PEHE = 1 n n i=1 (ŷ 1 (x i ) −ŷ 0 (x i ) − (Y 1 (x i ) − Y 0 (x i ))) 2 .</formula><formula xml:id="formula_32">d r = 2, d o = 2, see</formula><p>We include several different linear models in our comparison, including ordinary linear regression (OLS) and doubly robust linear regression (DR) <ref type="bibr" target="#b1">(Bang &amp; Robins, 2005)</ref>. We also include a method were variables are first selected using LASSO and then used to fit a ridge regression (LASSO + RIDGE). Regularization parameters are picked based on a held out sample. For DR, we estimate propensity scores using logistic regression and clip weights at 100. For the News dataset (see below), we perform the logistic regression on the first 100 principal components of the data.</p><p>Bayesian Additive Regression Trees (BART) <ref type="bibr" target="#b8">(Chipman et al., 2010</ref>) is a non-linear regression model which has been used successfully for counterfactual inference in the past <ref type="bibr" target="#b16">(Hill, 2011)</ref>. We compare our results to BART using the implementation provided in the BayesTree Rpackage <ref type="bibr" target="#b7">(Chipman &amp; McCulloch, 2016)</ref>. Like (Hill, 2011), we do not attempt to tune the parameters, but use the default. Finally, we include a standard feed-forward neural network, trained with 4 hidden layers, to predict the factual outcome based on X and t, without a penalty for imbalance. We refer to this as NN-4.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.1.">Simulation based on real data -IHDP</head><p>Hill (2011) introduced a semi-simulated dataset based on the Infant Health and Development Program (IHDP). The IHDP data has covariates from a real randomized experiment, studying the effect of high-quality child care and home visits on future cognitive test scores. The experiment proposed by Hill (2011) uses a simulated outcome and artificially introduces imbalance between treated and control subjects by removing a subset of the treated population. In total, the dataset consists of 747 subjects (139 treated, 608 control), each represented by 25 covariates measuring properties of the child and their mother. For details, see <ref type="bibr" target="#b16">Hill (2011)</ref>. We run 100 repeated experiments for hyperparameter selection and 1000 for evaluation, all with the log-linear response surface implemented as setting "A" in the NPCI package <ref type="bibr" target="#b11">(Dorie, 2016)</ref>.  </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.2.">Simulation based on real data -News</head><p>We introduce a new dataset, simulating the opinions of a media consumer exposed to multiple news items. Each item is consumed either on a mobile device or on desktop. The units are different news items represented by word counts x i ∈ N V , and the outcome y F (x i ) ∈ R is the readers experience of x i . The intervention t ∈ {0, 1} represents the viewing device, desktop (t = 0) or mobile (t = 1). We assume that the consumer prefers to read about certain topics on mobile. To model this, we train a topic model on a large set of documents and let z(x) ∈ R k represent the topic distribution of news item x. We define two centroids in topic space, z c 1 (mobile), and z c 0 (desktop), and let the readers opinion of news item x on device t be determined by the similarity between z(x) and</p><formula xml:id="formula_33">z c t , y F (x i ) = C z(x) z c 0 + t i • z(x) z c 1 + ,</formula><p>where C is a scaling factor and ∼ N (0, 1). Here, we let the mobile centroid, z c 1 be the topic distribution of a randomly sampled document, and z c 0 be the average topic representation of all documents. We further assume that the assignment of a news item x to a device t ∈ {0, 1} is biased towards the device preferred for that item. We model this using the softmax function,</p><formula xml:id="formula_34">p(t = 1 | x) = e κ•z(x) z c 1 e κ•z(x) z c 0 +e κ•z(x) z c 1</formula><p>, where κ ≥ 0 determines the strength of the bias. Note that κ = 0 implies a completely random device assignment.</p><p>We sample n = 5000 news items and outcomes according to this model, based on 50 LDA topics, trained on documents from the NY Times corpus (downloaded from UCI <ref type="bibr" target="#b24">(Newman, 2008)</ref>). The data available to the algorithms are the raw word counts, from a vocabulary of k = 3477 words, selected as union of the most probable words in each topic. We set the scaling parameters to C = 50, κ = 10 and sample 50 realizations for evaluation. <ref type="figure" target="#fig_1">Figure 3</ref> shows a visualization of the outcome and device assignments for a sample of 500 documents. Note that the device assignment becomes increasingly random, and the outcome lower, further away from the centroids. <ref type="table">Table 1</ref>. IHDP. Results and standard errors for 1000 repeated experiments. (Lower is better.) Proposed methods: BLR, BNN-4-0 and BNN-2-2. † <ref type="bibr" target="#b8">(Chipman et al., 2010)</ref> IT E AT E PEHE LINEAR OUTCOME OLS 4.6 ± 0.2 0.7 ± 0.0 5.8 ± 0.3</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>DOUBLY ROBUST</head><p>3.0 ± 0.1 0.2 ± 0.0 5.7 ± 0.3 LASSO + RIDGE 2.8 ± 0.1 0.2 ± 0.0 5.7 ± 0.2 BLR 2.8 ± 0.1 0.2 ± 0.0 5.7 ± 0.3 BNN-4-0</p><p>3.0 ± 0.0 0.3 ± 0.0 5.6 ± 0.3 NON-LINEAR OUTCOME  2.0 ± 0.0 0.5 ± 0.0 1.9 ± 0.1 BART †</p><p>2.1 ± 0.2 0.2 ± 0.0 1.7 ± 0.2 BNN-2-2</p><p>1.7 ± 0.0 0.3 ± 0.0 1.6 ± 0.1 <ref type="table">Table 2</ref>. News. Results and standard errors for 50 repeated experiments. (Lower is better.) Proposed methods: BLR, BNN-4-0 and BNN-2-2. † <ref type="bibr" target="#b8">(Chipman et al., 2010)</ref> IT</p><formula xml:id="formula_35">E AT E PEHE LINEAR OUTCOME OLS 3.1 ± 0.2 0.2 ± 0.0 3.3 ± 0.2 DOUBLY ROBUST 3.1 ± 0.2 0.2 ± 0.0 3.3 ± 0.2 LASSO + RIDGE 2.2 ± 0.1 0.6 ± 0.0 3.4 ± 0.2 BLR 2.2 ± 0.1 0.6 ± 0.0 3.3 ± 0.2 BNN-4-0 2.1 ± 0.0 0.3 ± 0.0 3.4 ± 0.2 NON-LINEAR OUTCOME NN-4</formula><p>2.8 ± 0.0 1.1 ± 0.0 3.8 ± 0.2 BART † 5.8 ± 0.2 0.2 ± 0.0 3.2 ± 0.2 BNN-2-2 2.0 ± 0.0 0.3 ± 0.0 2.0 ± 0.1</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.3.">Results</head><p>The results of the IHDP and News experiments are presented in <ref type="table">Table 1 and Table 2</ref> respectively. We see that, in general, the non-linear methods perform better in terms of individual prediction (ITE, PEHE). Further, we see that our proposed balancing neural network BNN-2-2 performs the best on both datasets in terms of estimating the ITE and PEHE, and is competitive on average treatment effect, ATE. Particularly noteworthy is the comparison with the network without balance penalty, NN-4. These results indicate that our proposed regularization can help avoid overfitting the representation to the factual outcome. <ref type="figure">Figure  plots</ref> the performance of BNN-2-2 for various imbalance penalties α. The valley in the region α = 1, and the fact that we don't experience a loss in performance for smaller values of α, show that the penalizing imbalance in the representation Φ has the desired effect.</p><p>For the linear methods, we see that the two variable selection approaches, our proposed BLR method and LASSO + RIDGE, work the best in terms of estimating ITE. We would  like to emphasize that LASSO + RIDGE is a very strong baseline and it's exciting that our theory-guided method is competitive with this approach.</p><p>On News, BLR and LASSO + RIDGE perform equally well yet again, although this time with qualitatively different results, as they do not select the same variables. Interestingly, BNN-4-0, BLR and LASSO + RIDGE all perform better on News than the standard neural network, NN-4. The performance of BART on News is likely hurt by the dimensionality of the dataset, and could improve with hyperparameter tuning.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.">Conclusion</head><p>As machine learning is becoming a major tool for researchers and policy makers across different fields such as healthcare and economics, causal inference becomes a crucial issue for the practice of machine learning. In this paper we focus on counterfactual inference, which is a widely applicable special case of causal inference. We cast counterfactual inference as a type of domain adaptation problem, and derive a novel way of learning representations suited for this problem.</p><p>Our models rely on a novel type of regularization criteria: learning balanced representations, representations which have similar distributions among the treated and untreated populations. We show that trading off a balancing criterion with standard data fitting and regularization terms is both practically and theoretically prudent.</p><p>Open questions which remain are how to generalize this method for cases where more than one treatment is in question, deriving better optimization algorithms and using richer discrepancy measures.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>A. Proof of Theorem 1</head><p>We use a result implicit in the proof of Theorem 2 of <ref type="bibr" target="#b9">Cortes &amp; Mohri (2014)</ref>, for the case where H is the set of linear hypotheses over a fixed representation Φ. <ref type="bibr" target="#b9">Cortes &amp; Mohri (2014)</ref> state their result for the case of domain adaptation: in our case, the factual distribution is the so-called "source domain", and the counterfactual distribution is the "target domain". Theorem A1. <ref type="bibr" target="#b9">[Cortes &amp; Mohri (2014)</ref>] Using the notation and assumptions of Theorem 1, for both Q = P F and Q =</p><formula xml:id="formula_36">P CF : λ µr (L Q (β F (Φ)) − L Q (β CF (Φ))) 2 ≤ disc H l (P F Φ ,P CF Φ )+ min h∈H l 1 n n i=1 |ŷ F i (Φ, h) − y F i | + |ŷ CF i (Φ, h) − y CF i |<label>(9)</label></formula><p>In their work, <ref type="bibr" target="#b9">Cortes &amp; Mohri (2014)</ref> assume the H is a reproducing kernel Hilbert space (RKHS) for a universal kernel, and they do not consider the role of the representation Φ. Since the RKHS hypothesis space they use is much stronger than the linear space H l , it is often reasonable to assume that the second term in the bound 9 is small. We however cannot make this assumption, and therefore we wish to explicitly bound the term</p><formula xml:id="formula_37">min h∈H l 1 n n i=1 |ŷ F i (Φ, h) − y F i | + |ŷ CF i (Φ, h</formula><p>) − y CF i | , while using the fact that we have control over the representation Φ. Lemma 1. Let {(x i , t i , y F i )} n i=1 , x i ∈ X , t i ∈ {0, 1} and y F i ∈ Y ⊆ R. We assume that X is a metric space with metric d, and that there exist two function Y 0 (x) and Y 1 (x) such that y F i = t i Y 1 (x i ) + (1 − t i )Y 0 (x i ), and in addition we define y CF i = (1 − t i )Y 1 (x i ) + t i Y 0 (x i ). We further assume that the functions Y 0 (x) and Y 1 (x) are Lipschitz continuous with constants K 0 and K 1 respectively, such that</p><formula xml:id="formula_38">d(x a , x b ) ≤ c =⇒ |Y t (x a ) − Y t (x b )| ≤ K t c.</formula><p>Define j(i) ∈ arg min j∈{1...n} s.t. tj =1−ti d(x j , x i ) to be the nearest neighbor of x i among the group that received the opposite treatment from unit i, for all i ∈ {1 . . . n}. Let</p><formula xml:id="formula_39">d i,j = d(x i , x j )</formula><p>For any b ∈ Y and h ∈ H:</p><formula xml:id="formula_40">|b − y CF i | ≤ |b − y F j(i) | + K 1−ti d i,j(i)</formula><p>Proof. By the triangle inequality, we have that:</p><p>|b − y CF i | ≤ |b − y F j(i) | + |y F j(i) − y CF i |. By the Lipschitz assumption on Y 1−ti , and since d(x i , x j(i) ) ≤ d i,j(i) , we obtain that</p><formula xml:id="formula_41">|y F j(i) −y CF i | = |Y 1−ti (x j(i) )−Y 1−ti (x i )| ≤ d i,j(i) K 1−ti .</formula><p>By definition y CF i = Y 1−ti (x i ). In addition, by definition of j(i), we have t j(i) = 1 − t i , and therefore y F j(i) = Y 1−ti (x j(i) ), proving the equality. The inequality is an immediate consequence of the Lipschitz property.</p><p>We restate Theorem 1 and prove it.</p><p>Theorem 1. For a sample {(x i , t i , y F i )} n i=1 , x i ∈ X , t i ∈ {0, 1} and y i ∈ Y, recall that y F i = t i Y 1 (x i ) + (1 − t i )Y 0 (x i ), and in addition define</p><formula xml:id="formula_42">y CF i = (1 − t i )Y 1 (x i ) + t i Y 0 (x i ).</formula><p>For a given representation function Φ : X → R d , letP F Φ = (Φ(x 1 ), t 1 ), . . . , (Φ(x n ), t n ), P CF Φ = (Φ(x 1 ), 1 − t 1 ), . . . , (Φ(x n ), 1 − t n ). We assume that X is a metric space with metric d, and that the potential outcome functions Y 0 (x) and Y 1 (x) are Lipschitz continuous with constants K 0 and K 1 respectively, such that</p><formula xml:id="formula_43">d(x a , x b ) ≤ c =⇒ |Y t (x a ) − Y t (x b )| ≤ K t c.</formula><p>Let H l ⊂ R d+1 be the space of linear functions, and for β ∈ H l , let L P (β) = E (x,t,y)∼P [L(β(x, t), y)] be the expected loss of β over distribution P .</p><formula xml:id="formula_44">Let r = max E (x,t)∼P F [ [Φ(x), t] 2 ] , E (x,t)∼P CF [ [Φ(x), t] 2 ] . For λ &gt; 0, letβ F (Φ) = arg min β∈H l LP F Φ (β) + λ β 2</formula><p>2 , andβ CF (Φ) similarly forP CF Φ , i.e.β F (Φ) andβ CF (Φ) are the ridge regression solutions for the factual and counterfactual empirical distributions, respectively.</p><formula xml:id="formula_45">Letŷ F i (Φ, h) = h [Φ(x i ), t i ] andŷ CF i (Φ, h) = h [Φ(x i ), 1 − t i ]</formula><p>be the outputs of the hypothesis h ∈ H l over the representation Φ(x i ) for the factual and counterfactual settings of t i , respectively. Finally, for each i ∈ {1 . . . n}, let j(i) ∈ arg min j∈{1...n} s.t. tj =1−ti d(x j , x i ) be the nearest neighbor of x i among the group that received the opposite treatment from unit i. Let d i,j = d(x i , x j ).</p><p>Then for both Q = P F and Q = P CF we have:</p><formula xml:id="formula_46">λ µr (L Q (β F (Φ)) − L Q (β CF (Φ))) 2 ≤ (10) disc H l (P F Φ ,P CF Φ )+ min h∈H l 1 n n i=1 |ŷ F i (Φ, h) − y F i | + |ŷ CF i (Φ, h) − y CF i | ≤ (11) disc H l (P F Φ ,P CF Φ )+ min h∈H l 1 n n i=1 |ŷ F i (Φ, h) − y F i | + |ŷ CF i (Φ, h) − y F j(i) | + K 0 n i:ti=1 d i,j(i) + K 1 n i:ti=0 d i,j(i) .</formula><p>Proof. Inequality (10) is immediate by Theorem A1. In order to prove inequality (11), we apply Lemma 1, setting b =ŷ CF i and summing over the i.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 3 .</head><label>3</label><figDesc>Visualization of one of the News sets (left). Each dot represents a single news item x. The radius represents the outcome y(x), and the color the treatment t. The two black dots represent the two centroids. Histogram of ITE in News (right).</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 4 .</head><label>4</label><figDesc>Error in estimated treatment effect (ITE, PEHE) and counterfactual response (RMSE) on the IHDP dataset. Sweep over α for the BNN-2-2 neural network model.</figDesc></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="1">When L is the squared loss we can show that if Φ(x) 2 ≤ m and |y| ≤ M , and the hypothesis set H is that of linear functions with norm bounded by m/λ, then µ ≤ 2M (1 + m 2 /λ).</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgements</head><p>DS and US were supported by NSF CAREER award #1350965.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">An introduction to propensity score methods for reducing the effects of confounding in observational studies</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Peter</forename><forename type="middle">C</forename><surname>Austin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Multivariate behavioral research</title>
+		<imprint>
+			<biblScope unit="volume">46</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="399" to="424" />
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Doubly robust estimation in missing data and causal inference models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Heejung</forename><surname>Bang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">James</forename><forename type="middle">M</forename><surname>Robins</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Biometrics</title>
+		<imprint>
+			<biblScope unit="volume">61</biblScope>
+			<biblScope unit="issue">4</biblScope>
+			<biblScope unit="page" from="962" to="973" />
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Analysis of representations for domain adaptation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ben-David</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Shai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Blitzer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>John</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Crammer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Koby</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Pereira</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Fernando</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Advances in neural information processing systems</title>
+		<imprint>
+			<biblScope unit="volume">19</biblScope>
+			<biblScope unit="page">137</biblScope>
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Representation learning: A review and new perspectives. Pattern Analysis and Machine Intelligence</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aaron</forename><surname>Courville</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pierre</forename><surname>Vincent</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on</title>
+		<imprint>
+			<biblScope unit="volume">35</biblScope>
+			<biblScope unit="issue">8</biblScope>
+			<biblScope unit="page" from="1798" to="1828" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<monogr>
+		<title level="m" type="main">Contextual bandit algorithms with supervised learning guarantees</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alina</forename><surname>Beygelzimer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Langford</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>John</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Lihong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lev</forename><surname>Reyzin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Robert</forename><forename type="middle">E</forename><surname>Schapire</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1002.4058</idno>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Counterfactual reasoning and learning systems: The example of computational advertising</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Léon</forename><surname>Bottou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonas</forename><surname>Peters</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Joaquin</forename><surname>Quinonero-Candela</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Charles</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Denis</forename><forename type="middle">X</forename><surname>Chickering</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Max</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Portugaly</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Elon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ray</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Dipankar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Patrice</forename><surname>Simard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ed</forename><surname>Snelson</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">The Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">14</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="3207" to="3260" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Chernozhukov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Victor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Iván</forename><surname>Fernández-Val</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Melly</forename></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Blaise. Inference on counterfactual distributions. Econometrica</title>
+		<imprint>
+			<biblScope unit="volume">81</biblScope>
+			<biblScope unit="issue">6</biblScope>
+			<biblScope unit="page" from="2205" to="2268" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<title level="m" type="main">BayesTree: Bayesian additive regression trees</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hugh</forename><surname>Chipman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Robert</forename><surname>Mcculloch</surname></persName>
+		</author>
+		<ptr target="https://cran.r-project.org/package=BayesTree/" />
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="2016" to="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Bayesian additive regression trees</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hugh</forename><forename type="middle">A</forename><surname>Chipman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>George</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Edward</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Robert</forename><forename type="middle">E</forename><surname>Mcculloch</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bart</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">The Annals of Applied Statistics</title>
+		<imprint>
+			<biblScope unit="page" from="266" to="298" />
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Domain adaptation and sample bias correction theory and algorithm for regression</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Corinna</forename><surname>Cortes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mehryar</forename><surname>Mohri</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Theoretical Computer Science</title>
+		<imprint>
+			<biblScope unit="volume">519</biblScope>
+			<biblScope unit="page" from="103" to="126" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Domain adaptation for statistical classifiers</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Iii</forename><surname>Daume</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daniel</forename><surname>Marcu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Artificial Intelligence Research</title>
+		<imprint>
+			<biblScope unit="page" from="101" to="126" />
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<monogr>
+		<title level="m" type="main">NPCI: Non-parametrics for causal inference</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Vincent</forename><surname>Dorie</surname></persName>
+		</author>
+		<ptr target="https://github.com/vdorie/npci" />
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="2016" to="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Miroslav</forename><surname>Dudík</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><surname>Langford</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lihong</forename><surname>Li</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1103.4601</idno>
+		<title level="m">Doubly robust policy evaluation and learning</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yaroslav</forename><surname>Gani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ustinova</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Evgeniya</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ajakan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Hana</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Germain</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Pascal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Larochelle</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Hugo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Laviolette</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>François</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mario</forename><surname>Marchand</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Lempitsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Victor</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1505.07818</idno>
+		<title level="m">Domainadversarial training of neural networks</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<monogr>
+		<title level="m" type="main">Data analysis using regression and multilevel/hierarchical models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><surname>Gelman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jennifer</forename><surname>Hill</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2006" />
+			<publisher>Cambridge University Press</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">A kernel two-sample test</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Arthur</forename><surname>Gretton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Karsten</forename><forename type="middle">M</forename><surname>Borgwardt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Rasch</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Malte</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bernhard</forename><surname>Schölkopf</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alexander</forename><surname>Smola</surname></persName>
+		</author>
+		<idno>1532-4435</idno>
+	</analytic>
+	<monogr>
+		<title level="j">J. Mach. Learn. Res</title>
+		<imprint>
+			<biblScope unit="volume">13</biblScope>
+			<biblScope unit="page" from="723" to="773" />
+			<date type="published" when="2012-03" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Bayesian nonparametric modeling for causal inference</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jennifer</forename><forename type="middle">L</forename><surname>Hill</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Computational and Graphical Statistics</title>
+		<imprint>
+			<biblScope unit="volume">20</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<title level="m" type="main">A literature survey on domain adaptation of statistical classifiers</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jing</forename><surname>Jiang</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2008" />
+		</imprint>
+		<respStmt>
+			<orgName>University of Illinois at Urbana-Champaign</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">Technical report</note>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<monogr>
+		<title level="m" type="main">Demystifying double robustness: A comparison of alternative strategies for estimating a population mean from incomplete data. Statistical science</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Joseph</forename><surname>Kang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Dy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Joseph</forename><forename type="middle">L</forename><surname>Schafer</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2007" />
+			<biblScope unit="page" from="523" to="539" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Doubly robust policy evaluation and learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><surname>Langford</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lihong</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Miroslav</forename><surname>Dudík</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 28th International Conference on Machine Learning (ICML-11)</title>
+		<meeting>the 28th International Conference on Machine Learning (ICML-11)</meeting>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="1097" to="1104" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<monogr>
+		<title level="m" type="main">Causation. The journal of philosophy</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Lewis</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1973" />
+			<biblScope unit="page" from="556" to="567" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christos</forename><surname>Louizos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Swersky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Kevin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Yujia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Max</forename><surname>Welling</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Richard</forename><surname>Zemel</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1511.00830</idno>
+		<title level="m">The variational fair auto encoder</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yishay</forename><surname>Mansour</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mehryar</forename><surname>Mohri</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Afshin</forename><surname>Rostamizadeh</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:0902.3430</idno>
+		<title level="m">Domain adaptation: Learning bounds and algorithms</title>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<monogr>
+		<title level="m" type="main">Counterfactuals and causal inference</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Stephen</forename><forename type="middle">L</forename><surname>Morgan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christopher</forename><surname>Winship</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2014" />
+			<publisher>Cambridge University Press</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<monogr>
+		<title level="m" type="main">Bag of words data set</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Newman</surname></persName>
+		</author>
+		<ptr target="https://archive.ics.uci.edu/ml/datasets/Bag+of+Words" />
+		<imprint>
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Judea</forename><surname>Pearl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Causality</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2009" />
+			<publisher>Cambridge university press</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Invited commentary: understanding bias amplification</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Judea</forename><surname>Pearl</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">American journal of epidemiology</title>
+		<imprint>
+			<biblScope unit="volume">174</biblScope>
+			<biblScope unit="issue">11</biblScope>
+			<biblScope unit="page" from="1223" to="1227" />
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Use of the logistic model in retrospective studies</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ross</forename><surname>Prentice</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Biometrics</title>
+		<imprint>
+			<biblScope unit="page" from="599" to="606" />
+			<date type="published" when="1976" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">Marginal structural models and causal inference in epidemiology</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">James</forename><forename type="middle">M</forename><surname>Robins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Miguel</forename><surname>Hernan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Angel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Babette</forename><surname>Brumback</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Epidemiology</title>
+		<imprint>
+			<biblScope unit="page" from="550" to="560" />
+			<date type="published" when="2000" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<monogr>
+		<title level="m" type="main">Observational studies</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Paul</forename><forename type="middle">R</forename><surname>Rosenbaum</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2002" />
+			<publisher>Springer</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<monogr>
+		<title level="m" type="main">Design of Observational Studies</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Paul</forename><forename type="middle">R</forename><surname>Rosenbaum</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2009" />
+			<publisher>Springer Science &amp; Business Media</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">The central role of the propensity score in observational studies for causal effects</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Paul</forename><forename type="middle">R</forename><surname>Rosenbaum</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Donald</forename><forename type="middle">B</forename><surname>Rubin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Biometrika</title>
+		<imprint>
+			<biblScope unit="volume">70</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="41" to="55" />
+			<date type="published" when="1983" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Estimating causal effects of treatments in randomized and nonrandomized studies</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Donald</forename><forename type="middle">B</forename><surname>Rubin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of educational Psychology</title>
+		<imprint>
+			<biblScope unit="volume">66</biblScope>
+			<biblScope unit="issue">5</biblScope>
+			<biblScope unit="page">688</biblScope>
+			<date type="published" when="1974" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<analytic>
+		<title level="a" type="main">Causal inference using potential outcomes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Donald</forename><forename type="middle">B</forename><surname>Rubin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of the American Statistical Association</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">On causal and anticausal learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Schölkopf</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Janzing</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Peters</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Sgouritsa</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Mooij</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 29th International Conference on Machine Learning</title>
+		<meeting>the 29th International Conference on Machine Learning<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>Omnipress</publisher>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="1255" to="1262" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<analytic>
+		<title level="a" type="main">Learning from logged implicit exploration data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Strehl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Langford</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>John</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lihong</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Kakade</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Sham</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="2217" to="2225" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<monogr>
+		<title level="m" type="main">Reinforcement learning: An introduction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Richard</forename><forename type="middle">S</forename><surname>Sutton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><forename type="middle">G</forename><surname>Barto</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1998" />
+			<publisher>MIT press</publisher>
+			<biblScope unit="volume">1</biblScope>
+			<pubPlace>Cambridge</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">Batch learning from logged bandit feedback through counterfactual risk minimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adith</forename><surname>Swaminathan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Thorsten</forename><surname>Joachims</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">16</biblScope>
+			<biblScope unit="page" from="1731" to="1755" />
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<analytic>
+		<title level="a" type="main">A simple method for estimating interactions between a treatment and a large number of covariates</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lu</forename><surname>Tian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alizadeh</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ash</forename><forename type="middle">A</forename><surname>Gentles</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Andrew</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Robert</forename><surname>Tibshirani</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of the American Statistical Association</title>
+		<imprint>
+			<biblScope unit="volume">109</biblScope>
+			<biblScope unit="issue">508</biblScope>
+			<biblScope unit="page" from="1517" to="1532" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">Causal effect models for realistic individualized treatment and intention to treat rules</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mark</forename><forename type="middle">J</forename><surname>Van Der Laan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Maya</forename><forename type="middle">L</forename><surname>Petersen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">The International Journal of Biostatistics</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<monogr>
+		<title level="m" type="main">Estimation and inference of heterogeneous treatment effects using random forests</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Stefan</forename><surname>Wager</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Susan</forename><surname>Athey</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1510.04342</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<analytic>
+		<title level="a" type="main">Machine learning for treatment assignment: Improving individualized risk attribution</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jeremy</forename><forename type="middle">C</forename><surname>Weiss</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Kuusisto</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Finn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Boyd</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Kendrick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jie</forename><surname>Lui</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Page</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>David</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">American Medical Informatics Association Annual Symposium</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<analytic>
+		<title level="a" type="main">Learning fair representations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rich</forename><surname>Zemel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Yu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Swersky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Kevin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Toni</forename><surname>Pitassi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Cynthia</forename><surname>Dwork</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 30th International Conference on Machine Learning (ICML-13)</title>
+		<meeting>the 30th International Conference on Machine Learning (ICML-13)</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="325" to="333" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

@@ -1,0 +1,911 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Semi-Supervised Learning with Ladder Networks</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Antti</forename><surname>Rasmus</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Harri</forename><surname>Valpola</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mathias</forename><surname>Berglund</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tapani</forename><surname>Raiko</surname></persName>
+						</author>
+						<author>
+							<affiliation key="aff0">
+								<orgName type="institution">The Curious AI Company</orgName>
+								<address>
+									<country key="FI">Finland</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff1">
+								<orgName type="institution">Mikko Honkala Nokia Labs</orgName>
+								<address>
+									<country key="FI">Finland</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff2">
+								<orgName type="institution">Aalto University</orgName>
+								<address>
+									<country key="FI">Finland</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff3">
+								<orgName type="institution">The Curious AI Company</orgName>
+								<address>
+									<country key="FI">Finland</country>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Semi-Supervised Learning with Ladder Networks</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:43+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>We combine supervised learning with unsupervised learning in deep neural networks. The proposed model is trained to simultaneously minimize the sum of supervised and unsupervised cost functions by backpropagation, avoiding the need for layer-wise pre-training. Our work builds on top of the Ladder network proposed by Valpola [1] which we extend by combining the model with supervision. We show that the resulting model reaches state-of-the-art performance in semi-supervised MNIST and CIFAR-10 classification in addition to permutationinvariant MNIST classification with all labels.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>In this paper, we introduce an unsupervised learning method that fits well with supervised learning. Combining an auxiliary task to help train a neural network was proposed by Suddarth and Kergosien <ref type="bibr" target="#b1">[2]</ref>. There are multiple choices for the unsupervised task, for example reconstruction of the inputs at every level of the model [e.g., 3] or classification of each input sample into its own class <ref type="bibr" target="#b4">[4]</ref>. Although some methods have been able to simultaneously apply both supervised and unsupervised learning <ref type="bibr" target="#b3">[3,</ref><ref type="bibr" target="#b5">5]</ref>, often these unsupervised auxiliary tasks are only applied as pre-training, followed by normal supervised learning [e.g., <ref type="bibr" target="#b6">6</ref>]. In complex tasks there is often much more structure in the inputs than can be represented, and unsupervised learning cannot, by definition, know what will be useful for the task at hand. Consider, for instance, the autoencoder approach applied to natural images: an auxiliary decoder network tries to reconstruct the original input from the internal representation. The autoencoder will try to preserve all the details needed for reconstructing the image at pixel level, even though classification is typically invariant to all kinds of transformations which do not preserve pixel values.</p><p>Our approach follows Valpola <ref type="bibr" target="#b0">[1]</ref> who proposed a Ladder network where the auxiliary task is to denoise representations at every level of the model. The model structure is an autoencoder with skip connections from the encoder to decoder and the learning task is similar to that in denoising autoencoders but applied at every layer, not just the inputs. The skip connections relieve the pressure to represent details at the higher layers of the model because, through the skip connections, the decoder can recover any details discarded by the encoder. Previously the Ladder network has only been demonstrated in unsupervised learning <ref type="bibr" target="#b0">[1,</ref><ref type="bibr" target="#b7">7]</ref> but we now combine it with supervised learning.</p><p>The key aspects of the approach are as follows: Compatibility with supervised methods. The unsupervised part focuses on relevant details found by supervised learning. Furthermore, it can be added to existing feedforward neural networks, for example multi-layer perceptrons (MLPs) or convolutional neural networks (CNNs).</p><p>Scalability due to local learning. In addition to supervised learning target at the top layer, the model has local unsupervised learning targets on every layer making it suitable for very deep neural networks. We demonstrate this with two deep supervised network architectures. Computational efficiency. The encoder part of the model corresponds to normal supervised learning. Adding a decoder, as proposed in this paper, approximately triples the computation during training but not necessarily the training time since the same result can be achieved faster due to better utilization of available information. Overall, computation per update scales similarly to whichever supervised learning approach is used, with a small multiplicative factor.</p><p>As explained in Section 2, the skip connections and layer-wise unsupervised targets effectively turn autoencoders into hierarchical latent variable models which are known to be well suited for semisupervised learning. Indeed, we obtain state-of-the-art results in semi-supervised learning in the MNIST, permutation invariant MNIST and CIFAR-10 classification tasks (Section 4). However, the improvements are not limited to semi-supervised settings: for the permutation invariant MNIST task, we also achieve a new record with the normal full-labeled setting.For a longer version of this paper with more complete descriptions, please see <ref type="bibr" target="#b8">[8]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Derivation and justification</head><p>Latent variable models are an attractive approach to semi-supervised learning because they can combine supervised and unsupervised learning in a principled way. The only difference is whether the class labels are observed or not. This approach was taken, for instance, by Goodfellow et al. <ref type="bibr" target="#b5">[5]</ref> with their multi-prediction deep Boltzmann machine. A particularly attractive property of hierarchical latent variable models is that they can, in general, leave the details for the lower levels to represent, allowing higher levels to focus on more invariant, abstract features that turn out to be relevant for the task at hand.</p><p>The training process of latent variable models can typically be split into inference and learning, that is, finding the posterior probability of the unobserved latent variables and then updating the underlying probability model to better fit the observations. For instance, in the expectation-maximization (EM) algorithm, the E-step corresponds to finding the expectation of the latent variables over the posterior distribution assuming the model fixed and M-step then maximizes the underlying probability model assuming the expectation fixed.</p><p>The main problem with latent variable models is how to make inference and learning efficient. Suppose there are layers l of latent variables z (l) . Latent variable models often represent the probability distribution of all the variables explicitly as a product of terms, such as p(z (l) | z (l+1) ) in directed graphical models. The inference process and model updates are then derived from Bayes' rule, typically as some kind of approximation. Often the inference is iterative as it is generally impossible to solve the resulting equations in a closed form as a function of the observed variables.</p><p>There is a close connection between denoising and probabilistic modeling. On the one hand, given a probabilistic model, you can compute the optimal denoising. Say you want to reconstruct a latent z using a prior p(z) and an observationz = z + noise. We first compute the posterior distribution p(z |z), and use its center of gravity as the reconstructionẑ. One can show that this minimizes the expected denoising cost (ẑ z) 2 . On the other hand, given a denoising function, one can draw samples from the corresponding distribution by creating a Markov chain that alternates between corruption and denoising <ref type="bibr" target="#b9">[9]</ref>.</p><p>Valpola <ref type="bibr" target="#b0">[1]</ref> proposed the Ladder network where the inference process itself can be learned by using the principle of denoising which has been used in supervised learning <ref type="bibr" target="#b10">[10]</ref>, denoising autoencoders (dAE) <ref type="bibr" target="#b11">[11]</ref> and denoising source separation (DSS) <ref type="bibr" target="#b12">[12]</ref> for complementary tasks. In dAE, an autoencoder is trained to reconstruct the original observation x from a corrupted versionx. Learning is based simply on minimizing the norm of the difference of the original x and its reconstructionx from the corruptedx, that is the cost is kx xk 2 .</p><p>While dAEs are normally only trained to denoise the observations, the DSS framework is based on the idea of using denoising functionsẑ = g(z) of latent variables z to train a mapping z = f (x) which models the likelihood of the latent variables as a function of the observations. The cost function is identical to that used in a dAE except that latent variables z replace the observations x,</p><formula xml:id="formula_0">0 1 2 3 -1 -1 1 2 3 -2 4 -2 Corrupted Clean ỹ y g (1) (•, •) g (0) (•, •) f (1) (•) f (1) (•) f (2) (•) f (2) (•) N (0, 2 ) N (0, ) N (0, 2 ) C (2) d C (1) d C (0) d z (1) z (2)ẑ (2) z (1) z (1) z (2)</formula><p>xx x</p><p>x x g <ref type="bibr" target="#b1">(2)</ref> ( </p><formula xml:id="formula_1">(x ! z (1) ! z (2) ! y)</formula><p>shares the mappings f (l) with the corrupted feedforward path, or encoder (x !z <ref type="bibr" target="#b0">(1)</ref> </p><formula xml:id="formula_2">!z (2) !ỹ).</formula><p>The decoder (z (l) !ẑ (l) !x) consists of denoising functions g <ref type="bibr">(l)</ref> and has cost functions C</p><formula xml:id="formula_3">(l)</formula><p>d on each layer trying to minimize the difference betweenẑ <ref type="bibr">(l)</ref> and z (l) . The outputỹ of the encoder can also be trained to match available labels t(n).</p><p>that is, the cost is kẑ zk 2 . The only thing to keep in mind is that z needs to be normalized somehow as otherwise the model has a trivial solution at z =ẑ = constant. In a dAE, this cannot happen as the model cannot change the input x. <ref type="figure" target="#fig_0">Figure 1</ref> (left) depicts the optimal denoising functionẑ = g(z) for a one-dimensional bimodal distribution which could be the distribution of a latent variable inside a larger model. The shape of the denoising function depends on the distribution of z and the properties of the corruption noise. With no noise at all, the optimal denoising function would be the identity function. In general, the denoising function pushes the values towards higher probabilities as shown by the green arrows. d = kz <ref type="bibr">(l)</ref> ẑ (l) k 2 which trains the layers above (both encoder and decoder) to learn the denoising functionẑ <ref type="bibr">(l)</ref> = g (l) (z (l) ,ẑ (l+1) ) which maps the corruptedz (l) onto the denoised estimateẑ <ref type="bibr">(l)</ref> . As the estimateẑ <ref type="bibr">(l)</ref> incorporates all prior knowledge about z, the same cost function term also trains the encoder layers below to find cleaner features which better match the prior expectation.</p><p>Since the cost function needs both the clean z (l) and corruptedz <ref type="bibr">(l)</ref> , during training the encoder is run twice: a clean pass for z (l) and a corrupted pass forz <ref type="bibr">(l)</ref> . Another feature which differentiates the Ladder network from regular dAEs is that each layer has a skip connection between the encoder and decoder. This feature mimics the inference structure of latent variable models and makes it possible for the higher levels of the network to leave some of the details for lower levels to represent. Rasmus et al. <ref type="bibr" target="#b7">[7]</ref> showed that such skip connections allow dAEs to focus on abstract invariant features on the higher levels, making the Ladder network a good fit with supervised learning that can select which information is relevant for the task at hand.</p><p>One way to picture the Ladder network is to consider it as a collection of nested denoising autoencoders which share parts of the denoising machinery between each other. From the viewpoint of the autoencoder at layer l, the representations on the higher layers can be treated as hidden neurons. In other words, there is no particular reason whyẑ <ref type="bibr">(l+i)</ref> produced by the decoder should resemble the corresponding representations z (l+i) produced by the encoder. It is only the cost function C</p><formula xml:id="formula_4">(l+i) d</formula><p>that ties these together and forces the inference to proceed in a reverse order in the decoder. This sharing helps a deep denoising autoencoder to learn the denoising process as it splits the task into meaningful sub-tasks of denoising intermediate representations.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Algorithm 1 Calculation of the output y and cost function C of the Ladder network</head><p>Require: x(n)</p><p># Corrupted encoder and classifier</p><formula xml:id="formula_5">h (0) z (0) x(n) + noise for l = 1 to L dõ z (l) batchnorm(W (l)h(l 1) ) + noisẽ h (l) activation( (l) (z (l) + (l) )) end for P (ỹ | x)</formula><p>h(L) # Clean encoder (for denoising targets)</p><formula xml:id="formula_6">h (0) z (0) x(n) for l = 1 to L do z (l) pre W (l) h (l 1) µ (l) batchmean(z (l) pre ) (l) batchstd(z (l) pre ) z (l) batchnorm(z (l) pre ) h (l) activation( (l) (z (l) + (l) )) end for # Final classification: P (y | x) h (L) # Decoder and denoising for l = L to 0 do if l = L then u (L) batchnorm(h (L) ) else u (l) batchnorm(V (l+1)ẑ(l+1) ) end if 8i :ẑ (l) i g(z (l) i , u (l) i ) 8i :ẑ (l) i,BN ẑ (l) i µ (l) i (l) i end for # Cost function C for training: C 0 if t(n) then C log P (ỹ = t(n) | x(n)) end if C C + P L l=0 l z (l) ẑ (l) BN 2</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Implementation of the Model</head><p>We implement the Ladder network for fully connected MLP networks and for convolutional networks. We used standard rectifier networks with batch normalization applied to each preactivation. The feedforward pass of the full Ladder network is listed in Algorithm 1.</p><p>In the decoder, we parametrize the denoising function such that it supports denoising of conditionally independent Gaussian latent variables, conditioned on the activationsẑ (l+1) of the layer above. The denoising function g is therefore coupled into componentsẑ</p><formula xml:id="formula_7">(l) i = g i (z (l) i , u (l) i ) = ⇣z (l) i µ i (u (l) i ) ⌘ i (u (l) i ) + µ i (u (l) i ) where u (l) i propagates information fromẑ (l+1) by u (l) = batchnorm(V (l+1)ẑ(l+1) ) . The functions µ i (u (l) i ) and i (u (l) i ) are modeled as expressive nonlin- earities: µ i (u (l) i ) = a (l) 1,i sigmoid(a (l) 2,i u (l) i + a (l) 3,i ) + a (l) 4,i u (l) i + a (l)</formula><p>5,i , with the form of the nonlinearity similar for i (u (l) i ). The decoder has thus 10 unit-wise parameters a, compared to the two parameters ( and <ref type="bibr" target="#b13">[13]</ref>) in the encoder.</p><p>It is worth noting that a simple special case of the decoder is a model where l = 0 when l &lt; L. This corresponds to a denoising cost only on the top layer and means that most of the decoder can be omitted. This model, which we call the -model due to the shape of the graph, is useful as it can easily be plugged into any feedforward network without decoder implementation.</p><p>Further implementation details of the model can be found in the supplementary material or Ref. <ref type="bibr" target="#b8">[8]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Experiments</head><p>We ran experiments both with the MNIST and CIFAR-10 datasets, where we attached the decoder both to fully-connected MLP networks and to convolutional neural networks. We also compared the performance of the simpler -model (Sec. 3) to the full Ladder network.</p><p>With convolutional networks, our focus was exclusively on semi-supervised learning. We make claims neither about the optimality nor the statistical significance of the supervised baseline results.</p><p>We used the Adam optimization algorithm <ref type="bibr" target="#b14">[14]</ref>. The initial learning rate was 0.002 and it was decreased linearly to zero during a final annealing phase. The minibatch size was 100. The source code for all the experiments is available at https://github.com/arasmus/ladder. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">MNIST dataset</head><p>For evaluating semi-supervised learning, we randomly split the 60 000 training samples into 10 000sample validation set and used M = 50 000 samples as the training set. From the training set, we randomly chose N = 100, 1000, or all labels for the supervised cost. All the samples were used for the decoder which does not need the labels. The validation set was used for evaluating the model structure and hyperparameters. We also balanced the classes to ensure that no particular class was over-represented. We repeated the training 10 times varying the random seed for the splits.</p><p>After optimizing the hyperparameters, we performed the final test runs using all the M = 60 000 training samples with 10 different random initializations of the weight matrices and data splits. We trained all the models for 100 epochs followed by 50 epochs of annealing.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.1">Fully-connected MLP</head><p>A useful test for general learning algorithms is the permutation invariant MNIST classification task. We chose the layer sizes of the baseline model to be 784-1000-500-250-250-250-10.</p><p>The hyperparameters we tuned for each model are the noise level that is added to the inputs and to each layer, and denoising cost multipliers <ref type="bibr">(l)</ref> . We also ran the supervised baseline model with various noise levels. For models with just one cost multiplier, we optimized them with a search grid {. . ., 0.1, 0.2, 0.5, 1, 2, 5, 10, . . .}. Ladder networks with a cost function on all layers have a much larger search space and we explored it much more sparsely. For the complete set of selected denoising cost multipliers and other hyperparameters, please refer to the code.</p><p>The results presented in <ref type="table" target="#tab_0">Table 1</ref> show that the proposed method outperforms all the previously reported results. Encouraged by the good results, we also tested with N = 50 labels and got a test error of 1.62 % (± 0.65 %).</p><p>The simple -model also performed surprisingly well, particularly for N = 1000 labels. With N = 100 labels, all models sometimes failed to converge properly. With bottom level or full cost in Ladder, around 5 % of runs result in a test error of over 2 %. In order to be able to estimate the average test error reliably in the presence of such random outliers, we ran 40 instead of 10 test runs with random initializations. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.2">Convolutional networks</head><p>We tested two convolutional networks for the general MNIST classification task and focused on the 100-label case. The first network was a straight-forward extension of the fully-connected network tested in the permutation invariant case. We turned the first fully connected layer into a convolution with 26-by-26 filters, resulting in a 3-by-3 spatial map of 1000 features. Each of the 9 spatial locations was processed independently by a network with the same structure as in the previous section, finally resulting in a 3-by-3 spatial map of 10 features. These were pooled with a global meanpooling layer. We used the same hyperparameters that were optimal for the permutation invariant task. In <ref type="table" target="#tab_1">Table 2</ref>, this model is referred to as Conv-FC.</p><p>With the second network, which was inspired by ConvPool-CNN-C from Springenberg et al. <ref type="bibr" target="#b23">[23]</ref>, we only tested the -model. The exact architecture of this network is detailed in the supplementary material or Ref. <ref type="bibr" target="#b8">[8]</ref>. It is referred to as Conv-Small since it is a smaller version of the network used for CIFAR-10 dataset.</p><p>The results in <ref type="table" target="#tab_1">Table 2</ref> confirm that even the single convolution on the bottom level improves the results over the fully connected network. More convolutions improve the -model significantly although the variance is still high. The Ladder network with denoising targets on every level converges much more reliably. Taken together, these results suggest that combining the generalization ability of convolutional networks 2 and efficient unsupervised learning of the full Ladder network would have resulted in even better performance but this was left for future work.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Convolutional networks on CIFAR-10</head><p>The CIFAR-10 dataset consists of small 32-by-32 RGB images from 10 classes. There are 50 000 labeled samples for training and 10 000 for testing. We decided to test the simple -model with the convolutional architecture ConvPool-CNN-C by Springenberg et al. <ref type="bibr" target="#b23">[23]</ref>. The main differences to ConvPool-CNN-C are the use of Gaussian noise instead of dropout and the convolutional perchannel batch normalization following Ioffe and Szegedy <ref type="bibr" target="#b25">[25]</ref>. For a more detailed description of the model, please refer to model Conv-Large in the supplementary material.</p><p>The hyperparameters (noise level, denoising cost multipliers and number of epochs) for all models were optimized using M = 40 000 samples for training and the remaining 10 000 samples for validation. After the best hyperparameters were selected, the final model was trained with these settings on all the M = 50 000 samples. All experiments were run with with 4 different random initializations of the weight matrices and data splits. We applied global contrast normalization and whitening following Goodfellow et al. <ref type="bibr" target="#b26">[26]</ref>, but no data augmentation was used.</p><p>The results are shown in <ref type="table">Table 3</ref>. The supervised reference was obtained with a model closer to the original ConvPool-CNN-C in the sense that dropout rather than additive Gaussian noise was used for regularization. We spent some time in tuning the regularization of our fully supervised baseline model for N = 4 000 labels and indeed, its results exceed the previous state of the art. This tuning was important to make sure that the improvement offered by the denoising target of the -model is <ref type="table">Table 3</ref>: Test results for CNN on CIFAR-10 dataset without data augmentation</p><p>Test error % with # of used labels 4 000 All All-Convolutional ConvPool-CNN-C <ref type="bibr" target="#b23">[23]</ref> 9.31 Spike-and-Slab Sparse Coding <ref type="bibr" target="#b27">[27]</ref> 31.9 Baseline: Conv-Large, supervised only 23.33 (± 0.61) 9.27 Conv-Large, -model 20.40 (± 0.47) not a sign of poorly regularized baseline model. Although the improvement is not as dramatic as with MNIST experiments, it came with a very simple addition to standard supervised training.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Related Work</head><p>Early works in semi-supervised learning <ref type="bibr" target="#b28">[28,</ref><ref type="bibr" target="#b29">29]</ref> proposed an approach where inputs x are first assigned to clusters, and each cluster has its class label. Unlabeled data would affect the shapes and sizes of the clusters, and thus alter the classification result. Label propagation methods <ref type="bibr" target="#b30">[30]</ref> estimate P (y | x), but adjust probabilistic labels q(y(n)) based on the assumption that nearest neighbors are likely to have the same label. Weston et al. <ref type="bibr" target="#b15">[15]</ref> explored deep versions of label propagation.</p><p>There is an interesting connection between our -model and the contractive cost used by Rifai et al. <ref type="bibr" target="#b16">[16]</ref>: a linear denoising functionẑ</p><formula xml:id="formula_8">(L) i = a iz (L) i + b i ,</formula><p>where a i and b i are parameters, turns the denoising cost into a stochastic estimate of the contractive cost. In other words, our -model seems to combine clustering and label propagation with regularization by contractive cost.</p><p>Recently Miyato et al. <ref type="bibr" target="#b22">[22]</ref> achieved impressive results with a regularization method that is similar to the idea of contractive cost. They required the output of the network to change as little as possible close to the input samples. As this requires no labels, they were able to use unlabeled samples for regularization.</p><p>The Multi-prediction deep Boltzmann machine (MP-DBM) <ref type="bibr" target="#b5">[5]</ref> is a way to train a DBM with backpropagation through variational inference. The targets of the inference include both supervised targets (classification) and unsupervised targets (reconstruction of missing inputs) that are used in training simultaneously. The connections through the inference network are somewhat analogous to our lateral connections. Specifically, there are inference paths from observed inputs to reconstructed inputs that do not go all the way up to the highest layers. Compared to our approach, MP-DBM requires an iterative inference with some initialization for the hidden activations, whereas in our case, the inference is a simple single-pass feedforward procedure.</p><p>Kingma et al. <ref type="bibr" target="#b19">[19]</ref> proposed deep generative models for semi-supervised learning, based on variational autoencoders. Their models can be trained with the variational EM algorithm, stochastic gradient variational Bayes, or stochastic backpropagation. Compared with the Ladder network, an interesting point is that the variational autoencoder computes the posterior estimate of the latent variables with the encoder alone while the Ladder network uses the decoder too to compute an implicit posterior approximate (the encoder provides the likelihood part which gets combined with the prior).</p><p>Zeiler et al. <ref type="bibr" target="#b31">[31]</ref> train deep convolutional autoencoders in a manner comparable to ours. They define max-pooling operations in the encoder to feed the max function upwards to the next layer, while the argmax function is fed laterally to the decoder. The network is trained one layer at a time using a cost function that includes a pixel-level reconstruction error, and a regularization term to promote sparsity. Zhao et al. <ref type="bibr" target="#b24">[24]</ref> use a similar structure and call it the stacked what-where autoencoder (SWWAE). Their network is trained simultaneously to minimize a combination of the supervised cost and reconstruction errors on each level, just like ours.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Discussion</head><p>We showed how a simultaneous unsupervised learning task improves CNN and MLP networks reaching the state-of-the-art in various semi-supervised learning tasks. Particularly the performance obtained with very small numbers of labels is much better than previous published results which shows that the method is capable of making good use of unsupervised learning. However, the same model also achieves state-of-the-art results and a significant improvement over the baseline model with full labels in permutation invariant MNIST classification which suggests that the unsupervised task does not disturb supervised learning.</p><p>The proposed model is simple and easy to implement with many existing feedforward architectures, as the training is based on backpropagation from a simple cost function. It is quick to train and the convergence is fast, thanks to batch normalization.</p><p>Not surprisingly, the largest improvements in performance were observed in models which have a large number of parameters relative to the number of available labeled samples. With CIFAR-10, we started with a model which was originally developed for a fully supervised task. This has the benefit of building on existing experience but it may well be that the best results will be obtained with models which have far more parameters than fully supervised approaches could handle.</p><p>An obvious future line of research will therefore be to study what kind of encoders and decoders are best suited for the Ladder network. In this work, we made very little modifications to the encoders whose structure has been optimized for supervised learning and we designed the parametrization of the vertical mappings of the decoder to mirror the encoder: the flow of information is just reversed. There is nothing preventing the decoder to have a different structure than the encoder.</p><p>An interesting future line of research will be the extension of the Ladder networks to the temporal domain. While there exist datasets with millions of labeled samples for still images, it is prohibitively costly to label thousands of hours of video streams. The Ladder networks can be scaled up easily and therefore offer an attractive approach for semi-supervised learning in such large-scale problems.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 :</head><label>1</label><figDesc>•, •) Left: A depiction of an optimal denoising function for a bimodal distribution. The input for the function is the corrupted value (x axis) and the target is the clean value (y axis). The denoising function moves values towards higher probabilities as show by the green arrows. Right: A conceptual illustration of the Ladder network when L = 2. The feedforward path</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 1 (</head><label>1</label><figDesc>right) shows the structure of the Ladder network. Every layer contributes to the cost function a term C (l)</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head>Table 1 :</head><label>1</label><figDesc>A collection of previously reported MNIST test errors in the permutation invariant setting followed by the results with the Ladder network. * = SVM. Standard deviation in parenthesis.</figDesc><table><row><cell>Test error % with # of used labels</cell><cell>100</cell><cell>1000</cell><cell>All</cell></row><row><cell>Semi-sup. Embedding [15]</cell><cell>16.86</cell><cell>5.73</cell><cell>1.5</cell></row><row><cell>Transductive SVM [from 15]</cell><cell>16.81</cell><cell>5.38</cell><cell>1.40*</cell></row><row><cell>MTC [16]</cell><cell>12.03</cell><cell>3.64</cell><cell>0.81</cell></row><row><cell>Pseudo-label [17]</cell><cell>10.49</cell><cell>3.46</cell><cell></cell></row><row><cell>AtlasRBF [18]</cell><cell>8.10 (± 0.95)</cell><cell cols="2">3.68 (± 0.12) 1.31</cell></row><row><cell>DGN [19]</cell><cell>3.33 (± 0.14)</cell><cell cols="2">2.40 (± 0.02) 0.96</cell></row><row><cell>DBM, Dropout [20]</cell><cell></cell><cell></cell><cell>0.79</cell></row><row><cell>Adversarial [21]</cell><cell></cell><cell></cell><cell>0.78</cell></row><row><cell>Virtual Adversarial [22]</cell><cell>2.12</cell><cell>1.32</cell><cell>0.64 (± 0.03)</cell></row><row><cell>Baseline: MLP, BN, Gaussian noise</cell><cell cols="3">21.74 (± 1.77) 5.70 (± 0.20) 0.80 (± 0.03)</cell></row><row><cell cols="2">-model (Ladder with only top-level cost) 3.06 (± 1.44)</cell><cell cols="2">1.53 (± 0.10) 0.78 (± 0.03)</cell></row><row><cell>Ladder, only bottom-level cost Ladder, full</cell><cell>1.09 (±0.32) 1.06 (± 0.37)</cell><cell cols="2">0.90 (± 0.05) 0.59 (± 0.03) 0.84 (± 0.08) 0.57 (± 0.02)</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>Table 2 :</head><label>2</label><figDesc>CNN results for MNIST Test error without data augmentation % with # of used labels 100</figDesc><table><row><cell>all</cell></row></table><note></note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="1">In all the experiments, we were careful not to optimize any parameters, hyperparameters, or model choices based on the results on the held-out test samples. As is customary, we used 10 000 labeled validation samples even for those settings where we only used 100 labeled samples for training. Obviously this is not something that could be done in a real case with just 100 labeled samples. However, MNIST classification is such an easy task even in the permutation invariant case that 100 labeled samples there correspond to a far greater number of labeled samples in many other datasets.</note>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="2">In general, convolutional networks excel in the MNIST classification task. The performance of the fully supervised Conv-Small with all labels is in line with the literature and is provided as a rough reference only (only one run, no attempts to optimize, not available in the code package).Same caveats hold for this fully supervised reference result for all labels as with MNIST: only one run, no attempts to optimize, not available in the code package.</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgements</head><p>We have received comments and help from a number of colleagues who would all deserve to be mentioned but we wish to thank especially Yann LeCun, Diederik Kingma, Aaron Courville, Ian Goodfellow, Søren Sønderby, Jim Fan and Hugo Larochelle for their helpful comments and suggestions. The software for the simulations for this paper was based on Theano <ref type="bibr" target="#b32">[32]</ref> and Blocks <ref type="bibr" target="#b33">[33]</ref>. We also acknowledge the computational resources provided by the Aalto Science-IT project. The Academy of Finland has supported Tapani Raiko.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">From neural PCA to deep unsupervised learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Harri</forename><surname>Valpola</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1411.7783</idno>
+	</analytic>
+	<monogr>
+		<title level="m">Adv. in Independent Component Analysis and Learning Machines</title>
+		<imprint>
+			<publisher>Elsevier</publisher>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="143" to="171" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Rule-injection hints as a means of improving network performance and learning time</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Steven</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><forename type="middle">L</forename><surname>Suddarth</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Kergosien</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the EURASIP Workshop 1990 on Neural Networks</title>
+		<meeting>the EURASIP Workshop 1990 on Neural Networks</meeting>
+		<imprint>
+			<biblScope unit="page" from="120" to="129" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Springer</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1990" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Semi-supervised learning of compact document representations with deep networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aurelio</forename><surname>Marc</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><surname>Ranzato</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Szummer</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of ICML</title>
+		<meeting>of ICML</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2008" />
+			<biblScope unit="page" from="792" to="799" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Discriminative unsupervised feature learning with convolutional neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alexey</forename><surname>Dosovitskiy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jost</forename><forename type="middle">Tobias</forename><surname>Springenberg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><surname>Riedmiller</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Thomas</forename><surname>Brox</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems 27 (NIPS 2014)</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="766" to="774" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Multi-prediction deep Boltzmann machines</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ian</forename><surname>Goodfellow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mehdi</forename><surname>Mirza</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aaron</forename><surname>Courville</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems 26 (NIPS 2013)</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="548" to="556" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Reducing the dimensionality of data with neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Geoffrey</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ruslan R</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Salakhutdinov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Science</title>
+		<imprint>
+			<biblScope unit="volume">313</biblScope>
+			<biblScope unit="issue">5786</biblScope>
+			<biblScope unit="page" from="504" to="507" />
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<title level="m" type="main">Denoising autoencoder with modulated lateral connections learns invariant representations of natural images</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Antti</forename><surname>Rasmus</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tapani</forename><surname>Raiko</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Harri</forename><surname>Valpola</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.7210</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<monogr>
+		<title level="m" type="main">Semi-supervised learning with ladder networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Antti</forename><surname>Rasmus</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Harri</forename><surname>Valpola</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mikko</forename><surname>Honkala</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mathias</forename><surname>Berglund</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tapani</forename><surname>Raiko</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1507.02672</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Generalized denoising auto-encoders as generative models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Li</forename><surname>Yao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Guillaume</forename><surname>Alain</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pascal</forename><surname>Vincent</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems 26 (NIPS 2013)</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="899" to="907" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Creating artificial neural networks that generalize</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jocelyn</forename><surname>Sietsma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">F</forename><surname>Robert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Dow</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural networks</title>
+		<imprint>
+			<biblScope unit="volume">4</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="67" to="79" />
+			<date type="published" when="1991" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Stacked denoising autoencoders: Learning useful representations in a deep network with a local denoising criterion</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pascal</forename><surname>Vincent</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hugo</forename><surname>Larochelle</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Isabelle</forename><surname>Lajoie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pierre-Antoine</forename><surname>Manzagol</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMLR</title>
+		<imprint>
+			<biblScope unit="volume">11</biblScope>
+			<biblScope unit="page" from="3371" to="3408" />
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Denoising source separation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jaakko</forename><surname>Särelä</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Harri</forename><surname>Valpola</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMLR</title>
+		<imprint>
+			<biblScope unit="volume">6</biblScope>
+			<biblScope unit="page" from="233" to="272" />
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Batch normalization: Accelerating deep network training by reducing internal covariate shift</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sergey</forename><surname>Ioffe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christian</forename><surname>Szegedy</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning (ICML)</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="448" to="456" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Adam: A method for stochastic optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Diederik</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jimmy</forename><surname>Ba</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.6980</idno>
+	</analytic>
+	<monogr>
+		<title level="m">the International Conference on Learning Representations (ICLR 2015)</title>
+		<meeting><address><addrLine>San Diego</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Deep learning via semi-supervised embedding</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jason</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Frédéric</forename><surname>Ratle</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hossein</forename><surname>Mobahi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ronan</forename><surname>Collobert</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Neural Networks: Tricks of the Trade</title>
+		<imprint>
+			<publisher>Springer</publisher>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="639" to="655" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">The manifold tangent classifier</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Salah</forename><surname>Rifai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Yann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pascal</forename><surname>Dauphin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Vincent</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xavier</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Muller</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems 24 (NIPS 2011)</title>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="2294" to="2302" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Pseudo-label: The simple and efficient semi-supervised learning method for deep neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dong-Hyun</forename><surname>Lee</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Workshop on Challenges in Representation Learning, ICML 2013</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Semi-supervised learning using an unsupervised atlas</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nikolaos</forename><surname>Pitelis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chris</forename><surname>Russell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lourdes</forename><surname>Agapito</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Machine Learning and Knowledge Discovery in Databases (ECML PKDD 2014)</title>
+		<imprint>
+			<publisher>Springer</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="565" to="580" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Semi-supervised learning with deep generative models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Shakir</forename><surname>Diederik P Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Danilo</forename><surname>Mohamed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Max</forename><surname>Jimenez Rezende</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Welling</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems 27 (NIPS 2014)</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="3581" to="3589" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Dropout: A simple way to prevent neural networks from overfitting</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nitish</forename><surname>Srivastava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geoffrey</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ilya</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ruslan</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMLR</title>
+		<imprint>
+			<biblScope unit="volume">15</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="1929" to="1958" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Explaining and harnessing adversarial examples</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ian</forename><surname>Goodfellow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonathon</forename><surname>Shlens</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christian</forename><surname>Szegedy</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.6572</idno>
+	</analytic>
+	<monogr>
+		<title level="m">the International Conference on Learning Representations (ICLR 2015)</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Takeru</forename><surname>Miyato</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Masanori</forename><surname>Shin Ichi Maeda</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ken</forename><surname>Koyama</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Shin</forename><surname>Nakae</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ishii</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1507.00677</idno>
+		<title level="m">Distributional smoothing by virtual adversarial examples</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<monogr>
+		<title level="m" type="main">Striving for simplicity: The all convolutional net</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jost</forename><surname>Tobias Springenberg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alexey</forename><surname>Dosovitskiy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Thomas</forename><surname>Brox</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><forename type="middle">A</forename><surname>Riedmiller</surname></persName>
+		</author>
+		<idno>arxiv:1412.6806</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<monogr>
+		<title level="m" type="main">Stacked what-where auto-encoders</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Junbo</forename><surname>Zhao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Mathieu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ross</forename><surname>Goroshin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yann</forename><surname>Lecun</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1506.02351</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<monogr>
+		<title level="m" type="main">Batch normalization: Accelerating deep network training by reducing internal covariate shift</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sergey</forename><surname>Ioffe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christian</forename><surname>Szegedy</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1502.03167</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Maxout networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ian</forename><forename type="middle">J</forename><surname>Goodfellow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Warde-Farley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mehdi</forename><surname>Mirza</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aaron</forename><surname>Courville</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of ICML 2013</title>
+		<meeting>of ICML 2013</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Large-scale feature learning with spike-and-slab sparse coding</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ian</forename><surname>Goodfellow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aaron C</forename><surname>Courville</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of ICML 2012</title>
+		<meeting>of ICML 2012</meeting>
+		<imprint>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="1439" to="1446" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">Iterative reclassification procedure for constructing an asymptotically optimal rule of allocation in discriminant analysis</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Mclachlan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">J. American Statistical Association</title>
+		<imprint>
+			<biblScope unit="volume">70</biblScope>
+			<biblScope unit="page" from="365" to="369" />
+			<date type="published" when="1975" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Statistical analysis of finite mixture distributions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Titterington</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Smith</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">U</forename><surname>Makov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Wiley Series in Probability and Mathematical Statistics</title>
+		<imprint>
+			<publisher>Wiley</publisher>
+			<date type="published" when="1985" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Partially labeled classification with Markov random walks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><surname>Szummer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tommi</forename><surname>Jaakkola</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2002" />
+			<biblScope unit="volume">15</biblScope>
+			<biblScope unit="page" from="945" to="952" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">Adaptive deconvolutional networks for mid and high level feature learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Matthew</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Zeiler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Graham</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rob</forename><surname>Taylor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Fergus</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICCV 2011</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="2018" to="2025" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Frédéric</forename><surname>Bastien</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pascal</forename><surname>Lamblin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Razvan</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">James</forename><surname>Bergstra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ian</forename><forename type="middle">J</forename><surname>Goodfellow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Arnaud</forename><surname>Bergeron</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nicolas</forename><surname>Bouchard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<title level="m">Theano: new features and speed improvements. Deep Learning and Unsupervised Feature Learning NIPS 2012 Workshop</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<monogr>
+		<title level="m" type="main">Blocks and fuel: Frameworks for deep learning. CoRR, abs/1506.00619</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dzmitry</forename><surname>Bart Van Merriënboer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Vincent</forename><surname>Bahdanau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dmitriy</forename><surname>Dumoulin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Serdyuk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jan</forename><surname>Warde-Farley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Chorowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bengio</surname></persName>
+		</author>
+		<ptr target="http://arxiv.org/abs/1506.00619" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

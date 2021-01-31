@@ -1,0 +1,1367 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Ten Years of Pedestrian Detection, What Have We Learned?</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rodrigo</forename><surname>Benenson</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="department">Max Planck Institute for Informatics</orgName>
+								<address>
+									<settlement>Saarbrücken</settlement>
+									<country key="DE">Germany</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mohamed</forename><surname>Omran</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="department">Max Planck Institute for Informatics</orgName>
+								<address>
+									<settlement>Saarbrücken</settlement>
+									<country key="DE">Germany</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jan</forename><surname>Hosang</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="department">Max Planck Institute for Informatics</orgName>
+								<address>
+									<settlement>Saarbrücken</settlement>
+									<country key="DE">Germany</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bernt</forename><surname>Schiele</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="department">Max Planck Institute for Informatics</orgName>
+								<address>
+									<settlement>Saarbrücken</settlement>
+									<country key="DE">Germany</country>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Ten Years of Pedestrian Detection, What Have We Learned?</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:40+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Paper-by-paper results make it easy to miss the forest for the trees.We analyse the remarkable progress of the last decade by discussing the main ideas explored in the 40+ detectors currently present in the Caltech pedestrian detection benchmark. We observe that there exist three families of approaches, all currently reaching similar detection quality. Based on our analysis, we study the complementarity of the most promising ideas by combining multiple published strategies. This new decision forest detector achieves the current best known performance on the challenging Caltech-USA dataset.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>64</head><p>. <ref type="bibr">80</ref> 1 <ref type="figure">Figure 1</ref>: The last decade has shown tremendous progress on pedestrian detection. What have we learned out of the 40+ proposed methods?</p><p>Pedestrian detection is a canonical instance of object detection. Because of its direct applications in car safety, surveillance, and robotics, it has attracted much attention in the last years. Importantly, it is a well defined problem with established benchmarks and evaluation metrics. As such, it has served as a playground to explore different ideas for object detection. The main paradigms for object detection "Viola&amp;Jones variants", HOG+SVM rigid templates, deformable part detectors (DPM), and convolutional neural networks (ConvNets) have all been explored for this task. The aim of this paper is to review progress over the last decade of pedestrian detection (40+ methods), identify the main ideas explored, and try to quantify which ideas had the most impact on final detection quality. In the next sections we review existing datasets (section 2), provide a discussion of the different approaches (section 3), and experiments reproducing/quantifying the recent years' progress (section 4, presenting experiments over ∼ 20 newly trained detector models). Although we do not aim to introduce a novel technique, by putting together existing methods we report the best known detection results on the challenging Caltech-USA dataset.  <ref type="figure">Figure 2</ref>: Example detections of a top performing method (SquaresChnFtrs).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Datasets</head><p>Multiple public pedestrian datasets have been collected over the years; INRIA <ref type="bibr" target="#b0">[1]</ref>, ETH <ref type="bibr" target="#b1">[2]</ref>, TUD-Brussels <ref type="bibr" target="#b2">[3]</ref>, Daimler <ref type="bibr" target="#b3">[4]</ref> (Daimler stereo <ref type="bibr" target="#b4">[5]</ref>), Caltech-USA <ref type="bibr" target="#b5">[6]</ref>, and KITTI <ref type="bibr" target="#b6">[7]</ref> are the most commonly used ones. They all have different characteristics, weaknesses, and strengths.</p><p>INRIA is amongst the oldest and as such has comparatively few images. It benefits however from high quality annotations of pedestrians in diverse settings (city, beach, mountains, etc.), which is why it is commonly selected for training (see also §4.4). ETH and TUD-Brussels are mid-sized video datasets. Daimler is not considered by all methods because it lacks colour channels. Daimler stereo, ETH, and KITTI provide stereo information. All datasets but INRIA are obtained from video, and thus enable the use of optical flow as an additional cue.</p><p>Today, Caltech-USA and KITTI are the predominant benchmarks for pedestrian detection. Both are comparatively large and challenging. Caltech-USA stands out for the large number of methods that have been evaluated side-byside. KITTI stands out because its test set is slightly more diverse, but is not yet used as frequently. For a more detailed discussion of the datasets please consult <ref type="bibr" target="#b7">[8,</ref><ref type="bibr" target="#b6">7]</ref>. INRIA, ETH (monocular), TUD-Brussels, Daimler (monocular), and Caltech-USA are available under a unified evaluation toolbox; KITTI uses its own separate one with unpublished test data. Both toolboxes maintain an online ranking where published methods can be compared side by side.</p><p>In this paper we use primarily Caltech-USA for comparing methods, INRIA and KITTI secondarily. See figure 2 for example images. Caltech-USA and IN-RIA results are measured in log-average miss-rate (MR, lower is better), while KITTI uses area under the precision-recall curve (AUC, higher is better). Value of benchmarks Individual papers usually only show a narrow view over the state of the art on a dataset. Having an official benchmark that collects detections from all methods greatly eases the author's effort to put their curve into context, and provides reviewers easy access to the state of the art results. The collection of results enable retrospective analyses such as the one presented in the next section.   <ref type="table" target="#tab_1">Table 1</ref>: Listing of methods considered on Caltech-USA, sorted by log-average miss-rate (lower is better). Consult sections 3.1 to 3.9 for details of each column. See also matching figure 3. "HOG" indicates HOG-like <ref type="bibr" target="#b0">[1]</ref>. Ticks indicate salient aspects of each method. models (described in section 4). We refer to all methods using their Caltech benchmark shorthand. Instead of discussing the methods' individual particularities, we identify the key aspects that distinguish each method (ticks of table 1) and group them accordingly. We discuss these aspects in the next subsections.   <ref type="bibr" target="#b11">[12]</ref>. In 2009 the Caltech pedestrian detection benchmark was introduced, comparing seven pedestrian detectors <ref type="bibr" target="#b5">[6]</ref>. At this point in time, the evaluation metrics changed from per-window (FPPW) to per-image (FPPI), once the flaws of the per-window evaluation were identified <ref type="bibr" target="#b7">[8]</ref>. Under this new evaluation metric some of the early detectors turned out to under-perform. About one third of the methods considered here were published during 2013, reflecting a renewed interest on the problem. Similarly, half of the KITTI results for pedestrian detection were submitted in 2014. <ref type="figure" target="#fig_1">Figure 3</ref> shows that differences in detection performance are, not surprisingly, dominated by the choice of training data. Methods trained on Caltech-USA systematically perform better than methods that generalise from INRIA. <ref type="table" target="#tab_1">Table  1</ref> gives additional details on the training data used . High performing methods with "other training" use extended versions of Caltech-USA. For instance MultiResC+2Ped uses Caltech-USA plus an extended set of annotations over INRIA, MT-DPM+Context uses an external training set for cars, and ACF+SDt "Training" data column: I→INRIA, C→Caltech, I+/C+ →INRIA/Caltech and additional data, P→Pascal, T→TUD-Motion, I&amp;C→both INRIA and Caltech.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">Main approaches to improve pedestrian detection</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>SquaresChnFtrs</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>SquaresChnFtrs</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Katamari-v1</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">Training data</head><p>employs additional frames from the original Caltech-USA videos.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">Solution families</head><p>Overall we notice that out of the 40+ methods we can discern three families: 1) DPM variants (MultiResC <ref type="bibr" target="#b32">[33]</ref>, MT-DPM <ref type="bibr" target="#b38">[39]</ref>, etc.), 2) Deep networks (JointDeep <ref type="bibr" target="#b39">[40]</ref>, ConvNet <ref type="bibr" target="#b12">[13]</ref>, etc.), and 3) Decision forests (ChnFtrs, Roerei, etc.). On table 1 we identify these families as DPM, DN, and DF respectively.</p><p>Based on raw numbers alone boosted decision trees (DF) seem particularly suited for pedestrian detection, reaching top performance on both the "train on INRIA, test on Caltech", and "train on Caltech, test on Caltech" tasks. It is unclear however what gives them an edge. The deep networks explored also show interesting properties and fast progress in detection quality.</p><p>Conclusion Overall, at present, DPM variants, deep networks, and (boosted) decision forests all reach top performance in pedestrian detection (around 37 % MR on Caltech-USA, see <ref type="figure" target="#fig_1">figure 3</ref>).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">Better classifiers</head><p>Since the original proposal of HOG+SVM <ref type="bibr" target="#b0">[1]</ref>, linear and non-linear kernels have been considered. HikSvm <ref type="bibr" target="#b14">[15]</ref> considered fast approximations of non-linear kernels. This method obtains improvements when using the flawed FPPW evaluation metric (see section 3), but fails to perform well under the proper evaluation (FPPI). In the work on MultiFtrs <ref type="bibr" target="#b15">[16]</ref>, it was argued that, given enough features, Adaboost and linear SVM perform roughly the same for pedestrian detection.</p><p>Recently, more and more components of the detector are optimized jointly with the "decision component" (e.g. pooling regions in ChnFtrs <ref type="bibr" target="#b25">[26]</ref>, filters in JointDeep <ref type="bibr" target="#b39">[40]</ref>). As a result the distinction between features and classifiers is not clear-cut anymore (see also sections 3.8 and 3.9).</p><p>Conclusion There is no conclusive empirical evidence indicating that whether non-linear kernels provide meaningful gains over linear kernels (for pedestrian detection, when using non-trivial features). Similarly, it is unclear whether one particular type of classifier (e.g. SVM or decision forests) is better suited for pedestrian detection than another.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4">Additional data</head><p>The core problem of pedestrian detection focuses on individual monocular colour image frames. Some methods explore leveraging additional information at training and test time to improve detections. They consider stereo images <ref type="bibr" target="#b44">[45]</ref>, optical flow (using previous frames, e.g. MultiFtr+Motion <ref type="bibr" target="#b21">[22]</ref> and ACF+SDt <ref type="bibr" target="#b41">[42]</ref>), tracking <ref type="bibr" target="#b45">[46]</ref>, or data from other sensors (such as lidar <ref type="bibr" target="#b46">[47]</ref> or radar).</p><p>For monocular methods it is still unclear how much tracking can improve per-frame detection itself. As seen in figure 4 exploiting optical flow provides a non-trivial improvement over the baselines. Curiously, the current best results (ACF-SDt <ref type="bibr" target="#b41">[42]</ref>) are obtained using coarse rather than high quality flow. In section 4.2 we inspect the complementarity of flow with other ingredients. Good success exploiting flow and stereo on the Daimler dataset has been reported <ref type="bibr" target="#b47">[48]</ref>, but similar results have yet to be seen on newer datasets such as KITTI. Conclusion Using additional data provides meaningful improvements, albeit on modern dataset stereo and flow cues have yet to be fully exploited. As of now, methods based merely on single monocular image frames have been able to keep up with the performance improvement introduced by additional information.  <ref type="figure">Figure 4</ref>: Caltech-USA detection improvements for different method types. Improvement relative to each method's relevant baseline ("method vs baseline").</p><formula xml:id="formula_0">A C F + S D t v s A C F -C a lt e c h M u lt iF t r + M o t io n v s M u lt iF t r + C S S A F S + G e o v s A F S M T -D P M + C o n t e x t v s M T -D P M D B N -M u t v</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.5">Exploiting context</head><p>Sliding window detectors score potential detection windows using the content inside that window.</p><p>Drawing on the context of the detection window, i.e. image content surrounding the window, can improve detection performance. Strategies for exploiting context include: ground plane constraints (MultiResC <ref type="bibr" target="#b32">[33]</ref>, Rand-Forest <ref type="bibr" target="#b29">[30]</ref>), variants of autocontext <ref type="bibr" target="#b48">[49]</ref> (MOCO <ref type="bibr" target="#b35">[36]</ref>), other category detectors (MT-DPM+Context <ref type="bibr" target="#b38">[39]</ref>), and person-to-person patterns (DBN−Mut <ref type="bibr" target="#b33">[34]</ref>, +2Ped <ref type="bibr" target="#b34">[35]</ref>, JointDeep <ref type="bibr" target="#b39">[40]</ref>). <ref type="figure">Figure 4</ref> shows the performance improvement for methods incorporating context. Overall, we see improvements of 3 ∼ 7 MR percent points. (The negative impact of AFS+Geo is due to a change in evaluation, see section 3.) Interestingly, +2Ped <ref type="bibr" target="#b34">[35]</ref> obtains a consistent 2 ∼ 5 MR percent point improvement over existing methods, even top performing ones (see section 4.2). Conclusion Context provides consistent improvements for pedestrian detection, although the scale of improvement is lower compared to additional test data ( §3.4) and deep architectures ( §3.8). The bulk of detection quality must come from other sources.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.6">Deformable parts</head><p>The DPM detector <ref type="bibr" target="#b18">[19]</ref> was originally motivated for pedestrian detection. It is an idea that has become very popular and dozens of variants have been explored.</p><p>For pedestrian detection the results are competitive, but not salient (LatSvm <ref type="bibr" target="#b49">[50,</ref><ref type="bibr" target="#b11">12]</ref>, MultiResC <ref type="bibr" target="#b32">[33]</ref>, MT-DPM <ref type="bibr" target="#b38">[39]</ref>). More interesting results have been obtained when modelling parts and their deformations inside a deep architecture (e.g. DBN−Mut <ref type="bibr" target="#b33">[34]</ref>, JointDeep <ref type="bibr" target="#b39">[40]</ref>).</p><p>DPM and its variants are systematically outmatched by methods using a single component and no parts (Roerei <ref type="bibr" target="#b30">[31]</ref>, SquaresChnFtrs see section 4.1), casting doubt on the need for parts. Recent work has explored ways to capture deformations entirely without parts <ref type="bibr" target="#b50">[51,</ref><ref type="bibr" target="#b51">52]</ref>.</p><p>Conclusion For pedestrian detection there is still no clear evidence for the necessity of components and parts, beyond the case of occlusion handling.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.7">Multi-scale models</head><p>Typically for detection, both high and low resolution candidate windows are resampled to a common size before extracting features. It has recently been noticed that training different models for different resolutions systematically improve performance by 1 ∼ 2 MR percent points <ref type="bibr" target="#b32">[33,</ref><ref type="bibr" target="#b30">31,</ref><ref type="bibr" target="#b38">39]</ref>, since the detector has access to the full information available at each window size. This technique does not impact computational cost at detection time <ref type="bibr" target="#b52">[53]</ref>, although training time increases.</p><p>Conclusion Multi-scale models provide a simple and generic extension to existing detectors. Despite consistent improvements, their contribution to the final quality is rather minor.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.8">Deep architectures</head><p>Large amounts of training data and increased computing power have lead to recent successes of deep architectures (typically convolutional neural networks) on diverse computer vision tasks (large scale classification and detection <ref type="bibr" target="#b53">[54,</ref><ref type="bibr" target="#b54">55]</ref>, semantic labelling <ref type="bibr" target="#b55">[56]</ref>). These results have inspired the application of deep architectures to the pedestrian task.</p><p>ConvNet <ref type="bibr" target="#b12">[13]</ref> uses a mix of unsupervised and supervised training to create a convolutional neural network trained on INRIA. This method obtains fair results on INRIA, ETH, and TUD-Brussels, however fails to generalise to the Caltech setup. This method learns to extract features directly from raw pixel values.</p><p>Another line of work focuses on using deep architectures to jointly model parts and occlusions (DBN−Isol <ref type="bibr" target="#b27">[28]</ref>, DBN−Mut <ref type="bibr" target="#b33">[34]</ref>, JointDeep <ref type="bibr" target="#b39">[40]</ref>, and SDN <ref type="bibr" target="#b40">[41]</ref>). The performance improvement such integration varies between 1.5 to 14 MR percent points. Note that these works use edge and colour features <ref type="bibr" target="#b39">[40,</ref><ref type="bibr" target="#b33">34,</ref><ref type="bibr" target="#b27">28]</ref>, or initialise network weights to edge-sensitive filters, rather than discovering features from raw pixel values as usually done in deep architectures. No results have yet been reported using features pre-trained on ImageNet <ref type="bibr" target="#b53">[54,</ref><ref type="bibr" target="#b56">57]</ref>.</p><p>Conclusion Despite the common narrative there is still no clear evidence that deep networks are good at learning features for pedestrian detection (when using pedestrian detection training data). Most successful methods use such architectures to model higher level aspects of parts, occlusions, and context. The obtained results are on par with DPM and decision forest approaches, making the advantage of using such involved architectures yet unclear.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.9">Better features</head><p>The most popular approach (about 30 % of the considered methods) for improving detection quality is to increase/diversify the features computed over the input image. By having richer and higher dimensional representations, the classification task becomes somewhat easier, enabling improved results. A large set of feature types have been explored: edge information <ref type="bibr" target="#b0">[1,</ref><ref type="bibr" target="#b25">26,</ref><ref type="bibr" target="#b57">58,</ref><ref type="bibr" target="#b40">41]</ref>, colour information <ref type="bibr" target="#b25">[26,</ref><ref type="bibr" target="#b21">22]</ref>, texture information <ref type="bibr" target="#b16">[17]</ref>, local shape information <ref type="bibr" target="#b37">[38]</ref>, covariance features <ref type="bibr" target="#b23">[24]</ref>, amongst others. More and more diverse features have been shown to systematically improve performance.</p><p>While various decision forest methods use 10 feature channels (ChnFtrs, ACF, Roerei, SquaresChnFtrs, etc.), some papers have considered up to an order of magnitude more channels <ref type="bibr" target="#b15">[16,</ref><ref type="bibr" target="#b57">58,</ref><ref type="bibr" target="#b23">24,</ref><ref type="bibr" target="#b29">30,</ref><ref type="bibr" target="#b37">38]</ref>. Despite the improvements by adding many channels, top performance is still reached with only 10 channels (6 gradient orientations, 1 gradient magnitude, and 3 colour channels, we name these HOG+LUV); see table 1 and figure 3. In section 4.1 we study in more detail different feature combinations.</p><p>From all what we see, from VJ (95% MR) to ChnFtrs (56.34% MR, by adding HOG and LUV channels), to SquaresChnFtrs-Inria (50.17% MR, by exhaustive search over pooling sizes, see section 4), improved features drive progress. Switching training sets (section 3.1) enables SquaresChnFtrs-Caltech to reach state of the art performance on the Caltech-USA dataset; improving over significantly more sophisticated methods. InformedHaar <ref type="bibr" target="#b42">[43]</ref> obtains top results by using a set of Haar-like features manually designed for the pedestrian detection task. In contrast SquaresChnFtrs-Caltech obtains similar results without using such hand-crafted features and being data driven instead.</p><p>Upcoming studies show that using more (and better features) yields further improvements <ref type="bibr" target="#b58">[59,</ref><ref type="bibr" target="#b59">60]</ref>. It should be noted that better features for pedestrian detection have not yet been obtained via deep learning approaches (see caveat on ImageNet features in section 3.8). Conclusion In the last decade improved features have been a constant driver for detection quality improvement, and it seems that it will remain so in the years to come. Most of this improvement has been obtained by extensive trial and error. The next scientific step will be to develop a more profound understanding of the what makes good features good, and how to design even better ones 2 .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Experiments</head><p>Based on our analysis in the previous section, three aspects seem to be the most promising in terms of impact on detection quality: better features ( §3.9), additional data ( §3.4), and context information ( §3.5). We thus conduct experiments on the complementarity of these aspects.</p><p>Among the three solution families discussed (section 3.2), we choose the Integral Channels Features framework <ref type="bibr" target="#b25">[26]</ref>   experiments. Methods from this family have shown good performance, train in minutes∼hours, and lend themselves to the analyses we aim.</p><p>In particular, we use the (open source) SquaresChnFtrs baseline described in <ref type="bibr" target="#b30">[31]</ref>: 2048 level-2 decision trees (3 threshold comparisons per tree) over HOG+LUV channels <ref type="bibr">(10 channels)</ref>, composing one 64 × 128 pixels template learned via vanilla AdaBoost and few bootstrapping rounds of hard negative mining.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Reviewing the effect of features</head><p>In this section, we evaluate the impact of increasing feature complexity. We tune all methods on the INRIA test set, and demonstrate results on the Caltech-USA test set (see <ref type="figure">figure 5)</ref>. Results on INRIA as well as implementation details can be found in the supplementary material.</p><p>The first series of experiments aims at mimicking landmark detection techniques, such as VJ <ref type="bibr" target="#b43">[44]</ref>, HOG+linear SVM <ref type="bibr" target="#b0">[1]</ref>, and ChnFtrs <ref type="bibr" target="#b25">[26]</ref>. VJLike uses only the luminance colour channel, emulating the Haar wavelet like features from the original <ref type="bibr" target="#b43">[44]</ref> using level 2 decision trees. HOGLike-L1/L2 use 8 × 8 pixel pooling regions, 1 gradient magnitude and 6 oriented gradient channels, as well as level 1/2 decision trees. We also report results when adding the LUV colour channels HOGLike+LUV (10 feature channels total). SquaresChnFtrs is the baseline described in the beginning of section 4, which is similar to HOGLike+LUV to but with square pooling regions of any size.</p><p>Inspired by <ref type="bibr" target="#b59">[60]</ref>, we also expand the 10 HOG+LUV channels into 40 channels by convolving each channel with three DCT (discrete cosine transform) basis functions (of 7 × 7 pixels), and storing the absolute value of the filter responses as additional feature channels. We name this variant SquaresChnFtrs+DCT.</p><p>Conclusion Much of the progress since VJ can by explained by the use of better features, based on oriented gradients and colour information. Simple tweaks to these well known features (e.g. projection onto the DCT basis) can still yield noticeable improvements.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Complementarity of approaches</head><p>After revisiting the effect of single frame features in section 4.1 we now consider the complementary of better features (HOG+LUV+DCT), additional data (via optical flow), and context (via person-to-person interactions). We encode the optical flow using the same SDt features from ACF+SDt <ref type="bibr" target="#b32">[33]</ref> (image difference between current frame T and coarsely aligned T-4 and T-8). The context information is injected using the +2Ped re-weighting strategy <ref type="bibr" target="#b34">[35]</ref> (the detection scores are combined with the scores of a "2 person" DPM detector). In all experiments both DCT and SDt features are pooled over 8 × 8 regions (as in <ref type="bibr" target="#b32">[33]</ref>), instead of "all square sizes" for the HOG+LUV features.</p><p>The combination SquaresChnFtrs+DCT+SDt+2Ped is called Katamari-v1. Unsurprisingly, Katamari-v1 reaches the best known result on the Caltech-USA dataset. In <ref type="figure">figure 7</ref> we show it together with the best performing method for each training set and solution family (see <ref type="table" target="#tab_1">table 1</ref>). The supplementary material contains results of all combinations between the ingredients.</p><p>Conclusion Our experiments show that adding extra features, flow, and context information are largely complementary (12 % gain, instead of 3 + 7 + 5 %), even when starting from a strong detector. It remains to be seen if future progress in detection quality will be obtained by further insights of the "core" algorithm (thus further diminishing the relative improvement of add-ons), or by extending the diversity of techniques employed inside a system.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">How much model capacity is needed?</head><p>The main task of detection is to generalise from training to test set. Before we analyse the generalisation capability (section 4.4), we consider a necessary condition for high quality detection: is the learned model performing well on the training set?</p><p>In <ref type="figure" target="#fig_4">figure 6</ref> we see the detection quality of the models considered in section 4.1, when evaluated over their training set. None of these methods performs perfectly on the training set. In fact, the trend is very similar to performance on the test set (see <ref type="figure">figure 5</ref>) and we do not observe yet symptoms of over-fitting. Conclusion Our results indicate that research on increasing the discriminative power of detectors is likely to further improve detection quality. More discriminative power can originate from more and better features or more complex classifiers.  <ref type="table" target="#tab_4">Table 2</ref> shows the performance of SquaresChnFtrs over Caltech-USA when using different training sets (MR for INRIA/Caltech/ETH, AUC for KITTI). These experiments indicate that training on Caltech or KITTI provides little generalisation capability towards INRIA, while the converse is not true. Surprisingly, despite the visual similarity between KITTI and Caltech, INRIA is the second best training set choice for KITTI and Caltech. This shows that Caltech-USA pedestrians are of "their own kind", and that the INRIA dataset is effective due to its diversity. In other words few diverse pedestrians (INRIA) is better than many similar ones (Caltech/KITTI).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.4">Generalisation across datasets</head><p>The good news is that the best methods seem to perform well both across datasets and when trained on the respective training data. <ref type="figure">Figure 8</ref> shows methods trained and tested on KITTI, we see that SquaresChnFtrs (named SquaresICF in KITTI) is better than vanilla DPM and on par with the best known DPM variant. The currently best method on KITTI, pAUC <ref type="bibr" target="#b58">[59]</ref>, is a variant of ChnFtrs using 250 feature channels (see the KITTI website for details on the methods). These two observations are consistent with our discussions in sections 3.9 and 4.1. Conclusion While detectors learned on one dataset may not necessarily transfer well to others, their ranking is stable across datasets, suggesting that insights can be learned from well-performing methods regardless of the benchmark.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Conclusion</head><p>Our experiments show that most of the progress in the last decade of pedestrian detection can be attributed to the improvement in features alone. Evidence suggests that this trend will continue. Although some of these features might be driven by learning, they are mainly hand-crafted via trial and error.</p><p>Our experiment combining the detector ingredients that our retrospective analysis found to work well (better features, optical flow, and context) shows that these ingredients are mostly complementary. Their combination produces best published detection performance on Caltech-USA.</p><p>While the three big families of pedestrian detectors (deformable part models, decision forests, deep networks) are based on different learning techniques, their state-of-the-art results are surprisingly close.</p><p>The main challenge ahead seems to develop a deeper understanding of what makes good features good, so as to enable the design of even better ones. The idea behind the experiments in section 4.1 of the main paper is to demonstrate that, within a single framework, varying the features can replicate the jump in detection performance over a ten-year span (2004 − 2014), i.e. the jump in performance between VJ and the current state-of-the-art. See figure 9 for results on INRIA and Caltech-USA of the following methods (all based on SquaresChnFtrs, described in section 4 of the paper):</p><p>VJLike uses only the luminance colour channel, emulating the original VJ <ref type="bibr" target="#b43">[44]</ref>. We use 8 000 weak classifiers to compensate for the weak input feature, only square pooling regions, and level-2 trees to emulate the Haar wavelet-like features used by VJ. HOGLike-L1/L2 uses 8 × 8 pixel pooling regions, 6 oriented gradients, 1 gradient magnitude, and level 1/2 decision trees (1/3 threshold comparisons respectively). A level-1 tree emulates the non-linearity in the original HOG+linear SVM features <ref type="bibr" target="#b0">[1]</ref>. HOGLike+LUV is identical to HOGLike, but with additional LUV colour channels (10 feature channels total). SquaresChnFtrs is the baseline described in the beginning of the experiments section ( §4). It is similar to HOGLike+LUV but the size of the square pooling regions is not restricted. SquaresChnFtrs+DCT is inspired by <ref type="bibr" target="#b59">[60]</ref>. We expand the ten HOG+LUV channels into 40 channels by convolving each of the 10 channels with three DCT (discrete cosine transform) filters (7 × 7 pixels), and storing the absolute value of the filter responses as additional feature channels. The three DCT basis functions we use as 2d-filters correspond to the lowest spatial frequencies. We name this variant SquaresChnFtrs+DCT and it serves as reference point for the performance improvement that can be obtained by increasing the number of channels.</p><p>7 Complementarity of approaches <ref type="table" target="#tab_7">Table 3</ref> contains the detailed results of combining different approaches with a strong baseline, related to section 4.2 of the main paper. Katamari-v1 combines all three listed approaches with SquaresChnFtrs. We train and test on the Caltech-USA dataset. It can be noticed that the obtained improvement is    </p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 3</head><label>3</label><figDesc>and</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 3 :</head><label>3</label><figDesc>Caltech-USA detection results.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head></head><label></label><figDesc>s D B N -I s o l M F + M o t io n + 2 P e d v s M u lt iF t r + M o t io n M u lt iR e s C + 2 P e d v s M u lt iR e s C M O C O v s H O G L B P + L a t S v m -v points (higher is better) Relative improvement on Caltech-USA reasonable set More data Context</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Figure 6 :</head><label>6</label><figDesc>Caltech-USA training set performance. (I)/(C) indicates using INRIA/Caltech-USA training set.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>Figure 7 :Figure 8 :</head><label>78</label><figDesc>Some of the top quality detection methods for Caltech-USA. See section 4.2. Pedestrian detection on the KITTI dataset.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_7"><head>Figure 9 :</head><label>9</label><figDesc>Effect of features on detection performance. (I)/(C) indicates using INRIA/Caltech-USA training set respectively. very close to the sum of individual gains, showing that these approaches are quite complementary amongst each other.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head></head><label></label><figDesc>arXiv:1411.4304v1 [cs.CV] 16 Nov 2014 (a) INRIA test set (b) Caltech-USA test set (c) KITTI test set</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>table 1</head><label>1</label><figDesc>PoseInv [11] 86.32% -HOG I+ LatSvm-V1 [12] 79.78% DPM</figDesc><table><row><cell>Method MR</cell><cell>F a m il y</cell><cell>F e a t u r e s C la s s ifi e r C o n t e x t D e e p</cell><cell>P a r t s M -S c a le s M o r e d a t a</cell><cell>F e a t . ty p e</cell><cell>T r a in in g</cell></row><row><cell cols="2">VJ [9] 94.73% DF</cell><cell></cell><cell></cell><cell>Haar</cell><cell>I</cell></row><row><cell cols="2">Shapelet [10] 91.37% -</cell><cell></cell><cell></cell><cell></cell><cell></cell></row><row><cell></cell><cell></cell><cell></cell><cell></cell><cell>HOG</cell><cell>P</cell></row><row><cell cols="2">ConvNet [13] 77.20% DN</cell><cell></cell><cell></cell><cell>Pixels</cell><cell>I</cell></row><row><cell cols="2">FtrMine [14] 74.42% DF</cell><cell></cell><cell></cell><cell>HOG+Color</cell><cell>I</cell></row><row><cell cols="2">HikSvm [15] 73.39% -</cell><cell></cell><cell></cell><cell>HOG</cell><cell>I</cell></row><row><cell cols="2">HOG [1] 68.46% -</cell><cell></cell><cell></cell><cell>HOG</cell><cell>I</cell></row><row><cell cols="2">MultiFtr [16] 68.26% DF</cell><cell></cell><cell></cell><cell>HOG+Haar</cell><cell>I</cell></row><row><cell cols="2">HogLbp [17] 67.77% -</cell><cell></cell><cell></cell><cell>HOG+LBP</cell><cell>I</cell></row><row><cell cols="2">AFS+Geo [18] 66.76% -</cell><cell></cell><cell></cell><cell>Custom</cell><cell>I</cell></row><row><cell cols="2">AFS [18] 65.38% -</cell><cell></cell><cell></cell><cell>Custom</cell><cell>I</cell></row><row><cell cols="2">LatSvm-V2 [19] 63.26% DPM</cell><cell></cell><cell></cell><cell>HOG</cell><cell>I</cell></row><row><cell cols="2">Pls [20] 62.10% -</cell><cell></cell><cell></cell><cell>Custom</cell><cell>I</cell></row><row><cell cols="2">MLS [21] 61.03% DF</cell><cell></cell><cell></cell><cell></cell><cell></cell></row><row><cell></cell><cell></cell><cell></cell><cell></cell><cell>HOG+LUV</cell><cell>I</cell></row><row><cell cols="2">Franken [32] 48.68% DF</cell><cell></cell><cell></cell><cell>HOG+LUV</cell><cell>I</cell></row><row><cell cols="2">MultiResC [33] 48.45% DPM</cell><cell></cell><cell></cell><cell>HOG</cell><cell>C</cell></row><row><cell cols="2">Roerei [31] 48.35% DF</cell><cell></cell><cell></cell><cell>HOG+LUV</cell><cell>I</cell></row><row><cell cols="2">DBN−Mut [34] 48.22% DN</cell><cell></cell><cell></cell><cell>HOG</cell><cell>C</cell></row><row><cell cols="2">MF+Motion+2Ped [35] 46.44% DF</cell><cell></cell><cell></cell><cell>Many+Flow</cell><cell>I+</cell></row><row><cell cols="2">MOCO [36] 45.53% -</cell><cell></cell><cell></cell><cell>HOG+LBP</cell><cell>C</cell></row><row><cell cols="2">MultiSDP [37] 45.39% DN</cell><cell></cell><cell></cell><cell>HOG+CSS</cell><cell>C</cell></row><row><cell cols="2">ACF-Caltech [29] 44.22% DF</cell><cell></cell><cell></cell><cell>HOG+LUV</cell><cell>C</cell></row><row><cell cols="2">MultiResC+2Ped [35] 43.42% DPM</cell><cell></cell><cell></cell><cell>HOG</cell><cell>C+</cell></row><row><cell cols="2">WordChannels [38] 42.30% DF</cell><cell></cell><cell></cell><cell>Many</cell><cell>C</cell></row><row><cell cols="2">MT-DPM [39] 40.54% DPM</cell><cell></cell><cell></cell><cell>HOG</cell><cell>C</cell></row><row><cell cols="2">JointDeep [40] 39.32% DN</cell><cell></cell><cell></cell><cell cols="2">Color+Gradient C</cell></row><row><cell cols="2">SDN [41] 37.87% DN</cell><cell></cell><cell></cell><cell>Pixels</cell><cell>C</cell></row><row><cell cols="2">MT-DPM+Context [39] 37.64% DPM</cell><cell></cell><cell></cell><cell>HOG</cell><cell>C+</cell></row><row><cell cols="2">ACF+SDt [42] 37.34% DF</cell><cell></cell><cell></cell><cell>ACF+Flow</cell><cell>C+</cell></row><row><cell cols="2">SquaresChnFtrs [31] 34.81% DF</cell><cell></cell><cell></cell><cell>HOG+LUV</cell><cell>C</cell></row><row><cell cols="2">InformedHaar [43] 34.60% DF</cell><cell></cell><cell></cell><cell>HOG+LUV</cell><cell>C</cell></row><row><cell cols="2">Katamari-v1 22.49% DF</cell><cell></cell><cell></cell><cell></cell><cell></cell></row></table><note>together provide a quantitative and qualitative overview over 40+ methods whose results are published on the Caltech pedestrian detec- tion benchmark (July 2014). Methods marked in italic are our newly trainedGradients IHOG I MultiFtr+CSS [22] 60.89% DFMany T FeatSynth [23] 60.16% -Custom I pAUCBoost [24] 59.66% DFHOG+COV I FPDW [25] 57.40% DFHOG+LUV I ChnFtrs [26] 56.34% DFHOG+LUV I CrossTalk [27] 53.88% DFHOG+LUV I DBN−Isol [28] 53.14% DNHOG I ACF [29] 51.36% DFHOG+LUV I RandForest [30] 51.17% DFHOG+LBP I&amp;C MultiFtr+Motion [22] 50.88% DFMany+Flow T SquaresChnFtrs [31] 50.17% DFHOG+Flow C+</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_4"><head>Table 2 :</head><label>2</label><figDesc>Effect of training set over the detection quality. Bold indicates second best training set for each test set, except for ETH where bold indicates the best training set.</figDesc><table><row><cell>For real world application bey-</cell><cell></cell><cell></cell><cell></cell><cell></cell></row><row><cell>ond a specific benchmark, the generalisation capability of a model is key. In that sense re-</cell><cell>Test set</cell><cell cols="4">Training set INRIA Caltech-USA KITTI</cell></row><row><cell>sults of models trained on IN-</cell><cell></cell><cell>INRIA</cell><cell cols="3">.42 % 60.50 % 55.83 %</cell></row><row><cell>RIA and tested on Caltech-</cell><cell cols="5">Caltech-USA 50.17 % 34 .81 % 61.19 %</cell></row><row><cell>USA are more relevant than</cell><cell></cell><cell>KITTI</cell><cell cols="3">38.61 % 28.65 % 44 .42 %</cell></row><row><cell>the ones trained (and tested)</cell><cell></cell><cell>ETH</cell><cell>56.27 %</cell><cell>76.11%</cell><cell>61.19 %</cell></row><row><cell>on Caltech-USA.</cell><cell></cell><cell></cell><cell></cell><cell></cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_7"><head>Table 3 :</head><label>3</label><figDesc>Complementarity between different extensions of the SquaresChnFtrs strong baseline. Results in MR (lower is better). Improvement in MR percent points. Expected improvement is the direct sum of individual improvements.</figDesc><table><row><cell>Method</cell><cell>Results</cell><cell>Improvement</cell><cell>Expected improvement</cell></row><row><cell>SquaresChnFtrs</cell><cell>34.81%</cell><cell>-</cell><cell>-</cell></row><row><cell>+DCT</cell><cell>31.28%</cell><cell>3.53</cell><cell>-</cell></row><row><cell>+SDt [33]</cell><cell>30.34%</cell><cell>4.47</cell><cell>-</cell></row><row><cell>+2Ped [35]</cell><cell>29.42%</cell><cell>5.39</cell><cell>-</cell></row><row><cell>+DCT+2Ped</cell><cell>27.40%</cell><cell>7.41</cell><cell>8.92</cell></row><row><cell>+SDt+2Ped</cell><cell>26.68%</cell><cell>8.13</cell><cell>9.86</cell></row><row><cell>+DCT+SDt</cell><cell>25.24%</cell><cell>9.57</cell><cell>8.00</cell></row><row><cell>Katamari-v1</cell><cell>22.49%</cell><cell>12.32</cell><cell>13.39</cell></row></table><note></note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="2">This question echoes with the current state of the art in deep learning, too.</note>
+		</body>
+		<back>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Histograms of oriented gradients for human detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Dalal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Triggs</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<monogr>
+		<title level="m" type="main">A mobile vision system for robust multi-person tracking</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Ess</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Leibe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Schindler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Van Gool</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2008-06" />
+			<publisher>CVPR, IEEE Press</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<title level="m" type="main">Multi-cue onboard pedestrian detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Wojek</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Walk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Schiele</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<monogr>
+		<title level="m" type="main">Monocular pedestrian detection: Survey and experiments</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Enzweiler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">M</forename><surname>Gavrila</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2009" />
+			<publisher>PAMI</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<monogr>
+		<title level="m" type="main">Dense stereo-based roi generation for pedestrian detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Keller</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Fernandez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Gavrila</surname></persName>
+		</author>
+		<editor>DAGM.</editor>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<monogr>
+		<title level="m" type="main">Pedestrian detection: A benchmark</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dollar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Wojek</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Schiele</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Perona</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Are we ready for autonomous driving? the kitti vision benchmark suite</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Geiger</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Lenz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Urtasun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Conference on Computer Vision and PatternRecognition (CVPR</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<title level="m" type="main">Pedestrian detection: An evaluation of the state of the art</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dollár</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Wojek</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Schiele</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Perona</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2011" />
+			<publisher>TPAMI</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<monogr>
+		<title level="m" type="main">Robust real-time face detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Viola</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Jones</surname></persName>
+		</author>
+		<editor>IJCV.</editor>
+		<imprint>
+			<date type="published" when="2004" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Detecting pedestrians by learning shapelet features</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Sabzmeydani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Mori</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">A pose-invariant descriptor for human detection and segmentation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Lin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Davis</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ECCV</title>
+		<imprint>
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<monogr>
+		<title level="m" type="main">A discriminatively trained, multiscale, deformable part model</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Felzenszwalb</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Mcallester</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Ramanan</surname></persName>
+		</author>
+		<editor>CVPR.</editor>
+		<imprint>
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<title level="m" type="main">Pedestrian detection with unsupervised multi-stage feature learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Sermanet</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Chintala</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+		<editor>CVPR.</editor>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Feature mining for image classification</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dollár</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Tu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><forename type="middle">T</forename><surname>Belongie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<monogr>
+		<title level="m" type="main">Classification using intersection kernel support vector machines is efficient</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Maji</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Berg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Malik</surname></persName>
+		</author>
+		<editor>CVPR.</editor>
+		<imprint>
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">A performance evaluation of single and multi-feature people detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Wojek</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Schiele</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">DAGM</title>
+		<imprint>
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<monogr>
+		<title level="m" type="main">An hog-lbp human detector with partial occlusion handling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Han</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Yan</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Fast multiple-part based object detection using kd-ferns</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Levi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Silberstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bar-Hillel</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">In: CVPR</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<monogr>
+		<title level="m" type="main">Object detection with discriminatively trained part-based models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Felzenszwalb</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Girshick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Mcallester</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Ramanan</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2010" />
+			<publisher>PAMI</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<title level="m" type="main">Human detection using partial least squares analysis</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Schwartz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kembhavi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Harwood</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">S</forename><surname>Davis</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Improving object localization using macrofeature layout selection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Nam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Han</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Han</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICCV, Visual Surveillance Workshop</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<monogr>
+		<title level="m" type="main">New features and insights for pedestrian detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Walk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Majer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Schindler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Schiele</surname></persName>
+		</author>
+		<editor>CVPR.</editor>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<monogr>
+		<title level="m" type="main">Part-based feature synthesis for human detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bar-Hillel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Levi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Krupka</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Goldberg</surname></persName>
+		</author>
+		<editor>ECCV.</editor>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<monogr>
+		<title level="m" type="main">Efficient pedestrian detection by directly optimize the partial area under the roc curve</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Paisitkriangkrai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Shen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Van Den Hengel</surname></persName>
+		</author>
+		<editor>ICCV.</editor>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">The fastest pedestrian detector in the west</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dollár</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Belongie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Perona</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">BMVC</title>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<monogr>
+		<title level="m" type="main">Integral channel features</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dollár</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Tu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Perona</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Belongie</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Crosstalk cascades for frame-rate pedestrian detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dollár</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Appel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Kienzle</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ECCV</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">A discriminative deep model for pedestrian detection with occlusion handling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Ouyang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Wang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<monogr>
+		<title level="m" type="main">Fast feature pyramids for object detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dollár</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Appel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Belongie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Perona</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2014" />
+			<publisher>PAMI</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<monogr>
+		<title level="m" type="main">Random forests of local experts for pedestrian detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Marin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Vazquez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lopez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Amores</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Leibe</surname></persName>
+		</author>
+		<editor>ICCV.</editor>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<monogr>
+		<title level="m" type="main">Seeking the strongest rigid detector</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Benenson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Mathias</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Tuytelaars</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Van Gool</surname></persName>
+		</author>
+		<editor>CVPR.</editor>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">Handling occlusions with franken-classifiers</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Mathias</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Benenson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Timofte</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Van Gool</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">In: ICCV</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Multiresolution models for object detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Park</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Ramanan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Fowlkes</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ECCV</title>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<analytic>
+		<title level="a" type="main">Modeling mutual visibility relationship with a deep model in pedestrian detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Ouyang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Zeng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Wang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">In: CVPR</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">Single-pedestrian detection aided by multi-pedestrian detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Ouyang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Wang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<analytic>
+		<title level="a" type="main">Detection evolution with multi-order contextual co-occurrence</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Ding</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Xiao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">X</forename><surname>Han</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">In: CVPR</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<analytic>
+		<title level="a" type="main">Multi-stage contextual deep learning for pedestrian detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Zeng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Ouyang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Wang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">In: ICCV</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<monogr>
+		<title level="m" type="main">Word channel based multiscale pedestrian detection without image resizing and using only one classifier</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">D</forename><surname>Costea</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Nedevschi</surname></persName>
+		</author>
+		<editor>CVPR.</editor>
+		<imprint>
+			<date type="published" when="2014-06" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<monogr>
+		<title level="m" type="main">Robust multi-resolution pedestrian detection in traffic scenes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Yan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Lei</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Liao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">Z</forename><surname>Li</surname></persName>
+		</author>
+		<editor>CVPR.</editor>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">Joint deep learning for pedestrian detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Ouyang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Wang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICCV</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<monogr>
+		<title level="m" type="main">Switchable deep network for pedestrian detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Luo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Tian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Tang</surname></persName>
+		</author>
+		<editor>CVPR.</editor>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<monogr>
+		<title level="m" type="main">Exploring weak stabilization for motion feature extraction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Park</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">L</forename><surname>Zitnick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Ramanan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dollár</surname></persName>
+		</author>
+		<editor>CVPR.</editor>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<monogr>
+		<title level="m" type="main">Informed haar-like features improve pedestrian detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Bauckhage</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">B</forename><surname>Cremers</surname></persName>
+		</author>
+		<editor>CVPR.</editor>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<monogr>
+		<title level="m" type="main">Detecting pedestrians using patterns of motion and appearance</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Viola</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Jones</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Snow</surname></persName>
+		</author>
+		<editor>CVPR.</editor>
+		<imprint>
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<analytic>
+		<title level="a" type="main">The benefits of dense stereo for pedestrian detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">G</forename><surname>Keller</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Enzweiler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Rohrbach</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Fernandez Llorca</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Schnorr</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">M</forename><surname>Gavrila</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Intelligent Transportation Systems</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<monogr>
+		<title level="m" type="main">Robust multi-person tracking from a mobile platform</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Ess</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Leibe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Schindler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Van Gool</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2009" />
+			<publisher>PAMI</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b46">
+	<monogr>
+		<title level="m" type="main">Pedestrian detection combining rgb and dense lidar data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Premebida</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Carreira</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Batista</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">U</forename><surname>Nunes</surname></persName>
+		</author>
+		<editor>IROS.</editor>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b47">
+	<analytic>
+		<title level="a" type="main">A multilevel mixture-of-experts framework for pedestrian classification</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Enzweiler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Gavrila</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Image Processing</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b48">
+	<monogr>
+		<title level="m" type="main">Auto-context and its application to high-level vision tasks and 3d brain image segmentation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Tu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Bai</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2010" />
+			<publisher>PAMI</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b49">
+	<monogr>
+		<title level="m" type="main">The fastest deformable part model for object detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Yan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Lei</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Wen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">Z</forename><surname>Li</surname></persName>
+		</author>
+		<editor>CVPR.</editor>
+		<imprint>
+			<date type="published" when="2014-06" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b50">
+	<analytic>
+		<title level="a" type="main">Detecting objects using deformation dictionaries</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Hariharan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">L</forename><surname>Zitnick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dollár</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b51">
+	<monogr>
+		<title level="m" type="main">Using a deformation field model for localizing faces and facial points under weak supervision</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Pedersoli</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Tuytelaars</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">V</forename><surname>Gool</surname></persName>
+		</author>
+		<editor>CVPR.</editor>
+		<imprint>
+			<date type="published" when="2014-06" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b52">
+	<monogr>
+		<title level="m" type="main">Pedestrian detection at 100 frames per second</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Benenson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Mathias</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Timofte</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Van Gool</surname></persName>
+		</author>
+		<editor>CVPR.</editor>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b53">
+	<monogr>
+		<title level="m" type="main">Rich feature hierarchies for accurate object detection and semantic segmentation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Girshick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Donahue</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Darrell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Malik</surname></persName>
+		</author>
+		<idno>arXiv.</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b54">
+	<monogr>
+		<title level="m" type="main">Overfeat: Integrated recognition, localization and detection using convolutional networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Sermanet</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Eigen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Mathieu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Fergus</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+		<editor>ICLR.</editor>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b55">
+	<monogr>
+		<title level="m" type="main">Recurrent convolutional neural networks for scene labeling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Pinheiro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Collobert</surname></persName>
+		</author>
+		<editor>JMLR.</editor>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b56">
+	<monogr>
+		<title level="m" type="main">From generic to specific deep representations for visual recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Azizpour</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">S</forename><surname>Razavian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sullivan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Maki</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Carlsson</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2014" />
+			<publisher>CoRR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b57">
+	<analytic>
+		<title level="a" type="main">Sketch tokens: A learned mid-level representation for contour and object detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Lim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">L</forename><surname>Zitnick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dollár</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">In: CVPR</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b58">
+	<monogr>
+		<title level="m" type="main">Strengthening the effectiveness of pedestrian detection with spatially pooled features</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Paisitkriangkrai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Shen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Van Den Hengel</surname></persName>
+		</author>
+		<editor>ECCV.</editor>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b59">
+	<analytic>
+		<title level="a" type="main">Local decorrelation for improved detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Nam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dollár</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">H</forename><surname>Han</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Nips</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

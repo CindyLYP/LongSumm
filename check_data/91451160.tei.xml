@@ -1,0 +1,1003 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">The MADlib Analytics Library or MAD Skills, the SQL</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Joseph</forename><forename type="middle">M</forename><surname>Hellerstein</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">U</forename><forename type="middle">C</forename><surname>Berkeley</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christoper</forename><surname>Ré</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Florian</forename><surname>Schoppmann</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">U</forename><surname>Florida</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Eugene</forename><surname>Fratkin</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aleksander</forename><surname>Gorajek</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kee</forename><forename type="middle">Siong</forename><surname>Ng</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Caleb</forename><surname>Welton</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">U</forename><surname>Wisconsin</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kun</forename><surname>Li</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Arun</forename><surname>Kumar</surname></persName>
+						</author>
+						<author>
+							<affiliation key="aff0">
+								<orgName type="institution">U. Wisconsin</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff1">
+								<address>
+									<country>U. Florida</country>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">The MADlib Analytics Library or MAD Skills, the SQL</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:42+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<textClass>
+				<keywords>Supervised Learning Linear Regression Logistic Regression Naive Bayes Classification Decision Trees (C4.5) Support Vector Machines Unsupervised Learning k-Means Clustering SVD Matrix Factorization Latent Dirichlet Allocation Association Rules Decriptive Statistics Count-Min Sketch Flajolet-Martin Sketch Data Profiling Quantiles Support Modules Sparse Vectors Array Operations Conjugate Gradient Optimization</keywords>
+			</textClass>
+			<abstract>
+				<p>MADlib is a free, open source library of in-database analytic methods. It provides an evolving suite of SQL-based algorithms for machine learning, data mining and statistics that run at scale within a database engine, with no need for data import/export to other tools. The goal is for MADlib to eventually serve a role for scalable database systems that is similar to the CRAN library for R: a community repository of statistical methods, this time written with scale and parallelism in mind. In this paper we introduce the MADlib project, including the background that led to its beginnings, and the motivation for its open source nature. We provide an overview of the library&apos;s architecture and design patterns, and provide a description of various statistical methods in that context. We include performance and speedup results of a core design pattern from one of those methods over the Greenplum parallel DBMS on a modest-sized test cluster. We then report on two initial efforts at incorporating academic research into MADlib, which is one of the project&apos;s goals.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.">INTRODUCTION: FROM WAREHOUSING TO SCIENCE</head><p>Until fairly recently, large databases were used mainly for accounting purposes in enterprises, supporting financial record-keeping and reporting at various levels of granularity. Data Warehousing was the name given to industry practices for these database workloads. Accounting, by definition, involves significant care and attention to detail. Data Warehousing practices followed suit by encouraging careful and comprehensive database design, and by following exacting policies regarding the quality of data loaded into the database. Attitudes toward large databases have been changing quickly in the past decade, as the focus of large database usage has shifted from accountancy to analytics. The need for correct accounting and data warehousing practice has not gone away, but it is becoming a shrinking fraction of the volume-and the value-of large-scale data management. The emerging trend focuses on the use of a wide range of potentially noisy data to support predictive analytics, provided via statistical models and algorithms. Data Science is a name that is gaining currency for the industry practices evolving around these workloads.</p><p>Data scientists make use of database engines in a very different way than traditional data warehousing professionals. Rather than carefully designing global schemas and "repelling" data until it is integrated, they load data into private schemas in whatever form is convenient. Rather than focusing on simple OLAP-style drill-down reports, they implement rich statistical models and algorithms in the database, using extensible SQL as a language for orchestrating data movement between disk, memory, and multiple parallel machines. In short, for data scientists a DBMS is a scalable analytics runtimeone that is conveniently compatible with the database systems widely used for transactions and accounting.</p><p>In 2008, a group of us from the database industry, consultancy, academia, and end-user analytics got together to describe this usage pattern as we observed it in the field. We dubbed it MAD, an acronym for the Magnetic (as opposed to repellent) aspect of the platform, the Agile design patterns used for modeling, loading and iterating on data, and the Deep statistical models and algorithms being used. The "MAD Skills" paper that resulted described this pattern, and included a number of non-trivial analytics techniques implemented as simple SQL scripts <ref type="bibr" target="#b10">[11]</ref>.</p><p>After the publication of the paper, significant interest emerged not only in its design aspects, but also in the actual SQL implementations of statistical methods. This interest came from many directions: customers were requesting it of consultants and vendors, and academics were increasingly publishing papers on the topic. What was missing was a software framework to focus the energy of the community, and connect the various interested constituencies. This led to the design of MADlib, the subject of this paper.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Introducing MADlib</head><p>MADlib is a library of analytic methods that can be installed and executed within a relational database engine that supports extensible SQL. A snapshot of the current contents of MADlib including methods and ports is provided in <ref type="table">Table 1</ref>. This set of methods and ports is intended to grow over time.</p><p>The methods in MADlib are designed both for in-or out-ofcore execution, and for the shared-nothing, "scale-out" parallelism offered by modern parallel database engines, ensuring that computation is done close to the data. The core functionality is written in declarative SQL statements, which orchestrate data movement to and from disk, and across networked machines. Single-node inner loops take advantage of SQL extensibility to call out to highperformance math libraries in user-defined scalar and aggregate functions. At the highest level, tasks that require iteration and/or <ref type="table">Table 1</ref>: Methods provided in MADlib v0. <ref type="bibr" target="#b2">3</ref>. This version has been tested on two DBMS platforms: PostgreSQL (single-node open source) and Greenplum Database (massively parallel commercial system, free and fully-functional for research use.) structure definition are coded in Python driver routines, which are used only to kick off the data-rich computations that happen within the database engine.</p><p>MADlib is hosted publicly at github, and readers are encouraged to browse the code and documentation via the MADlib website http://madlib.net. The initial MADlib codebase reflects contributions from both industry (Greenplum) and academia (UC Berkeley, the University of Wisconsin, and the University of Florida). Code management and Quality Assurance efforts have been contributed by Greenplum. At this time, the project is ready to consider contributions from additional parties, including both new methods and ports to new platforms.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">GOALS OF THE PROJECT</head><p>The primary goal of the MADlib open source project is to accelerate innovation and technology transfer in the Data Science community via a shared library of scalable in-database analytics, much as the CRAN library serves the R community <ref type="bibr" target="#b31">[32]</ref>. Unlike CRAN, which is customized to the R analytics engine, we hope that MADlib's grounding in standard SQL can lead to community ports to a variety of parallel database engines.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1">Why Databases?</head><p>For decades, statistical packages like SAS, Matlab and R have been the key tools for deep analytics, and the practices surrounding these tools have been elevated into widely-used traditional methodologies. One standard analytics methodology advocated in this domain is called SEMMA: Sample, Explore, Modify, Model, Assess. The "EMMA" portion of this cycle identifies a set of fundamental tasks that an analyst needs to perform, but the first, "S" step makes less and less sense in many settings today. The costs of computation and storage are increasingly cheap, and entire data sets can often be processed efficiently by a cluster of computers. Meanwhile, competition for extracting value from data has become increasingly refined. Consider fiercely competitive application domains like online advertising or politics. It is of course important to target "typical" people (customers, voters) that would be captured by sampling the database. But the fact that SEMMA is standard practice means that optimizing for a sample provides no real competitive advantage. Winning today requires extracting advantages in the long tail of "special interests", a practice known as "microtargeting", "hypertargeting" or "narrowcasting". In that context, the first step of SEMMA essentially defeats the remaining four steps, leading to simplistic, generalized decision-making that may not translate well to small populations in the tail of the distribution. In the era of "Big Data", this argument for enhanced attention to long tails applies to an increasing range of use cases.</p><p>Driven in part by this observation, momentum has been gathering around efforts to develop scalable full-dataset analytics. One popular alternative is to push the statistical methods directly into new parallel processing platforms-notably, Apache Hadoop. For example, the open source Mahout project aims to implement machine learning tools within Hadoop, harnessing interest in both academia and industry <ref type="bibr" target="#b9">[10,</ref><ref type="bibr" target="#b2">3]</ref>. This is certainly a plausible path to a solution, and Hadoop is being advocated as a promising approach even by major database players, including EMC/Greenplum, Oracle and Microsoft.</p><p>At the same time that the Hadoop ecosystem has been evolving, the SQL-based analytics ecosystem has grown rapidly as well, and large volumes of valuable data are likely to pour into SQL systems for many years to come. There is a rich ecosystem of tools, knowhow, and organizational requirements that encourage this. For these cases, it would be helpful to push statistical methods into the DBMS. And as we will see, massively parallel databases form a surprisingly useful platform for sophisticated analytics. MADlib currently targets this environment of in-database analytics.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">Why Open Source?</head><p>From the beginning, MADlib was designed as an open source project with corporate backing, rather than a closed-source corporate effort with academic consulting. This decision was motivated by a number of factors, including the following:</p><p>• The benefits of customization: Statistical methods are rarely used as turnkey solutions. As a result, it is common for data scientists to want to modify and adapt canonical models and methods (e.g., regression, classification, clustering) to their own purposes. This is a very tangible benefit of open source libraries over traditional closed-source packages. Moreover, in an open source community there is a process and a set of positive incentives for useful modifications to be shared back to the benefit of the entire community.</p><p>• Valuable data vs. valuable software: In many emerging business sectors, the corporate value is captured in the data itself, not in the software used to analyze that data. Indeed, it is in the interest of these companies to have the open source community adopt and improve their software. open source efforts can also be synergistic for vendors that sell commercial software, as evidenced by companies like EMC/Greenplum, Oracle, Microsoft and others beginning to provide Apache Hadoop alongside their commercial databases. Most IT shops today run a mix of open source and proprietary software, and many software vendors are finding it wise to position themselves intelligently in that context. Meanwhile, for most database system vendors, their core competency is not in statistical methods, but rather in the engines that support those methods, and the service industry that evolves around them. For these vendors, involvement and expertise with an open source library like MADlib is an opportunity to expand their functionality and service offerings.</p><p>• Closing the research-to-adoption loop: Very few traditional database customers have the capacity to develop significant in-house research into computing or data science. On the other hand, it is hard for academics doing computing research to understand and influence the way that analytic processes are done in the field. An open source project like MADlib has the potential to connect academic researchers not only to industrial software vendors, but also directly to the end-users of analytics software. This can improve technology transfer from academia into practice without requiring database software vendors to serve as middlemen. It can similarly enable end-users in specific application domains to influence the research agenda in academia.</p><p>• Leveling the playing field, encouraging innovation: Over the past two decades, database software vendors have developed proprietary data mining toolkits consisting of textbook algorithms. It is hard to assess their relative merits. Meanwhile, other communities in machine learning and internet advertising have also been busily innovating, but their code is typically not well packaged for reuse, and the code that is available was not written to run in a database system. None of these projects has demonstrated the vibrancy and breadth we see in the open source community surrounding R and its CRAN package. The goal of MADlib is to fill this gap: bring the database community up to a baseline level of competence on standard statistical algorithms, remove opportunities for proprietary FUD, and help focus a large community on innovation and technology transfer.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.3">A Model for Open Source Collaboration</head><p>The design of MADlib comes at a time when the connections between open source software and academic research seem particularly frayed. MADlib is designed in part as an experiment in binding these communities more tightly, to face current realities in software development.</p><p>In previous decades, many important open source packages originated in universities and evolved into significant commercial products. Examples include the Ingres and Postgres database systems, the BSD UNIX and Mach operating systems, the X Window user interfaces and the Kerberos authentication suite. These projects were characterized by aggressive application of new research ideas, captured in workable but fairly raw public releases that matured slowly with the help of communities outside the university. While all of the above examples were incorporated into commercial products, many of those efforts emerged years or decades after the initial open source releases, and often with significant changes.</p><p>Today, we expect successful open source projects to be quite mature, often comparable to commercial products. To achieve this level of maturity, most successful open source projects have one or more major corporate backers who pay some number of committers and provide professional support for Quality Assurance (QA). This kind of investment is typically made in familiar software packages, not academic research projects. Many of the most popular examples-Hadoop, Linux, OpenOffice-began as efforts to produce open source alternatives to well-identified, pre-existing commercial efforts.</p><p>MADlib is making an explicit effort to explore a new model for industry support of academic research via open source. Many academic research projects are generously supported by financial grants and gifts from companies. In MADlib, the corporate donation has largely consisted of a commitment to allocate significant professional software engineering time to bootstrap an open source sandbox for academic research and tech transfer to practice. This leverages a strength of industry that is not easily replicated by government and other non-profit funding sources. Companies can recruit high-quality, experienced software engineers with the attraction of well-compensated, long-term career paths. Equally important, software shops can offer an entire software engineering pipeline that cannot be replicated on campus: this includes QA processes and QA engineering staff. The hope is that the corporate staffing of research projects like MADlib can enable more impactful academic open source research, and speed technology transfer to industry.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.4">MADlib Status</head><p>MADlib is still young, currently (as of March, 2012) at Version 0.3. The initial versions have focused on establishing a baseline of useful functionality, while laying the groundwork for future evolution. Initial development began with the non-trivial work of building the general-purpose framework described in Section 3. Additionally, we wanted robust implementations of textbook methods that were most frequently requested from customers we met through contacts at Greenplum. Finally, we wanted to validate MADlib as a research vehicle, by fostering a small number of university groups working in the area to experiment with the platform and get their code disseminated (Section 5).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">MADLIB ARCHITECTURE</head><p>The core of traditional SQL-SELECT... FROM... WHERE... GROUP BY-is quite a powerful harness for orchestrating bulk data processing across one or many processors and disks. It is also a portable, native language supported by a range of widely-deployed open source and commercial database engines. This makes SQL an attractive framework for writing data-intensive programs. Ideally, we would like MADlib methods to be written entirely in straightforward and portable SQL. Unfortunately, the portable core of "vanilla" SQL is often not quite enough to express the kinds of algorithms needed for advanced analytics.</p><p>Many statistical methods boil down to linear algebra expressions over matrices. For relational databases to operate over very large matrices, this presents challenges at two scales. At a macroscopic scale, the matrices must be intelligently partitioned into chunks that can fit in memory on a single node. Once partitioned, the pieces can be keyed in such a way that SQL constructs can be used to orchestrate the movement of these chunks into and out of memory across one or many machines. At a microscopic scale, the database engine must invoke efficient linear algebra routines on the pieces of data it gets in core. To this end it has to have the ability to very quickly invoke well-tuned linear algebra methods.</p><p>We proceed to discuss issues involved at both of these levels in a bit more detail, and solutions we chose to implement in MADlib.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">Macro-Programming (Orchestration)</head><p>A scalable method for linear algebra depends upon divide-andconquer techniques: intelligent partitioning of the matrix, and a pattern to process the pieces and merge results back together. This partitioning and dataflow is currently outside the scope of a traditional query optimizer or database design tool. But there is a rich literature from scientific computing on these issues (e.g., <ref type="bibr" target="#b8">[9]</ref>) that database programmers can use to craft efficient in-database implementations. Once data is properly partitioned, database engines shine at orchestrating the resulting data movement of partitions and the piecewise results of computation.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1.1">User-Defined Aggregation</head><p>The most basic building block in the macro-programming of MADlib is the use of user-defined aggregates (UDAs). In general, aggregates-and the related window functions-are the natural way in SQL to implement mathematical functions that take as input the values of an arbitrary number of rows (tuples). DBMSs typically implement aggregates as data-parallel streaming algorithms. And there is a large body of recent work on online learning algorithms and model-averaging techniques that fit the computational model of aggregates well (see, e.g., <ref type="bibr" target="#b44">[45]</ref>).</p><p>Unfortunately, extension interfaces for user-defined aggregates vary widely across vendors and open source systems. Nonetheless, the aggregation paradigm (or in functional programming terms, "fold" or "reduce") is natural and ubiquitous, and we expect the basic algorithmic patterns for user-defined aggregates to be very portable. In most widely-used DBMSs (e.g., in PostgreSQL, MySQL, Greenplum, Oracle, SQL Server, Teradata), a user-defined aggregate consists of a well-known pattern of two or three user-defined functions:</p><p>1. A transition function that takes the current transition state and a new data point. It combines both into into a new transition state.</p><p>2. An optional merge function that takes two transition states and computes a new combined transition state. This function is only needed for parallel execution.</p><p>3. A final function that takes a transition state and transforms it into the output value.</p><p>Clearly, a user-defined aggregate is inherently data-parallel if the transition function is associative and the merge function returns the same result as if the transition function was called repeatedly for every individual element in the second state. Unfortunately, user-defined aggregates are not enough. In designing the high-level orchestration of data movement for analytics, we ran across two main limitations in standard SQL that we describe next. We addressed both these limitations using driver code written in simple script-based user-defined functions (UDFs), which in turn kick off more involved SQL queries. When implemented correctly, the performance of the scripting language code is not critical, since its logic is invoked only occasionally to kick off much larger bulk tasks that are executed by the core database engine.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1.2">Driver Functions for Multipass Iteration</head><p>The first problem we faced is the prevalence of "iterative" algorithms for many methods in statistics, which make many passes over a data set. Common examples include optimization methods like Gradient Descent and Markov Chain Monte Carlo (MCMC) simulation in which the number of iterations is determined by a data-dependent stopping condition at the end of each round. There are multiple SQL-based workarounds for this problem, whose applicability depends on the context. Counted Iteration via Virtual Tables. In order to drive a fixed number n of independent iterations, it is often simplest (and very efficient) to declare a virtual table with n rows (e.g., via PostgreSQL's generate series table function), and join it with a view representing a single iteration. This approach was used to implement m-of-n Bootstrap sampling in the original MAD Skills paper <ref type="bibr" target="#b10">[11]</ref>. It is supported in some fashion in a variety of DBMSs, sometimes by writing a simple table function consisting of a few lines of code. Window Aggregates for Stateful Iteration. For settings where the current iteration depends on previous iterations, SQL's windowed aggregate feature can be used to carry state across iterations. Wang et al. took this approach to implement in-database MCMC inference <ref type="bibr" target="#b40">[41]</ref> (Section 5.2). Unfortunately the level of support for window aggregates varies across SQL engines. Recursive Queries. Most generally, it is possible to use the recursion features of SQL to perform iteration with arbitrary stopping conditions-this was used by Wang et al. to implement Viterbi inference <ref type="bibr" target="#b41">[42]</ref> (Section 5.2). Unfortunately, like windowed aggregates, recursion support in SQL varies across database products, and does not form a reliable basis for portability. Driver Functions. None of the above methods provides both generality and portability. As a result, in MADlib we chose to implement complex iterative methods by writing a driver UDF in Python to control iteration, which passes state across iterations intelligently. A standard pitfall in this style of programming is for the driver code to pull a large amount of data out of the database; this becomes a scalability bottleneck since the driver code typically does not parallelize and hence pulls all data to a single node. We avoid this via a design pattern in which the driver UDF kicks off each iteration and stages any inter-iteration output into a temporary table via CREATE TEMP TABLE... AS SELECT... It then reuses the resulting temp table in subsequent iterations as needed. Final outputs are also often stored in temp tables unless they are small, and can be interrogated using small aggregate queries as needed. As a result, all large-data movement is done within the database engine and its buffer pool. Database engines typically provide efficient parallelism as well as buffering and spill files on disk for large temp tables, so this pattern is quite efficient in practice. Sections 4.2 and 4.3 provide discussion of this pattern in the context of specific algorithms.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1.3">Templated Queries</head><p>A second problem is a limitation of SQL's roots in first-order logic, which requires that queries be cognizant of the schema of their input tables, and produce output tables with a fixed schema. In many cases we want to write "templated" queries that work over arbitrary schemas, with the details of arity, column names and types to be filled in later.</p><p>For example, the MADlib profile module takes an arbitrary table as input, producing univariate summary statistics for each of its columns. The input schema to this module is not fixed, and the output schema is a function of the input schema (a certain number of output columns for each input column). To address this issue, we use Python UDFs to interrogate the database catalog for details of input tables, and then synthesize customized SQL queries based on templates to produce outputs. Simpler versions of this issue arise in most of our iterative algorithms.</p><p>Unfortunately, templated SQL relies on identifiers or expressions passed as strings to represent database objects like tables. As such, the DBMS backend will discover syntactical errors only when the generated SQL is executed, often leading to error messages that are enigmatic to the user. As a result, templated SQL necessitates that MADlib code perform additional validation and error handling up front, in order to not compromise usability. In the future we plan to support this pattern as a Python library that ships with MADlib and provides useful programmer APIs and user feedback.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">Micro-Programming: Data Representations and Inner Loops</head><p>In addition to doing the coarse-grained orchestration of chunks, the database engine must very efficiently invoke the single-node code that performs arithmetic on those chunks. For UDFs that operate at the row level (perhaps called multiple times per row), the standard practice is to implement them in C or C++. When computing dense matrix operations, these functions would make native calls to an open source library like LAPACK <ref type="bibr" target="#b1">[2]</ref> or Eigen <ref type="bibr" target="#b16">[17]</ref>.</p><p>Sparse matrices are not as well-handled by standard math libraries, and require more customization for efficient representations both on disk and in memory. We chose to write our own sparse matrix library in C for MADlib, which implements a run-length encoding scheme. Both of these solutions require careful low-level coding, and formed part of the overhead of getting MADlib started.</p><p>The specifics of a given method's linear algebra can be coded in a low-level way using loops of basic arithmetic in a language like C, but it is nicer if they can be expressed in a higher-level syntax that captures the semantics of the linear algebra at the level of matrices and arrays. We turn to this issue next.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">A C++ Abstraction Layer for UDFs</head><p>There are a number of complexities involved in writing C or C++based user-defined functions over a legacy DBMS like PostgreSQL, all of which can get in the way of maintainable, portable application logic. This complexity can be especially frustrating for routines whose pseudocode amounts to a short linear algebra expression that should result in a compact implementation. MADlib provides a C++ abstraction layer both to ease the burden of writing highperformance UDFs, and to encapsulate DBMS-specific logic inside the abstraction layer, rather than spreading the cost of porting across all the UDFs in the library. In brief, the MADlib C++ abstraction provides three classes of functionality: type bridging, resource management shims, and math library integration.</p><p>Type bridging is provided via an encapsulated mapping of C++ types and methods to database types and functions. UDFs can be written with standard C++ atomic types, as well as the vector and matrix types that are native to a high performance linear algebra library. (We have successfully layered multiple alternative libraries under this interface, and are currently using Eigen <ref type="bibr" target="#b16">[17]</ref>). The translation to and from database types (including composite types like double precision[] for vectors) is handled by the abstraction layer. Similarly, higher-order templated functions in C++ can be mapped to the appropriate object IDs of UDFs in the database, with the abstraction layer taking care of looking up the function in the database catalog, verifying argument lists, ensuring type-safety, etc.</p><p>The second aspect of the C++ abstraction layer is to provide a safe and robust standard runtime interface to DBMS-managed resources. This includes layering C++ object allocation/deallocation over DBMS-managed memory interfaces, providing shims between C++ exception handling and DBMS handlers, and correctly propagating system signals to and from the DBMS.</p><p>Finally, by incorporating proven third-party libraries, the C++ abstraction layer makes it easy for MADlib developers to write correct and performant code. For example, the Eigen linear algebra library contains well-tested and well-tuned code that makes use of the SIMD instruction sets (like SSE) found in today's CPUs. Likewise, the abstraction layer itself has been tuned for efficient value marshalling, and code based on it will automatically benefit from future improvements. By virtue of being a template library, the runtime and abstraction overhead is reduced to a minimum.</p><p>As an illustration of the high-level code one can write over our abstraction layer, Listings 1 and 2 show reduced, but fully functional code snippets that implement multiple linear regression (as discussed further in Section 4.1).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">EXAMPLES</head><p>To illustrate the above points, we look at three different algorithmic scenarios. The first is Linear Regression using Ordinary Least Squares (OLS), which is an example of a widely useful, simple single-pass aggregation technique. The second is binary Logistic Regression, another widely used technique, but one that employs an iterative algorithm. Finally, we look at k-means Clustering, an iterative algorithm with large intermediate states spread across machines.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Single-Pass: Ordinary Least Squares</head><p>In ordinary-least-squares (OLS) linear regression the goal is to fit a linear function to a set of points, with the objective of minimizing the sum of squared residuals. Formally, we are given points (x 1 , y 1 ), . . . , (x n , y n ), where x i ∈ R d and y i ∈ R, and our goal is to find the vector b that minimizes n i=1 (y i − b, x i ) 2 . OLS is one of the most fundamental methods in statistics. Typically, each y i is assumed to be an (independent) noisy measurement of b, x i , where b is an unknown but fixed vector and the noise is uncorrelated with mean 0 and unknown but fixed variance. Under these assumptions, b is the best linear unbiased estimate of b (Gauss-Markov). Under additional assumptions (normality, independence), b is also the maximum-likelihood estimate. Letting X denote the matrix whose rows are x T i , and defining y := (y 1 , . . . , y n ) T , it is well-known that the sum of squared residuals is minimized by b = (X T X) −1 X T y (for exposition purposes we assume the full-rank case here, though this is not a requirement for MADlib).</p><p>It has been observed before that computing b lends itself well to data-parallel implementations <ref type="bibr" target="#b9">[10]</ref>-in extensible database terms, it can be done with a simple user-defined aggregate. The principal observation is this:</p><formula xml:id="formula_0">X T X = n i=1 x i x T i and X T y = n i=1</formula><p>x i y i are just sums of transformations of each data point. Summation is associative, so data parallelism virtually comes for free-we can compute the per-process subsums of the previous expressions locally in each process, and then sum up all subsums during a secondphase aggregation. As a final non-parallelized step, we compute the inverse of X T X and then multiply with X T y. These final operations are comparatively cheap, since the number of independent variables (and thus the dimensions of X T X and X T y) is typically "small".</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.1">MADlib Implementation</head><p>We assume that data points are stored as (x DOUBLE PRECISION[], y DOUBLE PRECISION) tuples. Linear regression is then implemented as a user-defined aggregate with a transition and final function roughly as in Listings 1 and 2, respectively. (For compactness, we omitted finiteness checks and several output statistics in the example here.) The merge function, which is not shown, just adds all values in the transition states together. Running the code produces the following: Note that the linregr Python UDF produces a composite record type in the output, which is a feature of PostgreSQL and Greenplum. This would be easy to flatten into a string in a strictly relational implementation.</p><formula xml:id="formula_1">psql# SELECT (linregr(y, x)).* FROM data; -[ RECORD 1 ]+-------------------------------------------- coef | {1.</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Multi-Pass: (Binary) Logistic Regression</head><p>In (binary) logistic regression, we are given points (x 1 , y 1 ), . . . , (x n , y n ), where x i ∈ R d and y i ∈ {0, 1}, and our goal is to find the vector b that maximizes n i=1 σ((−1)  common method is to maximize the logarithm of the likelihood using Newton's method. In the case of logistic regression this reduces to iteratively reweighted least squares with iteration rule</p><formula xml:id="formula_2">y i +1 • b, x i ).</formula><formula xml:id="formula_3">β m+1 = (X T D m X) −1 X T D m z m .</formula><p>Here, the diagonal matrix D m and the vector z m are transformations of X and β m .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.1">MADlib Implementation</head><p>Each individual iteration can be implemented via a user-defined aggregate using linear regression as a blueprint. However, the handling of iterations and checking for convergence require a further outer loop. We therefore implement a driver UDF in Python. The control flow follows the high-level outline from Section 3.1.2 and is illustrated as an activity diagram in <ref type="figure" target="#fig_2">Figure 3</ref>. Here, the shaded shapes are executions of generated SQL, where current iteration is a template parameter that is substituted with the corresponding Python variable.</p><p>Specifically, the UDF first creates a temporary table for storing the inter-iteration states. Then, the Python code iteratively calls the UDA for updating the iteration state, each time adding a new row to the temporary table. Once the convergence criterion has been reached, the state is converted into the return value. The important point to note is that there is no data movement between the driver function and the database engine-all heavy lifting is done within the database engine.</p><p>Unfortunately, implementing logistic regression using a driver function leads to a different interface than the one we provided for linear regression:</p><p>SELECT * FROM logregr('y', 'x', 'data');</p><p>A problem with this implementation is that the logregr UDF is not an aggregate function and cannot be used in grouping constructs. To perform multiple logistic regressions at once, one needs to use a join construct instead. We intend to address this non-uniformity in interface in a future version of MADlib. We highlight the issue here in part to point out that SQL can be a somewhat "over-rich"  language. In many cases there are multiple equivalent patterns for constructing simple interfaces, but no well-accepted, uniform design patterns for the kind of algorithmic expressions we tend to implement in MADlib. We are refining these design patterns as we evolve the library.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">Large-State Iteration: k-Means</head><p>In k-means clustering, we are given n points x 1 , . . . , x n ∈ R d , and our goal is to position k centroids c 1 , . . . , c k ∈ R d so that the sum of squared distances between each point and its closest centroid is minimized. Formally, we wish to minimize n i=1 min k j=1 x i − c j 2 . Solving this problem exactly is usually prohibitively expensive (for theoretical hardness results see, e.g., <ref type="bibr" target="#b0">[1,</ref><ref type="bibr" target="#b22">23]</ref>). However, the localsearch heuristic proposed by Lloyd <ref type="bibr" target="#b20">[21]</ref> performs reasonably well both in theory and in practice <ref type="bibr" target="#b4">[5,</ref><ref type="bibr" target="#b3">4]</ref>. At a high level, it works as follows:</p><p>1. Seeding phase: Find initial positions for k centroids c 1 , . . . , c k .</p><p>2. Assign each point x 1 , . . . , x n to its closest centroid.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">Reposition each centroid to the barycenter (mean) of all points</head><p>assigned to it.</p><p>4. If no (or only very few) points got reassigned, stop. Otherwise, goto (2).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3.1">MADlib implementation</head><p>k-means has a natural implementation in SQL <ref type="bibr" target="#b28">[29]</ref>. Based on the assumption that we can always comfortably store k centroids in main memory, we can implement k-means similarly to logistic regression: Using a driver function that iteratively calls a user-defined aggregate. In the following, we take a closer look at this implementation. It is important to make a clear distinction between the inter-iteration state (the output of the UDA's final function) and intra-iteration state (as maintained by the UDA's transition and merge functions). During aggregation, the transition state contains both inter-and intra-iteration state, but only modifies the intra-iteration state. We only store k centroids in both the inter-and intra-iteration states, and consider the assignments of points to centroids as implicitly given.  In the transition function, we first compute the centroid that the current point was closest to at the beginning of the iteration using the inter-iteration state. We then update the barycenter of this centroid in the intra-iteration state. Only as the final step of the aggregate, the intra-iteration state becomes the new inter-iteration state.</p><p>Unfortunately, in order to check the convergence criterion that no or only few points got reassigned, we have to do two closest-centroid computations per point and iteration: First, we need to compute the closest centroid in the previous iteration and then the closest one in the current iteration. If we stored the closest points explicitly, we could avoid half of the closest-centroid calculations.</p><p>We can store points in a table called points that has a coords attribute containing the points' coordinates and has a second attribute for the current centroid id for the point. The iteration state stores the centroids' positions in an array of points called centroids. MADlib provides a UDF closest point(a,b) that determines the point in array a that is closest to b. Thus, we can make the point-to-centroid assignments explicit using the following SQL:</p><formula xml:id="formula_4">UPDATE points SET centroid_id = closest_point(centroids, coords)</formula><p>Ideally, we would like to perform the point reassignment and the repositioning with a single pass over the data. Unfortunately, this cannot be expressed in standard SQL. <ref type="bibr" target="#b0">1</ref> Therefore, while we can reduce the number of closest-centroid calculations by one half, PostgreSQL processes queries one-by-one (and does not perform cross-statement optimization), so it will need to make two passes over the data per one k-means iteration. In general, the performance benefit of explicitly storing points depends on the DBMS, the data, and the operating environment.</p><p>The pattern of updating temporary state is made a bit more awkward in PostgreSQL due to its legacy of versioned storage. Post-greSQL performs an update by first inserting a new row and then marking the old row as invisible <ref type="bibr" target="#b36">[37,</ref><ref type="bibr">Section 23.1.2]</ref>. As a result, While PostgreSQL and Greenplum provide an optional RETURNING clause for UPDATE commands, this returns only one row for each row affected by the UPDATE, and aggregates cannot be used within the RETURNING clause. Moreover, an UPDATE ... RETURNING cannot be used as a subquery.</p><p>for updates that touch many rows it is typically faster to copy the updated data into a new table (i.e., CREATE TABLE AS SELECT and DROP TABLE) rather than issue an UPDATE. These kinds of DBMS-specific performance tricks may merit encapsulation in an abstraction layer for SQL portability.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.4">Infrastructure Performance Trends</head><p>In its current beta version, MADlib has been tuned a fair bit over PostgreSQL and Greenplum, though much remains to be done. Here we report on some results for a basic scenario that exercises our core functionality, including the C++ abstraction layer, our ability to call out to linear algebra packages, and parallel speedup validation. We defer macro-benchmarking of MADlib's current methods to future work, that will focus on specific algorithm implementations.</p><p>The basic building block of MADlib is a user-defined aggregate, typically one that calls out to a linear algebra library. In order to evaluate the scalability of this construct, we ran linear regression over Greenplum's parallel DBMS on various data sizes, using a 24core test cluster we had available, which was outfitted with 144 GB of RAM over 51 TB of raw storage. This is obviously a relatively modest-sized cluster by today's standards, but it is sufficient to illuminate (a) our efforts at minimizing performance overheads, and (b) our ability to achieve appropriate parallel speedup.</p><p>For running linear regression as outlined in Section 4.1, we expect runtime O(k 3 + (n • k 2 )/p) where k is the number of independent variables, n is the number of observations, and p is the number of query processes. The k 3 time is needed for the matrix inversion, and the k 2 is needed for computing each outer product x i x T i and adding it to the running sum. It turns out that our runtime measurements fit these expectations quite well, and the constant factors are relatively small. See <ref type="figure" target="#fig_4">Figure 4</ref> and 5. In particular we note:</p><p>• The overhead for a single query is very low and only a fraction of a second. This also implies that we lose little in implementating iterative algorithms using driver functions that run multiple SQL queries.</p><p>• Given the previous points, the Greenplum database achieves perfect linear speedup in the example shown.</p><p>In the example, all data was essentially in the buffer cache, and disk I/O was not a limiting factor. This is quite typical in large parallel installations, since an analyst often runs a machine-learning algorithm several times with different parameters. Given massive amounts of main memory on each node in a well-provisioned cluster, much of the data should moreover remain in the cache. Finally, the computational cost per row grows at least quadratically, and thus will easily surpass I/O cost for complex models. As we compared various cluster sizes, numbers of independent variables and the respective execution times for previous versions of MADlib, the lesson we learned is that even though we anticipate non-trivial overhead by the DBMS, careful performance tuning-e.g., by making use of instruction-accurate profiling using Valgrind <ref type="bibr" target="#b26">[27]</ref>-still makes significant differences:</p><p>Our cluster is made up of four SuperMicro X8DTT-H server modules, each equipped with one six-core Intel Xeon X5670 processor, clocked at 2.93 GHz. While hyperthreading is enabled, we only run a single Greenplum "segment" (query process) per physical core. Each machine has 24 GB of RAM, an LSI MegaRAID 2108 "Raid On a Chip" controller with six attached 360 GB solid-state drives, and a Brocade 1020 converged network adapter. The operating system is Red Hat Enterprise Linux Server release 5.5 (Tikanga). On that we are running Greenplum used the Armadillo <ref type="bibr" target="#b34">[35]</ref> linear algebra library as a frontend for LAPACK/BLAS. It turns out that this version was much slower for two reasons: The BLAS library used was the default one shipped with CentOS 5, which is built from the untuned reference BLAS. Profiling and examining the critial code paths revealed that computing y T y for a row vector y is about three to four times slower than computing xx T for a column vector x of the same dimension (and the MADlib implementation unfortunately used to do the former). Interestingly, the same holds for Apple's Accelerate framework on Mac OS X, which Apple promises to be a tuned library. The second reason for the speed disadvantage is runtime overhead in the first incarnation of the C++ abstraction layer (mostly due to locking and calls into the DBMS backend).</p><p>• Version 0.3 has an updated linear-regression implementation that relies on the Eigen C++ linear algebra library and takes advantage of the fact that the matrix X T X is symmetric positive definite. Runtime overhead has been reduced, but some calls into the database backend still need better caching.</p><p>Other noteworthy results during our performance studies included that there are no measurable performance differences between Post-greSQL 9.1.1 (both in single and multi-user mode) and GP 4.1 in running the aggregate function on a single core. Moreover, while testing linear/logistic-regression execution times, single-core performance of even laptop CPUs (like the Core i5 540M) did not differ much from today's server CPUs (like the Xeon family). Typically the differences were even less than what the difference in clock speeds might have suggested, perhaps due to compiler and/or architecture issues that we have yet to unpack.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.">UNIVERSITY RESEARCH AND MADLIB</head><p>An initial goal of the MADlib project was to engage closely with academic researchers, and provide a platform and distribution channel for their work. To that end, we report on two collaborations over the past years. We first discuss a more recent collaboration with researchers at the University of Wisconsin. We then report on a collaboration with researchers at Florida and Berkeley, which co-evolved with MADlib and explored similar issues (as part of the BayesStore project <ref type="bibr" target="#b41">[42,</ref><ref type="bibr" target="#b40">41]</ref>) but was actually integrated with the MADlib infrastructure only recently.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1">Wisconsin Contributions: Convex Optimization</head><p>The MADlib framework goes a long way toward making indatabase analytic tools easier to deploy inside an RDBMS. Nevertheless, to implement an algorithm within the MADlib framework, a developer must undertake several steps: they must specify a model, select the algorithm used to implement that model, optimize the algorithm, test the model, and finally ensure that the resulting algorithm and model are robust. This is a time consuming process that creates code that must be tested and maintained for each data analysis technique.</p><p>A focus of the MADlib work at the University of Wisconsin has been to explore techniques to reduce this burden. Our approach is to expose a mathematical abstraction on top of MADlib that allows a developer to specify a smaller amount of code, which we hope will lower the development time to add new techniques in many cases. We discuss the challenge that we faced implementing this abstraction. To demonstrate our ideas, we have implemented all of the models shown in <ref type="table" target="#tab_5">Table 2</ref> within the single abstraction (built within MADlib) that we describe below.</p><p>The Key Abstraction. An ideal abstraction would allow us to decouple the specification of the model from the algorithm used to solve the specification. Fortunately, there is a beautiful, powerful abstraction called convex optimization that has been developed for the last few decades <ref type="bibr" target="#b33">[34,</ref><ref type="bibr" target="#b7">8]</ref> that allows one to perform this decoupling. More precisely, in convex optimization, we minimize a convex function over a convex set. The archetype convex function is f (x) = x 2 and is shown in <ref type="figure" target="#fig_5">Figure 6</ref>. Like all convex functions, any local minimum of f is a global minimum of f . Many different popular statistical models are defined by convex optimization problems, e.g., linear regression, support vector machines, logistic regression, conditional random fields. Not every data analysis problem is convex-notable exceptions include the a priori algorithm and graph mining algorithms-but many are convex. <ref type="table" target="#tab_5">Table 2</ref> lists models that we have implemented in our abstraction over MADlib, all of which are convex. (Note that the previous built-in MADlib examples of linear and logistic regression fall into this category!)</p><p>In spite of the expressive power of convex optimization, even simple algorithms converge at provable rates to the true solution. For intuition, examine the archetypical function f (x) = x 2 shown in <ref type="figure" target="#fig_5">Figure 6</ref>. The graph of this function is like all convex sets: bowl shaped. To minimize the function, we just need to get to the bottom of the bowl. As a result, even greedy schemes that decrease the function at each step will converge to an optimal solution. One such popular greedy method is called a gradient method. The idea is to find the steepest descent direction. In 1-d, this direction is the opposite direction of the derivative; in higher dimensions, it's called the gradient of f . Using the gradient, we iteratively move toward a solution. This process can be described by the following pseudocode:</p><formula xml:id="formula_5">x ← x − α • G(x)</formula><p>where G(x) is the gradient of f (x) and α is a positive number called the stepsize that goes to zero with more iterations. For example, it suffices to set α = 1/k where k is the number of iterations. In the f (x) = x 2 example, the gradient is the derivative, G(x) = 2x. Since x = 0 is the minimum value, we have that for x &gt; 0, G(x) &lt; 0 while for x &lt; 0 we have that G(x) &gt; 0. For a convex function, the gradient always tells us which direction to go to find a minimum value, and the process described above is guaranteed to converge at a known rate. One can provide a provable rate of convergence to the minimum value, which is in sharp contrast to a typical greedy  search. In our prototype implementation in MADlib, we picked up one such simple greedy algorithm, called stochastic (or sometimes, "incremental") gradient descent (SGD) <ref type="bibr" target="#b32">[33,</ref><ref type="bibr" target="#b5">6]</ref>, that goes back to the 1960s. SGD is an approximation of gradient methods that is useful when the convex function we are considering, f (x), has the form:</p><formula xml:id="formula_6">f (x) = N i=1 f i (x)</formula><p>If each of the f i is convex, then so is f <ref type="bibr">[8, pg. 38]</ref>. Notice that all problems in <ref type="table" target="#tab_5">Table 2</ref> are of this form: intuitively each of these models is finding some model (i.e., a vector w) that is scored on many different training examples. SGD leverages the above form to construct a rough estimate of the gradient of f using the gradient of a single term: for example, the estimate if we select i is the gradient of f i (that we denote G i (x)). The resulting algorithm is then described as:</p><formula xml:id="formula_7">x ← x − αN • G i (x)<label>(1)</label></formula><p>This approximation is guaranteed to converge to an optimal solution <ref type="bibr" target="#b25">[26]</ref>.</p><p>Using the MADlib framework. In our setting, each tuple in the input table for an analysis task encodes a single f i . We use the micro-programming interfaces of Sections 3.2 and 3.3 to perform the mapping from the tuples to the vector representation that is used in Eq. 1. Then, we observe Eq. 1 is simply an expression over each tuple (to compute G i (x)) which is then averaged together. Instead of averaging a single number, we average a vector of numbers. Here, we use the macro-programming provided by MADlib to handle all data access, spills to disk, parallelized scans, etc. Finally, the </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Application Objective</head><p>Least Squares (u,y)∈Ω (x T u − y) 2 Lasso <ref type="bibr" target="#b37">[38]</ref> (u,y)∈Ω (x T u − y) macro programming layer helps us test for convergence (which is implemented with either a python combination or C driver.) Using this approach, we were able to add in implementations of all the models in <ref type="table" target="#tab_5">Table 2</ref> in a matter of days.</p><formula xml:id="formula_8">2 + µ x 1 Logisitic Regression (u,y)∈Ω log(1 + exp(−yx t u)) Classification (SVM) (u,y)∈Ω (1 − yx T u) + Recommendation (i, j)∈Ω (L T i R j − M i j ) 2 + µ L, R 2 F Labeling (CRF) [40] k j x j F j (y k , z k ) − log Z(z k )</formula><p>In an upcoming paper we report initial experiments showing that our SGD based approach achieves higher performance than prior data mining tools for some datasets <ref type="bibr" target="#b12">[13]</ref>.  The focus of the MADlib work at Florida and Berkeley has been to integrate statistical text analytics into a DBMS. In many domains, structured data and unstructured text are both important assets for data analysis. The increasing use of text analysis in enterprise applications has increased the expectation of customers and the opportunities for processing big data. The state-of-the-art text analysis tools are based on statistical models and algorithms <ref type="bibr" target="#b17">[18,</ref><ref type="bibr" target="#b11">12]</ref>. With the goal to become a framework for statistical methods for data analysis at scale, it is important for MADlib to include basic statistical methods to implement text analysis tasks.</p><p>Basic text analysis tasks include part-of-speech (POS) tagging, named entity extraction (NER), and entity resolution (ER) <ref type="bibr" target="#b11">[12]</ref>. Different statistical models and algorithms are implemented for each of these tasks with different runtime-accuracy tradeoffs. For example, an entity resolution task could be to find all mentions in a text corpus that refer to a real-world entity X. Such a task can be done efficiently by approximate string matching <ref type="bibr" target="#b24">[25]</ref> techniques to find all mentions in text that approximately match the name of entity X. However, such a method is not as accurate as the state-of-the-art collective entity resolution algorithms based on statistical models, such as Conditional Random Fields (CRFs) <ref type="bibr" target="#b18">[19]</ref>.</p><p>Pushing Statistical Text Analysis into MADlib. Based on the MADlib framework, our group set out to implement statistical methods in SQL to support various text analysis tasks. We use CRFs as the basic statistical model to perform more advanced text analysis. Similar to Hidden Markov Models (HMM) cite, CRFs are a leading probabilistic model for solving many text analysis tasks, including POS, NER and ER <ref type="bibr" target="#b18">[19]</ref>. To support sophisticated text analysis, we implement four key methods: text feature extraction, most-likely inference over a CRF (Viterbi), MCMC inference, and approximate string matching <ref type="table" target="#tab_7">(Table 3)</ref>.</p><p>Text Feature Extraction: Text feature extraction is a step in most statistical text analysis methods, and it can be an expensive operation. To achieve high quality, CRF methods often assign hundreds of features to each token in the document. Examples of such features include: (1) dictionary features: does this token exist in a provided dictionary? (2) regex features: does this token match a provided regular expression? (3) edge features: is the label of a token correlated with the label of a previous token? (4) word features: does this the token appear in the training data? and (5) position features: is this token the first or last in the token sequence? The right combination of features depends on the application, and so our support for feature extraction heavily leverages the microprogramming interface provided by MADlib.</p><p>Approximate String Matching: A recurring primitive operation in text processing applications is the ability to match strings approximately. The technique we use is based on qgrams <ref type="bibr" target="#b15">[16]</ref>. We used the trigram module in PostgreSQL to create and index 3-grams over text. Given a string "Tim Tebow" we can create a 3-gram by using a sliding window of 3 characters over this text string. Given two strings we can compare the overlap of two sets of corresponding 3-grams and compute a similarity as the approximate matching score. This functionality comes packaged with PostgreSQL.</p><p>Once we have the features, the next step is to perform inference on the model. We also implemented two types of statistical inference within the database: Viterbi (when we only want the most likely answer from the model) and MCMC (when we want the probabilities or confidence of an answer as well).</p><p>Viterbi Inference: The Viterbi dynamic programming algorithm <ref type="bibr" target="#b13">[14]</ref> is the popular algorithm to find the top-k most likely labelings of a document for (linear chain) CRF models.</p><p>Like any dynamic programming algorithm, the Viterbi algorithm is recursive. We experimented with two different implementations of macro-coordination over time. First, we chose to implement it using a combination of recursive SQL and window aggregate functions. We discussed this implementation at some length in earlier work <ref type="bibr" target="#b41">[42]</ref>. Our initial recursive SQL implementation only runs over PostgreSQL versions 8.4 and later; it does not run in Greenplum. Second, we chose to implement a Python UDF that uses iterations to drive the recursion in Viterbi. This iterative implementation runs over both PostgreSQL and Greenplum. In Greenplum, Viterbi can be run in parallel over different subsets of the document on a multi-core machine.</p><p>MCMC Inference: Markov chain Monte Carlo (MCMC) methods are classical sampling algorithms that can be used to estimate probability distributions. We implemented two MCMC methods in MADlib: Gibbs sampling and Metropolis-Hastings (MCMC-MH).</p><p>The MCMC algorithms involve iterative procedures where the current iteration depends on previous iterations. We used SQL window aggregates for macro-coordination in this case, to carry "state" across iterations to perform the Markov-chain process. This window function based implementation runs over PostgreSQL version 8.4 and later. We discussed this implementation at some length in recent work <ref type="bibr" target="#b40">[41]</ref>. We are currently working on integrating MCMC algorithms into Greenplum DBMS. We also plan to implement MCMC using Python UDF macro-coordination analogous to Section 4.3, and compare the performance between the two implementations.</p><p>Using the MADlib Framework. Because this work predated the release of MADlib, it diverged from some of the macro-coordination patterns of Section 3.1, and took advantage of PostgreSQL features that are less portable. These details require refactoring to fit into the current MADlib design style, which we are finding manageable. In addition to the work reported above, there are a host of other features of both PostgreSQL and MADlib that are valuable for text analytics. Extension libraries for PostgreSQL and Greenplum provides text processing features such as inverted indexes, trigram indexes for approximate string matching, and array data types for model parameters. Existing modules in MADlib, such as Naive Bayes and Sparse/Dense Matrix manipulations, are building blocks to implement statistical text analysis methods. Leveraging this diverse set of tools and techniques that are already within the database allowed us to build a sophisticated text analysis engine that has comparable raw performance to off-the-shelf implementations, but runs natively in a DBMS close to the data <ref type="bibr" target="#b41">[42,</ref><ref type="bibr" target="#b40">41]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.">RELATED WORK</head><p>The space of approaches to marry analytics with data is large and seems to be growing rapidly. At a high-level there are two approaches, (1) bring a statistical language to a data processing substrate, or (2) provide a framework to express statistical techniques on top of a data processing substrate. Specifically, we split the approaches to achieve this marriage into two groups: <ref type="bibr" target="#b0">(1)</ref> top-down approaches begin with a high-level statistical programming language, e.g., R or Matlab. The technical goal is to build a parallel data processing infrastructure that is able to support running this high-level language in parallel. Examples of approach include System ML from IBM <ref type="bibr" target="#b14">[15]</ref>, Revolution Analytics <ref type="bibr" target="#b30">[31]</ref>, and SNOW <ref type="bibr" target="#b38">[39]</ref>. <ref type="bibr" target="#b1">(2)</ref> We call the second group framework-based approaches whose goal is to provide a set of building blocks (individual machine-learning algorithms) along with library support for micro-and macro-programming to write the algorithms. Recent examples are Mahout <ref type="bibr" target="#b2">[3]</ref>, Graphlab <ref type="bibr" target="#b21">[22]</ref>, SciDB <ref type="bibr" target="#b35">[36]</ref> and MADlib.</p><p>Top-Down, Language-based Approaches. Within the approaches of type (1), we again divide the space into imperative and declarative approaches. In the imperative approach, an analyst takes the responsibility of expressing how to parallelize the data access, e.g., SNOW and Parallel R packages provide an MPI-interface along with calls for data partitioning within the framework of R. In contrast in a declarative approach, the analyst declares their analysis problem and it is the responsibility of the system to achieve this goal (in analogy with a standard RDBMS). Examples of the declarative approach include SystemML <ref type="bibr" target="#b14">[15]</ref>, which is an effort from IBM to provide an R-like language to specify machine learning algorithms. In SystemML, these high-level tasks are then compiled down to a Hadoop-based infrastructure. The essence of SystemML is its compilation techniques: they view R as a declarative language, and the goal of their system is to compile this language into an analog of the relational algebra. Similar approaches are taken in Revolution Analytics <ref type="bibr" target="#b30">[31]</ref> and Oracle's new parallel R offering <ref type="bibr" target="#b27">[28]</ref> in that these approaches attempt to automatically parallelize code written in R.</p><p>Framework-based Approaches. In framework-based approaches, the goal is to provide the analyst with low-level primitives and coordination primitives built on top of a data processing substrate. Typically, framework-based approaches offer a template whose goal is to automate the common aspects of deploying an analytic task. Framework-based approaches differ in what their data-processing substrates offer. For example, MADlib is in in this category as it provides a library of functions over an RDBMS. The macro-and micro-programming described earlier are examples of design templates. The goal of Apache Mahout <ref type="bibr" target="#b2">[3]</ref> is to provide an open source machine learning library over Apache Hadoop. Currently, Mahout provides a library of machine learning algorithms and a template to extend this library. At a lower level, the DryadLINQ large vector library provides the necessary data types to build analysis tasks (e.g., vectors) that are commonly used by machine learning techniques. SciDB advocates a completely rewritten DBMS engine for numerical computation, arguing that RDBMSs have "the wrong data model, the wrong operators, and are missing required capabilities" <ref type="bibr" target="#b35">[36]</ref>. MADlib may be seen as a partial refutation of this claim. Indeed, the assertion in <ref type="bibr" target="#b35">[36]</ref> that "RDBMSs, such as GreenPlum [sic]...must convert a table to an array inside user-defined functions" is incorrect: the MADlib C++ library hides representation from the UDF developer and only pays for copies when modifying immutable structures. GraphLab is a framework to simplify the design of programming parallel machine learning tasks. The core computational abstraction is a graph of processing nodes that allows one to define asynchronous updates. Graphlab initially focused on providing a framework for easy access to multicore parallelism <ref type="bibr" target="#b21">[22]</ref>. However, the core computational abstraction is general and is now also deployed in a cluster setting. Another popular toolkit in this space is Vowpal Wabbit <ref type="bibr" target="#b19">[20]</ref> that is extensively used in the academic machine learning community and provides high performance.</p><p>Two recent efforts to provide Scala-based domain-specific languages (DSLs) and parallel execution frameworks blur distinctions between frameworks and language-based approaches. Spark <ref type="bibr" target="#b43">[44]</ref> is a Scala DSL targeted at Machine Learning, providing access to the fault-tolerant, main-memory resilient distributed datasets: which are read-only collections of data that can be partitioned across a cluster. ScalOps <ref type="bibr" target="#b42">[43]</ref> provides a Scala DSL for Machine Learning that is translated to Datalog, which is then optimized to run in parallel on the Hyracks infrastructure <ref type="bibr" target="#b6">[7]</ref>. Given its roots in Datalog and parallel relational algebra, ScalOps bears more similarity to MADlib than any of the other toolkits mentioned here. It would be interesting to try and compile its DSL to the MADlib runtime.</p><p>Other Data Processing Systems. There are a host of data processing techniques that can be used to solve elements of the underlying data analysis problem. For example, Pregel <ref type="bibr" target="#b23">[24]</ref> from Google is designed for data analysis over graphs. In Pregel, the abstraction is to write ones code using a graph-based abstraction: each function can be viewed as a node that sends and receives messages to its neighbors in the graph. Pregel distributes the computation and provides fault tolerance.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.">CONCLUSION AND DISCUSSION</head><p>Scalable analytics are a clear priority for the research and industrial communities. MADlib was designed to fill a vacuum for scalable analytics in SQL DBMSs, and connect database research to market needs. In our experience, a parallel DBMS provides a very efficient and flexible dataflow substrate for implementing statistical and analytic methods at scale. Standardized support for SQL extensions across DBMSs could be better-robust and portable support for recursion, window aggregates and linear algebra packages would simplify certain tasks. Since this is unlikely to occur across vendors in the short term, we believe that MADlib can evolve reasonable workarounds at the library and "design pattern" level.</p><p>The popular alternative to a DBMS infrastructure today is Hadoop MapReduce, which provides much lower-level programming APIs than SQL. We have not yet undertaken performance comparisons with Hadoop-based analytics projects like Mahout. Performance comparisons between MADlib and Mahout today would likely boil down to (a) variations in algorithm implementations, and (b) wellknown (and likely temporary) tradeoffs between the current states of DBMSs and Hadoop: C vs. Java, pipelining vs. checkpointing, etc. <ref type="bibr" target="#b29">[30]</ref> None of these variations and tradeoffs seem endemic, and they may well converge over time. Moreover, from a marketplace perspective, such comparisons are not urgent: many users deploy both platforms and desire analytics libraries for each. So a reasonable strategy for the community is to foster analytics work in both SQL and Hadoop environments, and explore new architectures (GraphLab, SciDB, ScalOps, etc.) at the same time.</p><p>MADlib has room for growth in multiple dimensions. The library infrastructure itself is still in beta, and has room to mature. There is room for enhancements in its core treatment of mathematical kernels (e.g. linear algebra over both sparse and dense matrices) especially in out-of-core settings. And of course there will always be an appetite for additional statistical models and algorithmic methods, both textbook techniques and cutting-edge research. Finally, there is the challenge of porting MADlib to DBMSs other than PostgreSQL and Greenplum. As discussed in Section 3, MADlib's macro-coordination logic is written in largely standard Python and SQL, but its finer grained "micro-programming" layer exploits proprietary DBMS extension interfaces. Porting MADlib across DBMSs is a mechanical but non-trivial software development effort. At the macro level, porting will involve the package infrastructure (e.g. a cross-platform installer) and software engineering framework (e.g. testing scripts for additional database engines). At the micro-programming logic level, inner loops of various methods will need to be revisited (particularly user-defined functions). Finally, since Greenplum retains most of the extension interfaces exposed by PostgreSQL, the current MADlib portability interfaces (e.g., the C++ abstraction of Section 3.3) will likely require revisions when porting to a system without PostgreSQL roots.</p><p>Compared to most highly scalable analytics packages today, MADlib v0.3 provides a relatively large number of widely-used statistical and analytic methods. It is still in its early stages of development, but is already in use both at research universities and at customer sites. As the current software matures, we hope to foster more partnerships with academic institutions, database vendors, and customers. In doing so, we plan to pursue additional analytic methods prioritized by both research "push" and customer "pull". We also look forward to ports across DBMSs.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 :</head><label>1</label><figDesc>Linear-regression transition function</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 2 :</head><label>2</label><figDesc>Linear-regression final function</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 3 :</head><label>3</label><figDesc>Sequence Diagram for Logistic Regression</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 5 :</head><label>5</label><figDesc>Database 4.2.0, compiled with gcc 4.4.2. Linear-regression execution times using MADlib v0.3 on Greenplum Database 4.2.0, 10 million rows • Version 0.1alpha is an implementation in C that computes the outer-vector products x i x T i as a simple nested loop. • Version 0.2.1beta introduced an implementation in C++ that</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Figure 4 :</head><label>4</label><figDesc>Linear-regression execution times</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>Figure 6 :</head><label>6</label><figDesc>The Archetypical Convex Function f (x) = x 2 .</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head></head><label></label><figDesc>Transition state is a class that wraps an array. // We expect a mutable array. If DBMS allows 5 // modifications, copying will be avoided.</figDesc><table><row><cell cols="2">1 AnyType</cell></row><row><cell cols="2">2 linregr_transition::run(AnyType &amp;args) {</cell></row><row><cell>3</cell><cell>// LinRegrTransitionState&lt;</cell></row><row><cell></cell><cell>MutableArrayHandle&lt;double&gt; &gt; state = args[0];</cell></row><row><cell>8</cell><cell>// Dependent variable is a double-precision float</cell></row><row><cell></cell><cell>double y = args[1].getAs&lt;double&gt;();</cell></row><row><cell></cell><cell>// Vector of independent variables wraps an immutable</cell></row><row><cell>11</cell><cell>// array (again, no unnecessary copying). This maps</cell></row><row><cell>12</cell><cell>// to an Eigen type</cell></row><row><cell></cell><cell>HandleMap&lt;const ColumnVector&gt; x</cell></row><row><cell></cell><cell>= args[2].getAs&lt;ArrayHandle&lt;double&gt; &gt;();</cell></row><row><cell></cell><cell>if (state.numRows == 0)</cell></row><row><cell>17</cell><cell>// The first row determines the number</cell></row><row><cell>18</cell><cell>// of independent variables</cell></row><row><cell>19</cell><cell>state.initialize(*this, x.size());</cell></row><row><cell></cell><cell>state.numRows++;</cell></row><row><cell></cell><cell>state.y_sum += y;</cell></row><row><cell></cell><cell>state.y_square_sum += y * y;</cell></row><row><cell>23</cell><cell>// noalias informs Eigen to multiply in-place</cell></row><row><cell>24</cell><cell>state.X_transp_Y.noalias() += x * y;</cell></row><row><cell></cell><cell>// Since XˆT X is symmetric, we only need to</cell></row><row><cell></cell><cell>// compute a triangular part</cell></row><row><cell></cell><cell>triangularView&lt;Lower&gt;(state.X_transp_X)</cell></row><row><cell>28</cell><cell>+= x * trans(x);</cell></row><row><cell></cell><cell>return state;</cell></row><row><cell>31 }</cell><cell></cell></row><row><cell></cell><cell>Here, σ(z) = 1 1+exp(z)</cell></row></table><note>denotes the logistic function. Statistically, this is the maximum- likelihood estimate for an unknown vector b under the assumption that each y i is a random variate with Pr[y i = 1 | x i ] = σ( b, x i ) and that all observations are independent. It is well-known that, in general, no closed-formula expression for b exists. Instead, b can be computed as the solution of a con- vex program via standard iterative methods. Arguably, the most</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_5"><head>Table 2 :</head><label>2</label><figDesc>Models currently Implemented in MADlib using the SGD-based approach.</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_7"><head>Table 3 :</head><label>3</label><figDesc>Statistical Text Analysis Methods</figDesc><table><row><cell>5.2 Florida/Berkeley Contributions:</cell></row><row><cell>Statistical Text Analytics</cell></row></table><note></note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="8.">ACKNOWLEDGMENTS</head><p>In addition to the authors, the following people have contributed to MADlib and its development: Jianwang Ao, Joel Cardoza, Brian Dolan, Hlya Emir-Farinas, Christan Grant, Hitoshi Harada, Steven Hillion, Luke Lonergan, Gavin Sherry, Noelle Sio, Kelvin So, Gavin Yang, Ren Yi, Jin Yu, Kazi Zaman, Huanming Zhang.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">NP-hardness of Euclidean sum-of-squares clustering</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Aloise</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Deshpande</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Hansen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Machine Learning</title>
+		<imprint>
+			<date type="published" when="2009" />
+			<biblScope unit="volume">75</biblScope>
+			<biblScope unit="page" from="245" to="248" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Anderson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Bai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Bischof</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Users&apos; Guide. Society for Industrial and Applied Mathematics</title>
+		<imprint>
+			<date type="published" when="1999" />
+		</imprint>
+	</monogr>
+	<note>third edition</note>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Apache</forename><surname>Mahout</surname></persName>
+		</author>
+		<ptr target="http://mahout.apache.org/" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Arthur</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Manthey</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Röglin</surname></persName>
+		</author>
+		<title level="m">k-means has polynomial smoothed complexity</title>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv</note>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">k-means++: the advantages of careful seeding</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Arthur</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Vassilvitskii</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 18th Annual ACM-SIAM Symposium on Discrete Algorithms (SODA&apos;07)</title>
+		<meeting>the 18th Annual ACM-SIAM Symposium on Discrete Algorithms (SODA&apos;07)</meeting>
+		<imprint>
+			<date type="published" when="2007" />
+			<biblScope unit="page" from="1027" to="1035" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Bertsekas. Nonlinear Programming. Athena Scientific</title>
+		<imprint>
+			<date type="published" when="1999" />
+		</imprint>
+	</monogr>
+	<note>2nd edition</note>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Hyracks: A flexible and extensible foundation for data-intensive computing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Borkar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Carey</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Grover</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICDE</title>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="1151" to="1162" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<title level="m" type="main">Convex Optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Boyd</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Vandenberghe</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2004" />
+			<publisher>Cambridge University Press</publisher>
+			<pubPlace>New York, NY, USA</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">A portable linear algebra library for distributed memory computers -design issues and performance</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Choi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Demmel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Dhillon</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Computer Physics Communications</title>
+		<imprint>
+			<biblScope unit="volume">97</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="1" to="15" />
+			<date type="published" when="1996" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Map-reduce for machine learning on multicore</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C.-T</forename><surname>Chu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">K</forename><surname>Kim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y.-A</forename><surname>Lin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2006" />
+			<biblScope unit="page" from="281" to="288" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Mad skills: New analysis practices for big data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Cohen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Dolan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Dunlap</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">PVLDB</title>
+		<imprint>
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<monogr>
+		<title level="m" type="main">The text mining handbook: advanced approaches in analyzing unstructured data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Feldman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sanger</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2007" />
+		</imprint>
+		<respStmt>
+			<orgName>Cambridge Univ Pr</orgName>
+		</respStmt>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Towards a unified architecture for in-rdbms analytics</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Feng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kumar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Recht</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">SIGMOD</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">The viterbi algorithm</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Forney</surname><genName>Jr</genName></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Proceedings of the IEEE</title>
+		<imprint>
+			<biblScope unit="volume">61</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="268" to="278" />
+			<date type="published" when="1973" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Ghoting</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Krishnamurthy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Pednault</surname></persName>
+		</author>
+		<title level="m">Declarative Machine Learning on MapReduce. In ICDE</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Using q-grams in a dbms for approximate string processing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Gravano</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Ipeirotis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Jagadish</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Data Engineering Bulletin</title>
+		<imprint>
+			<biblScope unit="volume">24</biblScope>
+			<biblScope unit="issue">4</biblScope>
+			<biblScope unit="page" from="28" to="34" />
+			<date type="published" when="2001" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<monogr>
+		<title level="m" type="main">Eigen v3</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Guennebaud</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Jacob</surname></persName>
+		</author>
+		<ptr target="http://eigen.tuxfamily.org" />
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<title level="m" type="main">Speech and Language Processing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Jurafsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">J</forename></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2008" />
+			<publisher>Pearson Prentice Hall</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Conditional random fields: Probabilistic models for segmenting and labeling sequence data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">D</forename><surname>Lafferty</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Mccallum</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><forename type="middle">C N</forename><surname>Pereira</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2001" />
+			<biblScope unit="page" from="282" to="289" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Langford</surname></persName>
+		</author>
+		<ptr target="http://hunch.net/vw/" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Least squares quantization in pcm</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Lloyd</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Information Theory</title>
+		<imprint>
+			<biblScope unit="volume">28</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="129" to="137" />
+			<date type="published" when="1957" />
+		</imprint>
+		<respStmt>
+			<orgName>Bell Telephone Laboratories Paper</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">Technical Report</note>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Graphlab: A new framework for parallel machine learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Low</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Gonzalez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kyrola</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">UAI</title>
+		<editor>P. Grnwald and P. Spirtes</editor>
+		<imprint>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="340" to="349" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">The planar k-means problem is NP-hard</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Mahajan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Nimbhorkar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Varadarajan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Theoretical Computer Science</title>
+		<imprint>
+			<date type="published" when="2010-06" />
+			<publisher>In Press</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Pregel: a system for large-scale graph processing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Malewicz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">H</forename><surname>Austern</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">J</forename><surname>Bik</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">SIGMOD</title>
+		<imprint>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="135" to="146" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">A guided tour to approximate string matching</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Navarro</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Comput. Surv</title>
+		<imprint>
+			<biblScope unit="volume">33</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="31" to="88" />
+			<date type="published" when="2001-03" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Convergence rate of incremental subgradient algorithms</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Nedic</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Bertsekas</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Stochastic Optimization: Algorithms and Applications</title>
+		<editor>S. Uryasev and P. M. Pardalos</editor>
+		<imprint>
+			<publisher>Kluwer Academic Publishers</publisher>
+			<date type="published" when="2000" />
+			<biblScope unit="page" from="263" to="304" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Valgrind: a framework for heavyweight dynamic binary instrumentation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Nethercote</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Seward</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">PLDI</title>
+		<imprint>
+			<date type="published" when="2007" />
+			<biblScope unit="page" from="89" to="100" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Oracle R Enterprise</surname></persName>
+		</author>
+		<ptr target="http://www.oracle.com/technetwork/database/options/advanced-analytics/r-enterprise/index.html" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">Integrating k-means clustering with a relational dbms using sql</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Ordonez</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Trans. Knowl. Data Eng</title>
+		<imprint>
+			<biblScope unit="volume">18</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="188" to="201" />
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">A comparison of approaches to large-scale data analysis</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Pavlo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Paulson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Rasin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">SIGMOD</title>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2009" />
+			<biblScope unit="page" from="165" to="178" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<monogr>
+		<ptr target="http://www.revolutionanalytics.com/" />
+		<title level="m">Revloution Analytics</title>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">The r project in statistical computing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Ripley</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">MSOR Connections</title>
+		<imprint>
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="23" to="25" />
+			<date type="published" when="2001" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">A stochastic approximation method</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Robbins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Monro</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Ann. Math. Statistics</title>
+		<imprint>
+			<biblScope unit="volume">22</biblScope>
+			<date type="published" when="1951" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">T</forename><surname>Rockafellar</surname></persName>
+		</author>
+		<title level="m">Convex Analysis (Princeton Landmarks in Mathematics and Physics)</title>
+		<imprint>
+			<publisher>Princeton University Press</publisher>
+			<date type="published" when="1996" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">Armadillo: An open source C++ linear algebra library for fast prototyping and computationally intensive experiments</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Sanderson</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">NICTA</title>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Technical report</note>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<analytic>
+		<title level="a" type="main">The architecture of scidb</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Stonebraker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Brown</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Poliakov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Scientific and Statistical Database Management</title>
+		<imprint>
+			<publisher>Springer</publisher>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="1" to="16" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<monogr>
+		<title level="m" type="main">The PostgreSQL Global Development Group</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+	<note>PostgreSQL 9.1.3 Documentation</note>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">Regression shrinkage and selection via the lasso</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Tibshirani</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of the Royal Statistical Society, Series B</title>
+		<imprint>
+			<biblScope unit="volume">58</biblScope>
+			<biblScope unit="page" from="267" to="288" />
+			<date type="published" when="1994" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<analytic>
+		<title level="a" type="main">Snow: a parallel computing framework for the r system</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Tierney</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">J</forename><surname>Rossini</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Li</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Int. J. Parallel Program</title>
+		<imprint>
+			<biblScope unit="volume">37</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="78" to="90" />
+			<date type="published" when="2009-02" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<monogr>
+		<title level="m" type="main">Conditional random fields: An introduction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><forename type="middle">M</forename><surname>Wallach</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2004" />
+		</imprint>
+		<respStmt>
+			<orgName>Dept. of CIS, Univ. of Pennsylvania</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">Technical report</note>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<analytic>
+		<title level="a" type="main">Hybrid in-database inference for declarative information extraction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Franklin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Garofalakis</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">SIGMOD</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<analytic>
+		<title level="a" type="main">Querying probabilistic information extraction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">Z</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">J</forename><surname>Franklin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">N</forename><surname>Garofalakis</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">PVLDB</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<analytic>
+		<title level="a" type="main">Machine learning in scalops, a higher order cloud computing language</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Weimer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Condie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Ramakrishnan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS 2011 Workshop on parallel and large-scale machine learning (BigLearn)</title>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="page" from="389" to="396" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<monogr>
+		<title level="m" type="main">Resilient distributed datasets: A fault-tolerant abstraction for in-memory cluster computing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Zaharia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Chowdhury</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Das</surname></persName>
+		</author>
+		<idno>UCB/EECS-2011-82</idno>
+		<imprint>
+			<date type="published" when="2011-07" />
+		</imprint>
+		<respStmt>
+			<orgName>EECS Department, University of California, Berkeley</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">Technical Report</note>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<analytic>
+		<title level="a" type="main">Parallelized stochastic gradient descent</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Zinkevich</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Weimer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Smola</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

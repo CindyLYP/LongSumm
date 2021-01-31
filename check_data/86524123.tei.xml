@@ -1,0 +1,883 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Convolutional Networks with Adaptive Inference Graphs</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andreas</forename><surname>Veit</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="department">Department of Computer Science &amp; Cornell Tech</orgName>
+								<orgName type="institution">Cornell University</orgName>
+								<address>
+									<settlement>New York</settlement>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Serge</forename><surname>Belongie</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="department">Department of Computer Science &amp; Cornell Tech</orgName>
+								<orgName type="institution">Cornell University</orgName>
+								<address>
+									<settlement>New York</settlement>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Convolutional Networks with Adaptive Inference Graphs</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:43+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Do convolutional networks really need a fixed feed-forward structure? What if, after identifying the high-level concept of an image, a network could move directly to a layer that can distinguish finegrained differences? Currently, a network would first need to execute sometimes hundreds of intermediate layers that specialize in unrelated aspects. Ideally, the more a network already knows about an image, the better it should be at deciding which layer to compute next. In this work, we propose convolutional networks with adaptive inference graphs (ConvNet-AIG) that adaptively define their network topology conditioned on the input image. Following a high-level structure similar to residual networks (ResNets), ConvNet-AIG decides for each input image on the fly which layers are needed. In experiments on ImageNet we show that ConvNet-AIG learns distinct inference graphs for different categories. Both ConvNet-AIG with 50 and 101 layers outperform their ResNet counterpart, while using 20% and 33% less computations respectively. By grouping parameters into layers for related classes and only executing relevant layers, ConvNet-AIG improves both efficiency and overall classification quality. Lastly, we also study the effect of adaptive inference graphs on the susceptibility towards adversarial examples. We observe that ConvNet-AIG shows a higher robustness than ResNets, complementing other known defense mechanisms.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>Often, convolutional networks (ConvNets) are already confident about the highlevel concept of an image after only a few layers. This raises the question of what happens in the remainder of the network that often comprises hundreds of layers for many state-of-the-art models. To shed light on this, it is important to note that due to their success, ConvNets are used to classify increasingly large sets of visually diverse categories. Thus, most parameters model high-level features that, in contrast to low-level and many mid-level concepts, cannot be broadly shared across categories. As a result, the networks become larger and slower as the number of categories rises. Moreover, for any given input image the number of computed features focusing on unrelated concepts increases.</p><p>What if, after identifying that an image contains a bird, a ConvNet could move directly to a layer that can distinguish different bird species, without executing intermediate layers that specialize in unrelated aspects? Intuitively, the</p><formula xml:id="formula_0">+ f 1 f 1 f 1 + f 2 f 2 + f 2 +</formula><p>Tradi�onal feed-forward ConvNet: ResNet: ConvNet-AIG: <ref type="figure">Fig. 1</ref>. ConvNet-AIG (right) follows a high level structure similar to ResNets (center) by introducing identity skip-connections that bypass each layer. The key difference is that for each layer, a gate determines whether to execute or skip the layer. This enables individual inference graphs conditioned on the input.</p><p>more the network already knows about an image, the better it could be at deciding which layer to compute next. This shares resemblance with decision trees that employ information theoretic approaches to select the most informative features to evaluate. Such a network could decouple inference time from the number of learned concepts. A recent study <ref type="bibr" target="#b30">[31]</ref> provides a key insight towards the realization of this scenario. The authors study residual networks (ResNets) <ref type="bibr" target="#b10">[11]</ref> and show that almost any individual layer can be removed from a trained ResNet without interfering with other layers. This leads us to the following research question: Do we really need fixed structures for convolutional networks, or could we assemble network graphs on the fly, conditioned on the input?</p><p>In this work, we propose ConvNet-AIG, a convolutional network that adaptively defines its inference graph conditioned on the input image. Specifically, ConvNet-AIG learns a set of convolutional layers and decides for each input image which layers are needed. By learning both general layers useful to all images and expert layers specializing on subsets of categories, it allows to only compute features relevant to the input image. It is worthy to note that ConvNet-AIG does not require special supervision about label hierarchies and relationships. <ref type="figure">Figure 1</ref> gives an overview of our approach. ConvNet-AIG follows a structure similar to a ResNet. The key difference is that for each residual layer, a gate determines whether the layer is needed for the current input image. The main technical challenge is that the gates need to make discrete decisions, which are difficult to integrate into convolutional networks that we would like to train using gradient descent. To incorporate the discrete decisions, we build upon recent work <ref type="bibr" target="#b3">[4,</ref><ref type="bibr" target="#b17">18,</ref><ref type="bibr" target="#b23">24]</ref> that introduces differentiable approximations for discrete stochastic nodes in neural networks. In particular, we model the gates as discrete random variables over two states: to execute the respective layer or to skip it. Further, we model the gates conditional on the output of the previous layer. This allows to construct inference graphs adaptively based on the input and to train both the convolutional weights and the discrete gates jointly end-to-end.</p><p>In experiments on ImageNet <ref type="bibr" target="#b4">[5]</ref>, we demonstrate that ConvNet-AIG effectively learns to generate inference graphs such that for each input only relevant features are computed. In terms of accuracy both ConvNet-AIG 50 and ConvNet-AIG 101 outperform their ResNet counterpart, while at the same time using 20% and 33% less computations. We further show that, without specific supervision, ConvNet-AIG discovers parts of the class hierarchy and learns specialized layers focusing on subsets of categories such as animals and man-made objects. It even learns distinct inference graphs for some mid-level categories such as birds, dogs and reptiles. By grouping parameters for related classes and only executing relevant layers, ConvNet-AIG both improves efficiency and overall classification quality. Lastly, we also study the effect of adaptive inference graphs on susceptibility towards adversarial examples. We show that ConvNet-AIG is consistently more robust than ResNets, independent of adversary strength and that the additional robustness persists even when applying additional defense mechanisms.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Related Work</head><p>Our study is related to work in multiple fields. Several works have focused on neural network composition for visual question answering (VQA) <ref type="bibr" target="#b0">[1,</ref><ref type="bibr" target="#b1">2,</ref><ref type="bibr" target="#b18">19]</ref> and zero-shot learning <ref type="bibr" target="#b24">[25]</ref>. While these approaches include convolutional networks, they focus on constructing a fixed computational graph up front to solve tasks such as VQA. In contrast, the focus of our work is to construct a convolutional network conditioned on the input image on the fly during execution.</p><p>Our approach can be seen as an example of adaptive computation for neural networks. Cascaded classifiers <ref type="bibr" target="#b31">[32]</ref> have a long tradition for computer vision by quickly rejecting "easy" negatives. Recently, similar approaches have been proposed for neural networks <ref type="bibr" target="#b21">[22,</ref><ref type="bibr" target="#b32">33]</ref>. In an alternative direction, <ref type="bibr" target="#b2">[3,</ref><ref type="bibr" target="#b25">26]</ref> propose to adjust the amount of computation in fully-connected neural networks. To adapt computation time in convolutional networks, <ref type="bibr" target="#b13">[14,</ref><ref type="bibr" target="#b29">30]</ref> propose architectures that add classification branches to intermediate layers. This allows stopping a computation early once a satisfying level of confidence is reached. Most closely related to our approach is the work on spatially adaptive computation time for residual networks <ref type="bibr" target="#b5">[6]</ref>. In that paper, a ResNet adaptively determines after which layer to stop computation. Our work differs from this approach in that we do not perform early stopping, but instead determine which subset of layers to execute. This is key as it allows the grouping of parameters that are relevant for similar categories and thus enables distinct inference graphs for different categories.</p><p>Our work is further related to network regularization with stochastic noise. By randomly dropping neurons during training, Dropout <ref type="bibr" target="#b26">[27]</ref> offers an effective way to prevent neural networks from over-fitting. Closely related is the work on stochastic depth <ref type="bibr" target="#b15">[16]</ref>, where entire layers of a ResNet are randomly removed during each training iteration. Our work resembles this approach in that it also includes stochastic nodes that decide whether to execute layers. However, in contrast to our work, layer removal in stochastic depth is independent from the input and aims to increase redundancy among layers. In our work, we construct the inference graph conditioned on the input image to reduce redundancy and allow the network to learn layers specialized on subsets of the data.</p><p>Lastly, our work can also be seen as an example of an attention mechanism in that we select specific layers of importance for each input image to assemble the inference graph. This is related to approaches such as highway networks <ref type="bibr" target="#b27">[28]</ref> and squeeze-and-excitation networks <ref type="bibr" target="#b12">[13]</ref> where the output of a residual layer is rescaled according to the layer's importance. This allows these approaches to emphasize some layers and pay less attention to others. In contrast to our work, these are soft attention mechanisms and still require the execution of every single layer. Our work is a hard attention mechanism and thus enables decoupling computation time from the number of categories.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">Adaptive Inference Graphs</head><p>Traditional feed-forward ConvNets can be considered as a set of N layers which are sequentially applied to an input image. Formally, let F l (•), l ∈ {1, ..., N } denote the function computed by the l th layer. With x 0 as input image and x l as output of the l th layer, such a network can be recursively defined as</p><formula xml:id="formula_1">x l = F l (x l−1 )<label>(1)</label></formula><p>ResNets <ref type="bibr" target="#b10">[11]</ref> change this definition by introducing identity skip-connections that bypass each layer, i.e., the input to each layer is also added to its output. This has been shown to greatly ease optimization during training. As gradients can propagate directly through the skip-connection, early layers still receive sufficient learning signal even in very deep networks. A ResNet can be defined as</p><formula xml:id="formula_2">x l = x l−1 + F l (x l−1 )<label>(2)</label></formula><p>In a follow-up study <ref type="bibr" target="#b30">[31]</ref> on the effects of the skip-connection, it has been shown that, although all layers are trained jointly, they exhibit a high degree of independence. Further, almost any individual layer can be removed from a trained ResNet without harming performance and interfering with other layers.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">Gated Inference</head><p>Inspired by the observations in <ref type="bibr" target="#b30">[31]</ref>, we design ConvNet-AIG, a network that can define its topology on the fly. The architecture follows the basic structure of a ResNet with the key difference that instead of executing all layers, the network determines for each input image which subset of layers to execute. In particular, with layers focusing on different subgroups of categories, it can select only those layers necessary for the specific input. A ConvNet-AIG can be defined as</p><formula xml:id="formula_3">x l = x l−1 + z(x l−1 ) • F l (x l−1 ) where z(x l−1 ) ∈ {0, 1}<label>(3)</label></formula><p>where z(x l−1 ) is a gate that, conditioned on the input to the layer, decides whether to execute the next layer. The gate chooses between two discrete states: 0 for 'off' and 1 for 'on', which can be seen as a hard attention mechanism.</p><p>For the gate to be effective, it needs to address a few key challenges. First, to estimate the relevance of its layer, the gate needs to understand its input features. To prevent mode collapse into trivial solutions that are independent of the input features, such as always or never executing a layer, we found it to be of key importance for the gate to be stochastic. We achieve this by adding noise to the estimated relevance. Second, the gate needs to make a discrete decision, while still providing gradients for the relevance estimation. We achieve this with the Gumbel-Max trick and its softmax relaxation. Third, the gate needs to operate with low computational cost. <ref type="figure" target="#fig_0">Figure 2</ref> provides and overview of the two key components of the proposed gate. The first one efficiently estimates the relevance of the respective layer for the current image. The second component makes a discrete decision by sampling using Gumbel-Softmax <ref type="bibr" target="#b17">[18,</ref><ref type="bibr" target="#b23">24]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">Estimating Layer Relevance</head><p>The goal of the gate's first component is to estimate its layer's relevance given the input features. The input to the gate is the output of the previous layer x l−1 ∈ R W ×H×C . Since operating on the full feature map is computationally expensive, we build upon recent studies <ref type="bibr" target="#b12">[13,</ref><ref type="bibr" target="#b16">17,</ref><ref type="bibr" target="#b22">23]</ref> which show that much of the information in convolutional features is captured by the statistics of the different channels and their interdependencies. In particular, we only consider channel-wise means gathered by global average pooling. This compresses the input features into a 1 × 1 × C channel descriptor.</p><formula xml:id="formula_4">z c = 1 H × W H i=1 W j=1 x i,j,c<label>(4)</label></formula><p>To capture the dependencies between channels, we add a simple non-linear function of two fully-connected layers connected with a ReLU <ref type="bibr" target="#b6">[7]</ref> activation function. The output of this operation is the relevance score for the layer. Specifically, it is a vector β containing unnormalized scores for the two actions of (a) computing and (b) skipping the following layer, respectively.</p><formula xml:id="formula_5">β = W 2 σ(W 1 z)<label>(5)</label></formula><p>where σ refers to the ReLU, W 1 ∈ R d×C , W 2 ∈ R 2×d and d is the dimension of the hidden layer. The lightweight design of the gating function leads to minimal computational overhead. For a ConvNet-AIG based on ResNet 101 for ImageNet, the gating function adds only a computational overhead of 0.04%, but allows to skip 33% of its layers on average.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">Greedy Gumbel Sampling</head><p>The goal of the second component is to make a discrete decision based on the relevance scores. For this, we build upon recent work that propose approaches for propagating gradients through stochastic neurons <ref type="bibr" target="#b3">[4,</ref><ref type="bibr" target="#b19">20]</ref>. In particular, we utilize the Gumbel-Max trick <ref type="bibr" target="#b8">[9]</ref> and its recent continuous relaxation <ref type="bibr" target="#b17">[18,</ref><ref type="bibr" target="#b23">24]</ref>. A naïve attempt would be to choose the maximum of the two relevance scores to decide whether to execute or skip the layer. However, this approach leads to rapid mode collapse as it does not account for the gate's uncertainty and it is further not differentiable. Ideally, we would like to choose among the two options proportional to their relevance scores. A standard way to introduce such stochasticity is to add noise to the scores.</p><p>We choose the Gumbel distribution for the noise, because of its key property that is known as the Gumbel-Max trick <ref type="bibr" target="#b8">[9]</ref>. A random variable G follows a Gumbel distribution if G = µ − log(− log(U )), where µ is a real-valued location parameter and U a sample from the uniform distribution U ∼ Unif[0, 1]. Then, the Gumbel-Max trick states that if we samples from K Gumbel distributions with location parameters {µ k ′ } K k ′ =1 , the outcome of the k th Gumbel is the largest exactly with the softmax probability of its location parameter</p><formula xml:id="formula_6">P (k is largest|{µ k ′ } K k ′ =1 }) = e µ k K k ′ =1 e µ k ′<label>(6)</label></formula><p>With this we can parameterize discrete distributions in terms of Gumbel random variables. In particular, let X be a discrete random variable with probabilities P (X = k) ∝ α k and let {G k } k∈{1,...,K} be a sequence of i.i.d. Gumbel random variables with location µ = 0. Then, we can sample from the discrete variable X by sampling from the Gumbel random variables</p><formula xml:id="formula_7">X = arg max k∈{1,...,K} (log α k + G k )<label>(7)</label></formula><p>A drawback of this approach is that the argmax operation is not continuous.</p><p>To address this, a continuous relaxation of the Gumbel-Max trick has been proposed <ref type="bibr" target="#b17">[18,</ref><ref type="bibr" target="#b23">24]</ref>, replacing the argmax with a softmax. Note that a discrete random variable can be expressed as a one-hot vector, where the realization of the variable is the index of the non-zero entry. With this notation, a sample from the Gumbel-Softmax relaxation can be expressed by the vectorX as follows:</p><formula xml:id="formula_8">X k = softmax ((log α k + G k ) /τ )<label>(8)</label></formula><p>whereX k is the k th element inX and τ is the temperature of the softmax. With τ → 0, the softmax function approaches the argmax function and Equation 8 becomes equivalent to the discrete sampler. For τ → ∞ it becomes a uniform distribution. Since softmax is differentiable and G k is independent noise, we can propagate gradients to the probabilities α k . To generate samples, we set the log probabilities to the estimated relevance scores, log α = β. One option to employ the Gumbel-softmax estimator is to use the continuous version from Equation 8 during training and obtain discrete samples with Equation 7 during testing. An alternative is the straight-through version <ref type="bibr" target="#b17">[18]</ref> of the Gumbel-softmax estimator. There, during training, for the forward pass we get discrete samples from Equation 7, but during the backwards pass we compute the gradient of the softmax relaxation in Equation 8. Note that the estimator is biased due to the mismatch between forward and backward pass. However, we observe that empirically the straight-through estimator performs better and leads to inference graphs that are more category-specific. We illustrate the two different paths during the forward and backward pass in <ref type="figure" target="#fig_0">Figure 2</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4">Training Loss</head><p>For the network to learn when to use which layer, we constrain how often each layer is allowed to be used. Specifically, we use soft constraints by introducing an additional loss term that encourages each layer to be executed at a certain target rate t. This guides the optimization to solutions in which parameters that are relevant only to subsets of related categories are grouped together in separate layers, which minimizes the amount of unnecessary features to be computed. We approximate the execution rates for each layer over each mini-batch and penalize deviations from the target rate. Let z l denote the fraction of images within a mini-batch that layer l is executed. Then, the target rate loss is defined as</p><formula xml:id="formula_9">L target = N l=1 (z l − t) 2 (9)</formula><p>The target rate provides an easy instrument to adjust computation time. ConvNet-AIG is robust to a wide range of target rates. We study the effect of the target rate on classification accuracy and inference time in the experimental section. With the standard multi-class logistic loss, L M C , the overall training loss is</p><formula xml:id="formula_10">L AIG = L M C + L target<label>(10)</label></formula><p>We optimize this joint loss with mini-batch stochastic gradient descent.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Experiments</head><p>We perform a series experiments to evaluate the performance of ConvNet-AIG and whether it learns specialized layers and category-specific inference graphs. Lastly, we study its robustness by analyzing the effect of adaptive inference graphs on the susceptibility towards adversarial attacks. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Results on CIFAR</head><p>We first perform a set of experiments on CIFAR-10 [21] to validate the proposed gating mechanism and its effectiveness to distribute computation among layers.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Model configurations and training details</head><p>We build ConvNet-AIG based on the original ResNet 110 <ref type="bibr" target="#b10">[11]</ref>. Besides the added gates, ConvNet-AIG follows the same architecture as ResNet 110. For the gates, we choose a hidden state of size d = 16. The additional gate per residual block, adds a fixed overhead of 0.01% more floating point operations and 4.8% more parameters compared to the standard ResNet-110. We follow a similar training scheme as <ref type="bibr" target="#b10">[11]</ref> with momentum 0.9 and weight decay 5 × 10 −4 . All models are trained for 350 epochs with a mini-batch size of 256. We use a step-wise learning rate starting at 0.1 and decaying by 10 −1 after 150 and 250 epochs. We adopt a standard data-augmentation scheme, where images are padded with 4 pixels on each side, randomly cropped to 32 × 32 and with probability 0.5 horizontally flipped.</p><p>Results <ref type="table" target="#tab_0">Table 1</ref> shows test error on CIFAR 10 for ResNet <ref type="bibr" target="#b10">[11]</ref>, pre-activation ResNet <ref type="bibr" target="#b11">[12]</ref>, stochastic depth <ref type="bibr" target="#b15">[16]</ref> and their ConvNet-AIG counterpart. The table also shows the number of model parameters and floating point operations (multiply-adds). We compare two variants: For standard ConvNet-AIG, we only execute layers with open gates. As a second variant, which we indicate by " * ", we execute all layers and analogous to Dropout <ref type="bibr" target="#b26">[27]</ref> and stochastic depth <ref type="bibr" target="#b15">[16]</ref> the output of each layer is scaled by its expected execution rate. From the results, we observe that ConvNet-AIG clearly outperforms its ResNet counterparts, even when using only a subset of the layers. In particular, ConvNet-AIG 110 with a target-rate of 0.7 uses only 82% of the layers in expectation. Since ResNet 110 might be over-parameterized for CIFAR-10, the regularization induced by dropping layers could be a key factor to performance. We observe that ConvNet-AIG 110 * outperforms stochastic depth, implying benefits of adaptive inference graphs beyond regularization. In fact, ConvNet-AIG learns to identify layers of key importance such as downsampling layers and learns to always execute them, although they incur computation cost. We do not observe any downward outliers, i.e. layers that are dropped every time. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Results on ImageNet</head><p>In experiments on ImageNet <ref type="bibr" target="#b4">[5]</ref>, we study whether ConvNet-AIG learns to group parameters such that for each image only relevant features are computed. Ima-geNet is well suited for this study, as it contains a large set of categories with a wide variety including man-made objects, food, and many different animals.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Model configurations and training details</head><p>We build ConvNet-AIGs based on ResNet 50 and ResNet 101 <ref type="bibr" target="#b10">[11]</ref>. Again, we follow the same architectures as the original ResNets, with the sole exception of the added gates. The size of the hidden state is again d = 16, adding a fixed overhead of 3.9% more parameters and 0.04% more floating point operations. For ConvNet-AIG 50, all 16 residual layers have gates. For ConvNet-AIG 101, we fix the early layers up to the second downsampling operation to be always executed. The main reason is that early layers to not yet distinguish between object categories. We follow the standard ResNet training procedure, with mini-batch size of 256, momentum of 0.9 and weight decay of 10 −4 . All models are trained for 100 epochs with step-wise learning rate starting at 0.1 and decaying by 10 −1 every 30 epochs. We use the data-augmentation procedure as in <ref type="bibr" target="#b10">[11]</ref> and at test time first rescale images to 256 × 256 followed by a 224 × 224 center crop. The gates are initialized to open at a rate of 85% at the beginning of training. <ref type="figure" target="#fig_1">Figure 3</ref> shows top-1 error on ImageNet and computational cost in terms of GFLOPs for ConvNet-AIG with 50 and 101 layers and the respective ResNets of varying depth. We further show the impact of different target rates on performance and efficiency. We use target rates from 0.4 <ref type="table">Table 2</ref>. Test error on ImageNet in % for ConvNet-AIG 50, ConvNet-AIG 101 and the respective ResNets of varying depth. Both ConvNet-AIGs outperform their ResNet counterpart, while at the same time using only a subset of the layers. This demonstrates that ConvNet-AIG is more efficient and also improves overall classification quality. to 0.7 for ConvNet-AIG 50 and 0.3 to 0.5 for ConvNet-AIG 101. Details about the models' complexities and further baselines are presented in <ref type="table">Table 2</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Quantitative comparison</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Model</head><p>From the results we make the following key observations. Both ConvNet-AIG 50 and ConvNet-AIG 101 outperform their ResNet counterpart, while also using only a subset of the layers. In particular, ConvNet-AIG 50 with a target rate of 0.7 saves about 20% of computation. Similarly, ConvNet-AIG 101 outperforms its respective ResNet while using 33% less computations. <ref type="figure" target="#fig_1">Figure 3</ref> also visualizes the effect of the target rate. As expected, decreasing the target rate reduces computation time. Interestingly, penalizing computation first improves accuracy, before lowering the target rate further decreases accuracy. This demonstrates that ConvNet-AIG both improves efficiency and overall classification quality. Further, it appears often more effective to decrease the target rate compared to reducing layers in standard ResNets.</p><p>Due to surface resemblance, we also compare to stochastic depth <ref type="bibr" target="#b15">[16]</ref>. We observe that for smaller ResNet models stochastic depth does not provide competitive results. Only very large models see benefits from stochastic depth regularization. The paper on stochastic depth <ref type="bibr" target="#b15">[16]</ref> reports that even for the very large ResNet 152 performance remains below a basic ResNet. This highlights the opposite goals of ConvNet-AIG and stochastic depth. Stochastic depth aims to create redundant features by enforcing each subset of layers to model the whole dataset <ref type="bibr" target="#b30">[31]</ref>. ConvNet-AIG aims to separate parameters that are relevant to different subsets of the dataset into different layers.</p><p>These results indicates that convolutional networks do not need a fixed feedforward structure and that ConvNet-AIG is an effective means to enable adaptive inference graphs that are conditioned on the input image. We observe a clear difference between layers used for man-made objects and for animals and even for some mid-level categories such as birds, mammals and reptiles. Without specific supervision, the network discovers parts of the class hierarchy. Further, downsampling layers and the last layers appear of key importance and are executed for all images. Lastly, the left histogram shows that early layers are mostly agnostic to the different classes. Thus, we set early layers in ConvNet-AIG 101 to be always executed. The remaining layers are sufficient to provide different inference graphs for the various categories.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Analysis of learned inference graphs</head><p>To analyze the learned inference graphs, we study the rates at which different layers are executed for images of different categories. <ref type="figure" target="#fig_2">Figure 4</ref> shows the execution rates of each layer for ConvNet-AIG 50 on the left and ConvNet-AIG 101 on the right. The x-axis indicates the residual layers and the y-axis breaks down the execution rates by the 1000 classes in ImageNet. Further, the figure shows high-level and mid-level categories that contain large numbers of classes. The color in each cell indicates the percentage of validation images from a given category that the respective layer is executed.</p><p>From the figure, we see a clear difference between man-made objects and animals. Moreover, we even observe distinctions between mid-level animal categories such as birds, mammals and reptiles. This reveals that the network discovers part of the label hierarchy and groups parameters accordingly. Generally, we observe similar structures in ConvNet-AIG 50 and ConvNet-AIG 101. However, the grouping of the mid-level categories is more distinct in ConvNet-AIG 101 due to the larger number of layers that can capture high-level features. This result demonstrates that ConvNet-AIG successfully learns layers that focus on specific subsets of categories. It is worthy to note that the training objective does not include an incentive to learn category specific layers. The specialization appears to emerge naturally when the computational budget gets constrained. Further, we observe that downsampling layers and the last layers deviate significantly from the target rate and are executed for all images. This demonstrates their key role in the network (as similarly observed in <ref type="bibr" target="#b30">[31]</ref>) and shows how ConvNet-AIG learns to effectively trade-off computational cost for accuracy.</p><p>Lastly, the figure shows that for ConvNet-AIG 50, inter-class variation is mostly present in the later layers of the network after the second downsampling layer. One reason for this could be that features from early layers are useful for all categories. Further, early layers might not yet capture sufficient semantic information to discriminate between categories. Thus, we keep the early layers of ConvNet-AIG 101 fixed to be always executed. The remaining layers still provide sufficient flexibility for different inference paths for the various categories. <ref type="figure" target="#fig_3">Figure 5</ref> shows on the right a typical trajectory of the execution rates during training for ConvNet-AIG 50. The layers are initialized to execute a rate of 85% at the start of training. The figure shows the first 30 training epochs and highlights how the layers are quickly separated into key layers and less critical layers. Important layers such as downsampling and the last layers increase their execution rate, while the remaining layers slowly approach the target rate.  geNet validation images. On average 10.81 layers are executed with a standard deviation of 1.11. The figure also highlights the mid-level categories of birds and consumer goods. In expectation, images of birds use one layer less than images of consumer goods. From <ref type="figure" target="#fig_2">Figure 4</ref> we further know the two groups also use different sets of layers. <ref type="figure">Figure 6</ref> shows the validation images that use the fewest and the most layers within the categories of birds, dogs and musical instruments. The examples highlight that easy instances with iconic views require only a few layers. Difficult instances that are small or occluded need more computation.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">Robustness to adversarial attacks</head><p>In a third set of experiments we aim to understand the effect of adaptive inference graphs on the susceptibility towards adversarial attacks. On one hand, if adversarial perturbations change the inference graph such that key layers of the network are skipped, performance might degrade. On the other hand, the stochasticity of the graph might improve robustness. We perform a Fast Gradient Sign Attack <ref type="bibr" target="#b7">[8]</ref> on ResNet 50 and ConvNet-AIG 50, both trained on ImageNet. The results are presented in <ref type="figure">Figure 7</ref>. In the graph on the left, the x-axis shows the strength of the adversary measured in the amount each pixel can to be changed. The y-axis shows top-1 accuracy on Ima-geNet. We observe that ConvNet-AIG is consistently more robust, independent of adversary strength. To investigate whether this additional robustness complements other defenses <ref type="bibr" target="#b9">[10]</ref>, we perform JPEG compression on the adversarial examples. We follow <ref type="bibr" target="#b9">[10]</ref> and use a JPEG quality setting of 75%. While both networks greatly benefit from the defense, ConvNet-AIG remains more robust, indicating that the additional robustness can complement other defenses.</p><p>To understand the effect of the attack on the gates, we look at the execution rates before and after the attack. On the right side, <ref type="figure">Figure 7</ref> shows the average execution rates per layer over all bird categories for ConvNet-AIG 50 before and after a FGSM attack with epsilon 0.047. Although the accuracy of the network drops from 74.62% to 11%, execution rates remain similar. One reason for the gates' resilience might be the stochasticity induced by the Gumbel noise which  <ref type="figure">Fig. 7</ref>. Adversarial attack using Fast Gradient Sign Method. Left: ConvNet-AIG is consistently more robust than the plain ResNet, independent of adversary strength. The additional robustness persists even when applying additional defense mechanisms. Right: Average execution rates per layer for images of birds before and after the attack. The execution rates remain mostly unaffected by the attack.</p><p>might outweigh the noise introduced by the attack. Further, the global average pooling operation might cancel out some of the adversarial perturbations.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Conclusion</head><p>In this work, we have shown that convolutional networks do not need fixed feedforward structures. With ConvNet-AIG, we introduced a ConvNet that adaptively assembles its inference graph on the fly based on the input image. Experiments on ImageNet show that ConvNet-AIG groups parameters for related classes into specialized layers and learns to only execute those layers relevant to the input. This allows decoupling inference time from the number of learned concepts and improves both efficiency as well as overall classification quality.</p><p>This work opens up numerous paths for future work. With respect to network architecture, it would be intriguing to extend this work beyond ResNets to other structures such as densely-connected <ref type="bibr" target="#b14">[15]</ref> or inception-based <ref type="bibr" target="#b28">[29]</ref> networks. From a practitioner's point of view, it might be exciting to extend this work into a framework where the set of executed layers is adaptive, but their number is fixed so as to achieve constant inference times. Further, we have seen that the gates are largely unaffected by basic adversarial attacks. For an adversary, it could be interesting to investigate attacks that specifically target the gating functions.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Fig. 2 .</head><label>2</label><figDesc>Overview of gating unit. Each gate comprises two parts. The first part estimates the relevance of the layer to be executed. The second part decides whether to execute the layer given the estimated relevance. In particular, the Gumbel-Max trick and its softmax relaxation are used to allow for the propagation of gradients through the discrete decision.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Fig. 3 .</head><label>3</label><figDesc>Top-1 accuracy vs. computational cost on ImageNet. ConvNet-AIG 50 outperforms ResNet 50, while skipping 20% of its layers in expectation. Similarly, ConvNet-AIG 101 outperforms ResNet 101 while requiring 33% less computations. It is often more effective to decrease the target rate than to reduce the number of layers.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Fig. 4 .</head><label>4</label><figDesc>Learned inference graphs on ImageNet. The histograms show for ConvNet-AIG 50 (left) and ConvNet-AIG 101 (right) how often each residual layer (x-axis) is executed for each of the 1000 classes in ImageNet (y-axis).</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>FrequencyFig. 5 .</head><label>5</label><figDesc>Left: Distribution over the number of executed layers. For ConvNet-AIG 50 on ImageNet with target rate 0.4, in average 10.8 out of 16 residual layers are executed. Images of animals tend to use fewer layers than man-made objects. Right: Execution rates per layer over first 30 epochs of training. Layers are quickly separated into key and less critical layers. Downsampling layers and the last layer increase execution rate, while the remaining layers slowly approach the target rate.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head></head><label></label><figDesc>Variable inference time Due to the adaptive inference graphs, computation time varies across images.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>Figure 5 Fig. 6 .</head><label>56</label><figDesc>shows on the left the distribution over how many of the 16 residual layers in ConvNet-AIG 50 are executed over all Ima-Validation images from ImageNet that use the fewest layers (top) and the most layers (bottom) within the categories of birds, dogs and musical instruments. The examples illustrate how instance difficulty translates into layer usage.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head>Table 1 .</head><label>1</label><figDesc>Test error on CIFAR 10 in %. ConvNet-AIG 110 clearly outperforms ResNet 110 while only using a subset of 82% of the layers. When executing all layers (ConvNet-AIG 110 * ), it also outperforms stochastic depth.</figDesc><table><row><cell>Model</cell><cell cols="3">Error #Params (10 6 ) FLOPs (10 9 )</cell></row><row><cell>ResNet 110 [11]</cell><cell>6.61</cell><cell>1.7</cell><cell>0.5</cell></row><row><cell>Pre-ResNet 110 [12]</cell><cell>6.37</cell><cell>1.7</cell><cell>0.5</cell></row><row><cell cols="2">Stochastic Depth ResNet 110 [16] 5.25</cell><cell>1.7</cell><cell>0.5</cell></row><row><cell>ConvNet-AIG 110</cell><cell>5.76</cell><cell>1.78</cell><cell>0.41</cell></row><row><cell>ConvNet-AIG 110  *</cell><cell>5.14</cell><cell>1.78</cell><cell>0.5</cell></row></table><note></note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgements</head><p>We would like to thank Ilya Kostrikov, Daniel D. Lee, Kimberly Wilber, Antonio Marcedone and Yiqing Hua for insightful discussions and feedback. This work was supported in part by the Oath Laboratory for Connected Experiences, a Google Focused Research Award, AWS Cloud Credits for Research and a Facebook equipment donation.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Learning to compose neural networks for question answering</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Andreas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Rohrbach</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Darrell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Klein</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of NAACL-HLT</title>
+		<meeting>NAACL-HLT</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Neural module networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Andreas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Rohrbach</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Darrell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Klein</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Conference on Computer Vision and Pattern Recognition (CVPR)</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">L</forename><surname>Bacon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Pineau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Precup</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1511.06297</idno>
+		<title level="m">Conditional computation in neural networks for faster models</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<monogr>
+		<title level="m" type="main">Estimating or propagating gradients through stochastic neurons for conditional computation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Léonard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Courville</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1308.3432</idno>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Imagenet: A largescale hierarchical image database</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Deng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Dong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Socher</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">J</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Fei-Fei</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Conference on Computer Vision and Pattern Recognition (CVPR</title>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Spatially adaptive computation time for residual networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Figurnov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">D</forename><surname>Collins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Zhu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Vetrov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Conference on Computer Vision and Pattern Recognition (CVPR</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Glorot</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bordes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<title level="m">Deep sparse rectifier neural networks. In: International Conference on Artificial Intelligence and Statistics</title>
+		<imprint>
+			<publisher>AISTATS</publisher>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><forename type="middle">J</forename><surname>Goodfellow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Shlens</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Szegedy</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.6572</idno>
+		<title level="m">Explaining and harnessing adversarial examples</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Statistical theory of extreme values and some practical applications: a series of lectures</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">J</forename><surname>Gumbel</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">US Govt. Print. Office</title>
+		<imprint>
+			<biblScope unit="issue">33</biblScope>
+			<date type="published" when="1954" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Guo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Rana</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Cisse</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Van Der Maaten</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1711.00117</idno>
+		<title level="m">Countering adversarial images using input transformations</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Deep residual learning for image recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Conference on Computer Vision and Pattern Recognition (CVPR)</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Identity mappings in deep residual networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">European Conference on Computer Vision (ECCV)</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Hu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Shen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Sun</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1709.01507</idno>
+		<title level="m">Squeeze-and-excitation networks</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Van Der Maaten</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">Q</forename><surname>Weinberger</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1703.09844</idno>
+		<title level="m">Multi-scale dense convolutional networks for efficient prediction</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Densely connected convolutional networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">Q</forename><surname>Weinberger</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Van Der Maaten</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Conference on Computer Vision and Pattern Recognition (CVPR</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Deep networks with stochastic depth</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Sun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Sedra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">Q</forename><surname>Weinberger</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">European Conference on Computer Vision (ECCV)</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Arbitrary style transfer in real-time with adaptive instance normalization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Belongie</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Computer Vision (ICCV</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Jang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Gu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Poole</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1611.01144</idno>
+		<title level="m">Categorical reparameterization with gumbel-softmax</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Inferring and executing programs for visual reasoning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Johnson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Hariharan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Van Der Maaten</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Hoffman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Fei-Fei</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">L</forename><surname>Zitnick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Girshick</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Computer Vision (ICCV</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Welling</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1312.6114</idno>
+		<title level="m">Auto-encoding variational bayes</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<monogr>
+		<title level="m" type="main">Learning multiple layers of features from tiny images</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">A convolutional neural network cascade for face detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Lin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Shen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Brandt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hua</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Conference on Computer Vision and Pattern Recognition (CVPR)</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Hou</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1701.01036</idno>
+		<title level="m">Demystifying neural style transfer</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">J</forename><surname>Maddison</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Mnih</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><forename type="middle">W</forename><surname>Teh</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1611.00712</idno>
+		<title level="m">The concrete distribution: A continuous relaxation of discrete random variables</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">From red wine to red tomato: Composition with context</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Misra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Gupta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Hebert</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Conference on Computer Vision and Pattern Recognition (CVPR</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<monogr>
+		<title level="m" type="main">Outrageously large neural networks: The sparsely-gated mixture-of-experts layer</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Shazeer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Mirhoseini</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Maziarz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Davis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Le</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Dean</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1701.06538</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Dropout: a simple way to prevent neural networks from overfitting</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Srivastava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of machine learning research</title>
+		<imprint>
+			<biblScope unit="volume">15</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="1929" to="1958" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note>JMLR)</note>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">K</forename><surname>Srivastava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Greff</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schmidhuber</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1505.00387</idno>
+		<title level="m">Highway networks</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">Going deeper with convolutions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Szegedy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Jia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Sermanet</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Reed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Anguelov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Erhan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Vanhoucke</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Rabinovich</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Conference on Computer Vision and Pattern Recognition</title>
+		<imprint>
+			<publisher>CVPR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Branchynet: Fast inference via early exiting from deep neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Teerapittayanon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Mcdanel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Kung</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Conference onPattern Recognition (ICPR)</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Residual networks behave like ensembles of relatively shallow networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Veit</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">J</forename><surname>Wilber</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Belongie</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems (NIPS)</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">Robust real-time face detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Viola</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">J</forename><surname>Jones</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">International journal of computer vision (IJCV)</title>
+		<imprint>
+			<biblScope unit="volume">57</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="137" to="154" />
+			<date type="published" when="2004" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Exploit all the layers: Fast and accurate cnn object detector with scale dependent pooling and cascaded rejection classifiers</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Choi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Conference on Computer Vision and Pattern Recognition (CVPR)</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

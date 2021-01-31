@@ -1,0 +1,1247 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Convexified Convolutional Neural Networks</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2016-09-06">September 6, 2016</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yuchen</forename><surname>Zhang</surname></persName>
+							<email>zhangyuc@cs.stanford.edu</email>
+							<affiliation key="aff0">
+								<orgName type="department">Computer Science Department</orgName>
+								<orgName type="institution">Stanford University</orgName>
+								<address>
+									<postCode>94305</postCode>
+									<settlement>Stanford</settlement>
+									<region>CA</region>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Percy</forename><surname>Liang</surname></persName>
+							<email>pliang@cs.stanford.edu</email>
+							<affiliation key="aff1">
+								<orgName type="department">Computer Science Department</orgName>
+								<orgName type="institution">Stanford University</orgName>
+								<address>
+									<postCode>94305</postCode>
+									<settlement>Stanford</settlement>
+									<region>CA</region>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><forename type="middle">J</forename><surname>Wainwright</surname></persName>
+							<email>wainwrig@eecs.berkeley.edu.1</email>
+							<affiliation key="aff2">
+								<orgName type="department">Department of Electrical Engineering and Computer Science and Department of Statistics</orgName>
+								<orgName type="institution">University of California Berkeley</orgName>
+								<address>
+									<postCode>94720</postCode>
+									<settlement>Berkeley</settlement>
+									<region>CA</region>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Convexified Convolutional Neural Networks</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2016-09-06">September 6, 2016</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1609.01000v1[cs.LG]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:41+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>We describe the class of convexified convolutional neural networks (CCNNs), which capture the parameter sharing of convolutional neural networks in a convex manner. By representing the nonlinear convolutional filters as vectors in a reproducing kernel Hilbert space, the CNN parameters can be represented as a low-rank matrix, which can be relaxed to obtain a convex optimization problem. For learning two-layer convolutional neural networks, we prove that the generalization error obtained by a convexified CNN converges to that of the best possible CNN. For learning deeper networks, we train CCNNs in a layer-wise manner. Empirically, CCNNs achieve performance competitive with CNNs trained by backpropagation, SVMs, fully-connected neural networks, stacked denoising auto-encoders, and other baseline methods.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>Convolutional neural networks (CNNs) <ref type="bibr" target="#b27">[28]</ref> have proven successful across many tasks in machine learning and artificial intelligence, including image classification <ref type="bibr" target="#b27">[28,</ref><ref type="bibr" target="#b24">25]</ref>, face recognition <ref type="bibr" target="#b25">[26]</ref>, speech recognition <ref type="bibr" target="#b20">[21]</ref>, text classification <ref type="bibr" target="#b44">[45]</ref>, and game playing <ref type="bibr" target="#b31">[32,</ref><ref type="bibr" target="#b36">37]</ref>. There are two principal advantages of a CNN over a fully-connected neural network: (i) sparsity-that each nonlinear convolutional filter acts only on a local patch of the input, and (ii) parameter sharing-that the same filter is applied to each patch.</p><p>However, as with most neural networks, the standard approach to training CNNs is based on solving a nonconvex optimization problem that is known to be NP-hard <ref type="bibr" target="#b5">[6]</ref>. In practice, researchers use some flavor of stochastic gradient method, in which gradients are computed via backpropagation <ref type="bibr" target="#b6">[7]</ref>. This approach has two drawbacks: (i) the rate of convergence, which is at best only to a local optimum, can be slow due to nonconvexity (for instance, see the paper <ref type="bibr" target="#b18">[19]</ref>), and (ii) its statistical properties are very difficult to understand, as the actual performance is determined by some combination of the CNN architecture along with the optimization algorithm.</p><p>In this paper, with the goal of addressing these two challenges, we propose a new model class known as convexified convolutional neural networks (CCNNs). These models have two desirable features. First, training a CCNN corresponds to a convex optimization problem, which can be solved efficiently and optimally via a projected gradient algorithm. Second, the statistical properties of CCNN models can be studied in a precise and rigorous manner. We obtain CCNNs by convexifying two-layer CNNs; doing so requires overcoming two challenges. First, the activation function of a CNN is nonlinear. In order to address this issue, we relax the class of CNN filters to a reproducing kernel Hilbert space (RKHS). This approach is inspired by our earlier work <ref type="bibr" target="#b47">[48]</ref>, involving a subset of the current authors, in which we developed this relaxation step for fully-connected neural networks. Second, the parameter sharing induced by CNNs is crucial to its effectiveness and must be preserved. We show that CNNs with RKHS filters can be parametrized by a low-rank matrix. Further relaxing the low-rank constraint to a nuclear norm constraint leads to our final formulation of CCNNs.</p><p>On the theoretical front, we prove an oracle inequality on generalization error achieved by our class of CCNNs, showing that it is upper bounded by the best possible performance achievable by a two-layer CNN given infinite data-a quantity to which we refer as the oracle risk-plus a model complexity term that decays to zero polynomially in the sample size. Our results show that the sample complexity for CCNNs is significantly lower than that of the convexified fully-connected neural network <ref type="bibr" target="#b47">[48]</ref>, highlighting the importance of parameter sharing. For models with more than one hidden layer, our theory does not apply, but we provide encouraging empirical results using a greedy layer-wise training heuristic. We then apply CCNNs to the MNIST handwritten digit dataset as well as four variation datasets <ref type="bibr" target="#b42">[43]</ref>, and find that it achieves the state-of-the-art performance. On the CIFAR-10 dataset, CCNNs outperform CNNs of the same depths, as well as other baseline methods that do not involve nonconvex optimization. We also demonstrate that building CCNNs on top of existing CNN filters improves the performance of CNNs.</p><p>The remainder of this paper is organized as follows. We begin in Section 2 by introducing convolutional neural networks, and setting up the empirical risk minimization problem studied in this paper. In Section 3, we describe the algorithm for learning two-layer CCNNs, beginning with the simple case of convexifying CNNs with a linear activation function, then proceeding to convexify CNNs with a nonlinear activation. We show that the generalization error of a CCNN converges to that of the best possible CNN. In Section 4, we describe several extensions to the basic CCNN algorithm, including averaging pooling, multi-channel input processing, and the layer-wise learning of multi-layer CNNs. In Section 5, we report the empirical evaluations of CCNNs. We survey related work in Section and conclude the paper in Section 7.</p><p>Notation. For any positive integer n, we use [n] as a shorthand for the discrete set {1, 2, . . . , n}. For a rectangular matrix A, let A * be its nuclear norm, A 2 be its spectral norm (i.e., maximal singular value), and A F be its Frobenius norm. We use (N) to denote the set of countable dimensional vectors</p><formula xml:id="formula_0">v = (v 1 , v 2 , . . . ) such that ∞ =1 v 2 &lt; ∞.</formula><p>For any vectors u, v ∈ 2 (N), the inner product u, v := ∞ =1 u i v i and the 2 -norm u 2 := u, u are well defined.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Background and problem set-up</head><p>In this section, we formalize the class of convolutional neural networks to be learned and describe the associated nonconvex optimization problem.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1">Convolutional neural networks.</head><p>At a high level, a two-layer CNN 1 is a particular type of function that maps an input vector x ∈ R d 0 (e.g., an image) to an output vector in y ∈ R d 2 (e.g., classification scores for the d 2 classes). This mapping is formed in the following manner:</p><p>• First, we extract a collection of P vectors {z p (x)} P j=1 of the full input vector x. Each vector z p (x) ∈ R d 1 is referred to as a patch, and these patches may depend on overlapping components of x.</p><p>• Second, given some choice of activation function σ : R → R and a collection of weight vectors {w j } r j=1 in R d 1 , we compute the functions</p><formula xml:id="formula_1">h j (z) := σ(w j z) for each patch z ∈ R d 1 .<label>(1)</label></formula><p>Each function h j (for j ∈ [r]) is known as a filter, and note that the same filters are applied to each patch-this corresponds to the parameter sharing of a CNN.</p><p>• Third, for each patch index p ∈ [P ], filter index j ∈ [r], and output coordinate k ∈</p><p>, we introduce a coefficient α k,j,p ∈ R that governs the contribution of the filter h j on patch z p (x) to output f k (x). The final form of the CNN is given by f (x) :</p><formula xml:id="formula_2">= (f 1 (x), . . . , f d 2 (x))</formula><p>, where the k th component is given by</p><formula xml:id="formula_3">f k (x) := r j=1 P p=1 α k,j,p h j (z p (x)).<label>(2)</label></formula><p>Taking the patch functions {z p } P p=1 and activation function σ as fixed, the parameters of the CNN are the filter vectors w := {w j ∈ R d 1 : j ∈ [r]} along with the collection of coefficient vectors</p><formula xml:id="formula_4">α := {α k,j ∈ R P : k ∈ [d 2 ], j ∈ [r]}.</formula><p>We assume that all patch vectors z p (x) ∈ R d 1 are contained in the unit 2 -ball. This assumption can be satisfied without loss of generality by normalization: By multiplying a constant γ &gt; 0 to every patch z p (x) and multiplying 1/γ to the filter vectors w, the assumption will be satisfied without changing the the output of the network.</p><p>Given some positive radii B 1 and B 2 , we consider the model class</p><formula xml:id="formula_5">F cnn (B 1 , B 2 ) := f of the form (2) : max j∈[r]</formula><p>w j 2 ≤ B 1 and max</p><formula xml:id="formula_6">k∈[d 2 ],j∈[r] α k,j 2 ≤ B 2 .<label>(3)</label></formula><p>When the radii (B 1 , B 2 ) are clear from context, we adopt F cnn as a convenient shorthand.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">Empirical risk minimization.</head><p>Given an input-output pair (x, y) and a CNN f , we let L(f (x); y) denote the loss incurred when the output y is predicted via f (x). We assume that the loss function L is convex and L-Lipschitz in its first argument given any value of its second argument. As a concrete example, for multiclass classification with d 2 classes, the output vector y takes values in the discrete set</p><formula xml:id="formula_7">[d 2 ] = {1, 2, . . . , d 2 }.</formula><p>Average pooling and multiple channels are also an integral part of CNNs, but these do not present any new technical challenges, so that we defer these extensions to Section 4.</p><p>For example, given a vector f (x) = (f 1 (x), . . . , f d 2 (y)) ∈ R d 2 of classification scores, the associated multiclass logistic loss for a pair (x, y) is given by L(f (x); y) := −f y (x) + log</p><formula xml:id="formula_8">d 2 y =1 exp(f y (x)) . Given n training examples {(x i , y i )} n i=1</formula><p>, we would like to compute an empirical risk minimizer</p><formula xml:id="formula_9">f cnn ∈ arg min f ∈Fcnn n i=1 L(f (x i ); y i ).<label>(4)</label></formula><p>Recalling that functions f ∈ F cnn depend on the parameters w and α in a highly nonlinear way (2), this optimization problem is nonconvex. As mentioned earlier, heuristics based on stochastic gradient methods are used in practice, which makes it challenging to gain a theoretical understanding of their behavior. Thus, in the next section, we describe a relaxation of the class F cnn that allows us to obtain a convex formulation of the associated empirical risk minimization problem.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">Convexifying CNNs</head><p>We now turn to the development of the class of convexified CNNs. We begin in Section 3.1 by illustrating the procedure for the special case of the linear activation function. Although the linear case is not of practical interest, it provides intuition for our more general convexification procedure, described in Section 3.2, which applies to nonlinear activation functions. In particular, we show how embedding the nonlinear problem into an appropriately chosen reproducing kernel Hilbert space (RKHS) allows us to again reduce to the linear setting.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">Linear activation functions: low rank relaxations</head><p>In order to develop intuition for our approach, let us begin by considering the simple case of the linear activation function σ(t) = t. In this case, the filter h j when applied to the patch vector z p (x) outputs a Euclidean inner product of the form h j (z p (x)) = z p (x), w j . For each x ∈ R d 0 , we first define the P ×</p><formula xml:id="formula_10">d 1 -dimensional matrix Z(x) :=    z 1 (x) . . . z P (x)    .<label>(5)</label></formula><p>We also define the P -dimensional vector α k,j := (α k,j,1 , . . . , α k,j,P ) . With this notation, we can rewrite equation <ref type="bibr" target="#b1">(2)</ref> for the k th output as</p><formula xml:id="formula_11">f k (x) = r j=1 P p=1 α k,j,p z p (x), w j = r j=1 α k,j Z(x)w j = tr Z(x) r j=1 w j α k,j = tr(Z(x)A k ),<label>(6)</label></formula><p>where in the final step, we have defined the d 1 ×P -dimensional matrix A k := r j=1 w j α k,j . Observe that f k now depends linearly on the matrix parameter A k . Moreover, the matrix A k has rank at most r, due to the parameter sharing of CNNs. See Figure for a graphical illustration of this model structure.</p><p>Letting A := (A 1 , . . . , A d 2 ) be a concatenation of these matrices across all d 2 output coordinates, we can then define a function f A :</p><formula xml:id="formula_12">R d 1 → R d 2 of the form f A (x) := (tr(Z(x)A 1 ), . . . , tr(Z(x)A d 2 )).<label>(7)</label></formula><p>f k (x) = tr</p><formula xml:id="formula_13">Z(x) z 1 (x) z P (x) P d 1 × w 1 w r d 1 r (filters) × α k,1 α k,r r P (patches)</formula><p>A k <ref type="figure" target="#fig_1">Figure 1</ref>: The k th output of a CNN f k (x) ∈ R can be expressed as the product between a matrix Z(x) ∈ R P ×d 1 whose rows are features of the input patches and a rank-r matrix A k ∈ R d 1 ×P , which is made up of the filter weights {w j } and coefficients {a k,j,p }, as illustrated. Due to the parameter sharing intrinsic to CNNs, the matrix A k inherits a low rank structure, which can be enforced via convex relaxation using the nuclear norm.</p><p>Note that these functions have a linear parameterization in terms of the underlying matrix A. Our model class corresponds to a collection of such functions based on imposing certain constraints on the underlying matrix A: in particular, we define</p><formula xml:id="formula_14">F cnn (B 1 , B 2 ) := f A : max j∈[r] w j 2 ≤ B 1 and max k∈[d 2 ] j∈[r] α k,j 2 ≤ B 2</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Constraint (C1)</head><p>and rank(A) = r</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Constraint (C2)</head><p>. This is simply an alternative formulation of our original class of CNNs. Notice that if the filter weights w j are not shared across all patches, then the constraint (C1) still holds, but constraint (C2) no longer holds. Thus, the parameter sharing of CNNs is realized by the low-rank constraint (C2). The matrix A of rank r can be decomposed as A = U V , where both U and V have r columns. The column space of matrix A contains the convolution parameters {w j }, and the row space of A contains to the output parameters {α k,j }.</p><p>The rank-r matrices satisfying constraints (C1) and (C2) form a nonconvex set. A standard convex relaxation of a rank constraint is based on the nuclear norm A * corresponding to the sum of the singular values of A. It is straightforward to verify that any matrix A satisfying the constraints (C1) and (C2) must have nuclear norm bounded as</p><formula xml:id="formula_15">A * ≤ B 1 B 2 r √ d 2 .</formula><p>Consequently, if we define the function class</p><formula xml:id="formula_16">F ccnn := f A : A * ≤ B 1 B 2 r d 2 ,<label>(8)</label></formula><p>then we are guaranteed that F ccnn ⊇ F cnn . Overall, we propose to minimize the empirical risk (4) over F ccnn instead of F cnn ; doing so defines a convex optimization problem over this richer class of functions</p><formula xml:id="formula_17">f ccnn := arg min f A ∈Fccnn n i=1 L(f A (x i ); y i ).<label>(9)</label></formula><p>In Section 3.3, we describe iterative algorithms that can be used to solve this form of convex program in the more general setting of nonlinear activation functions.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">Nonlinear activations: RKHS filters</head><p>For nonlinear activation functions σ, we relax the class of CNN filters to a reproducing kernel Hilbert space (RKHS). As we show, this relaxation allows us to reduce the problem to the linear activation case. Let K :</p><formula xml:id="formula_18">R d 1 × R d 1 →</formula><p>R be a positive semidefinite kernel function. For particular choices of kernels (e.g., the Gaussian RBF kernel) and some sufficiently smooth activation function σ, we are able to show that the filter h : z → σ( w, z ) is contained in the RKHS induced by the kernel function K. See Section 3.4 for the choice of the kernel function and the activation function. Let</p><formula xml:id="formula_19">S := {z p (x i ) : p ∈ [P ], i ∈ [n]</formula><p>} be the set of patches in the training dataset. The representer theorem then implies that for any patch z p (x i ) ∈ S, the function value can be represented by</p><formula xml:id="formula_20">h(z p (x i )) = (i ,p )∈[n]×[P ] c i ,p k(z p (x i ), z p (x i ))<label>(10)</label></formula><p>for some coefficients</p><formula xml:id="formula_21">{c i ,p } (i ,p )∈[n]×[P ]</formula><p>. Filters taking the form <ref type="bibr" target="#b9">(10)</ref> are members of the RKHS, because they are linear combinations of basis functions z → k(z, z p (x i )). Such filters are parametrized by a finite set of coefficients, which can be estimated via empirical risk minimization. Let K ∈ R nP ×nP be the symmetric kernel matrix, where with rows and columns indexed by the example-patch index pair (i, p) ∈ [n] × [P ]. The entry at row (i, p) and column (i , p ) of matrix K is equal to K(z p (x i ), z p (x i )). So as to avoid re-deriving everything in the kernelized setting, we perform a reduction to the linear setting of Section 3.1. Consider a factorization K = QQ of the kernel matrix, where Q ∈ R nP ×m ; one example is the Cholesky factorization with m = nP . We can interpret each row Q (i,p) ∈ R m as a feature vector in place of the original z p (x i ) ∈ R d 1 , and rewrite equation <ref type="bibr" target="#b9">(10)</ref> as</p><formula xml:id="formula_22">h(z p (x i )) = Q (i,p) , w where w := (i ,p ) c i ,p Q (i ,p ) .</formula><p>In order to learn the filter h, it suffices to learn the m-dimensional vector w. To do this, define patch matrices Z(x i ) ∈ R P ×m for each i ∈ [n] so that its p-th row is Q (i,p) . Then we carry out all of Section 3.1; solving the ERM gives us a parameter matrix A ∈ R m×P d 2 . The only difference is that the B 1 norm constraint needs to be relaxed as well. See Appendix B for details.</p><p>At test time, given a new input x ∈ R d 0 , we can compute a patch matrix Z(x) ∈ R P ×m as follows:</p><p>• The p-th row of this matrix is the feature vector for patch p, which is equal to</p><formula xml:id="formula_23">Q † v(z p (x)) ∈ R m .</formula><p>Here, for any patch z, the vector v(z) is defined as a nP -dimensional vector whose (i, p)-th coordinate is equal to K(z, z p (x i )). We note that if x is an instance x i in the training set, then the vector Q † v(z p (x)) is exactly equal to Q (i,p) . Thus the mapping Z(x) applies to both training and testing. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">Solve the following optimization problem to obtain a matrix</head><formula xml:id="formula_24">A = ( A 1 , . . . , A d 2 ): A ∈ argmin A * ≤R L(A) where L(A) := n i=1 L tr(Z(x i )A 1 ), . . . , tr(Z(x i )A d 2 ) ; y i .<label>(12)</label></formula><p>4. Compute a rank-r approximation A ≈ U V where U ∈ R m×r and V ∈ R • We can then compute the predictor f k (x) = tr(Z(x)A k ) via equation <ref type="bibr" target="#b5">(6)</ref>. Note that we do not explicitly need to compute the filter values h j (z p (x)) to compute the output under the CCNN.</p><p>Retrieving filters. However, when we learn multi-layer CCNNs, we need to compute the filters explicitly. Recall from Section 3.1 that the column space of matrix A corresponds to parameters of the convolutional layer, and the row space of A corresponds to parameters of the output layer. Thus, once we obtain the parameter matrix A, we compute a rank-r approximation A ≈ U V . Then set the j-th filter h j to the mapping</p><formula xml:id="formula_25">z → U j , Q † v(z) for any patch z ∈ R d 1 ,<label>(11)</label></formula><p>where U j ∈ R m is the j-th column of matrix U , and Q † v(z) represents the feature vector for patch z. The matrix V encodes parameters of the output layer, thus doesn't appear in the filter expression <ref type="bibr" target="#b10">(11)</ref>. It is important to note that the filter retrieval is not unique, because the rankr approximation of the matrix A is not unique. One feasible way is to form the singular value decomposition A = U ΛV , then define U to be the first r columns of U , and define V to be the first r rows of ΛV . When we apply all of the r filters to all patches of an input x ∈ R d 0 , the resulting output is H(x) := U (Z(x)) -this is an r × P matrix whose element at row j and column p is equal to h j (z p (x)).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">Algorithm</head><p>The algorithm for learning a two-layer CCNN is summarized in Algorithm 1; it is a formalization of the steps described in Section 3.2. In order to solve the optimization problem <ref type="bibr" target="#b11">(12)</ref>, the simplest approach is to via projected gradient descent: At iteration t, using a step size η t &gt; 0, it forms the new matrix A t+1 based on the previous iterate A t according to:</p><formula xml:id="formula_26">A t+1 = Π R A t − η t ∇ A L(A t ) . (13)</formula><p>Here ∇ A L denotes the gradient of the objective function defined in <ref type="bibr" target="#b11">(12)</ref>, and Π R denotes the Euclidean projection onto the nuclear norm ball {A : A * ≤ R}. This nuclear norm projection can be obtained by first computing the singular value decomposition of A, and then projecting the vector of singular values onto the -ball. This latter projection step can be carried out efficiently by the algorithm of Duchi et al. <ref type="bibr" target="#b15">[16]</ref>. There are other efficient optimization algorithms for solving the problem <ref type="bibr" target="#b11">(12)</ref>, such as the proximal adaptive gradient method <ref type="bibr" target="#b16">[17]</ref> and the proximal SVRG method <ref type="bibr" target="#b45">[46]</ref>. All these algorithms can be executed in a stochastic fashion, so that each gradient step processes a mini-batch of examples. The computational complexity of each iteration depends on the width m of the matrix Q. Setting m = nP allows us to solve the exact kernelized problem, but to improve the computation efficiency, we can use Nyström approximation <ref type="bibr" target="#b14">[15]</ref> or random feature approximation <ref type="bibr" target="#b32">[33]</ref>; both are randomized methods to obtain a tall-and-thin matrix Q ∈ R nP ×m such that K ≈ QQ . Typically, the parameter m is chosen to be much smaller than nP . In order to compute the matrix Q, the Nyström approximation method takes O(m 2 nP ) time. The random feature approximation takes O(mnP d 1 ) time, but can be improved to O(mnP log d 1 ) time using the fast Hadamard transform <ref type="bibr" target="#b26">[27]</ref>. The complexity of computing a gradient vector on a batch of b images is O(mP d 2 b). The complexity of projecting the parameter matrix onto the nuclear norm ball is O(min{m</p><formula xml:id="formula_27">2 P d 2 , mP 2 d 2 2 }).</formula><p>Thus, the approximate algorithms provide substantial speed-ups on the projected gradient descent steps.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4">Theoretical results</head><p>In this section, we upper bound the generalization error of Algorithm 1, proving that it converges to the best possible generalization error of CNN. We focus on the binary classification case where the output dimension is d 2 = 1. <ref type="bibr" target="#b1">2</ref> The learning of CCNN requires a kernel function K. We consider kernel functions whose associated RKHS is large enough to contain any function taking the following form: z → q( w, z ), where q is an arbitrary polynomial function and w ∈ R d 1 is an arbitrary vector. As a concrete example, we consider the inverse polynomial kernel:</p><formula xml:id="formula_28">K(z, z ) := 1 2 − z, z , z 2 ≤ 1, z 2 ≤ 1.<label>(14)</label></formula><p>This kernel was studied by Shalev-Shwartz et al. <ref type="bibr" target="#b35">[36]</ref> for learning halfspaces, and by Zhang et al. <ref type="bibr" target="#b47">[48]</ref> for learning fully-connected neural networks. We also consider the Gaussian RBF kernel:</p><formula xml:id="formula_29">K(z, z ) := exp(−γ z − z 2 2 ), z 2 = z 2 = 1, γ &gt; 0.<label>(15)</label></formula><p>As we show in Appendix A, the inverse polynomial kernel and the Gaussian kernel satisfy the above notion of richness. We focus on these two kernels for the theoretical analysis.</p><p>Let f ccnn be the CCNN that minimizes the empirical risk (12) using one of the two kernels above. Our main theoretical result is that for suitably chosen activation functions, the generalization error of f ccnn is comparable to that of the best CNN model. In particular, the following theorem applies to activation functions σ of the following types:</p><p>(a) arbitrary polynomial functions (e.g., used by <ref type="bibr" target="#b9">[10,</ref><ref type="bibr" target="#b28">29]</ref>).</p><p>(b) sinusoid activation function σ(t) := sin(t) (e.g., used by <ref type="bibr" target="#b38">[39,</ref><ref type="bibr" target="#b21">22]</ref>). To understand why these activation functions pair with our choice of kernels, we consider polynomial expansions of the above activation functions: σ(t) = ∞ j=0 a j t j , and note that the smoothness of these functions are characterized by the rate of their coefficients {a j } ∞ j=0 converging to zero. If σ is a polynomial in category (a), then the richness of the RKHS guarantees that it contains the class of filters activated by function σ. If σ is a non-polynomial function in categories (b),(c),(d), then as Appendix A shows, the RKHS contains the filter only if the coefficients {a j } ∞ j=0 converge quickly enough to zero (the criterion depends on the choice of the kernel). Concretely, the inverse polynomial kernel is shown to capture all of the four categories of activations: they are referred as valid activation functions for the inverse polynomial kernel. The Gaussian kernel induces a smaller RKHS, and is shown to capture categories (a),(b), so that these functions are referred as valid activation functions for the Gaussian kernel. In contrast, the sigmoid function and the ReLU function are not valid for either kernel, because their polynomial expansions fail to converge quickly enough, or more intuitively speaking, because they are not smooth enough functions to be contained in the RKHS.</p><p>We are ready to state the main theoretical result. In the theorem statement, we use K(X) ∈ R P ×P to denote the random kernel matrix obtained from an input vector X ∈ R d 0 drawn randomly from the population. More precisely, the (p, q)-th entry of K(X) is given by K(z p (X), z q (X)). Theorem 1. Assume that the loss function L(•; y) is L-Lipchitz continuous for every y ∈ [d 2 ] and that K is the inverse polynomial kernel or the Gaussian kernel. For any valid activation function σ, there is a constant C σ (B 1 ) such that with the radius R :</p><formula xml:id="formula_30">= C σ (B 1 )B 2 r, the expected generalization error is at most E X,Y [L( f ccnn (X); Y )] ≤ inf f ∈Fcnn E X,Y [L(f (X); Y )] + c LC σ (B 1 )B 2 r log(nP ) E X [ K(X) 2 ] √ n ,<label>(16)</label></formula><p>where c &gt; 0 is a universal constant.</p><p>Proof sketch The proof of Theorem 1 consists of two parts: First, we consider a larger function class that contains the class of CNNs. This function class is defined as:</p><formula xml:id="formula_31">F ccnn := x → r * j=1 P p=1 α j,p h j (z p (x)) : r * &lt; ∞ and r * j=1 α j 2 h j H ≤ C σ (B 1 )B 2 d 2 .</formula><p>value of x where • H is the norm of the RKHS associated with the kernel. This new function class relaxes the class of CNNs in two ways: 1) the filters are relaxed to belong to the RKHS, and 2) the 2 -norm bounds on the weight vectors are replaced by a single constraint on α j 2 and h j H . We prove the following property for the predictor f ccnn : it must be an empirical risk minimizer of F ccnn , even though the algorithm has never explicitly optimized the loss within this nonparametric function class. Second, we characterize the Rademacher complexity of this new function class F ccnn , proving an upper bound for it based on the matrix concentration theory. Combining this bound with the classical Rademacher complexity theory <ref type="bibr" target="#b3">[4]</ref>, we conclude that the generalization loss of f ccnn converges to the least possible generalization error of F ccnn . The later loss is bounded by the generalization loss of CNNs (because F cnn ⊆ F ccnn ), which establishes the theorem. See Appendix C for the full proof of Theorem 1.</p><p>Remark on activation functions. It is worth noting that the quantity C σ (B 1 ) depends on the activation function σ, and more precisely, depends on the convergence rate of the polynomial expansion of σ. Appendix A shows that if σ is a polynomial function of degree , then C σ (B 1 ) = O(B 1 ). If σ is the sinusoid function, the erf function or the smoothed hinge loss, then the quantity C σ (B 1 ) will be exponential in B 1 . In an algorithmic perspective, we don't need to know the activation function for executing Algorithm 1. In a theoretical perspective, however, the choice of σ is relevant from the point of Theorem to compare f ccnn with the best CNN, whose representation power is characterized by the choice of σ. Therefore, if a CNN with a low-degree polynomial σ performs well on a given task, then CCNN also enjoys correspondingly strong generalization. Empirically, this is actually borne out: in Section 5, we show that the quadratic activation function performs almost as well as the ReLU function for digit classification.</p><p>Remark on parameter sharing. In order to demonstrate the importance of parameter sharing, consider a CNN without parameter sharing, so that we have filter weights w j,p for each filter index j and patch index p. With this change, the new CNN output (2) is</p><formula xml:id="formula_32">f (x) = r j=1 P p=1 α j,p σ(w j,p z p (x)), where α j,p ∈ R and w j,p ∈ R d 1 .<label>(17)</label></formula><p>Note that the hidden layer of this new network has P times more parameters than that of the convolutional neural network with parameter sharing. These networks without parameter sharing can be learned by the recursive kernel method proposed by Zhang et al. <ref type="bibr" target="#b47">[48]</ref>. This paper shows that under the norm constraints w j 2 ≤ B 1 and r j=1 P p=1 |α j,p | ≤ B 2 , the excess risk of the recursive kernel method is at most O(LC σ (B 1 )B 2 K max /n), where K max = max z: z 2 ≤1 K(z, z) is the maximal value of the kernel function. Plugging in the norm constraints of the function class F cnn , we have B 1 = B 1 and B 2 = B 2 r √ P . Thus, the expected risk of the estimated f is bounded by:</p><formula xml:id="formula_33">E X,Y [L( f (X); Y )] ≤ inf f ∈Fcnn E X,Y [L(f (X); Y )] + c LC σ (B 1 )B 2 r √ P K max √ n .<label>(18)</label></formula><p>Comparing this bound to Theorem 1, we see that (apart from the logarithmic terms) they differ in the multiplicative factors of</p><formula xml:id="formula_34">√ P K max versus E[ K(X) 2 ]. Since the matrix K(X) is P -dimensional, we have K(X) 2 ≤ max p∈[P ] q∈[P ] |K(z p (X), z q (X))| ≤ P K max .</formula><p>This demonstrates that √ P K max is always greater than E[ K(X) 2 ]. In general, the first term can be up to factor of √ P times greater, which implies that the sample complexity of the recursive kernel method is up to P times greater than that of the CCNN. This difference corresponds to the fact that the recursive kernel method learns a model with P times more parameters. Although comparing the upper bounds doesn't rigorously show that one method is better than the other, it gives the right intuition for understanding the importance of parameter sharing.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Learning multi-layer CCNNs</head><p>In this section, we describe a heuristic method for learning CNNs with more layers. The idea is to estimate the parameters of the convolutional layers incrementally from bottom to the top. Before presenting the multi-layer algorithm, we present two extensions, average pooling and multi-channel inputs.</p><p>Average pooling. Average pooling is a technique to reduce the output dimension of the convolutional layer from dimensions P × r to dimensions P × r with P &lt; P . Suppose that the filter h j applied to all the patch vectors produces the output vector H</p><formula xml:id="formula_35">j (x) := (h j (z 1 (x)), • • • , h j (z P (x))) ∈ R P ×r .</formula><p>Average pooling produces a P × r matrix, where each row is the average of the rows corresponding to a small subset of the P patches. For example, we might average every pair of adjacent patches, which would produce P = P/2 rows. The operation of average pooling can be represented via left-multiplication using a fixed matrix G ∈ R P ×P .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Algorithm 2: Learning multi-layer CCNNs</head><formula xml:id="formula_36">Input:Data {(x i , y i )} n i=1 , kernel function K, number of layers m, regularization parameters R 1 , . . . , R m , number of filters r 1 , . . . , r m . Define H 1 (x) = x.</formula><p>For each layer s = 2, . . . , m:</p><p>• Train a two-layer network by Algorithm 1, taking</p><formula xml:id="formula_37">{(H s−1 (x i ), y i )} n i=1</formula><p>as training examples and R s , r s as parameters. Let H s be the output of the convolutional layer and f s be the predictor.</p><p>Output: Predictor f m and the top convolutional layer output H m .</p><p>For the CCNN model, if we apply average pooling after the convolutional layer, then the kth output of the CCNN model becomes tr(GZ(x)A k ) where A k ∈ R m×P is the new (smaller) parameter matrix. Thus, performing a pooling operation requires only replacing every matrix Z(x i ) in problem (12) by the pooled matrix GZ(x i ). Note that the linearity of the CCNN allows us to effectively pool before convolution, even though for the CNN, pooling must be done after applying the nonlinear filters. The resulting ERM problem is still convex, and the number of parameters have been reduced by P/P -fold. Although average pooling is straightforward to incorporate in our framework, unfortunately, max pooling does not fit into our framework due to its nonlinearity.</p><p>Processing multi-channel inputs. If our input has C channels (corresponding to RGB colors, for example), then the input becomes a matrix x ∈ R C×d 0 . The c-th row of matrix x, denoted by x[c] ∈ R d 0 , is a vector representing the c-th channel. We define the multi-channel patch vector as a concatenation of patch vectors for each channel:</p><formula xml:id="formula_38">z p (x) := (z p (x[1]), . . . , z p (x[C])) ∈ R Cd 1 .</formula><p>Then we construct the feature matrix Z(x) using the concatenated patch vectors {z p (x)} P p=1 . From here, everything else of Algorithm 1 remains the same. We note that this approach learns a convex relaxation of filters taking the form σ</p><formula xml:id="formula_39">( C c=1 w c , z p (x[c]) ), parametrized by the vectors {w c } C c=1 .</formula><p>Multi-layer CCNN. Given these extensions, we are ready to present the algorithm for learning multi-layer CCNNs. The algorithm is summarized in Algorithm 2. For each layer s, we call Algorithm 1 using the output of previous convolutional layers as input-note that this consists of r channels (one from each previous filter) and thus we must use the multi-channel extension. Algorithm 2 outputs a new convolutional layer along with a prediction function, which is kept only at the last layer. We optionally use averaging pooling after each successive layer. to reduce the output dimension of the convolutional layers.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Experiments</head><p>In this section, we compare the CCNN approach with other methods. The results are reported on the MNIST dataset and its variations for digit recognition, and on the CIFAR-10 dataset for object classification.  </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1">MNIST and variations</head><p>Since the basic MNIST digits are relatively easy to classify, we also consider more challenging variations <ref type="bibr" target="#b42">[43]</ref>. These variations are known to be hard for methods without a convolution mechanism (for instance, see the paper <ref type="bibr" target="#b43">[44]</ref>). <ref type="figure" target="#fig_4">Figure 3</ref> shows a number of sample images from these different datasets. All the images are of size 28 × 28. For all datasets, we use 10,000 images for training, 2,000 images for validation and 50,000 images for testing. This 10k/2k/50k partitioning is standard for MNIST variations <ref type="bibr" target="#b42">[43]</ref>.</p><p>Implementation details. For the CCNN method and the baseline CNN method, we train twolayer and three-layer models respectively. The models with k convolutional layers are denoted by CCNN-k and CNN-k. Each convolutional layer is constructed on 5 × 5 patches with unit stride, followed by 2 × 2 average pooling. The first and the second convolutional layers contains 16 and 32 filters, respectively. The loss function is chosen as the 10-class logistic loss. We use the Gaussian kernel K(z, z ) = exp(−γ z − z 2 2 ) and set hyperparameters γ = 0.2 for the first convolutional layer and γ = 2 for the second. The feature matrix Z(x) is constructed via random feature approximation <ref type="bibr" target="#b32">[33]</ref> with dimension m = 500 for the first convolutional layer and m = 1000 for the second. Before training each CCNN layer, we preprocess the input vectors z p (x i ) using local contrast normalization and ZCA whitening <ref type="bibr" target="#b11">[12]</ref>. The convex optimization problem is solved by projected SGD with mini-batches of size 50.</p><p>As a baseline approach, the CNN models are activated by the ReLU function σ(t) = max{0, t} or the quadratic function σ(t) = t 2 . We train them using mini-batch SGD. The input images are preprocessed by global contrast normalization and ZCA whitening [see, e.g. 40]. We compare our method against several alternative baselines. The CCNN-1 model is compared against an SVM with the Gaussian RBF kernel (SVM rbf ) and a fully connected neural network with one hidden layer <ref type="figure" target="#fig_1">(NN-1)</ref>. The CCNN-2 model is compared against methods that report the state-of-the-art results on these datasets, including the translation-invariant RBM model (TIRBM) <ref type="bibr" target="#b37">[38]</ref>, the stacked denoising auto-encoder with three hidden layers (SDAE-3) <ref type="bibr" target="#b43">[44]</ref>, the ScatNet-2 model <ref type="bibr" target="#b7">[8]</ref> and the PCANet-2 model <ref type="bibr" target="#b8">[9]</ref>.</p><p>Results.   errors of CNN-1 are significantly lower than that of NN-1, highlighting the benefits of parameter sharing. The CCNN-1 model outperforms CNN-1 on all datasets. For models with two or more hidden layers, the CCNN-2 model outperforms CNN-2 on all datasets, and is competitive against the state-of-the-art. In particular, it achieves the best accuracy on the rand, img and img+rot dataset, and is comparable to the state-of-the-art on the remaining two datasets. In order to understand the key factors that affect the training of CCNN filters, we evaluate five variants:</p><p>(1) replace the Gaussian kernel by a linear kernel;</p><p>(2) remove the ZCA whitening in preprocessing;</p><p>(3) use fewer random features (m = 200 rather than m = 500) to approximate the kernel matrix; (4) regularize the parameter matrix by the Frobenius norm instead of the nuclear norm; (5) stop the mini-batch SGD early before it converges.</p><p>We evaluate the obtained filters by training a second convolutional layer on top of them, then evaluating the classification error on the hardest dataset img+rot. As <ref type="table" target="#tab_3">Table 2</ref> shows, switching to the linear kernel or removing the ZCA whitening significantly degenerates the performance. This is because that both variants equivalently modify the kernel function. Decreasing the number of random features also has a non-negligible effect, as it makes the kernel approximation less accurate. These observations highlight the impact of the kernel function. Interestingly, replacing the nuclear norm by a Frobenius norm or stopping the algorithm early doesn't hurt the performance. To see their impact on the parameter matrix, we compute the effective rank (ratio between the nuclear norm and the spectral norm, see <ref type="bibr" target="#b17">[18]</ref>) of matrix A. The effective rank obtained by the last two variants are equal to 77 and 24, greater than that of the original CCNN (equal to 12). It reveals that the last two variants have damaged the algorithm's capability of enforcing a low-rank solution. However, the CCNN filters are retrieved from the top-r singular vectors of the parameter matrix, hence the performance will remain stable as long as the top singular vectors are robust to the variation of the matrix.</p><p>In Section 3.4, we showed that if the activation function is a polynomial function, then the CCNN requires lower sample complexity to match the performance of the best possible CNN. More precisely, if the activation function is degree-polynomial, then C σ (B) in the upper bound will be controlled by O(B ). This motivates us to study the performance of low-degree polynomial activations. <ref type="table" target="#tab_0">Table 1</ref> shows that the CNN-2 model with a quadratic activation function achieves error rates comparable to that with a ReLU activation: CNN-2 (Quad) outperforms CNN-2 (ReLU) on the basic and rand datasets, and is only slightly worse on the rot and img dataset. Since the performance of CCNN matches that of the best possible CNN, the good performance of the quadratic activation in part explains why the CCNN is also good.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2">CIFAR-10</head><p>In order to test the capability of CCNN in complex classification tasks, we report its performance on the CIFAR-10 dataset <ref type="bibr" target="#b23">[24]</ref>. The dataset consists of 60000 images divided into 10 classes. Each image has 32 × 32 pixels in RGB colors. We use 50k images for training and 10k images for testing.</p><p>Implementation details. We train CNN and CCNN models with two, three, and four layers Each convolutional layer is constructed on 5 × 5 patches with unit stride, followed by 3 × 3 average pooling with two-pixel stride. We train 32, 32, 64 filters for the three convolutional layers from bottom to the top. For any s × s input, zero pixels are padded on its borders so that the input size becomes (s + 4) × (s + 4), and the output size of the convolutional layer is (s/2) × (s/2). The CNNs are activated by the ReLU function. For CCNNs, we use the Gaussian kernel with hyperparameter γ = 1, 2, 2 (for the three convolutional layers). The feature matrix Z(x) is constructed via random feature approximation with dimension m = 2000. The preprocessing steps are the same as in the MNIST experiments. It was known that the generalization performance of the CNN can be improved by training on random crops of the original image <ref type="bibr" target="#b24">[25]</ref>, so we train the CNN on random × 24 patches of the image, and test on the central 24 × 24 patch. We also apply random cropping to training the the first and the second layer of the CCNN.</p><p>We compare the CCNN against other baseline methods that don't involve nonconvex optimization: the kernel SVM with Fastfood Fourier features (SVM Fastfood ) <ref type="bibr" target="#b26">[27]</ref>, the PCANet-2 model <ref type="bibr" target="#b8">[9]</ref> and the convolutional kernel networks (CKN) <ref type="bibr" target="#b29">[30]</ref>.</p><p>Results. We report the classification errors on in <ref type="table" target="#tab_5">Table 3</ref>. For models of all depths, the CCNN model outperforms the CNN model. The CCNN-2 and the CCNN-3 model also outperform the three baseline methods. The advantage of the CCNN is substantial for learning two-layer networks, when the optimality guarantee of CCNN holds. The performance improves as more layers are stacked, but as we observe in <ref type="table" target="#tab_5">Table 3</ref>, the marginal gain of CCNN diminishes as the network grows deeper. We suspect that this is due to the greedy fashion in which the CCNN layers are constructed. Once  <ref type="bibr" target="#b26">[27]</ref> 36.90% PCANet-2 <ref type="bibr" target="#b8">[9]</ref> 22.86% CKN <ref type="bibr" target="#b29">[30]</ref> 21.70% CNN- <ref type="bibr" target="#b2">3</ref> 21.48% CCNN-3</p><p>19.56%  It is worth noting that the performance of the CNN can be further improved by adding more layers, switching from average pooling to max pooling, and being regularized by local response normalization and dropout (see, e.g. <ref type="bibr" target="#b24">[25]</ref>). The figures in <ref type="table" target="#tab_5">Table 3</ref> are by no means the state-ofthe-art result on CIFAR-10. However, it does demonstrate that the convex relaxation is capable of improving the performance of convolutional neural networks. For future work, we propose to study a better way for convexifying deep CNNs.</p><p>In <ref type="figure" target="#fig_5">Figure 4</ref>, we compare the computational efficiency of CNN-3 to its convexified version CCNN-3. Both models are trained by mini-batch SGD (with batchsize equal to 50) on a single processor. We optimized the choice of step-size for each algorithm. From the plot, it is easy to identify the three stages of the CCNN-3 curve for training the three convolutional layers from bottom to the top. We also observe that the CCNN converges faster than the CNN. More precisely, the CCNN takes half the runtime of the CNN to reach an error rate of 28%, and one-fifth of the runtime to reach an error rate of 23%. The per-iteration cost for training the first layer of CCNN is about 109% of the per-iteration cost of CNN, but the per-iteration cost for training the remaining two layers are about 18% and 7% of that of CNN. Thus, training CCNN scales well to large datasets.</p><p>Training a CCNN on top of a CNN. Instead of training a CCNN from scratch, we can also train CCNNs on top of existing CNN layers. More concretely, once a CNN-k model is obtained, we train a two-layer CCNN by taking the (k − 1)-th hidden layer of CNN as input. This approach preserves the low-level features learned by CNN, only convexifying its top convolutional layer. The underlying motivation is that the traditional CNN is good at learning low-level features through backpropagation, while the CCNN is optimal in learning two-layer networks.</p><p>In this experiment, we convexify the top convolutional layer of CNN-2 and CNN-3 using the CCNN approach, with a smaller Gaussian kernel parameter (i.e. γ = 0.1) and keeping other hyperparameters the same as in the training of CCNN-2 and CCNN-3. The results are shown in <ref type="table" target="#tab_6">Table 4</ref>. The convexified CNN achieves better accuracy on all network depths. It is worth noting that the time for training a convexified layer is only a small fraction of the time for training the original CNN.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6">Related work</head><p>With the empirical success of deep neural networks, there has been an increasing interest in theoretical understanding. Bengio et al. <ref type="bibr" target="#b4">[5]</ref> showed how to formulate neural network training as a convex optimization problem involving an infinite number of parameters. This perspective encourages incrementally adding neurons to the network, whose generalization error was studied by Bach <ref type="bibr" target="#b2">[3]</ref>. Zhang et al. <ref type="bibr" target="#b46">[47]</ref> propose a polynomial-time ensemble method for learning fully-connected neural networks, but their approach handles neither parameter sharing nor the convolutional setting. Other relevant works for learning fully-connected networks include <ref type="bibr" target="#b34">[35,</ref><ref type="bibr" target="#b22">23,</ref><ref type="bibr" target="#b28">29]</ref>. Aslan et al. <ref type="bibr" target="#b0">[1,</ref><ref type="bibr" target="#b1">2]</ref> propose a method for learning multi-layer latent variable models. They showed that for certain activation functions, the proposed method is a convex relaxation for learning the fully-connected neural network.</p><p>Another line of work is devoted to understanding the energy landscape of a neural network. Under certain assumptions on the data distribution, it can be shown that any local minimum of a two-layer fully connected neural network has an objective value that is close to the global minimum value <ref type="bibr" target="#b13">[14,</ref><ref type="bibr" target="#b10">11]</ref>. If this property holds, then gradient descent can find a solution that is "good enough". Similar results have also been established for over-specified neural networks <ref type="bibr" target="#b33">[34]</ref>, or neural networks that has a certain parallel topology <ref type="bibr" target="#b19">[20]</ref>. However, these results are not applicable to a CNN, since the underlying assumptions are not satisfied by CNNs.</p><p>Past work has studied learning translation invariant features without backpropagation. Mairal et al. <ref type="bibr" target="#b29">[30]</ref> present convolutional kernel networks. They propose a translation-invariant kernel whose feature mapping can be approximated by a composition of the convolution, non-linearity and pooling operators, obtained through unsupervised learning. However, this method is not equipped with the optimality guarantees that we have provided for CCNNs in this paper, even for learning one convolution layer. The ScatNet method <ref type="bibr" target="#b7">[8]</ref> uses translation and deformation-invariant filters constructed by wavelet analysis; however, these filters are independent of the data, unlike the analysis in this paper. Daniely et al. <ref type="bibr" target="#b12">[13]</ref> show that a randomly initialized CNN can extract features as powerful as kernel methods, but it is not clear how to provably improve the model from a random initialization.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7">Conclusion</head><p>In this paper, we have shown how convex optimization can be used to efficiently optimize CNNs as well as understand them statistically. Our convex relaxation consists of two parts: the nuclear norm relaxation for handling parameter sharing, and the RKHS relaxation for handling non-linearity. For the two-layer CCNN, we proved that its generalization error converges to that of the best possible two-layer CNN. We handled multi-layer CCNNs only heuristically, but observed that adding more layers improves the performance in practice. On real data experiments, we demonstrated that CCNN outperforms the traditional CNN of the same depth, is computationally efficient, and can be combined with the traditional CNN to achieve better performance. A major open problem is to formally study the convex relaxation of deep CNNs.</p><p>Proof. Let ϕ be the feature map that we have defined for the polynomial inverse kernel. We define vector w ∈ 2 (N) as follow: the (k 1 , . . . , k j )-th coordinate of w, where j ∈ N and k 1 , . . . , k j ∈</p><formula xml:id="formula_40">[d 1 ], is equal to 2 j+1 a j w k 1 . . . w k j . By this definition, we have σ( w, z ) = ∞ t=0 a j ( w, z ) j = ∞ j=0 a j (k 1 ,...,k j )∈[d 1 ] j w k 1 . . . w k j z k 1 . . . z k j = w, ϕ(z) ,<label>(21)</label></formula><p>where the first equation holds since σ(x) has a polynomial expansion σ(x) = ∞ j=0 a j x j , the second by expanding the inner product, and the third by definition of w and ϕ(z). The 2 -norm of w is equal to:</p><formula xml:id="formula_41">w 2 2 = ∞ j=0 2 j+1 a 2 j (k 1 ,...,k j )∈[d 1 ] j w 2 k 1 w 2 k 2 • • • w 2 k j = ∞ j=0 2 j+1 a 2 j w 2j 2 = C 2 σ ( w 2 ) &lt; ∞.<label>(22)</label></formula><p>By the basic property of the RKHS, the Hilbert norm of h is equal to the 2 -norm of w. Combining equations <ref type="bibr" target="#b20">(21)</ref> and <ref type="formula" target="#formula_41">22</ref>, we conclude that h ∈ H and h H = w 2 = C σ ( w 2 ).</p><p>According to Lemma 1, it suffices to upper bound C σ (λ) for a particular activation function σ. To make C σ (λ) &lt; ∞, the coefficients {a j } ∞ j=0 must quickly converge to zero, meaning that the activation function must be sufficiently smooth. For polynomial functions of degree , the definition of C σ implies that C σ (λ) = O(λ ). For the sinusoid activation σ(t) := sin(t), we have</p><formula xml:id="formula_42">C σ (λ) = ∞ j=0 2 2j+2 ((2j + 1)!) 2 • (λ 2 ) 2j+1 ≤ 2e λ 2 .</formula><p>For the erf function and the smoothed hinge loss function defined in Section 3.4, Zhang et al. <ref type="bibr" target="#b47">[48,</ref><ref type="bibr">Proposition 1]</ref> proved that C σ (λ) = O(e cλ 2 ) for universal numerical constant c &gt; 0.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>A.2 Gaussian kernel</head><p>The Gaussian kernel also induces an RKHS that contains a particular class of nonlinear filters. The proof is similar to that of Lemma 1.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Lemma 2.</head><p>Assume that the function σ(x) has a polynomial expansion</p><formula xml:id="formula_43">σ(t) = ∞ j=0 a j t j . Let C σ (λ) := ∞ j=0 j!e 2γ (2γ) j a 2 j λ 2j . If C σ ( w 2 )</formula><p>&lt; ∞, then the RKHS induced by the Gaussian kernel contains the function h : z → σ( w, z ) with Hilbert norm h H = C σ ( w 2 ).</p><p>Proof. When z 2 = z 2 = 1, It is well-known [see, e.g. 41] the following mapping ϕ :</p><formula xml:id="formula_44">R d 1 → 2 (N)</formula><p>is a feature map for the Gaussian RBF kernel: the (k 1 , . . . , k j )-th coordinate of ϕ(z), where j ∈ N and k 1 , . . . , k j ∈ [d 1 ], is defined as e −γ ((2γ) j /j!) 1/2 x k 1 . . . x k j . Similar to equation <ref type="bibr" target="#b20">(21)</ref>, we define a vector w ∈ 2 (N) as follow: the (k 1 , . . . , k j )-th coordinate of w, where j ∈ N and k 1 , . . . , k j ∈ [d 1 ], is equal to e γ ((2γ) j /j!) −1/2 a j w k 1 . . . w k j . By this definition, we have</p><formula xml:id="formula_45">σ( w, z ) = ∞ t=0 a j ( w, z ) j = ∞ j=0 a j (k 1 ,...,k j )∈[d 1 ] j w k 1 . . . w k j z k 1 . . . z k j = w, ϕ(z) .<label>(23)</label></formula><p>The 2 -norm of w is equal to:</p><formula xml:id="formula_46">w 2 2 = ∞ j=0 j!e 2γ (2γ) j a 2 j (k 1 ,...,k j )∈[d 1 ] j w 2 k 1 w 2 k 2 • • • w 2 k j = ∞ j=0 j!e 2γ (2γ) j a 2 j w 2j 2 = C 2 σ ( w 2 ) &lt; ∞.<label>(24)</label></formula><p>Combining equations <ref type="bibr" target="#b20">(21)</ref> and <ref type="formula" target="#formula_41">22</ref>, we conclude that h ∈ H and h H = w 2 = C σ ( w 2 ).</p><p>Comparing Lemma 1 and Lemma 2, we find that the Gaussian kernel imposes a stronger condition on the smoothness of the activation function. For polynomial functions of degree , we still have C σ (λ) = O(λ ). For the sinusoid activation σ(t) := sin(t), it can be verified that</p><formula xml:id="formula_47">C σ (λ) = e 2γ ∞ j=0 1 (2j + 1)! • λ 2 2γ</formula><p>2j+1 ≤ e λ 2 /(4γ)+γ .</p><p>However, the value of C σ (λ) is infinite when σ is the erf function or the smoothed hinge loss, meaning that the Gaussian kernel's RKHS doesn't contain filters activated by these two functions.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>B Convex relaxation for nonlinear activation</head><p>In this appendix, we provide a detailed derivation of the relaxation for nonlinear activation functions that we previously sketched in Section 3.2. Recall that the filter output is σ( w j , z ). Appendix A shows that given a sufficiently smooth activation function σ, we can find some kernel function K :</p><formula xml:id="formula_48">R d 1 × R d 1 → R</formula><p>and a feature map ϕ :</p><formula xml:id="formula_49">R d 1 → 2 (N) satisfying K(z, z ) ≡ ϕ(z), ϕ(z ) , such that σ( w j , z ) ≡ w j , ϕ(z) .<label>(25)</label></formula><p>Here w j ∈ 2 (N) is a countable-dimensional vector and ϕ := (ϕ 1 , ϕ 2 , . . . ) is a countable sequence of functions. Moreover, the -norm of w j is bounded as w j 2 ≤ C σ ( w j 2 ) for a monotonically increasing function C σ that depends on the kernel (see Lemma 1 and Lemma 2). As a consequence, we may use ϕ(z) as the vectorized representation of the patch z, and use w j as the linear transformation weights, then the problem is reduced to training a CNN with the identity activation function. The filter is parametrized by an infinite-dimensional vector w j . Our next step is to reduce the original ERM problem to a finite-dimensional one. In order to minimize the empirical risk, one only needs to concern the output on the training data, that is, the output of w j , ϕ(z p (x i )) for all (i, p) ∈ [n] × [P ]. Let T be the orthogonal projector onto the linear subspace spanned by the vectors {ϕ(z p (x i )) : (i, p) ∈ [n] × [P ]}. Then we have</p><formula xml:id="formula_50">∀ (i, p) ∈ [n] × [P ] : w j , ϕ(z p (x i )) = w j , T ϕ(z p (x i )) = T w j , ϕ(z p (x i )) .</formula><p>The last equation follows since the orthogonal projector T is self-adjoint. Thus, for empirical risk minimization, we can without loss of generality assume that w j belongs to the linear subspace spanned by {ϕ(z p (x i )) : (i, p) ∈ [n] × [P ]} and reparametrize it by:</p><formula xml:id="formula_51">w j = (i,p)∈[n]×[P ] β j,(i,p) ϕ(z p (x i )).<label>(26)</label></formula><p>Let β j ∈ R nP be a vector whose whose (i, p)-th coordinate is β j,(i,p) . In order to estimate w j , it suffices to estimate the vector β j . By definition, the vector satisfies the relation β j Kβ j = w j 2 2 , where K is the nP × nP kernel matrix defined in Section 3.2. As a consequence, if we can find a matrix Q such that QQ = K, then we have the norm constraint</p><formula xml:id="formula_52">Q β j 2 = β j Kβ j = w j 2 ≤ C σ ( w j 2 ) ≤ C σ (B).<label>(27)</label></formula><p>Let v(z) ∈ R nP be a vector whose (i, p)-th coordinate is equal to K(z, z p (x i )). Then by equations <ref type="bibr" target="#b24">(25)</ref> and <ref type="bibr" target="#b25">(26)</ref>, the filter output can be written as</p><formula xml:id="formula_53">σ w j , z ≡ w j , ϕ(z) ≡ β j , v(z) .<label>(28)</label></formula><p>For any patch z p (x i ) in the training data, the vector v(z p (x i )) belongs to the column space of the kernel matrix K. Therefore, letting Q † represent the pseudo-inverse of matrix Q, we have</p><formula xml:id="formula_54">∀ (i, p) ∈ [n] × [P ] : β j , v(z p (x i )) = β j QQ † v(z p (x i )) = (Q ) † Q β j , v(z p (x i )) .</formula><p>It means that if we replace the vector β j on the right-hand side of equation <ref type="bibr" target="#b27">(28)</ref> by the vector (Q ) † Q β j , then it won't change the empirical risk. Thus, for ERM we can parametrize the filters by</p><formula xml:id="formula_55">h j (z) := (Q ) † Q β j , v(z) = Q † v(z), Q β j .<label>(29)</label></formula><p>Let Z(x) be an P × nP matrix whose p-th row is equal to Q † v(z p (x)). Similar to the steps in equation <ref type="formula" target="#formula_11">6</ref>, we have</p><formula xml:id="formula_56">f k (x) = r j=1 α k,j Z(x)K 1/2 β j = tr Z(x) r j=1 K 1/2 β j α k,j = tr(Z(x)A k ),</formula><p>where A k := r j=1 Q β j α k,j . If we let A := (A 1 , . . . , A d 2 ) denote the concatenation of these matrices, then this larger matrix satisfies the constraints:</p><formula xml:id="formula_57">Constraint (C1): max j∈[r] Q β j 2 ≤ C σ (B 1 ) and max (k,j)∈[d 2 ]×[r] α k,j 2 ≤ B 2 .</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Constraint (C2):</head><p>The matrix A has rank at most r.</p><p>We relax these two constraints to the nuclear norm constraint:</p><formula xml:id="formula_58">A * ≤ C σ (B 1 )B 2 r d 2 .<label>(30)</label></formula><p>By comparing constraints <ref type="bibr" target="#b7">(8)</ref> and <ref type="bibr" target="#b29">(30)</ref>, we see that the only difference is that the term B 1 in the norm bound has been replaced by C σ (B 1 ). This change is needed because we have used the kernel trick to handle nonlinear activation functions.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>C Proof of Theorem 1</head><p>Since the output is one-dimensional in this case, we can adopt the simplified notation (A, α j,p ) for the matrix (A 1 , α 1,j,p ). Letting H be the RKHS associated with the kernel function K, and letting • H be the associated Hilbert norm, consider the function class</p><formula xml:id="formula_59">F ccnn := x → r * j=1 P p=1 α j,p h j (z p (x)) : r * &lt; ∞ and r * j=1 α j 2 h j H ≤ C σ (B 1 )B 2 d 2 .<label>(31)</label></formula><p>Here α j,p denotes the p-th entry of vector α j ∈ R P , whereas the quantity C σ (B 1 ) only depends on B 1 and the activation function σ. The following lemma shows that the function class F ccnn is rich enough so that it contains family of CNN predictors as a subset. The reader should recall the notion of a valid activation function, as defined prior to the statement of Theorem 1.</p><p>Lemma 3. For any valid activation function σ, there is a quantity C σ (B 1 ), depending only on B 1 and σ, such that F cnn ⊂ F ccnn .</p><p>See Appendix C.1 for the proof.</p><p>Next, we connect the function class F ccnn to the CCNN algorithm. Recall that f ccnn is the predictor trained by the CCNN algorithm. The following lemma shows that f ccnn is an empirical risk minimizer within F ccnn . Our third lemma shows that the function class F ccnn is not "too big", which we do by upper bounding its Rademacher complexity. The Rademacher complexity of a function class F = {f : X → R} with respect to n i.</p><formula xml:id="formula_60">i.d. samples {X i } n i=1 is given by R n (F) := E X, sup f ∈F 1 n n i=1 i f (X i ) ,</formula><p>where</p><formula xml:id="formula_61">{ i } n i=1</formula><p>are an i.i.d. sequence of uniform {−1, +1}-valued variables. Rademacher complexity plays an important role in empirical process theory, and in particular can be used to bound the generalization loss of our empirical risk minimization problem. We refer the reader to Bartlett and Mendelson <ref type="bibr" target="#b3">[4]</ref> for an introduction to the theoretical properties of Rademacher complexity.</p><p>The following lemma involves the kernel matrix K(x) ∈ R P ×P whose (i, j)-th entry is equal to K(z i (x), z j (x)), as well as the expectation E[ K(X) 2 ] of the spectral norm of this matrix when X is drawn randomly.</p><p>Lemma 5. There is a universal constant c such that</p><formula xml:id="formula_62">R n (F ccnn ) ≤ c C σ (B 1 )B 2 r log(nP )E[ K(X) 2 ] √ n .<label>(32)</label></formula><p>See Appendix C.3 for the proof of this claim.</p><p>Combining Lemmas 3 through 5 allows us to compare the CCNN predictor f ccnn against the best model in the CNN class. Lemma shows that f ccnn is the empirical risk minimizer within function class F ccnn . Thus, the theory of Rademacher complexity <ref type="bibr" target="#b3">[4]</ref> guarantees that</p><formula xml:id="formula_63">E[L(F ccnn (X); Y )] ≤ inf f ∈Fccnn E[L(f (x); y)] + 2L • R n (F ccnn ) + c √ n ,<label>(33)</label></formula><p>where c is a universal constant. By Lemma 3, we have</p><formula xml:id="formula_64">inf f ∈Fccnn E[L(f (X); Y )] ≤ inf f ∈Fcnn E[L(f (X); Y )].</formula><p>Plugging this upper bound into inequality <ref type="bibr" target="#b32">(33)</ref> and applying Lemma 5 completes the proof.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>C.1 Proof of Lemma 3</head><p>With the activation functions specified in the lemma statement, Lemma 1 and Lemma 2 show that there is a quantity C σ (B 1 ), such any filter of CNN belongs to the reproducing kernel Hilbert space H and its Hilbert norm is bounded by C σ (B 1 ). As a consequence, any function f ∈ F cnn can be represented by</p><formula xml:id="formula_65">f (x) := r j=1 P p=1 α j,p h j (z p (x)) where h j H ≤ C σ (B 1 ) and α j 2 ≤ B 2 .</formula><p>It is straightforward to verify that function f satisfies the constraint in equation <ref type="bibr" target="#b30">(31)</ref>, and consequently belongs to F ccnn .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>C.2 Proof of Lemma 4</head><p>Let C R denote the function class x → tr(Z(x)A) : A * ≤ R . We first prove that C R ⊂ F ccnn . Consider an arbitrary function f A (x) : = tr(Z(x)A) belonging to C R . Note that the matrix A has a singular value decomposition (SVD) A = r * j=1 λ j w j u j for some r * &lt; ∞, where w j and u j are unit vectors and λ j are real numbers. Using this notation, the function f A can be represented as the sum</p><formula xml:id="formula_66">f A (x) = r * j=1 λ j u j Z(x)w j .</formula><p>Let v(z) be an nP -dimensional vector whose (i, p)-th coordinate is equal to K(z, z p (x i )). Then Q † v(z p (x)) is the p-th row of matrix Z(x). Letting h j denote the mapping z → Q † v(z), w j , we have</p><formula xml:id="formula_67">f A (x) = r * j=1 P p=1 λ j u j,p h j (z p (x)).</formula><p>The function h j can also be written as z → (Q ) † w j , v(z) . Equation <ref type="bibr" target="#b26">(27)</ref> implies that the Hilbert norm of this function is equal to Q (Q ) † w j 2 , which is bounded by w j 2 = 1. Thus we have</p><formula xml:id="formula_68">r * j=1 λ j u j 2 h j H = r * j=1 |λ j | = A * ≤ C σ (B 1 )B 2 r,</formula><p>which implies that f A ∈ F ccnn .</p><p>Next, it suffices to prove that for some empirical risk minimizer f in function class F ccnn , it also belongs to the function class C R . Recall that any function f ∈ F ccnn can be represented in the form</p><formula xml:id="formula_69">f (x) = r * j=1 P p=1 α j,p h j (z p (x)).</formula><p>where the filter h j belongs to the RKHS. Let ϕ : R d 1 → 2 (N) be a feature map of the kernel function. The function h j (z) can be represented by w, ϕ(z) for some w ∈ 2 (N). In Appendix B, we have shown that any function taking this form can be replaced by (Q ) † Q β j , v(z) for some vector β j ∈ R nP without changing the output on the training data. Thus, there exists at least one empirical risk minimizer f of F ccnn such that all of its filters take the form</p><formula xml:id="formula_70">h j (z) = (Q ) † Q β j , v(z) .<label>(34)</label></formula><p>By equation <ref type="bibr" target="#b26">(27)</ref>, the Hilbert norm of these filters satisfy:</p><formula xml:id="formula_71">h j H = Q (Q ) † Q β j = Q β j 2 .</formula><p>According to Appendix B, if all filters take the form <ref type="bibr" target="#b33">(34)</ref>, then the function f can be represented by tr(Z(x)A) for matrix A := r * j=1 Q β j α j . Consequently, the nuclear norm is bounded as</p><formula xml:id="formula_72">A * ≤ r * j=1 α j 2 Q β j 2 = r * j=1 α j 2 h j H ≤ C σ (B 1 )B 2 r = R,</formula><p>which establishes that the function f belongs to the function class C R .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>C.3 Proof of Lemma 5</head><p>Throughout this proof, we use the shorthand notation R := C σ (B 1 )B 2 r. Recall that any function f ∈ F ccnn can be represented in the form</p><formula xml:id="formula_73">f (x) = r * j=1 P p=1 α j,p h j (z p (x)) where h j ∈ H,<label>(35)</label></formula><p>and the Hilbert space H is induced by the kernel function K. Since any patch z belongs to the compact space {z : z 2 ≤ 1} and K is a continuous kernel satisfying K(z, z) ≤ 1, Mercer's theorem <ref type="bibr" target="#b40">[41,</ref><ref type="bibr">Theorem 4.49]</ref> implies that there is a feature map ϕ : R d 1 → 2 (N) such that ∞ =1 ϕ (z)ϕ (z ) converges uniformly and absolutely to K(z, z ). Thus, we can write K(z, z ) = ϕ(z), ϕ(z ) . Since ϕ is a feature map, every any function h ∈ H can be written as h(z) = β, ϕ(z) for some β ∈ 2 (N), and the Hilbert norm of h is equal to β 2 .</p><p>Using this notation, we can write the filter h j in equation <ref type="bibr" target="#b34">(35)</ref> as h j (z) = β j , ϕ(z) for some vector β j ∈ (N), with Hilbert norm h j H = β j 2 . For each x, let Ψ(x) denote the linear operator that maps any sequence θ ∈ 2 (N) to the vector in R P with elements θ, ϕ(z 1 (x)) . . . θ, ϕ(z P (x))</p><p>T .</p><p>Informally, we can think of Ψ(x) as a matrix whose p-th row is equal to ϕ(z p (x)). The function f can then be written as</p><formula xml:id="formula_74">f (x i ) = r * j=1 α j Ψ(x i )β j = tr   Ψ(x i ) r * j=1 β j α j   .<label>(36)</label></formula><p>The matrix r * j=1 β j α j satisfies the constraint</p><formula xml:id="formula_75">r * j=1 β j α j * ≤ r * j=1 α j 2 • β j 2 = r * j=1 α j • h j H ≤ R.<label>(37)</label></formula><p>Combining equation <ref type="bibr" target="#b35">(36)</ref> and inequality (37), we find that the Rademacher complexity is bounded by</p><formula xml:id="formula_76">R n (F ccnn ) = 1 n E sup f ∈Fccnn n i=1 i f (x i ) ≤ 1 n E sup A: A * ≤R tr n i=1 i Ψ(x i ) A = R n E n i=1 i Ψ(x i ) 2 ,<label>(38)</label></formula><p>where the last equality uses Hölder's inequality-that is, the duality between the nuclear norm and the spectral norm.</p><p>As noted previously, we may think informally of the quantity n i=1 i Ψ(x i ) as a matrix with P rows and infinitely many columns. Let Ψ (d) (x i ) denote the submatrix consisting of the first d columns of Ψ(x i ) and let Ψ (−d) (x i ) denote the remaining sub-matrix. We have</p><formula xml:id="formula_77">E n i=1 i Ψ(x i ) 2 ≤ E n i=1 i Ψ (d) (x i ) 2 +   E   n i=1 i Ψ (−d) (x i ) 2 F     1/2 ≤ E n i=1 i Ψ (d) (x i ) 2 + nP • E ∞ =d+1 ϕ 2 (z) 1/2 .</formula><p>Since ∞ =1 ϕ 2 (z) uniformly converges to K(z, z), the second term on the right-hand side converges to zero as d → ∞. Thus it suffices to bound the first term and take the limit. In order to upper bound the spectral norm n i=1 i Ψ (d) (x i ) 2 , we use a matrix Bernstein inequality due to Minsker <ref type="bibr" target="#b30">[31,</ref><ref type="bibr">Theorem 2.1]</ref>. In particular, whenever tr(Ψ (d) (x i )(Ψ (d) (x i )) ) ≤ C 1 , there is a universal constant c such that the expected spectral norm is upper bounded as</p><formula xml:id="formula_78">E n i=1 i Ψ (d) (x i ) 2 ≤ c log(nC 1 )E n i=1 Ψ (d) (x i )(Ψ (d) (x i )) 2 1/2 ≤ c log(nC 1 ) nE[ Ψ(X)Ψ (X) 2 ] 1/2 .</formula><p>Note that the uniform kernel expansion K(z, z ) = ∞ =1 ϕ (z)ϕ (z ) implies the trace norm bound tr(Ψ (d) (x i )(Ψ (d) (x i )) ) ≤ tr(K(x i )). Since all patches are contained in the unit -ball, the kernel function K is uniformly bounded by 1, and hence C 1 ≤ P . Taking the limit d → ∞, we find that</p><formula xml:id="formula_79">E n i=1 i Ψ(x i ) 2 ≤ c log(nP ) nE[ K(X) 2 ] 1/2 .</formula><p>Finally, substituting this upper bound into inequality <ref type="bibr" target="#b37">(38)</ref> yields the claimed bound <ref type="bibr" target="#b31">(32)</ref>.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>P d 2</head><label>2</label><figDesc>×r . Output: Return the predictor f ccnn (x) := tr(Z(x) A 1 ), . . . , tr(Z(x) A d 2 ) and the convolutional layer output H(x) := U (Z(x)) .</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>1 (</head><label>1</label><figDesc>(c) erf function σ erf (t) := 2/ √ π t 0 e −z 2 dz, which represents an approximation to the sigmoid function (SeeFigure 2(a)).(d) a smoothed hinge loss σ sh (t) := t −∞ σ erf (z) + 1)dz, which represents an approximation to the ReLU function (See Figure 2(b)).</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 2 :</head><label>2</label><figDesc>sigmoid v.s. erf (b) ReLU v.s. smoothed hinge loss Comparing different activation functions. The two functions in (a) are quite similar. The smooth hinge loss in (b) is a smoothed version of ReLU.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Figure 3 :</head><label>3</label><figDesc>Some variations of the MNIST dataset: (a) random background inserted into the digit image; (b) digits rotated by a random angle generated uniformly between 0 and 2π; (c) black and white image used as the background for the digit image; (d) combination of background perturbation and rotation perturbation.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>Lemma 4 .</head><label>4</label><figDesc>With the CCNN hyper-parameter R = C σ (B 1 )B 2 d 2 , the predictor f ccnn is guaranteed to satisfy the inclusionf ccnn ∈ arg min f ∈Fccnn n i=1 L(f (x i ); y i ).See Appendix C.2 for the proof.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head>Algorithm 1 :</head><label>1</label><figDesc>Learning two-layer CCNNs Input:Data {(x i , y i )} n i=1, kernel function K, regularization parameter R &gt; 0, number of filters r.1. Construct a kernel matrix K ∈ R nP ×nP such that the entry at column (i, p) and row (i , p ) is equal to K(z p (x i ), z p (x i )). Compute a factorization K = QQ or an approximation K ≈ QQ , where Q ∈ R nP ×m .2.For each x i , construct patch matrix Z(x i ) ∈ R P ×m whose p-th row is the (i, p)-th row of Q, where Z(•) is defined in Section 3.2.</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>Table 1</head><label>1</label><figDesc>shows the classification errors on the test set. The models are grouped with respect to the number of layers that they contain. For models with one convolutional layer, the</figDesc><table><row><cell></cell><cell>basic</cell><cell>rand</cell><cell>rot</cell><cell>img</cell><cell>img+rot</cell></row><row><cell>SVM rbf [44]</cell><cell cols="4">3.03% 14.58% 11.11% 22.61%</cell><cell>55.18%</cell></row><row><cell>NN-1 [44]</cell><cell cols="3">4.69% 20.04% 18.11%</cell><cell>27.41%</cell><cell>62.16%</cell></row><row><cell cols="2">CNN-1 (ReLU) 3.37%</cell><cell>9.83%</cell><cell>18.84%</cell><cell>14.23%</cell><cell>45.96%</cell></row><row><cell>CCNN-1</cell><cell cols="5">2.38% 7.45% 13.39% 10.40% 42.28%</cell></row><row><cell>TIRBM [38]</cell><cell>-</cell><cell>-</cell><cell>4.20%</cell><cell>-</cell><cell>35.50%</cell></row><row><cell>SDAE-3 [44]</cell><cell cols="2">2.84% 10.30%</cell><cell>9.53%</cell><cell>16.68%</cell><cell>43.76%</cell></row><row><cell>ScatNet-2 [8]</cell><cell cols="2">1.27% 12.30%</cell><cell>7.48%</cell><cell>18.40%</cell><cell>50.48%</cell></row><row><cell>PCANet-2 [9]</cell><cell cols="2">1.06% 6.19%</cell><cell>7.37%</cell><cell>10.95%</cell><cell>35.48%</cell></row><row><cell cols="2">CNN-2 (ReLU) 2.11%</cell><cell>5.64%</cell><cell>8.27%</cell><cell>10.17%</cell><cell>32.43%</cell></row><row><cell>CNN-2 (Quad)</cell><cell>1.75%</cell><cell>5.30%</cell><cell>8.83%</cell><cell>11.60%</cell><cell>36.90%</cell></row><row><cell>CCNN-2</cell><cell cols="2">1.38% 4.32%</cell><cell>6.98%</cell><cell>7.46%</cell><cell>30.23%</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_2"><head>Table 1 :</head><label>1</label><figDesc>Classification error on the basic MNIST and its four variations.</figDesc><table><row><cell>The best performance</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_3"><head>Table 2 :</head><label>2</label><figDesc></figDesc><table /><note>Factors that affect the training of CCNN-2: changing the kernel function, removing the data whitening or decreasing the number of random features has non-negligible impact to the performance. The results are reported on the img+rot dataset.</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_5"><head>Table 3 :</head><label>3</label><figDesc></figDesc><table><row><cell></cell><cell></cell><cell></cell><cell>0.5</cell><cell></cell></row><row><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell>CNN-3</cell></row><row><cell></cell><cell></cell><cell>classification error</cell><cell>0.1 0.2 0.3 0.4</cell><cell></cell><cell>CCNN-3</cell></row><row><cell></cell><cell></cell><cell></cell><cell>0</cell><cell>2000</cell><cell>4000</cell><cell>6000</cell><cell>8000</cell></row><row><cell></cell><cell></cell><cell></cell><cell></cell><cell cols="2">time (sec)</cell></row><row><cell cols="2">Classification error on the CIFAR-</cell><cell cols="4">Figure 4: The convergence of CNN-3 and</cell></row><row><cell cols="2">10 dataset. The best performance within</cell><cell cols="4">CCNN-3 on the CIFAR-10 dataset.</cell></row><row><cell>each block is bolded.</cell><cell></cell><cell></cell><cell></cell><cell></cell></row><row><cell></cell><cell cols="2">CNN-1</cell><cell>CNN-2</cell><cell>CNN-3</cell></row><row><cell>Original</cell><cell cols="2">34.14%</cell><cell>24.98%</cell><cell>21.48%</cell></row><row><cell cols="5">Convexified 23.62% 21.88% 18.18%</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_6"><head>Table 4 :</head><label>4</label><figDesc>Comparing the original CNN and the one whose top convolution layer is convexified by CCNN. The classification errors are reported on CIFAR-10. trained, the low-level filters of the CCNN are no longer able to adapt to the final classifier. In contrast, the low-level filters of the CNN model are continuously adjusted via backpropagation.</figDesc><table /><note></note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="2">We can treat the multiclass case by performing a standard one-versus-all reduction to the binary case.</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgements</head><p>This work was partially supported by Office of Naval Research MURI grant DOD-002888, Air Force Office of Scientific Research Grant AFOSR-FA9550-14-1-001, Office of Naval Research grant ONR-N00014, National Science Foundation Grant CIF-31712-23800, as well as a Microsoft Faculty Research Award to the second author.</p></div>
+			</div>
+
+			<div type="annex">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>A Inverse polynomial kernel and Gaussian kernel</head><p>In this appendix, we describe the properties of the two types of kernels -the inverse polynomial kernel <ref type="bibr" target="#b13">(14)</ref> and the Gaussian RBF kernel <ref type="bibr" target="#b14">(15)</ref>. We prove that the associated reproducing kernel Hilbert Spaces (RKHS) of these kernels contain filters taking the form h : z → σ( w, z ) for particular activation functions σ.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>A.1 Inverse polynomial kernel</head><p>We first verify that the function <ref type="formula">14</ref>is a kernel function. This holds since that we can find a mapping ϕ :</p><p>Since z 2 ≤ 1 and z 2 ≤ 1, the series on the right-hand side is absolutely convergent. The inner term on the right-hand side of equation <ref type="bibr" target="#b18">(19)</ref> can be simplified to</p><p>Combining equations <ref type="bibr" target="#b18">(19)</ref> and <ref type="bibr" target="#b19">(20)</ref> and using the fact that | z, z | ≤ 1, we have</p><p>which verifies that K is a kernel function and ϕ is the associated feature map. Next, we prove that the associated RKHS contains the class of nonlinear filters. The lemma was proved by Zhang et al. <ref type="bibr" target="#b47">[48]</ref>. We include the proof to make the paper self-contained.</p><p>Lemma 1. Assume that the function σ(x) has a polynomial expansion σ(t) = ∞ j=0 a j t j . Let C σ (λ) := ∞ j=0 2 j+1 a 2 j λ 2j . If C σ ( w 2 ) &lt; ∞, then the RKHS induced by the inverse polynomial kernel contains function h : z → σ( w, z ) with Hilbert norm h H = C σ ( w 2 ).</p></div>			</div>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Convex two-layer modeling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ö</forename><surname>Aslan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Cheng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Schuurmans</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="2985" to="2993" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Convex deep learning via normalized kernels</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ö</forename><surname>Aslan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Schuurmans</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="3275" to="3283" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<title level="m" type="main">Breaking the curse of dimensionality with convex neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Bach</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.8690</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Rademacher and Gaussian complexities: Risk bounds and structural results</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">L</forename><surname>Bartlett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mendelson</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">The Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page" from="463" to="482" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Convex neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><forename type="middle">L</forename><surname>Roux</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Vincent</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Delalleau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Marcotte</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2005" />
+			<biblScope unit="page" from="123" to="130" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Training a 3-node neural network is NP-complete</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">L</forename><surname>Blum</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">L</forename><surname>Rivest</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural Networks</title>
+		<imprint>
+			<biblScope unit="volume">5</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="117" to="127" />
+			<date type="published" when="1992" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<monogr>
+		<title level="m" type="main">Online learning and stochastic approximations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Bottou</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1998" />
+			<biblScope unit="volume">17</biblScope>
+			<biblScope unit="page">142</biblScope>
+		</imprint>
+	</monogr>
+	<note>On-line learning in neural networks</note>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Invariant scattering convolution networks. Pattern Analysis and Machine Intelligence</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Bruna</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mallat</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on</title>
+		<imprint>
+			<biblScope unit="volume">35</biblScope>
+			<biblScope unit="issue">8</biblScope>
+			<biblScope unit="page" from="1872" to="1886" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Pcanet: A simple deep learning baseline for image classification?</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T.-H</forename><surname>Chan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Jia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Gao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Lu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Zeng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Ma</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Image Processing</title>
+		<imprint>
+			<biblScope unit="volume">24</biblScope>
+			<biblScope unit="issue">12</biblScope>
+			<biblScope unit="page" from="5017" to="5032" />
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">A fast and accurate dependency parser using neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">D</forename><surname>Manning</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2014 Conference on Empirical Methods in Natural Language Processing</title>
+		<meeting>the 2014 Conference on Empirical Methods in Natural Language Processing</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="page" from="740" to="750" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<monogr>
+		<title level="m" type="main">The loss surface of multilayer networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Choromanska</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Henaff</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Mathieu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">B</forename><surname>Arous</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+		<idno>ArXiv:1412.0233</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<monogr>
+		<title level="m" type="main">An analysis of single-layer networks in unsupervised feature learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Coates</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Lee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">Y</forename><surname>Ng</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2010" />
+			<biblScope unit="volume">1001</biblScope>
+			<pubPlace>Ann Arbor</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<title level="m" type="main">Toward deeper understanding of neural networks: The power of initialization and a dual view on expressivity</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Daniely</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Frostig</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Singer</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1602.05897</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Identifying and attacking the saddle point problem in high-dimensional non-convex optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><forename type="middle">N</forename><surname>Dauphin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Gulcehre</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Cho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ganguli</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="2933" to="2941" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">On the Nyström method for approximating a Gram matrix for improved kernel-based learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Drineas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">W</forename><surname>Mahoney</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">The Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">6</biblScope>
+			<biblScope unit="page" from="2153" to="2175" />
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Efficient projections onto theball for learning in high dimensions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Duchi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Shalev-Shwartz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Singer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Chandra</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 25th International Conference on Machine Learning</title>
+		<meeting>the 25th International Conference on Machine Learning</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2008" />
+			<biblScope unit="page" from="272" to="279" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Adaptive subgradient methods for online learning and stochastic optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Duchi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Hazan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Singer</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">The Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">12</biblScope>
+			<biblScope unit="page" from="2121" to="2159" />
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<title level="m" type="main">Compressed sensing: theory and applications</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><forename type="middle">C</forename><surname>Eldar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Kutyniok</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2012" />
+			<publisher>Cambridge University Press</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">An empirical study of learning speed in back-propagation networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">E</forename><surname>Fahlman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Heuristics</title>
+		<imprint>
+			<date type="published" when="1988" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">D</forename><surname>Haeffele</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Vidal</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1506.07540</idno>
+		<title level="m">Global optimality in tensor factorization, deep learning, and beyond</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Deep neural networks for acoustic modeling in speech recognition: The shared views of four research groups</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Deng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Yu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">E</forename><surname>Dahl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Mohamed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Jaitly</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Senior</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Vanhoucke</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Nguyen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">N</forename><surname>Sainath</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Signal Processing Magazine</title>
+		<imprint>
+			<biblScope unit="volume">29</biblScope>
+			<biblScope unit="issue">6</biblScope>
+			<biblScope unit="page" from="82" to="97" />
+			<date type="published" when="2012" />
+			<publisher>IEEE</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Suitable mlp network activation functions for breast cancer and thyroid disease detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Isa</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Saad</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Omar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Osman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Ahmad</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><forename type="middle">M</forename><surname>Sakim</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2010 Second International Conference on Computational Intelligence, Modelling and Simulation</title>
+		<imprint>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="39" to="44" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<monogr>
+		<title level="m" type="main">Generalization bounds for neural networks through tensor factorization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Janzamin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Sedghi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Anandkumar</surname></persName>
+		</author>
+		<idno>ArXiv:1506.08473</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<monogr>
+		<title level="m" type="main">Learning multiple layers of features from tiny images</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Master Thesis</note>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">Imagenet classification with deep convolutional neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="1097" to="1105" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Face recognition: A convolutional neural-network approach</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Lawrence</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">L</forename><surname>Giles</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">C</forename><surname>Tsoi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">D</forename><surname>Back</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on</title>
+		<imprint>
+			<biblScope unit="volume">8</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="98" to="113" />
+			<date type="published" when="1997" />
+		</imprint>
+	</monogr>
+	<note>Neural Networks</note>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Fastfood-approximating kernel expansions in loglinear time</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Le</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Sarlós</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Smola</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the International Conference on Machine Learning</title>
+		<meeting>the International Conference on Machine Learning</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Gradient-based learning applied to document recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Bottou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Haffner</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Proceedings of the IEEE</title>
+		<imprint>
+			<biblScope unit="volume">86</biblScope>
+			<biblScope unit="issue">11</biblScope>
+			<biblScope unit="page" from="2278" to="2324" />
+			<date type="published" when="1998" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">On the computational efficiency of training neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Livni</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Shalev-Shwartz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Shamir</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="855" to="863" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Convolutional kernel networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Mairal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Koniusz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Harchaoui</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Schmid</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="2627" to="2635" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<monogr>
+		<title level="m" type="main">On some extensions of Bernstein&apos;s inequality for self-adjoint operators</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Minsker</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1112.5448</idno>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">Human-level control through deep reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Mnih</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Silver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">A</forename><surname>Rusu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Veness</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">G</forename><surname>Bellemare</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Graves</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Riedmiller</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">K</forename><surname>Fidjeland</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Ostrovski</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nature</title>
+		<imprint>
+			<biblScope unit="volume">518</biblScope>
+			<biblScope unit="issue">7540</biblScope>
+			<biblScope unit="page" from="529" to="533" />
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Random features for large-scale kernel machines</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Rahimi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Recht</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2007" />
+			<biblScope unit="page" from="1177" to="1184" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Safran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Shamir</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1511.04210</idno>
+		<title level="m">On the quality of the initial basin in overspecified neural networks</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<monogr>
+		<title level="m" type="main">Provable methods for training neural networks with sparse connectivity</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Sedghi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Anandkumar</surname></persName>
+		</author>
+		<idno>ArXiv:1412.2693</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<analytic>
+		<title level="a" type="main">Learning kernel-based halfspaces with the 0-1 loss</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Shalev-Shwartz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Shamir</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Sridharan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">SIAM Journal on Computing</title>
+		<imprint>
+			<biblScope unit="volume">40</biblScope>
+			<biblScope unit="issue">6</biblScope>
+			<biblScope unit="page" from="1623" to="1646" />
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<analytic>
+		<title level="a" type="main">Mastering the game of Go with deep neural networks and tree search</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Silver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">J</forename><surname>Maddison</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Guez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Sifre</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Van Den Driessche</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schrittwieser</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Antonoglou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Panneershelvam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Lanctot</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nature</title>
+		<imprint>
+			<biblScope unit="volume">529</biblScope>
+			<biblScope unit="issue">7587</biblScope>
+			<biblScope unit="page" from="484" to="489" />
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">Learning invariant representations with local transformations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Sohn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Lee</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 29th International Conference on Machine Learning (ICML-12)</title>
+		<meeting>the 29th International Conference on Machine Learning (ICML-12)</meeting>
+		<imprint>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="1311" to="1318" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<analytic>
+		<title level="a" type="main">Neural networks with periodic and monotonic activation functions: a comparative study in classification problems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">M</forename><surname>Sopena</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Romero</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Alquezar</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICANN 99</title>
+		<imprint>
+			<date type="published" when="1999" />
+			<biblScope unit="page" from="323" to="328" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">Dropout: A simple way to prevent neural networks from overfitting</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Srivastava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">The Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">15</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="1929" to="1958" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<monogr>
+		<title level="m" type="main">Support vector machines</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Steinwart</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Christmann</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2008" />
+			<publisher>Springer</publisher>
+			<pubPlace>New York</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Tang</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1306.0239</idno>
+		<title level="m">Deep learning using linear support vector machines</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<monogr>
+		<ptr target="http://www.iro.umontreal.ca/~lisa/twiki/bin/view.cgi/Public/MnistVariations" />
+		<title level="m">VariationsMNIST. Variations on the MNIST digits</title>
+		<imprint>
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<analytic>
+		<title level="a" type="main">Stacked denoising autoencoders: Learning useful representations in a deep network with a local denoising criterion</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Vincent</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Larochelle</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Lajoie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P.-A</forename><surname>Manzagol</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">The Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">11</biblScope>
+			<biblScope unit="page" from="3371" to="3408" />
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<analytic>
+		<title level="a" type="main">End-to-end text recognition with convolutional neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Coates</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">Y</forename><surname>Ng</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Pattern Recognition (ICPR), 2012 21st International Conference on</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="3304" to="3308" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<analytic>
+		<title level="a" type="main">A proximal stochastic gradient method with progressive variance reduction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Xiao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Zhang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">SIAM Journal on Optimization</title>
+		<imprint>
+			<biblScope unit="volume">24</biblScope>
+			<biblScope unit="issue">4</biblScope>
+			<biblScope unit="page" from="2057" to="2075" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b46">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">D</forename><surname>Lee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">J</forename><surname>Wainwright</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">I</forename><surname>Jordan</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1511.07948</idno>
+		<title level="m">Learning halfspaces and neural networks with random initialization</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b47">
+	<analytic>
+		<title level="a" type="main">1 -regularized neural networks are improperly learnable in polynomial time</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">D</forename><surname>Lee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">I</forename><surname>Jordan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings on the 33rd International Conference on Machine Learning</title>
+		<meeting>on the 33rd International Conference on Machine Learning</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

@@ -1,0 +1,1008 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Adaptive Subgradient Methods for Online Learning and Stochastic Optimization *</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author role="corresp">
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><surname>Duchi</surname></persName>
+							<email>jduchi@cs.berkeley.edu</email>
+							<affiliation key="aff0">
+								<orgName type="department">Computer Science Division</orgName>
+								<orgName type="institution">University of California</orgName>
+								<address>
+									<postCode>94720</postCode>
+									<settlement>Berkeley Berkeley</settlement>
+									<region>CA</region>
+									<country key="US">USA</country>
+								</address>
+							</affiliation>
+							<affiliation key="aff1">
+								<orgName type="department">Technion -Israel Institute of Technology Technion City Haifa</orgName>
+								<address>
+									<postCode>32000</postCode>
+									<country key="IL">Israel</country>
+								</address>
+							</affiliation>
+							<affiliation key="aff2">
+								<address>
+									<addrLine>1600 Amphitheatre Parkway Mountain View</addrLine>
+									<postCode>94043</postCode>
+									<region>CA</region>
+									<country key="US">USA</country>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Adaptive Subgradient Methods for Online Learning and Stochastic Optimization *</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+					<note type="submission">Submitted 3/10; Revised 3/11;</note>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:45+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<textClass>
+				<keywords>
+					<term>subgradient methods</term>
+					<term>adaptivity</term>
+					<term>online learning</term>
+					<term>stochastic convex optimization</term>
+				</keywords>
+			</textClass>
+			<abstract>
+				<p>We present a new family of subgradient methods that dynamically incorporate knowledge of the geometry of the data observed in earlier iterations to perform more informative gradient-based learning. Metaphorically, the adaptation allows us to find needles in haystacks in the form of very predictive but rarely seen features. Our paradigm stems from recent advances in stochastic optimization and online learning which employ proximal functions to control the gradient steps of the algorithm. We describe and analyze an apparatus for adaptively modifying the proximal function, which significantly simplifies setting a learning rate and results in regret guarantees that are provably as good as the best proximal function that can be chosen in hindsight. We give several efficient algorithms for empirical risk minimization problems with common and important regularization functions and domain constraints. We experimentally study our theoretical analysis and show that adaptive subgradient methods outperform state-of-the-art, yet non-adaptive, subgradient algorithms.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.">Introduction</head><p>In many applications of online and stochastic learning, the input instances are of very high dimension, yet within any particular instance only a few features are non-zero. It is often the case, however, that infrequently occurring features are highly informative and discriminative. The informativeness of rare features has led practitioners to craft domain-specific feature weightings, such as TF-IDF <ref type="bibr" target="#b39">(Salton and Buckley, 1988)</ref>, which pre-emphasize infrequently occurring features. We use this old idea as a motivation for applying modern learning-theoretic techniques to the problem of online and stochastic learning, focusing concretely on (sub)gradient methods.</p><p>Standard stochastic subgradient methods largely follow a predetermined procedural scheme that is oblivious to the characteristics of the data being observed. In contrast, our algorithms dynamically incorporate knowledge of the geometry of the data observed in earlier iterations to perform more informative gradient-based learning. Informally, our procedures give frequently occurring features very low learning rates and infrequent features high learning rates, where the intuition is that each time an infrequent feature is seen, the learner should "take notice." Thus, the adaptation facilitates finding and identifying very predictive but comparatively rare features.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.1">The Adaptive Gradient Algorithm</head><p>Before introducing our adaptive gradient algorithm, which we term ADAGRAD, we establish notation. Vectors and scalars are lower case italic letters, such as x ∈ X . We denote a sequence of vectors by subscripts, that is, x t , x t+1 , . . ., and entries of each vector by an additional subscript, for example, x t, j . The subdifferential set of a function f evaluated at x is denoted ∂ f (x), and a particular vector in the subdifferential set is denoted by f ′ (x) ∈ ∂ f (x) or g t ∈ ∂ f t (x t ). When a function is differentiable, we write ∇ f (x). We use x, y to denote the inner product between x and y. The Bregman divergence associated with a strongly convex and differentiable function ψ is</p><formula xml:id="formula_0">B ψ (x, y) = ψ(x) − ψ(y) − ∇ψ(y), x − y .</formula><p>We also make frequent use of the following two matrices. Let g 1:t = [g 1 • • • g t ] denote the matrix obtained by concatenating the subgradient sequence. We denote the ith row of this matrix, which amounts to the concatenation of the ith component of each subgradient we observe, by g 1:t,i . We also define the outer product matrix G t = ∑ t τ=1 g τ g τ ⊤ .</p><p>Online learning and stochastic optimization are closely related and basically interchangeable <ref type="bibr" target="#b10">(Cesa-Bianchi et al., 2004)</ref>. In order to keep our presentation simple, we confine our discussion and algorithmic descriptions to the online setting with the regret bound model. In online learning, the learner repeatedly predicts a point x t ∈ X ⊆ R d , which often represents a weight vector assigning importance values to various features. The learner's goal is to achieve low regret with respect to a static predictor x * in the (closed) convex set X ⊆ R d (possibly X = R d ) on a sequence of functions f t (x), measured as</p><formula xml:id="formula_1">R(T ) = T ∑ t=1 f t (x t ) − inf x∈X T ∑ t=1 f t (x) .</formula><p>At every timestep t, the learner receives the (sub)gradient information g t ∈ ∂ f t (x t ). Standard subgradient algorithms then move the predictor x t in the opposite direction of g t while maintaining</p><p>x t+1 ∈ X via the projected gradient update (e.g., <ref type="bibr">Zinkevich, 2003)</ref> x t+1 = Π X (x t − ηg t ) = argmin In contrast, let the Mahalanobis norm • A =</p><p>•, A• and denote the projection of a point y onto X according to A by Π A X (y) = argmin x∈X x − y A = argmin x∈X x − y, A(x − y) . Using this notation, our generalization of standard gradient descent employs the update</p><formula xml:id="formula_2">x t+1 = Π G 1/2 t X x t − ηG −1/2 t g t .</formula><p>The above algorithm is computationally impractical in high dimensions since it requires computation of the root of the matrix G t , the outer product matrix. Thus we specialize the update to</p><formula xml:id="formula_3">x t+1 = Π diag(G t ) 1/2 X x t − η diag(G t ) −1/2 g t .<label>(1)</label></formula><p>Both the inverse and root of diag(G t ) can be computed in linear time. Moreover, as we discuss later, when the gradient vectors are sparse the update above can often be performed in time proportional to the support of the gradient. We now elaborate and give a more formal discussion of our setting. In this paper we consider several different online learning algorithms and their stochastic convex optimization counterparts. Formally, we consider online learning with a sequence of composite functions φ t . Each function is of the form φ t (x) = f t (x) + ϕ(x) where f t and ϕ are (closed) convex functions. In the learning settings we study, f t is either an instantaneous loss or a stochastic estimate of the objective function in an optimization task. The function ϕ serves as a fixed regularization function and is typically used to control the complexity of x. At each round the algorithm makes a prediction x t ∈ X and then receives the function f t . We define the regret with respect to the fixed (optimal) predictor x * as</p><formula xml:id="formula_4">R φ (T ) T ∑ t=1 [φ t (x t ) − φ t (x * )] = T ∑ t=1 [ f t (x t ) + ϕ(x t ) − f t (x * ) − ϕ(x * )] .<label>(2)</label></formula><p>Our goal is to devise algorithms which are guaranteed to suffer asymptotically sub-linear regret, namely, R φ (T ) = o(T ).</p><p>Our analysis applies to related, yet different, methods for minimizing the regret (2). The first is <ref type="bibr">Nesterov's primal-dual subgradient method (2009)</ref>, and in particular <ref type="bibr" target="#b42">Xiao's (2010)</ref> extension, regularized dual averaging, and the follow-the-regularized-leader (FTRL) family of algorithms (see for instance <ref type="bibr" target="#b27">Kalai and Vempala, 2003;</ref><ref type="bibr" target="#b23">Hazan et al., 2006)</ref>. In the primal-dual subgradient method the algorithm makes a prediction x t on round t using the average gradientḡ t = 1 t ∑ t τ=1 g τ . The update encompasses a trade-off between a gradient-dependent linear term, the regularizer ϕ, and a stronglyconvex term ψ t for well-conditioned predictions. Here ψ t is the proximal term. The update amounts to solving</p><formula xml:id="formula_5">x t+1 = argmin x∈X η ḡ t , x + ηϕ(x) + 1 t ψ t (x) ,<label>(3)</label></formula><p>where η is a fixed step-size and x 1 = argmin x∈X ϕ(x). The second method similarly has numerous names, including proximal gradient, forward-backward splitting, and composite mirror descent <ref type="bibr" target="#b41">(Tseng, 2008;</ref><ref type="bibr" target="#b19">Duchi et al., 2010)</ref>. We use the term composite mirror descent. The composite mirror descent method employs a more immediate trade-off between the current gradient g t , ϕ, and staying close to x t using the proximal function ψ,</p><formula xml:id="formula_6">x t+1 = argmin x∈X η g t , x + ηϕ(x) + B ψ t (x, x t ) .<label>(4)</label></formula><p>Our work focuses on temporal adaptation of the proximal function in a data driven way, while previous work simply sets ψ t ≡ ψ, ψ t (•) = √ tψ(•), or ψ t (•) = tψ(•) for some fixed ψ. We provide formal analyses equally applicable to the above two updates and show how to automatically choose the function ψ t so as to achieve asymptotically small regret. We describe and analyze two algorithms. Both algorithms use squared Mahalanobis norms as their proximal functions, setting ψ t (x) = x, H t x for a symmetric matrix H t 0. The first uses diagonal matrices while the second constructs full dimensional matrices. Concretely, for some small fixed δ ≥ 0 (specified later, though in practice δ can be set to 0) we set</p><formula xml:id="formula_7">H t = δI + diag(G t ) 1/2 (Diagonal) and H t = δI + G 1/2 t (Full) .<label>(5)</label></formula><p>Plugging the appropriate matrix from the above equation into ψ t in (3) or (4) gives rise to our ADAGRAD family of algorithms. Informally, we obtain algorithms which are similar to secondorder gradient descent by constructing approximations to the Hessian of the functions f t , though we use roots of the matrices.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.2">Outline of Results</head><p>We now outline our results, deferring formal statements of the theorems to later sections. Recall the definitions of g 1:t as the matrix of concatenated subgradients and G t as the outer product matrix in the prequel. The ADAGRAD algorithm with full matrix divergences entertains bounds of the form</p><formula xml:id="formula_8">R φ (T ) = O x * 2 tr(G 1/2 T ) and R φ (T ) = O max t≤T x t − x * 2 tr(G 1/2 T ) .</formula><p>We further show that</p><formula xml:id="formula_9">tr G 1/2 T = d 1/2 inf S T ∑ t=1 g t , S −1 g t : S 0, tr(S) ≤ d .</formula><p>These results are formally given in Theorem 7 and its corollaries. When our proximal function</p><formula xml:id="formula_10">ψ t (x) = x, diag(G t ) 1/2</formula><p>x we have bounds attainable in time at most linear in the dimension d of our problems of the form</p><formula xml:id="formula_11">R φ (T ) = O x * ∞ d ∑ i=1 g 1:T,i 2 and R φ (T ) = O max t≤T x t − x * ∞ d ∑ i=1 g 1:T,i 2 .</formula><p>Similar to the above, we will show that</p><formula xml:id="formula_12">d ∑ i=1 g 1:T,i 2 = d 1/2 inf s T ∑ t=1 g t , diag(s) −1 g t : s 0, 1, s ≤ d .</formula><p>We formally state the above two regret bounds in Theorem 5 and its corollaries.</p><p>Following are a simple example and corollary to Theorem to illustrate one regime in which we expect substantial improvements (see also the next subsection). Let ϕ ≡ 0 and consider Zinkevich's online gradient descent algorithm. Given a compact convex set X ⊆ R d and sequence of convex functions f t , Zinkevich's algorithm makes the sequence of predictions x , . . . ,</p><formula xml:id="formula_13">x T with x t+1 = Π X (x t − (η/ √ t)g t ).</formula><p>If the diameter of X is bounded, thus sup x,y∈X x − y 2 ≤ D 2 , then online gradient descent, with the optimal choice in hindsight for the stepsize η (see the bound (7) in Section 1.4), achieves a regret bound of</p><formula xml:id="formula_14">T ∑ t=1 f t (x t ) − inf x∈X T ∑ t=1 f t (x) ≤ √ 2D 2 T ∑ t=1 g t 2 2 .<label>(6)</label></formula><p>When X is bounded via sup x,y∈X x − y ∞ ≤ D ∞ , the following corollary is a simple consequence of our Theorem 5.</p><p>Corollary 1 Let the sequence {x t } ⊂ R d be generated by the update (4) and assume that max t x * − x t ∞ ≤ D ∞ . Using stepsize η = D ∞ / √ 2, for any x * , the following bound holds.</p><formula xml:id="formula_15">R φ (T ) ≤ √ 2dD ∞ inf s 0, 1,s ≤d T ∑ t=1 g t 2 diag(s) −1 = √ 2D ∞ d ∑ i=1 g 1:T,i 2 .</formula><p>The important feature of the bound above is the infimum under the square root, which allows us to perform better than simply using the identity matrix, and the fact that the stepsize is easy to set a priori. For example, if the set X = {x :</p><formula xml:id="formula_16">x ∞ ≤ 1}, then D 2 = 2 √ d while D ∞ = 2</formula><p>, which suggests that if we are learning a dense predictor over a box, the adaptive method should perform well. Indeed, in this case we are guaranteed that the bound in Corollary 1 is better than (6) as the identity matrix belongs to the set over which we take the infimum.</p><p>To conclude the outline of results, we would like to point to two relevant research papers. First, Zinkevich's regret bound is tight and cannot be improved in a minimax sense <ref type="bibr" target="#b0">(Abernethy et al., 2008)</ref>. Therefore, improving the regret bound requires further reasonable assumptions on the input space. Second, in a independent work, performed concurrently to the research presented in this paper, McMahan and Streeter (2010) study competitive ratios, showing guaranteed improvements of the above bounds relative to families of online algorithms.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.3">Improvements and Motivating Example</head><p>As mentioned in the prequel, we expect our adaptive methods to outperform standard online learning methods when the gradient vectors are sparse. We give empirical evidence supporting the improved performance of the adaptive methods in Section 6. Here we give a few abstract examples that show that for sparse data (input sequences where g t has many zeros) the adaptive methods herein have better performance than non-adaptive methods. In our examples we use the hinge loss, that is,</p><formula xml:id="formula_17">f t (x) = [1 − y t z t , x ] + ,</formula><p>where y t is the label of example t and z t ∈ R d is the data vector.</p><p>For our first example, which was also given by <ref type="bibr" target="#b30">McMahan and Streeter (2010)</ref>, consider the following sparse random data scenario, where the vectors z t ∈ {−1, 0, 1} d . Assume that at in each round t, feature i appears with probability p i = min{1, ci −α } for some α ∈ (1, ∞) and a dimensionindependent constant c. Then taking the expectation of the gradient terms in the bound in Corollary 1, we have</p><formula xml:id="formula_18">E d ∑ i=1 g 1:T,i = d ∑ i=1 E |{t : |g t,i | = 1}| ≤ d ∑ i=1 E|{t : |g t,i | = 1}| = d ∑ i=1 p i T</formula><p>by Jensen's inequality. In the rightmost sum, we have c</p><formula xml:id="formula_19">∑ d i=1 i −α/2 = O(log d) for α ≥ 2, and ∑ d i=1 i −α/2 = O(d 1−α/2 ) for α ∈ (1, 2). If the domain X is a hypercube, say X = {x : x ∞ ≤ 1}, then</formula><p>in Corollary 1 D ∞ = 2, and the regret of ADAGRAD is O(max{log d, d 1−α/2 } √ T ). For contrast, the standard regret bound (6) for online gradient descent has D = 2 √ d and g t 2 2 ≥ 1, yielding best case regret O( √ dT ). So we see that in this sparse yet heavy tailed feature setting, ADAGRAD's regret guarantee can be exponentially smaller in the dimension d than the non-adaptive regret bound.</p><p>Our remaining examples construct a sparse sequence for which there is a perfect predictor that the adaptive methods learn after d iterations, while standard online gradient descent <ref type="bibr">(Zinkevich, 2003)</ref> suffers significantly higher loss. We assume the domain X is compact, so that for online gradient descent we set η t = η/ √ t, which gives the optimal O( √ T ) regret (the setting of η does not matter to the adversary we construct).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.3.1">DIAGONAL ADAPTATION</head><p>Consider the diagonal version of our proposed update (4) with X = {x : x ∞ ≤ 1}. Evidently, we can take D ∞ = 2, and this choice simply results in the update x t+1 = x t − √ 2 diag(G t ) −1/2 g t followed by projection (1) onto X for ADAGRAD (we use a pseudo-inverse if the inverse does not exist). Let e i denote the ith unit basis vector, and assume that for each t, z t = ±e i for some i. Also let y t = sign( 1, z t ) so that there exists a perfect classifier x * = 1 ∈ X ⊂ R d . We initialize x 1 to be the zero vector. Fix some ε &gt; 0, and on rounds rounds t = 1, . . . , η 2 /ε 2 , set z t = e 1 . After these rounds, simply choose z t = ±e i for index i ∈ {2, . . . , d} chosen at random. It is clear that the update to parameter x i at these iterations is different, and amounts to</p><formula xml:id="formula_20">x t+1 = x t + e i ADAGRAD x t+1 = x t + η √ t [−1,1] d (Gradient Descent) . (Here [•] [−1,1] d denotes the truncation of the vector to [−1, 1] d ).</formula><p>In particular, after suffering d − 1 more losses, ADAGRAD has a perfect classifier. However, on the remaining iterations gradient descent has η/ √ t ≤ ε and thus evidently suffers loss at least d/(2ε). Of course, for small ε, we have d/(2ε) ≫ d. In short, ADAGRAD achieves constant regret per dimension while online gradient descent can suffer arbitrary loss (for unbounded t). It seems quite silly, then, to use a global learning rate rather than one for each feature. Full Matrix Adaptation. We use a similar construction to the diagonal case to show a situation in which the full matrix update from (5) gives substantially lower regret than stochastic gradient descent. For full divergences we set X = {x :</p><formula xml:id="formula_21">x 2 ≤ √ d}. Let V = [v 1 . . . v d ] ∈ R</formula><p>d×d be an orthonormal matrix. Instead of having z t cycle through the unit vectors, we make z t cycle through the v i so that z t = ±v i . We let the label</p><formula xml:id="formula_22">y t = sign( 1,V ⊤ z t ) = sign ∑ d i=1 v i , z t .</formula><p>We provide an elaborated explanation in Appendix A. Intuitively, with ψ t (x) = x, H t x and H t set to be the full matrix from (5), ADAGRAD again needs to observe each orthonormal vector v i only once while stochastic gradient descent's loss can be made Ω(d/ε) for any ε &gt; 0.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.4">Related Work</head><p>Many successful algorithms have been developed over the past few years to minimize regret in the online learning setting. A modern view of these algorithms casts the problem as the task of following the (regularized) leader (see <ref type="bibr" target="#b38">Rakhlin, 2009</ref>, and the references therein) or FTRL in short. Informally, FTRL methods choose the best decision in hindsight at every iteration. Verbatim usage of the FTRL approach fails to achieve low regret, however, adding a proximal 1 term to the past predictions leads to numerous low regret algorithms <ref type="bibr" target="#b27">(Kalai and Vempala, 2003;</ref><ref type="bibr" target="#b22">Hazan and Kale, 2008;</ref><ref type="bibr" target="#b38">Rakhlin, 2009)</ref>. The proximal term strongly affects the performance of the learning algorithm. Therefore, adapting the proximal function to the characteristics of the problem at hand is desirable.</p><p>Our approach is thus motivated by two goals. The first is to generalize the agnostic online learning paradigm to the meta-task of specializing an algorithm to fit a particular data set. Specifically, we change the proximal function to achieve performance guarantees which are competitive with the best proximal term found in hindsight. The second, as alluded to earlier, is to automatically adjust the learning rates for online learning and stochastic gradient descent on a per-feature basis. The latter can be very useful when our gradient vectors g t are sparse, for example, in a classification setting where examples may have only a small number of non-zero features. As we demonstrated in the examples above, it is rather deficient to employ exactly the same learning rate for a feature seen hundreds of times and for a feature seen only once or twice.</p><p>Our techniques stem from a variety of research directions, and as a byproduct we also extend a few well-known algorithms. In particular, we consider variants of the follow-the-regularized leader (FTRL) algorithms mentioned above, which are kin to Zinkevich's lazy projection algorithm. We use Xiao's recently analyzed regularized dual averaging (RDA) algorithm (2010), which builds upon <ref type="bibr" target="#b35">Nesterov's (2009)</ref> primal-dual subgradient method. We also consider forward-backward splitting (FOBOS) <ref type="bibr" target="#b18">(Duchi and Singer, 2009)</ref> and its composite mirror-descent (proximal gradient) generalizations <ref type="bibr" target="#b41">(Tseng, 2008;</ref><ref type="bibr" target="#b19">Duchi et al., 2010)</ref>, which in turn include as special cases projected gradients <ref type="bibr">(Zinkevich, 2003)</ref> and mirror descent <ref type="bibr" target="#b33">(Nemirovski and Yudin, 1983;</ref><ref type="bibr" target="#b5">Beck and Teboulle, 2003)</ref>. Recent work by several authors <ref type="bibr" target="#b32">(Nemirovski et al., 2009;</ref><ref type="bibr" target="#b26">Juditsky et al., 2008;</ref><ref type="bibr" target="#b28">Lan, 2010;</ref><ref type="bibr" target="#b42">Xiao, 2010)</ref> considered efficient and robust methods for stochastic optimization, especially in the case when the expected objective f is smooth. It may be interesting to investigate adaptive metric approaches in smooth stochastic optimization.</p><p>The idea of adapting first order optimization methods is by no means new and can be traced back at least to the 1970s with the work on space dilation methods of <ref type="bibr" target="#b40">Shor (1972)</ref> and variable metric methods, such as the BFGS family of algorithms (e.g., <ref type="bibr" target="#b20">Fletcher, 1970)</ref>. This prior work often assumed that the function to be minimized was differentiable and, to our knowledge, did not consider stochastic, online, or composite optimization. In her thesis, <ref type="bibr" target="#b31">Nedić (2002)</ref> studied variable metric subgradient methods, though it seems difficult to derive explicit rates of convergence from the results there, and the algorithms apply only when the constraint set X = R d . More recently, <ref type="bibr" target="#b7">Bordes et al. (2009)</ref> proposed a Quasi-Newton stochastic gradient-descent procedure, which is similar in spirit to our methods. However, their convergence results assume a smooth objective with positive definite Hessian bounded away from 0. Our results apply more generally.</p><p>Prior to the analysis presented in this paper for online and stochastic optimization, the strongly convex function ψ in the update equations (3) and (4) either remained intact or was simply multiplied by a time-dependent scalar throughout the run of the algorithm. Zinkevich's projected gradient, for example, uses ψ t (x) = x 2 2 , while RDA <ref type="bibr" target="#b42">(Xiao, 2010)</ref> </p><formula xml:id="formula_23">employs ψ t (x) = √ tψ(x)</formula><p>where ψ is a strongly convex function. The bounds for both types of algorithms are similar, and both rely on the norm • (and its associated dual • * ) with respect to which ψ is strongly convex. Mirror-descent type first order algorithms, such as projected gradient methods, attain regret bounds of the form <ref type="bibr">(Zinkevich, 2003;</ref><ref type="bibr" target="#b4">Bartlett et al., 2007;</ref><ref type="bibr" target="#b19">Duchi et al., 2010)</ref> </p><formula xml:id="formula_24">R φ (T ) ≤ 1 η B ψ (x * , x 1 ) + η 2 T ∑ t=1 f ′ t (x t ) 2 * .<label>(7)</label></formula><p>Choosing</p><formula xml:id="formula_25">η ∝ 1/ √ T gives R φ (T ) = O( √ T ). When B ψ (x, x * )</formula><p>is bounded for all x ∈ X , we choose step sizes η t ∝ 1/ √ t which is equivalent to setting ψ t (x) = √ tψ(x). Therefore, no assumption on the time horizon is necessary. For RDA and follow-the-leader algorithms, the bounds are similar <ref type="bibr">(Xiao, 2010, Theorem 3)</ref>:</p><formula xml:id="formula_26">R φ (T ) ≤ √ T ψ(x * ) + 1 2 √ T T ∑ t=1 f ′ t (x t ) 2 * .<label>(8)</label></formula><p>The problem of adapting to data and obtaining tighter data-dependent bounds for algorithms such as those above is a natural one and has been studied in the mistake-bound setting for online learning in the past. A framework that is somewhat related to ours is the confidence weighted learning scheme by <ref type="bibr" target="#b14">Crammer et al. (2008)</ref> and the adaptive regularization of weights algorithm (AROW) of <ref type="bibr" target="#b15">Crammer et al. (2009)</ref>. These papers provide mistake-bound analyses for secondorder algorithms, which in turn are similar in spirit to the second-order Perceptron algorithm <ref type="bibr" target="#b11">(Cesa-Bianchi et al., 2005)</ref>. The analyses by Crammer and colleagues, however, yield mistake bounds dependent on the runs of the individual algorithms and are thus difficult to compare with our regret bounds.</p><p>AROW maintains a mean prediction vector µ t ∈ R d and a covariance matrix Σ t ∈ R d×d over µ t as well. At every step of the algorithm, the learner receives a pair (z t , y t ) where z t ∈ R d is the tth example and y t ∈ {−1, +1} is the label. Whenever the predictor µ t attains a margin value smaller than 1, AROW performs the update</p><formula xml:id="formula_27">β t = 1 z t , Σ t z t + λ , α t = [1 − y t z t , µ t ] + , µ t+1 = µ t + α t Σ t y t z t , Σ t+1 = Σ t − β t Σ t x t x ⊤ t Σ t .<label>(9)</label></formula><p>In the above scheme, one can force Σ t to be diagonal, which reduces the run-time and storage requirements of the algorithm but still gives good performance <ref type="bibr" target="#b15">(Crammer et al., 2009)</ref>. In contrast to AROW, the ADAGRAD algorithm uses the root of the inverse covariance matrix, a consequence of our formal analysis. Crammer et al.'s algorithm and our algorithms have similar run times, generally linear in the dimension d, when using diagonal matrices. However, when using full matrices the runtime of AROW algorithm is O(d 2 ), which is faster than ours as it requires computing the root of a matrix. In concurrent work, <ref type="bibr" target="#b30">McMahan and Streeter (2010)</ref> propose and analyze an algorithm which is very similar to some of the algorithms presented in this paper. Our analysis builds on recent advances in online learning and stochastic optimization <ref type="bibr" target="#b19">(Duchi et al., 2010;</ref><ref type="bibr" target="#b42">Xiao, 2010)</ref>, whereas McMahan and Streeter use first-principles to derive their regret bounds. As a consequence of our approach, we are able to apply our analysis to algorithms for composite minimization with a known additional objective term ϕ. We are also able to generalize and analyze both the mirror descent and dual-averaging family of algorithms. McMahan and Streeter focus on what they term the competitive ratio, which is the ratio of the worst case regret of the adaptive algorithm to the worst case regret of a non-adaptive algorithm with the best proximal term ψ chosen in hindsight. We touch on this issue briefly in the sequel, but refer the interested reader to McMahan and Streeter (2010) for this alternative elegant perspective. We believe that both analyses shed insights into the problems studied in this paper and complement each other.</p><p>There are also other lines of work on adaptive gradient methods that are not directly related to our work but nonetheless relevant. Tighter regret bounds using the variation of the cost functions f t were proposed by <ref type="bibr" target="#b12">Cesa-Bianchi et al. (2007)</ref> and derived by <ref type="bibr" target="#b22">Hazan and Kale (2008)</ref>. <ref type="bibr" target="#b4">Bartlett et al. (2007)</ref> explore another adaptation technique for η t where they adapt the step size to accommodate both strongly and weakly convex functions. Our approach differs from previous approaches as it does not focus on a particular loss function or mistake bound. Instead, we view the problem of adapting the proximal function as a meta-learning problem. We then obtain a bound comparable to the bound obtained using the best proximal function chosen in hindsight.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">Adaptive Proximal Functions</head><p>Examining the bounds <ref type="formula" target="#formula_24">7</ref>and <ref type="formula" target="#formula_26">8</ref>, we see that most of the regret depends on dual norms of f ′ t (x t ), and the dual norms in turn depend on the choice of ψ. This naturally leads to the question of whether we can modify the proximal term ψ along the run of the algorithm in order to lower the contribution of the aforementioned norms. We achieve this goal by keeping second order information about the sequence f t and allow ψ to vary on each round of the algorithms.</p><p>We begin by providing two corollaries based on previous work that give the regret of our base algorithms when the proximal function ψ t is allowed to change. These corollaries are used in the sequel in our regret analysis. We assume that ψ t is monotonically non-decreasing, that is, ψ t+1 (x) ≥ ψ t (x). We also assume that ψ t is 1-strongly convex with respect to a time-dependent semi-norm</p><formula xml:id="formula_28">• ψ t . Formally, ψ is 1-strongly convex with respect to • ψ if ψ(y) ≥ ψ(x) + ∇ψ(x), y − x + 1 2 x − y 2 ψ .</formula><p>Strong convexity is guaranteed if and only if</p><formula xml:id="formula_29">B ψ t (x, y) ≥ 1 x − y 2 ψ t .</formula><p>We also denote the dual norm of</p><formula xml:id="formula_30">• ψ t by • ψ * t .</formula><p>For completeness, we provide the proofs of following two results in Appendix F, as they build straightforwardly on work by <ref type="bibr" target="#b19">Duchi et al. (2010)</ref> and <ref type="bibr" target="#b42">Xiao (2010)</ref>. For the primal-dual subgradient update, the following bound holds.</p><p>Proposition 2 Let the sequence {x t } be defined by the update (3). For any</p><formula xml:id="formula_31">x * ∈ X , T ∑ t=1 f t (x t ) + ϕ(x t ) − f t (x * ) − ϕ(x * ) ≤ 1 η ψ T (x * ) + η 2 T ∑ t=1 f ′ t (x t ) 2 ψ * t−1 .<label>(10)</label></formula><p>For composite mirror descent algorithms a similar result holds.</p><p>Proposition 3 Let the sequence {x t } be defined by the update (4). Assume w.l.o.g. that ϕ(x 1 ) = 0.</p><p>For any</p><formula xml:id="formula_32">x * ∈ X , T ∑ t=1 f t (x t ) + ϕ(x t ) − f t (x * ) − ϕ(x * ) ≤ 1 η B ψ 1 (x * , x 1 ) + 1 η T −1 ∑ t=1 B ψ t+1 (x * , x t+1 ) − B ψ t (x * , x t+1 ) + η T ∑ t=1 f ′ t (x t ) 2 ψ * t .<label>(11)</label></formula><p>The above corollaries allow us to prove regret bounds for a family of algorithms that iteratively modify the proximal functions ψ t in attempt to lower the regret bounds.</p><formula xml:id="formula_33">INPUT: η &gt; 0, δ ≥ 0 VARIABLES: s ∈ R d , H ∈ R d×d , g 1:t,i ∈ R t for i ∈ {1, . . . , d} INITIALIZE x 1 = 0, g 1:0 = [] FOR t = 1 to T Suffer loss f t (x t ) Receive subgradient g t ∈ ∂ f t (x t ) of f t at x t UPDATE g 1:t = [g 1:t−1 g t ], s t,i = g 1:t,i 2 SET H t = δI + diag(s t ), ψ t (x) = 1 2 x, H t x</formula><p>Primal-Dual Subgradient Update <ref type="formula" target="#formula_5">3</ref>:</p><formula xml:id="formula_34">x t+1 = argmin x∈X η 1 t t ∑ τ=1 g τ , x + ηϕ(x) + 1 t ψ t (x) .</formula><p>Composite Mirror Descent Update <ref type="formula" target="#formula_6">4</ref>: </p><formula xml:id="formula_35">x t+1 = argmin x∈X η g t , x + ηϕ(x) + B ψ t (x, x t ) .</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">Diagonal Matrix Proximal Functions</head><p>We begin by restricting ourselves to using diagonal matrices to define matrix proximal functions and (semi)norms. This restriction serves a two-fold purpose. First, the analysis for the general case is somewhat complicated and thus the analysis of the diagonal restriction serves as a proxy for better understanding. Second, in problems with high dimension where we expect this type of modification to help, maintaining more complicated proximal functions is likely to be prohibitively expensive. Whereas earlier analysis requires a learning rate to slow changes between predictors x t and x t+1 , we will instead automatically grow the proximal function we use to achieve asymptotically low regret. To remind the reader, g 1:t,i is the ith row of the matrix obtained by concatenating the subgradients from iteration 1 through t in the online algorithm. To provide some intuition for the algorithm we show in Algorithm 1, let us examine the problem</p><formula xml:id="formula_36">min s T ∑ t=1 d ∑ i=1 g 2 t,i s i s.t. s 0, 1, s ≤ c .</formula><p>This problem is solved by setting s i = g 1:T,i 2 and scaling s so that s, 1 = c. To see this, we can write the Lagrangian of the minimization problem by introducing multipliers λ 0 and θ ≥ 0 to get</p><formula xml:id="formula_37">L(s, λ, θ) = d ∑ i=1 g 1:T,i 2 2 s i − λ, s + θ( 1, s − c).</formula><p>Taking partial derivatives to find the infimum of L, we see that − g 1:T,i 2 /s 2 i − λ i + θ = 0, and complementarity conditions on λ i s i <ref type="bibr" target="#b8">(Boyd and Vandenberghe, 2004)</ref> imply that λ i = 0. Thus we have s i = θ − 1 2 g 1:T,i 2 , and normalizing appropriately using θ gives that s i = c g 1:</p><formula xml:id="formula_38">T,i 2 / ∑ d j=1 g 1:T, j 2 .</formula><p>As a final note, we can plug s i into the objective above to see</p><formula xml:id="formula_39">inf s T ∑ t=1 d ∑ i=1 g 2 t,i s i : s 0, 1, s ≤ c = 1 c d ∑ i=1 g 1:T,i 2 2 .<label>(12)</label></formula><p>Let diag(v) denote the diagonal matrix with diagonal v. It is natural to suspect that for s achieving the infimum in Equation <ref type="formula" target="#formula_39">12</ref>, if we use a proximal function similar to ψ(x) = x, diag(s)x with associated squared dual norm</p><formula xml:id="formula_40">x 2 ψ * = x, diag(s) −1</formula><p>x , we should do well lowering the gradient terms in the regret bounds (10) and (11).</p><p>To prove a regret bound for our Algorithm 1, we note that both types of updates suffer losses that include a term depending solely on the gradients obtained along their run. The following lemma is applicable to both updates, and was originally proved by <ref type="bibr" target="#b3">Auer and Gentile (2000)</ref>, though we provide a proof in Appendix C. McMahan and Streeter (2010) also give an identical lemma.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Lemma 4 Let g t = f ′</head><p>t (x t ) and g 1:t and s t be defined as in Algorithm 1. Then</p><formula xml:id="formula_41">T ∑ t=1 g t , diag(s t ) −1 g t ≤ 2 d ∑ i=1 g 1:T,i 2 .</formula><p>To obtain a regret bound, we need to consider the terms consisting of the dual-norm of the subgradient in the regret bounds (10) and <ref type="formula" target="#formula_32">11</ref>, which is</p><formula xml:id="formula_42">f ′ t (x t ) 2 ψ * t . When ψ t (x) = x, (δI + diag(s t ))</formula><p>x , it is easy to see that the associated dual-norm is</p><formula xml:id="formula_43">g 2 ψ * t = g, (δI + diag(s t )) −1 g . From the definition of s t in Algorithm 1, we clearly have f ′ t (x t ) 2 ψ * t ≤ g t , diag(s t ) −1 g t .</formula><p>Note that if s t,i = 0 then g t,i = 0 by definition of s t,i . Thus, for any δ ≥ 0, Lemma 4 implies</p><formula xml:id="formula_44">T ∑ t=1 f ′ t (x t ) 2 ψ * t ≤ 2 d ∑ i=1 g 1:T,i 2 .<label>(13)</label></formula><p>To obtain a bound for a primal-dual subgradient method, we set δ ≥ max t g t ∞ , in which case g t</p><formula xml:id="formula_45">2 ψ * t−1 ≤ g t , diag(s t ) −1 g t ,</formula><p>and we follow the same lines of reasoning to achieve the inequality (13).</p><p>It remains to bound the various Bregman divergence terms for Corollary 3 and the term ψ T (x * ) for Corollary 2. We focus first on the composite mirror-descent update. Examining the bound (11) and Algorithm 1, we notice that</p><formula xml:id="formula_46">B ψ t+1 (x * , x t+1 ) − B ψ t (x * , x t+1 ) = 1 2 x * − x t+1 , diag(s t+1 − s t )(x * − x t+1 ) ≤ 1 2 max i (x * i − x t+1,i ) 2 s t+1 − s t 1 .</formula><p>Since</p><formula xml:id="formula_47">s t+1 − s t 1 = s t+1 − s t , 1 and s T , 1 = ∑ d i=1 g 1:T,i 2 , we have T −1 ∑ t=1 B ψ t+1 (x * , x t+1 ) − B ψ t (x * , x t+1 ) ≤ 1 T −1 ∑ t=1 x * − x t+1 2 ∞ s t+1 − s t , 1 ≤ 1 max t≤T x * − x t 2 ∞ d ∑ i=1 g 1:T,i 2 − x * − x 1 2 ∞ s 1 , 1 .<label>(14)</label></formula><p>We also have</p><formula xml:id="formula_48">ψ T (x * ) = δ x * 2 2 + x * , diag(s T )x * ≤ δ x * 2 2 + x * 2 ∞ d ∑ i=1 g 1:T,i 2 .</formula><p>Combining the above arguments with Corollaries 2 and 3, and using <ref type="formula" target="#formula_47">14</ref>with the fact that</p><formula xml:id="formula_49">B ψ 1 (x * , x 1 ) ≤ 1 2 x * − x 1 2</formula><p>∞ 1, s 1 , we have proved the following theorem.</p><p>Theorem 5 Let the sequence {x t } be defined by Algorithm 1. For x t generated using the primaldual subgradient update (3) with δ ≥ max t g t ∞ , for any</p><formula xml:id="formula_50">x * ∈ X , R φ (T ) ≤ δ η x * 2 2 + 1 η x * 2 ∞ d ∑ i=1 g 1:T,i 2 + η d ∑ i=1 g 1:T,i 2 .</formula><p>For x t generated using the composite mirror-descent update (4), for any x * ∈ X</p><formula xml:id="formula_51">R φ (T ) ≤ 1 2η max t≤T x * − x t 2 ∞ d ∑ i=1 g 1:T,i 2 + η d ∑ i=1 g 1:T,i 2 .</formula><p>The above theorem is a bit unwieldy. We thus perform a few algebraic simplifications to get the next corollary, which has a more intuitive form. Let us assume that X is compact and set</p><formula xml:id="formula_52">D ∞ = sup x∈X x − x * ∞ . Furthermore, define γ T d ∑ i=1 g 1:T,i 2 = inf s T ∑ t=1 g t , diag(s) −1 g t : 1, s ≤ d ∑ i=1 g 1:T,i 2 , s 0 .</formula><p>Also w.l.o.g. let 0 ∈ X . The following corollary is immediate (this is equivalent to Corollary 1, though we have moved the √ d term in the earlier bound).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Corollary 6</head><p>Assume that D ∞ and γ T are defined as above. For {x t } generated by Algorithm 1 using the primal-dual subgradient update (3) with η = x * ∞ , for any x * ∈ X we have</p><formula xml:id="formula_53">R φ (T ) ≤ 2 x * ∞ γ T + δ x * 2 2 x * ∞ ≤ 2 x * ∞ γ T + δ x * 1 .</formula><p>Using the composite mirror descent update (4) to generate {x t } and setting η =</p><formula xml:id="formula_54">D ∞ / √ 2, we have R φ (T ) ≤ √ 2D ∞ d ∑ i=1 g 1:T,i 2 = √ 2D ∞ γ T .</formula><p>We now give a short derivation of Corollary 1 from the introduction: use Theorem 5, Corollary 6, and the fact that</p><formula xml:id="formula_55">inf s T ∑ t=1 d ∑ i=1 g 2 t,i s i : s 0, 1, s ≤ d = 1 d d ∑ i=1 g 1:T,i 2 2 .</formula><p>as in (12) in the beginning of Section 3. Plugging the γ T term in from Corollary 6 and multiplying D ∞ by √ d completes the proof of the corollary.</p><p>As discussed in the introduction, Algorithm 1 should have lower regret than non-adaptive algorithms on sparse data, though this depends on the geometry of the underlying optimization space X . For example, suppose that our learning problem is a logistic regression with 0/1-valued features.</p><p>Then the gradient terms are likewise based on 0/1-valued features and sparse, so the gradient terms in the bound ∑ d i=1 g 1:T,i 2 should all be much smaller than √ T . If some features appear much more frequently than others, then the infimal representation of γ T and the infimal equality in Corollary 1 show that we have significantly lower regret by using higher learning rates for infrequent features and lower learning rates on commonly appearing features. Further, if the optimal predictor is relatively dense, as is often the case in predictions problems with sparse inputs, then x * ∞ is the best p-norm we can have in the regret.</p><p>More precisely, <ref type="bibr" target="#b30">McMahan and Streeter (2010)</ref> show that if X is contained within an ℓ ∞ ball of radius R and contains an ℓ ∞ ball of radius r, then the bound in the above corollary is within a factor of √ 2R/r of the regret of the best diagonal proximal matrix, chosen in hindsight. So, for</p><formula xml:id="formula_56">example, if X = {x ∈ R d : x p ≤ C}, then R/r = d 1/p</formula><p>, which shows that the domain X does effect the guarantees we can give on optimality of ADAGRAD.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">Full Matrix Proximal Functions</head><p>In this section we derive and analyze new updates when we estimate a full matrix for the divergence ψ t instead of a diagonal one. In this generalized case, we use the root of the matrix of outer products of the gradients that we have observed to update our parameters. As in the diagonal case, we build on intuition garnered from an optimization problem, and in particular, we seek a matrix S which is the solution to the following minimization problem:</p><formula xml:id="formula_57">min S T ∑ t=1 g t , S −1 g t s.t. S 0, tr(S) ≤ c .<label>(15)</label></formula><p>The solution is obtained by defining G t = ∑ t τ=1 g τ g τ ⊤ and setting S to be a normalized version of</p><formula xml:id="formula_58">the root of G T , that is, S = c G 1/2 T / tr(G 1/2 T )</formula><p>. For a proof, see Lemma 15 in Appendix E, which also shows that when G T is not full rank we can instead use its pseudo-inverse. If we iteratively use divergences of the form ψ t (x) = x, G 1/2 t x , we might expect as in the diagonal case to attain low regret by collecting gradient information. We achieve our low regret goal by employing a similar doubling lemma to Lemma 4 and bounding the gradient norm terms. The resulting algorithm is given in Algorithm 2, and the next theorem provides a quantitative analysis of the brief motivation above.</p><p>Theorem 7 Let G t be the outer product matrix defined above and the sequence {x t } be defined by Algorithm 2. For x t generated using the primal-dual subgradient update of (3) and δ ≥ max</p><formula xml:id="formula_59">t g t 2 , for any x * ∈ X R φ (T ) ≤ δ η x * 2 2 + 1 η x * 2 2 tr(G 1/2 T ) + η tr(G 1/2 T ).</formula><p>For x t generated with the composite mirror-descent update of (4), if x * ∈ X and δ ≥ 0</p><formula xml:id="formula_60">R φ (T ) ≤ δ η x * 2 2 + 1 2η max t≤T x * − x t 2 2 tr(G 1/2 T ) + η tr(G 1/2 T ). INPUT: η &gt; 0, δ ≥ 0 VARIABLES: S t ∈ R d×d , H t ∈ R d×d , G t ∈ R d×d INITIALIZE x 1 = 0, S 0 = 0, H 0 = 0, G 0 = 0 FOR t = 1 to T Suffer loss f t (x t ) Receive subgradient g t ∈ ∂ f t (x t ) of f t at x t UPDATE G t = G t−1 + g t g ⊤ t , S t = G 1 t SET H t = δI + S t , ψ t (x) = 1 2 x, H t x</formula><p>Primal-Dual Subgradient Update ((3)):</p><formula xml:id="formula_61">x t+1 = argmin x∈X η 1 t t ∑ τ=1 g τ , x + ηϕ(x) + 1 t ψ t (x) .</formula><p>Composite Mirror Descent Update ((4)): Proof To begin, we consider the difference between the divergence terms at time t + 1 and time t from the regret (11) in Corollary 3. Let λ max (M) denote the largest eigenvalue of a matrix M. We have</p><formula xml:id="formula_62">x t+1 = argmin x∈X η g t , x + ηϕ(x) + B ψ t (x, x t ) .</formula><formula xml:id="formula_63">B ψ t+1 (x * , x t+1 ) − B ψ t (x * , x t+1 ) = 1 2 x * − x t+1 , (G t+1 1/2 − G t 1/2 )(x * − x t+1 ) ≤ 1 2 x * − x t+1 2 2 λ max (G 1/2 t+1 − G 1/2 t ) ≤ 1 2 x * − x t+1 2 2 tr(G 1/2 t+1 − G 1/2 t ) .</formula><p>For the last inequality we used the fact that the trace of a matrix is equal to the sum of its eigenvalues along with the property G t+1 1/2 − G t 1/2 0 (see Lemma 13 in Appendix B) and therefore tr(G</p><formula xml:id="formula_64">1/2 t+1 − G 1/2 t ) ≥ λ max (G 1/2 t+1 − G 1/2 t ). Thus, we get T −1 ∑ t=1 B ψ t+1 (x * , x t+1 ) − B ψ t (x * , x t+1 ) ≤ 1 T −1 ∑ t=1 x * − x t+1 2 2 tr(G 1/2 t+1 ) − tr(G 1/2 t ) .</formula><p>Now we use the fact that G 1 is a rank 1 PSD matrix with non-negative trace to see that</p><formula xml:id="formula_65">T −1 ∑ t=1 x * − x t+1 2 2 tr(G 1/2 t+1 ) − tr(G 1/2 t ) ≤ max t≤T x * − x t 2 2 tr(G T 1/2 ) − x * − x 1 2 2 tr(G 1/2 1 ) .<label>(16)</label></formula><p>It remains to bound the gradient terms common to all our bounds. We use the following three lemmas, which essentially directly applicable. We prove the first two in Appendix D.</p><p>Lemma 8 Let B 0 and B −1/2 denote the root of the inverse of B when B ≻ 0 and the root of the pseudo-inverse of B otherwise. For any ν such that B − νgg ⊤ 0 the following inequality holds.</p><p>tr((B − νgg ⊤ ) 1/2 ) ≤ 2 tr(B 1/2 ) − ν tr(B −1/2 gg ⊤ ) .</p><p>Lemma 9 Let δ ≥ g 2 and A 0, then g, (δI + A 1/2 ) −1 g ≤ g, (A + gg ⊤ ) † 1/2 g .</p><p>Lemma 10 Let S t = G t 1/2 be as defined in Algorithm 2 and A † denote the pseudo-inverse of A. Then</p><formula xml:id="formula_66">T ∑ t=1 g t , S † t g t ≤ 2 T ∑ t=1 g t , S † T g t = 2 tr(G T 1/2 ) .</formula><p>Proof We prove the lemma by induction. The base case is immediate, since we have</p><formula xml:id="formula_67">g 1 , (G † 1 ) 1/2 g 1 = g 1 , g 1 g 1 2 = g 1 2 ≤ 2 g 1 2 .</formula><p>Now, assume the lemma is true for T − 1, so from the inductive assumption we get</p><formula xml:id="formula_68">T ∑ t=1 g t , S † t g t ≤ T −1 ∑ t=1 g t , S † T −1 g t + g T , S † T g T .</formula><p>Since S T −1 does not depend on t we can rewrite</p><formula xml:id="formula_69">∑ T −1 t=1 g t , S † T −1 g t as tr S † T −1 , T −1 ∑ t=1 g t g ⊤ t = tr((G † T −1 ) 1/2 G T −1 ) ,</formula><p>where the right-most equality follows from the definitions of S t and G t . Therefore, we get</p><formula xml:id="formula_70">T ∑ t=1 g t , S † t g t ≤ 2 tr((G † T −1 ) 1/2 G T −1 ) + g T , (G † T ) 1/2 g T = 2 tr(G 1/2 T −1 ) + g T , (G † T ) 1/2 g T .</formula><p>Using Lemma 8 with the substitution B = G T , ν = 1, and g = g t lets us exploit the concavity of the function tr(A 1/2 ) to bound the above sum by 2 tr(G 1/2 T ).</p><p>We can now finalize our proof of the theorem. As in the diagonal case, we have that the squared dual norm (seminorm when δ = 0) associated with ψ t is</p><formula xml:id="formula_71">x 2 ψ * t = x, (δI + S t ) −1 x . Thus it is clear that g t 2 ψ * t ≤ g t , S † t g t .</formula><p>For the dual-averaging algorithms, we use Lemma 9 above</p><formula xml:id="formula_72">show that g t 2 ψ * t−1 ≤ g t , S † t g t so long as δ ≥ g t 2 .</formula><p>Lemma 10's doubling inequality then implies that</p><formula xml:id="formula_73">T ∑ t=1 f ′ t (x t ) 2 ψ * t ≤ 2 tr(G 1/2 T ) and T ∑ t=1 f ′ t (x t ) 2 ψ * t−1 ≤ 2 tr(G 1/2 T )<label>(17)</label></formula><p>for the mirror-descent and primal-dual subgradient algorithm, respectively. To finish the proof, Note that</p><formula xml:id="formula_74">B ψ 1 (x * , x 1 ) ≤ 1 x * − x 1 2 2 tr(G 1/2</formula><p>1 ) when δ = 0. By combining this with the first of the bounds (17) and the bound (16) on <ref type="figure" target="#fig_1">x t+1</ref> ), Corollary 3 gives the theorem's statement for the mirror-descent family of algorithms. Combining the</p><formula xml:id="formula_75">∑ T −1 t=1 B ψ t+1 (x * , x t+1 ) − B ψ t (x * ,</formula><formula xml:id="formula_76">fact that ∑ T t=1 f ′ t (x t ) 2 ψ * t−1 ≤ 2 tr(G 1/2</formula><p>T ) and the bound (16) with Corollary 2 gives the desired bound on R φ (T ) for the primal-dual subgradient algorithms, which completes the proof of the theorem.</p><p>As before, we can give a corollary that simplifies the bound implied by Theorem 7. The infimal equality in the corollary uses Lemma 15 in Appendix B. The corollary underscores that for learning problems in which there is a rotation U of the space for which the gradient vectors g t have small inner products g t ,Ug t (essentially a sparse basis for the g t ) then using full-matrix proximal functions can attain significantly lower regret.</p><p>Corollary 11 Assume that ϕ(x 1 ) = 0. Then the regret of the sequence {x t } generated by Algorithm 2 when using the primal-dual subgradient update with</p><formula xml:id="formula_77">η = x * 2 is R φ (T ) ≤ 2 x * 2 tr(G 1/2 T ) + δ x * 2 .</formula><p>Let X be compact set so that</p><formula xml:id="formula_78">sup x∈X x − x * 2 ≤ D.</formula><p>Taking η = D/ √ 2 and using the composite mirror descent update with δ = 0, we have</p><formula xml:id="formula_79">R φ (T ) ≤ √ 2D tr(G 1/2 T ) = √ 2dD inf S T ∑ t=1 g ⊤ t S −1 g t : S 0, tr(S) ≤ d .</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.">Derived Algorithms</head><p>In this section, we derive updates using concrete regularization functions ϕ and settings of the domain X for the ADAGRAD framework. We focus on showing how to solve Equations (3) and <ref type="formula" target="#formula_6">4</ref>with the diagonal matrix version of the algorithms we have presented. We focus on the diagonal case for two reasons. First, the updates often take closed-form in this case and carry some intuition. Second, the diagonal case is feasible to implement in very high dimensions, whereas the full matrix version is likely to be confined to a few thousand dimensions. We also discuss how to efficiently compute the updates when the gradient vectors are sparse. We begin by noting a simple but useful fact. Let G t denote either the outer product matrix of gradients or its diagonal counterpart and let H t = δI + G 1/2 t , as usual. Simple algebraic manipulations yield that each of the updates (3) and (4) in the prequel can be written in the following form (omitting the stepsize η):</p><formula xml:id="formula_80">x t+1 = argmin x∈X u, x + ϕ(x) + 1 2 x, H t x .<label>(18)</label></formula><p>In particular, at time t for the RDA update, we have u = ηtḡ t . For the composite gradient update (4),</p><formula xml:id="formula_81">η g t , x + 1 x − x t , H t (x − x t ) = ηg t − H t x t , x + 1 2 x, H t x + 1 x t , H t x t</formula><p>so that u = ηg t − H t x t . We now derive algorithms for solving the general update (18). Since most of the derivations are known, we generally provide only the closed-form solutions or algorithms for the solutions in the remainder of the subsection, deferring detailed derivations to Appendix G for the interested reader.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1">ℓ 1 -regularization</head><p>We begin by considering how to solve the minimization problems necessary for Algorithm 1 with diagonal matrix divergences and ϕ(x) = λ x 1 . We consider the two updates we proposed and denote the ith diagonal element of the matrix H t = δI + diag(s t ) from Algorithm 1 by H t,ii = δ + g 1:t,i 2 . For the primal-dual subgradient update, the solution to (3) amounts to the following simple update for x t+1,i :</p><formula xml:id="formula_82">x t+1,i = sign (−ḡ t,i ) ηt H t,ii [|ḡ t,i | − λ] + .<label>(19)</label></formula><p>Comparing the update (19) to the standard dual averaging update <ref type="bibr" target="#b42">(Xiao, 2010)</ref>, which is</p><formula xml:id="formula_83">x t+1,i = sign (−ḡ t,i ) η √ t [|ḡ t,i | − λ] + ,</formula><p>it is clear that the difference distills to the step size employed for each coordinate. Our generalization of RDA yields a dedicated step size for each coordinate inversely proportional to the time-based norm of the coordinate in the sequence of gradients. Due to the normalization by this term the step size scales linearly with t, so when H t,ii is small, gradient information on coordinate i is quickly incorporated.</p><p>The composite mirror-descent update (4) has a similar form that essentially amounts to iterative shrinkage and thresholding, where the shrinkage differs per coordinate:</p><formula xml:id="formula_84">x t+1,i = sign x t,i − η H t,ii g t,i x t,i − η H t,ii g t,i − λη H t,ii + .</formula><p>We compare the actual performance of the newly derived algorithms to previously studied versions in the next section. For both updates it is clear that we can perform "lazy" computation when the gradient vectors are sparse, a frequently occurring setting when learning for instance from text corpora. Suppose that from time step t 0 through t, the ith component of the gradient is 0. Then we can evaluate the above updates on demand since H t,ii remains intact. For composite mirror-descent, at time t when x t,i is needed, we update</p><formula xml:id="formula_85">x t,i = sign(x t 0 ,i ) |x t 0 ,i | − λη H t 0 ,ii (t − t 0 ) + .</formula><p>Even simpler just in time evaluation can be performed for the the primal-dual subgradient update.</p><p>Here we need to keep an unnormalized version of the averageḡ t . Concretely, we keep track of u t = tḡ t = ∑ t τ=1 g τ = u t−1 + g t , then use the update (19):</p><formula xml:id="formula_86">x t,i = sign(−u t,i ) ηt H t,ii |u t,i | t − λ + ,</formula><p>where H t can clearly be updated lazily in a similar fashion.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2">ℓ 1 -ball Projections</head><p>We next consider the setting in which ϕ ≡ 0 and X = {x : x 1 ≤ c}, for which it is straightforward to adapt efficient solutions to continuous quadratic knapsack problems <ref type="bibr" target="#b9">(Brucker, 1984)</ref>. We </p><formula xml:id="formula_87">INPUT: v 0, a 0, c ≥ 0. IF ∑ i v i ≤ c RETURN z * = v SORT v i /a i into µ = v i j /a i j s.t. v i j /a i j ≥ v i j+1 /a i j+1 SET ρ := max ρ : ∑ ρ j=1 a i j v i j − v iρ a iρ ∑ ρ j=1 a 2 i j &lt; c SET θ = ∑ ρ j=1 a i j v i j −c ∑ ρ j=1 a 2 i j RETURN z * where z * i = [v i − θa i ] + .</formula><formula xml:id="formula_88">1 2 z − v 2 2 s.t. d ∑ i=1 a i |z i | ≤ c .<label>(20)</label></formula><p>We can clearly recover x t+1 from the solution z * to the projection (20) via</p><formula xml:id="formula_89">x t+1 = H −1/2 t z *</formula><p>. By the symmetry of the objective (20), we can assume without loss of generality that v 0 and constrain z 0, and a bit of manipulation with the Lagrangian (see Appendix G) for the problem shows that the solution z * has the form</p><formula xml:id="formula_90">z * i = v i − θ * a i if v i ≥ θ * a i 0 otherwise</formula><p>for some θ * ≥ 0. The algorithm in <ref type="figure" target="#fig_3">Figure 3</ref> constructs the optimal θ and returns z * .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3">ℓ 2 Regularization</head><p>We now turn to the case where ϕ(x) = λ x 2 while X = R d . This type of regularization is useful for zeroing multiple weights in a group, for example in multi-task or multiclass learning <ref type="bibr" target="#b36">(Obozinski et al., 2007)</ref>. Recalling the general proximal step (18), we must solve</p><formula xml:id="formula_91">min x u, x + 1 2 x, Hx + λ x 2 .<label>(21)</label></formula><p>There is no closed form solution for this problem, but we give an efficient bisection-based procedure for solving (21). We start by deriving the dual. Introducing a variable z = x, we get the equivalent problem of minimizing u, x + 1 2 x, Hx + λ z 2 subject to x = z. With Lagrange multipliers α for the equality constraint, we obtain the Lagrangian</p><formula xml:id="formula_92">L(x, z, α) = u, x + 1 x, Hx + λ z 2 + α, x − z . INPUT: u ∈ R d , H 0, λ &gt; 0. IF u 2 ≤ λ RETURN x = 0 SET v = H −1 u, θ max = v 2 /λ − 1/σ min (H) θ min = v 2 /λ − 1/σ max (H) WHILE θ max − θ min &gt; ε SET θ = (θ max + θ min )/2, α(θ) = −(H −1 + θI) −1 v IF α(θ) 2 &gt; λ SET θ min = θ ELSE SET θ max = θ RETURN x = −H −1 (u + α(θ)) Figure 4: Minimize u, x + 1 2 x, Hx + λ x 2</formula><p>Taking the infimum of L with respect to the primal variables x and z, we see that the infimum is attained at x = −H −1 (u + α). Coupled with the fact that inf z λ z 2 − α, z = −∞ unless α 2 ≤ λ, in which case the infimum is 0, we arrive at the dual form</p><formula xml:id="formula_93">inf x,z L(x, z, α) = − 1 2 u + α, H −1 (u + α) if α 2 ≤ λ −∞</formula><p>otherwise.</p><p>Setting v = H −1 u, we further distill the dual to</p><formula xml:id="formula_94">min α v, α + 1 2 α, H −1 α s.t. α 2 ≤ λ .<label>(22)</label></formula><p>We can solve problem (22) efficiently using a bisection search of its equivalent representation in Lagrange form,</p><formula xml:id="formula_95">min α v, α + 1 α, H −1 α + θ α 2 2 ,</formula><p>where θ &gt; 0 is an unknown scalar. The solution to the latter as a function of θ is clearly α(θ) = −(H −1 + θI) −1 v = −(H −1 + θI) −1 H −1 u. Since α(θ) 2 is monotonically decreasing in θ (consider the the eigen-decomposition of the positive definite H −1 ), we can simply perform a bisection search over θ, checking at each point whether α(θ) 2 ≷ λ. To find initial upper and lower bounds on θ, we note that</p><formula xml:id="formula_96">(1/σ max (H) + θ) −1 v 2 ≤ α(θ) 2 ≤ (1/σ min (H) + θ) −1 v 2</formula><p>where σ max (H) denotes the maximum singular value of H and σ min (H) the minimum. To guarantee α(θ max ) 2 ≤ λ, we thus set θ max = v 2 /λ − 1/σ max (H). Similarly, for θ min we see that so long as θ ≥ v 2 /λ − 1/σ min (H) we have α(θ) 2 ≥ λ. The fact that ∂ x 2 = {z : z 2 ≤ 1} when x = 0 implies that the solution for the original problem (21) is x = if and only if u 2 ≤ λ. We provide pseudocode for solving (21) in Algorithm 4.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.4">ℓ ∞ Regularization</head><p>We again let X = R d but now choose ϕ(x) = λ x ∞ . This type of update, similarly to ℓ 2 , zeroes groups of variables, which is handy in finding structurally sparse solutions for multitask or multiclass problems. Solving the ℓ ∞ regularized problem amounts to</p><formula xml:id="formula_97">min x u, x + 1 2 x, Hx + λ x ∞ .<label>(23)</label></formula><p>The dual of this problem is a modified ℓ 1 -projection problem. As in the case of ℓ 2 regularization, we introduce an equality constrained variable z = x with associated Lagrange multipliers</p><formula xml:id="formula_98">α ∈ R d to obtain L(x, z, α) = u, x + 1 2 x, Hx + λ z ∞ + α, x − z .</formula><p>Performing identical manipulations to the ℓ 2 case, we take derivatives and get that x = −H −1 (u + α)</p><p>and, similarly, unless</p><formula xml:id="formula_99">α 1 ≤ λ, inf z L(x, z, α) = −∞. Thus the dual problem for (23) is max α − 1 2 (u + α)H −1 (u + α) s.t. α 1 ≤ λ .</formula><p>When H is diagonal we can find the optimal α * using the generalized ℓ 1 -projection in Algorithm 3, then reconstruct the optimal x via x = −H −1 (u + α * ).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.5">Mixed-norm Regularization</head><p>Finally, we combine the above results to show how to solve problems with matrix-valued inputs</p><formula xml:id="formula_100">X ∈ R d×k , where X = [x 1 • • • x d ] ⊤ .</formula><p>We consider mixed-norm regularization, which is very useful for encouraging sparsity across several tasks <ref type="bibr" target="#b36">(Obozinski et al., 2007)</ref>. Now ϕ is an ℓ 1 /ℓ p norm, that is, ϕ(X) = λ ∑ d i=1 x i p . By imposing an ℓ -norm over p-norms of the rows of X, entire rows are nulled at once.</p><p>When p ∈ {2, ∞} and the proximal H in (18) is diagonal, the previous algorithms can be readily used to solve the mixed norm problems. We simply maintain diagonal matrix information for each of the rowsx i of X separately, then solve one of the previous updates for each row independently. We use this form of regularization in our experiments with multiclass prediction problems in the next section.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.">Experiments</head><p>We performed experiments with several real world data sets with different characteristics: the Im-ageNet image database <ref type="bibr" target="#b17">(Deng et al., 2009)</ref>, the Reuters RCV1 text classification data set <ref type="bibr" target="#b29">(Lewis et al., 2004)</ref>, the MNIST multiclass digit recognition problem, and the census income data set from the UCI repository <ref type="bibr" target="#b2">(Asuncion and Newman, 2007)</ref>. For uniformity across experiments, we focus on the completely online (fully stochastic) optimization setting, in which at each iteration the learning algorithm receives a single example. We measure performance using two metrics: the online loss or error and the test set performance of the predictor the learning algorithm outputs at the end of a single pass through the training data. We also give some results that show how imposing sparsity constraints (in the form of ℓ 1 and mixed-norm regularization) affects the learning algorithm's performance. One benefit of the ADAGRAD framework is its ability to straightforwardly generalize to RDA FB ADAGRAD-RDA ADAGRAD-FB PA AROW ECAT .051 (.099) .058 <ref type="bibr">(.194)</ref> .044 (.086) .044 (.238) .059 .049 CCAT .064 (.123) .111 <ref type="bibr">(.226)</ref> .053 (.105) .053 <ref type="bibr">(.276)</ref> .107 .061 GCAT .046 (.092) .056 <ref type="bibr">(.183)</ref> .040 (.080) .040 <ref type="bibr">(.225)</ref> .066 .044 MCAT .037 (.074) .056 <ref type="bibr">(.146)</ref> .035 (.063) .034 (.176) .053 .039 <ref type="table">Table 1</ref>: Test set error rates and proportion non-zero (in parenthesis) on Reuters RCV1. domain constraints X = R d and arbitrary regularization functions ϕ, in contrast to previous adaptive online algorithms. We experiment with RDA <ref type="bibr" target="#b42">(Xiao, 2010)</ref>, FOBOS <ref type="bibr" target="#b18">(Duchi and Singer, 2009)</ref>, adaptive RDA, adaptive FOBOS, the Passive-Aggressive (PA) algorithm <ref type="bibr" target="#b13">(Crammer et al., 2006)</ref>, and AROW <ref type="bibr" target="#b15">(Crammer et al., 2009)</ref>. To remind the reader, PA is an online learning procedure with the update</p><formula xml:id="formula_101">x t+1 = argmin x [1 − y t z t , x ] + + λ x − x t 2 2 ,</formula><p>where λ is a regularization parameter. PA's update is similar to the update employed by AROW (see (9)), but the latter maintains second order information on x. By using a representer theorem it is also possible to derive efficient updates for PA and AROW when the loss is the logistic loss, log(1 + exp(−y t z t , x t )). We thus we compare the above six algorithms using both hinge and logistic loss.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.1">Text Classification</head><p>The Reuters RCV1 data set consists of a collection of approximately 800,000 text articles, each of which is assigned multiple labels. There are 4 high-level categories, Economics, Commerce, Medical, and Government (ECAT, CCAT, MCAT, GCAT), and multiple more specific categories. We focus on training binary classifiers for each of the four major categories. The input features we use are 0/1 bigram features, which, post word stemming, give data of approximately 2 million dimensions. The feature vectors are very sparse, however, and most examples have fewer than 5000 non-zero features. We compare the twelve different algorithms mentioned in the prequel as well as variants of FOBOS and RDA with ℓ 1 -regularization. We summarize the results of the ℓ 1 -regularized runs as well as AROW and PA in <ref type="table">Table 1</ref>. The results for both hinge and logistic losses are qualitatively and quantitatively very similar, so we report results only for training with the hinge loss in <ref type="table">Table 1</ref>. Each row in the table represents the average of four different experiments in which we hold out 25% of the data for a test set and perform an online pass on the remaining 75% of the data. For RDA and FOBOS, we cross-validate the stepsize parameter η by simply running multiple passes and then choosing the output of the learner that had the fewest mistakes during training. For PA and AROW we choose λ using the same approach. We use the same regularization multiplier on the ℓ 1 term for RDA and FOBOS, selected so that RDA achieved approximately 10% non-zero predictors.</p><p>It is evident from the results presented in <ref type="table">Table 1</ref> that the adaptive algorithms (AROW and ADA-GRAD) are far superior to non-adaptive algorithms in terms of error rate on test data. The ADA-GRAD algorithms naturally incorporate sparsity as well since they are run with ℓ 1 -regularization, though RDA has significantly higher sparsity levels (PA and AROW do not have any sparsity). Furthermore, although omitted from the table to avoid clutter, in every test with the RCV1 corpus, the Alg.</p><p>Avg. Prec. P@1 P@3 P@5 P@  <ref type="table">Table 2</ref>: Test set precision for ImageNet adaptive algorithms outperformed the non-adaptive algorithms. Moreover, both ADAGRAD-RDA and ADAGRAD-Fobos outperform AROW on all the classification tasks. Unregularized RDA and FOBOS attained similar results as did the ℓ 1 -regularized variants (of course without sparsity), but we omit the results to avoid clutter and because they do not give much more understanding.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.2">Image Ranking</head><p>ImageNet <ref type="bibr" target="#b17">(Deng et al., 2009)</ref> consists of images organized according to the nouns in the WordNet hierarchy, where each noun is associated on average with more than 500 images collected from the web. We selected 15,000 important nouns from the hierarchy and conducted a large scale image ranking task for each noun. This approach is identical to the task tackled by <ref type="bibr" target="#b21">Grangier and Bengio (2008)</ref> using the Passive-Aggressive algorithm. To solve this problem, we train 15,000 ranking machines using Grangier and Bengio's visterms features, which represent patches in an image with 79-dimensional sparse vectors. There are approximately 120 patches per image, resulting in a 10,000-dimensional feature space. Based on the results in the previous section, we focus on four algorithms for solving this task: AROW, ADAGRAD with RDA updates and ℓ 1 -regularization, vanilla RDA with ℓ 1 , and Passive-Aggressive. We use the ranking hinge loss, which is [1 − x, z 1 − z 2 ] + when z 1 is ranked above z 2 . We train a ranker x c for each of the image classes individually, cross-validating the choice of initial stepsize for each algorithm on a small held-out set. To train an individual ranker for class c, at each step of the algorithm we randomly sample a positive image z 1 for the category c and an image z 2 from the training set (which with high probability is a negative example for class c) and perform an update on the example z 1 − z 2 . We let each algorithm take 100,000 such steps for each image category, we train four sets of rankers with each algorithm, and the training set includes approximately 2 million images.</p><p>For evaluation, we use a distinct test set of approximately 1 million images. To evaluate a set of rankers, we iterate through all 15,000 classes in the data set. For each class we take all the positive image examples in the test set and sample 10 times as many negative image examples. Following Grangier and Bengio, we then rank the set of positive and negative images and compute precisionat-k for k = {1, . . . , 10} and the average precision for each category. The precision-at-k is defined as the proportion of examples ranked in the top k for a category c that actually belong to c, and the average precision is the average of the precisions at each position in which a relevant picture appears. Letting Pos(c) denote the positive examples for category c and p(i) denote the position of the ith returned picture in list of images sorted by inner product with x c , the average precision is |Pos(c)|</p><formula xml:id="formula_102">|Pos(c)| ∑ i=1 i p(i)</formula><p>. We compute the mean of each measurement across all classes, performing this twelve times for each of the sets of rankers trained. <ref type="table">Table 2</ref> summarizes our results. We do not report variance as the variance was on the order of 10 −5 for each algorithm. One apparent characteristic to note from the table is that ADAGRAD RDA achieves higher levels of sparsity than the other algorithms-using only 73% of the input features it achieves very high performance. Moreover, it outperforms all the algorithms in average precision. AROW has better results than the other algorithms in terms of precision-at-k for k ≤ 10, though ADAGRAD's performance catches up to and eventually surpasses AROW's as k grows.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.3">Multiclass Optical Character Recognition</head><p>In the well-known MNIST multiclass classification data set, we are given 28 × 28 pixel images a i , and the learner's task is to classify each image as a digit in {0, . . . , 9}. Linear classifiers do not work well on a simple pixel-based representation. Thus we learn classifiers built on top of a kernel machine with Gaussian kernels, as do <ref type="bibr" target="#b18">Duchi and Singer (2009)</ref>, which gives a different (and nonsparse) structure to the feature space in contrast to our previous experiments. In particular, for the ith example and jth feature, the feature value is</p><formula xml:id="formula_103">z i j = K(a i , a j ) exp − 1 2σ 2 a i − a j 2 2 .</formula><p>We use a support set of approximately 3000 images to compute the kernels and trained multiclass predictors, which consist of one vector x c ∈ R 3000 for each class c, giving a 30,000 dimensional problem. There is no known multiclass AROW algorithm. We therefore compare adaptive RDA with and without mixed-norm ℓ 1 /ℓ 2 and ℓ 1 /ℓ ∞ regularization (see Section 5.5), RDA, and multiclass Passive Aggressive to one another using the multiclass hinge loss <ref type="bibr" target="#b13">(Crammer et al., 2006)</ref>. For each algorithm we used the first 5000 of 60,000 training examples to choose the stepsize η (for RDA) and λ (for PA).</p><p>In <ref type="figure" target="#fig_4">Figure 5</ref>, we plot the learning curves (cumulative mistakes made) of multiclass PA, RDA, RDA with ℓ 1 /ℓ 2 regularization, adaptive RDA, and adaptive RDA with ℓ /ℓ 2 regularization (ℓ /ℓ ∞ Test error rate Prop. nonzero PA 0.062 1.000 Ada-RDA 0.066 1.000 RDA 0.108 1.000 Ada-RDA λ = 5 • 10 −4 0.100 0.569 RDA λ = 5 • 10 −4 0.138 0.878 Ada-RDA λ = 10 −3 0.137 0.144 RDA λ = 10 −3 0.192 0.532 <ref type="table">Table 3</ref>: Test set error rates and sparsity proportions on MNIST. The scalar λ is the multiplier on the ℓ 1 /ℓ 2 regularization term.</p><p>is similar). From the curves, we see that Adaptive RDA seems to have similar performance to PA, and the adaptive versions of RDA are vastly superior to their non-adaptive counterparts. <ref type="table">Table 3</ref> further supports this, where we see that the adaptive RDA algorithms outperform their non-adaptive counterparts both in terms of sparsity (the proportion of non-zero rows) and test set error rates.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.4">Income Prediction</head><p>The KDD census income data set from the UCI repository <ref type="bibr" target="#b2">(Asuncion and Newman, 2007)</ref> contains census data extracted from 1994 and 1995 population surveys conducted by the U.S. Census Bureau.</p><p>The data consists of 40 demographic and employment related variables which are used to predict whether a respondent has income above or below $50,000. We quantize each feature into bins (5 per feature for continuous features) and take products of features to give a 4001 dimensional feature space with 0/1 features. The data is divided into a training set of 199,523 instances and test set of 99,762 test instances. As in the prequel, we compare AROW, PA, RDA, and adaptive RDA with and without ℓ 1regularization on this data set. We use the first 10,000 examples of the training set to select the step size parameters λ for AROW and PA and η for RDA. We perform ten experiments on random shuffles of the training data. Each experiment consists of a training pass through some proportion of the data (.05, .1, .25, .5, or the entire training set) and computing the test set error rate of the learned predictor. <ref type="table">Table 4</ref> and <ref type="figure" target="#fig_5">Figure 6</ref> summarize the results of these experiments. The variance of the test error rates is on the order of 10 −6 so we do not report it. As earlier, the table and figure make it clear that the adaptive methods (AROW and ADAGRAD-RDA) give better performance than non-adaptive methods. Further, as detailed in the table, the ADAGRAD methods can give extremely sparse predictors that still give excellent test set performance. This is consistent with the experiments we have seen to this point, where ADAGRAD gives sparse but highly accurate predictors.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.5">Experiments with Sparsity-Accuracy Tradeoffs</head><p>In our final set of experiments, we investigate the tradeoff between the level of sparsity and the classification accuracy for the ADAGRAD-RDA algorithms. Using the same experimental setup as for the initial text classification experiments described in Section 6.1, we record the average test-set performance of ADAGRAD-RDA versus the proportion of features that are non-zero in the predictor ADAGRAD outputs after a single pass through the training data. To achieve this, we run  <ref type="table">Table 4</ref>: Test set error rates as function of proportion of training data seen (proportion of non-zeros in parenthesis where appropriate) on Census Income data set.</p><p>ADAGRAD with ℓ 1 -regularization, and we sweep the regularization multiplier λ from 10 −8 to 10 −1 . These values result in predictors ranging from a completely dense predictor to an all-zeros predictor, respectively. We summarize our results in <ref type="figure" target="#fig_6">Figure 7</ref>, which shows the test set performance of ADAGRAD for each of the four categories ECAT, CCAT, GCAT, and MCAT. Within each plot, the horizontal black line labeled AROW designates the baseline performance of AROW on the text classification task, though we would like to note that AROW generates fully dense predictors. The plots all portray a similar story. With high regularization values, ADAGRAD exhibits, as expected, poor performance as it retains no predictive information from the learning task. Put another way, when the regularization value is high ADAGRAD is confined to an overly sparse predictor which exhibits poor generalization. However, as the regularization multiplier λ decreases, the learned predictor becomes less sparse and eventually the accuracy of ADAGRAD exceeds AROW's accuracy. It is interesting to note that for these experiments, as soon as the predictor resulting from a single pass through the data has more than 1% non-zero coefficients, ADAGRAD's performance matches that of AROW. We also would like to note that the variance in the test-set error rates for these experiments is on the order of 10 −6 , and we thus do not draw error bars in the graphs. The performance of ADAGRAD as a function of regularization for other sparse data sets, especially in relation to that of AROW, was qualitatively similar to this experiment.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.">Conclusions</head><p>We presented a paradigm that adapts subgradient methods to the geometry of the problem at hand. The adaptation allows us to derive strong regret guarantees, which for some natural data distributions achieve better performance guarantees than previous algorithms. Our online regret bounds can be naturally converted into rate of convergence and generalization bounds <ref type="bibr" target="#b10">(Cesa-Bianchi et al., 2004)</ref>. Our experiments show that adaptive methods, specifically ADAGRAD-FOBOS, ADAGRAD-RDA, and AROW clearly outperform their non-adaptive counterparts. Furthermore, the ADAGRAD fam-ily of algorithms naturally incorporates regularization and gives very sparse solutions with similar performance to dense solutions. Our experiments with adaptive methods use a diagonal approximation to the matrix obtained by taking outer products of subgradients computed along the run of the algorithm. It remains to be tested whether using the full outer product matrix can further improve performance.</p><p>To conclude we would like to underscore a possible elegant generalization that interpolates between full-matrix proximal functions and diagonal approximations using block diagonal matrices. Specifically, for</p><formula xml:id="formula_104">v ∈ R d let v = [v ⊤ [1] • • • v ⊤ [k] ] ⊤ where v [i] ∈ R d i are subvectors of v with ∑ k i=1 d i = d.</formula><p>We can define the associated block-diagonal approximation to the outer product matrix</p><formula xml:id="formula_105">∑ t τ=1 g τ g ⊤ τ by G t = t ∑ τ=1        g τ,[1] g ⊤ τ,[1] 0 • • • 0 0 g τ,[2] g ⊤ τ,[2] . . . 0 . . . . . . . . . 0 0 • • • 0 g τ,[k] g ⊤ τ,[k]        .</formula><p>In this case, a combination of Theorems 5 and 7 gives the next corollary.</p><p>Corollary 12 Let G t be the block-diagonal outer product matrix defined above and the sequence {x t } be defined by the RDA update of (3) with ψ</p><formula xml:id="formula_106">t (x) = x, G 1/2 t x . Then, for any x * ∈ X , R φ (T ) ≤ 1 η max i x * [i] 2 2 tr(G 1/2 T ) + η tr(G 1/2 T ).</formula><p>A similar bound holds for composite mirror-descent updates, and it is straightforward to get infimal equalities similar to those in Corollary 11 with the infimum taken over block-diagonal matrices. Such an algorithm can interpolate between the computational simplicity of the diagonal proximal functions and the ability of full matrices to capture correlation in the gradient vectors. A few open questions stem from this line of research. The first is whether we can efficiently use full matrices in the proximal functions, as in Section 4. A second open issue is whether non-Euclidean proximal functions, such as the relative entropy, can be used. We also think that the strongly convex case-when f t or ϕ is strongly convex-presents interesting challenges that we have not completely resolved. We hope to investigate both empirical and formal extensions of this work in the near future.</p><p>Lemma 14 Let p ∈ R and X ≻ 0. Then ∇ X tr(X p ) = pX p−1 .</p><p>Proof We do a first order expansion of (X + A) p when X ≻ 0 and A is symmetric. Let X = UΛU ⊤ be the symmetric eigen-decomposition of X and V DV ⊤ be the decomposition of Λ −1/2 U ⊤ AUΛ −1/2 . Then (X + A) p = (UΛU ⊤ + A) p = U(Λ +U ⊤ AU) p U ⊤ = UΛ p/2 (I + Λ −1/2 U ⊤ AUΛ −1/2 ) p Λ p/2 U ⊤</p><formula xml:id="formula_107">= UΛ p/2 V ⊤ (I + D) p V Λ p/2 U ⊤ = UΛ p/2 V ⊤ (I + pD + o(D))V Λ p/2 U ⊤ = UΛ p U ⊤ + pUΛ p/2 V ⊤ DV Λ p/2 U ⊤ + o(UΛ −/2 V ⊤ DV Λ p/2 U ⊤ )</formula><p>= X p +UΛ (p−1)/2 U ⊤ AUΛ (p−1)/2 U ⊤ + o(A) = X p + pX (p−1)/2 AX (p−1)/2 + o(A).</p><p>In the above, o(A) is a matrix that goes to zero faster than A → 0, and the second line follows via a first-order Taylor expansion of (1 + d i ) p . From the above, we immediately have tr((X + A) p ) = tr X p + p tr(X p−1 A) + o(tr A), which completes the proof.</p><p>is the eigen-decomposition of A. Let n be the dimension of the null-space of A (so the rank of A is d − n). Define the variables</p><formula xml:id="formula_108">Z(θ) = 0 0 0 θI , S(θ, δ) = 1 √ θ Q Λ 1 0 0 δI Q ⊤ , S(δ) = c tr(A 1 2 ) + δn Q Λ 1 0 0 δI Q ⊤ .</formula><p>It is easy to see that tr S(δ) = c, and Setting θ = tr(Λ 1 2 ) 2 /c 2 gives g(θ) = tr(Λ 1 2 ) 2 /c − δn tr(Λ 1 2 )/c. Taking δ → 0 gives g(θ) = tr(A 1 2 ) 2 /c, which means that lim δ→0 tr(S(δ) −1 A) = tr(A 1 2 ) 2 /c = g(θ). Thus the duality gap for the original problem is 0 so S(0) is the limiting solution.</p><formula xml:id="formula_109">lim</formula><p>The last statement of the lemma is simply plugging S † = (A † ) 1 2 tr(A 1 )/c in to the objective being minimized.</p><p>Using the bound (30) and identity (31), we can give the proof of the corollary. Indeed, letting g t ∈ ∂ f t (x t ) and defining z t = ∑ t τ=1 g τ , we have</p><formula xml:id="formula_110">T ∑ t=1 f t (x t ) + ϕ(x t ) − f t (x * ) − ϕ(x * ) ≤ T ∑ t=1 g t , x t − x * − ϕ(x * ) + ϕ(x t ) ≤ T ∑ t=1 g t , x t + ϕ(x t ) + sup x∈X − T ∑ t=1 g t , x − T ϕ(x) − 1 η ψ T (x) + ψ T (x * ) = 1 η ψ T (x * ) + T ∑ t=1 g t , x t + ϕ(x t ) + ψ * T (−z T ) .</formula><p>Since ψ t+1 ≥ ψ t , it is clear that</p><formula xml:id="formula_111">ψ * T (−z T ) = − T ∑ t=1 g t , x T +1 − T ϕ(x T +1 ) − 1 η ψ T (x T +1 ) ≤ − T ∑ t=1 g t , x T +1 − (T − 1)ϕ(x T +1 ) − ϕ(x T +1 ) − 1 η ψ T −1 (x T +1 ) ≤ sup x∈X − z T , x − (T − 1)ϕ(x) − 1 η ψ T −1 (x) − ϕ(x T +1 ) = ψ * T −1 (−z T ) − ϕ(x T +1 ).</formula><p>The Lipschitz continuity of ∇ψ * t , the identity (31), and the fact that z T − z T −1 = −g T give</p><formula xml:id="formula_112">T ∑ t=1 f t (x t ) + ϕ(x t+1 ) − f t (x * ) − ϕ(x * ) ≤ 1 η ψ T (x * ) + T ∑ t=1 g t , x t + ϕ(x t+1 ) + ψ * T −1 (−z T ) − ϕ(x T +1 ) ≤ 1 η ψ T (x * ) + T ∑ t=1 g t , x t + ϕ(x t+1 ) − ϕ(x T +1 ) + ψ * T −1 (−z T −1 ) − ∇ψ * T −1 (z T −1 ), g T + η g T 2 ψ * T −1 = 1 η ψ T (x * ) + T −1 ∑ t=1 g t , x t + ϕ(x t+1 ) + ψ * T −1 (−z T −1 ) + η 2 g T 2 ψ * T −1 .</formula><p>We can repeat the same sequence of steps that gave the last equality to see that</p><formula xml:id="formula_113">T ∑ t=1 f t (x t ) + ϕ(x t+1 ) − f t (x * ) − ϕ(x * ) ≤ 1 η ψ T (x * ) + η 2 T ∑ t=1 g t 2 ψ * t−1 + ψ * 0 (−z 0 ).</formula><p>Recalling that x 1 = argmin x∈X {ϕ(x)} and that ψ * 0 (0) = 0 completes the proof.</p><p>We now turn to the proof of Proposition 3. We begin by stating and fully proving an (essentially) immediate corollary to Lemma 2.3 of <ref type="bibr" target="#b19">Duchi et al. (2010)</ref>. Now, let ρ be the largest index in {1, . . . , d} such that v i − θ * a i &gt; 0 for i ≤ ρ and v i − θ * a i ≤ 0 for i &gt; ρ. From the assumption that v i /a i ≤ v i+1 /a i+1 , we have v ρ+1 /a ρ+1 ≤ θ * &lt; v ρ /a ρ . Thus, had we known the last non-zero index ρ, we would have obtained</p><formula xml:id="formula_114">ρ ∑ i=1 a i v i − v ρ a ρ ρ ∑ i=1 a 2 i = ρ ∑ i=1 a 2 i v i a i − v ρ a ρ &lt; c , ρ ∑ i=1 a i v i − v ρ+1 a ρ+1 ρ ∑ i=1 a 2 i = ρ+1 ∑ i=1 a 2 i v i a i − v ρ+1 a ρ+1 ≥ c .</formula><p>Given ρ satisfying the above inequalities, we can reconstruct the optimal θ * by noting that the latter inequality should equal c exactly when we replace v ρ /a ρ with θ, that is,</p><formula xml:id="formula_115">θ * = ∑ ρ i=1 a i v i − c ∑ ρ i=1 a 2 i .<label>(33)</label></formula><p>The above derivation results in the following procedure (when a, v &gt; c). We sort v in descending order of v i /a i and find the largest index ρ such that ∑</p><formula xml:id="formula_116">ρ i=1 a i v i − (v ρ /a ρ ) ∑ ρ−1 i=1 a 2 i &lt; c.</formula><p>We then reconstruct θ * using equality (33) and return the soft-thresholded values of v i (see Algorithm 3). It is easy to verify that the algorithm can be implemented in O(d log d) time. A randomized search with bookkeeping <ref type="bibr" target="#b37">(Pardalos and Rosen, 1990</ref>) can be straightforwardly used to derive a linear time algorithm.</p><p>M. Zinkevich. Online convex programming and generalized infinitesimal gradient ascent. In Proceedings of the Twentieth International Conference on Machine <ref type="bibr">Learning, 2003.</ref> </p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head></head><label></label><figDesc>x∈X x − (x t − ηg t ) 22 .</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 1 :</head><label>1</label><figDesc>ADAGRAD with diagonal matrices</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 2 :</head><label>2</label><figDesc>ADAGRAD with full matrices</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 3 :</head><label>3</label><figDesc>Project v 0 to {z : a, z ≤ c, z 0}.use the matrix H t = δI + diag(G t ) 1/2 from Algorithm 1. We provide a brief derivation sketch and an O(d log d) algorithm in this section. First, we convert the problem (18) into a projection problem onto a scaled ℓ 1 -ball. By making the substitutions z = H 1/2 x and A = H −1/2 , it is clear that problem(18)is equivalent to min z z + H −1/2 u 2 2 s.t. Az 1 ≤ c . Now, by appropriate choice of v = −H −1/2 u = −ηtH −1/2 tḡt for the primal-dual update (3the mirror-descent update (4), we arrive at the problem min z</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Figure 5 :</head><label>5</label><figDesc>Learning curves on MNIST</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>Figure 6 :</head><label>6</label><figDesc>Test set error rates as function of proportion of training data seen on Census Income data set. -RDA 0.052 (0.062) 0.051 (0.053) 0.050 (0.044) 0.050 (0.040) 0.049 (0.037)</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_6"><head>Figure 7 :</head><label>7</label><figDesc>Test set error rates as a function of proportion of non-zeros in predictor x output by ADA-GRAD (AROW plotted for reference).</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_7"><head></head><label></label><figDesc>g(θ) = inf S L(S, θ, Z(θ)) be the dual of (28). From the above analysis and(29), it is evident that−S(θ, δ) −1 AS(θ, δ) −1 + θI − Z(θ) = −θQ Λ θ, δ)achieves the infimum in the dual for any δ &gt; 0, tr(S(0)Z(θ)) = 0, and g(θ) = √ θ tr(</figDesc></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="1">. The proximal term is also referred to as regularization in the online learning literature. We use the phrase proximal term in order to avoid confusion with the statistical regularization function ϕ.</note>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="2">. We note that we use an identical technique in the full-matrix case. See Lemma 8.</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgments</head><p>There are many people to whom we owe our sincere thanks for this research. Fernando Pereira helped push us in the direction of working on adaptive online methods and has been a constant source of discussion and helpful feedback. Samy Bengio provided us with a processed version of the ImageNet data set and was instrumental in helping to get our experiments running, and Adam Sadovsky gave many indispensable coding suggestions. The anonymous reviewers also gave several suggestions that improved the quality of the paper. Lastly, Sam Roweis was a sounding board for some of our earlier ideas on the subject, and we will miss him dearly.</p></div>
+			</div>
+
+			<div type="annex">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Appendix A. Full Matrix Motivating Example</head><p>As in the diagonal case, as the adversary we choose ε &gt; 0 and on rounds t = 1, . . . , η 2 /ε 2 play the vector ±v 1 . After the first η 2 /ε 2 rounds, the adversary simply cycles through the vectors v 2 , . . . , v d . Thus, for Zinkevich's projected gradient, we have x t = α t,1 v 1 for some multiplier α t,1 &gt; 0 when t ≤ η 2 /ε 2 . After the first η 2 /ε 2 rounds, we perform the updates</p><p>for some index i, but as in the diagonal case, η/ √ t ≤ ε, and by orthogonality of v i , v j , we have x t = V α t for some α t 0, and the projection step can only shrink the multiplier α t,i for index i. Thus, each coordinate incurs loss at least 1/(2ε), and projected gradient descent suffers losses Ω(d/ε).</p><p>On the other hand, ADAGRAD suffers loss at most d. Indeed, since g 1 = v 1 and v 1 2 = 1, we</p><p>, and</p><p>Since x 2 , v 1 = 1, we see that ADAGRAD suffers no loss (and G t = G 1 ) until a vector z t = ±v i for i = 1 is played by the adversary. However, an identical argument shows that G t is simply updated</p><p>Indeed, an inductive argument shows that until all the vectors v i are seen, we have x t 2 &lt; √ d by orthogonality, and eventually we have</p><p>d} for ADAGRAD for all t. All future predictions thus achieve margin and suffer no loss.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Appendix B. Technical Lemmas</head><p>Proof This is Example 3 of <ref type="bibr" target="#b16">Davis (1963)</ref>. We include a proof for convenience of the reader. Let λ be any eigenvalue (with corresponding eigenvector x) of A 1/2 − B 1/2 ; we show that λ ≥ 0. Clearly A 1/2 x − λx = B 1/2 x. Taking the inner product of both sides with A 1/2 x, we have</p><p>x . We use the Cauchy-Schwarz inequality:</p><p>where the last inequality follows from the assumption that A B. Thus we must have λ A 1/2 x, x ≥ 0, which implies λ ≥ 0.</p><p>The gradient of the function tr(X p ) is easy to compute for integer values of p. However, when p is real we need the following lemma. The lemma tacitly uses the fact that there is a unique positive semidefinite X p when X 0 <ref type="bibr">(Horn and Johnson, 1985, Theorem 7.2.6</ref>).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Appendix C. Proof of Lemma 4</head><p>We prove the lemma by considering an arbitrary real-valued sequence {a i } and its vector representation a 1:</p><p>We are next going to show that</p><p>where we define 0 = 0. We use induction on T to prove inequality (24). For T = 1, the inequality trivially holds. Assume the bound (24) holds true for T − 1, in which case</p><p>where the inequality follows from the inductive hypothesis. We define b T = ∑ T t=1 a 2 t and use con-</p><p>Having proved the bound (24), we note that by construction that s t,i = g 1:t,i 2 , so</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Appendix D. Proof of Lemmas 8 and 9</head><p>We begin with the more difficult proof of Lemma 8.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Proof of Lemma 8</head><p>The core of the proof is based on the concavity of the function tr(A 1/2 ). However, careful analysis is required as A might not be strictly positive definite. We also use the previous lemma which implies that the gradient of tr(A 1/2 ) is 1 2 A −1/2 when A ≻ 0. First, A p is matrix-concave for A ≻ 0 and 0 ≤ p ≤ 1 (see, for example, Corollary 4.1 in <ref type="bibr" target="#b1">Ando, 1979</ref><ref type="bibr">or Theorem 16.1 in Bondar, 1994</ref>. That is, for A, B ≻ 0 and α ∈ [0, 1] we have</p><p>Now suppose simply A, B 0 (but neither is necessarily strict). Then for any δ &gt; 0, we have A + δI ≻ and B + δI ≻ and therefore</p><p>where we used Lemma 13 for the second matrix inequality. Moreover, αA</p><p>is continuous (when we use the unique PSD root), this line of reasoning proves that (25) holds for A, B 0. Thus, we proved that</p><p>Recall now that Lemma 14 implies that the gradient of tr(A 1/2 ) is 1 2 A −1/2 when A ≻ 0. Therefore, from the concavity of A 1/2 and the form of its gradient, we can use the standard first-order inequality for concave functions so that for any A, B ≻ 0,</p><p>Let A = B − νgg ⊤ and suppose only that B 0. We must take some care since B −1/2 may not necessarily exist, and the above inequality does not hold true in the pseudo-inverse sense when B ≻ 0. However, for any δ &gt; 0 we know that 2∇ B tr((B+δI) 1/2 ) = (B+δI) −1/2 , and A−B = −νgg ⊤ . From (26) and Lemma 13, we have</p><p>Note that g ∈ Range(B), because if it were not, we could choose some u with Bu = 0 and g, u = 0, which would give u, (B − cgg ⊤ )u = −c g, u 2 &lt; 0, a contradiction. Now let B = V diag(λ)V ⊤ be the eigen-decomposition of B. Since g ∈ Range(B),</p><p>Thus, by taking δ ↓ in (27), and since both tr(B + δI) 1/2 and tr((B + δI) −1/2 gg ⊤ ) are evidently continuous in δ, we complete the proof.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Proof of Lemma 9</head><p>We begin by noting that δ I gg ⊤ , so from Lemma 13 we get (A + gg ⊤ ) 1/2 (A + δ I) 1/2 . Since A and I are simultaneously diagonalizable, we can generalize the inequality √ a + b ≤ √ a + √ b, which holds for a, b ≥ 0, to positive semi-definite matrices, thus,</p><p>Therefore, if A + gg ⊤ is of full rank, we have (A + gg ⊤ ) −1/2 (A 1/2 + δI) −1 <ref type="bibr">(Horn and Johnson, 1985, Corollary 7.7</ref>.4(a)). Since g ∈ Range((A + gg ⊤ ) 1/2 ), we can apply an analogous limiting argument to the one used in the proof of Lemma 8 and discard all zero eigenvalues of A + gg ⊤ , which completes the lemma.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Appendix E. Solution to Problem (15)</head><p>We prove here a technical lemma that is useful in characterizing the solution of the optimization problem below. Note that the second part of the lemma implies that we can treat the inverse of the solution matrix S −1 as S † . We consider solving</p><p>Lemma 15 If A is of full rank, then the minimizer of (28) is S = cA Proof Both proofs rely on constructing the Lagrangian for (28). We introduce θ ∈ R + for the trace constraint and Z 0 for the positive semidefinite constraint on S. In this case, the Lagrangian is</p><p>If S is full rank, then to satisfy the generalized complementarity conditions for the problem <ref type="bibr" target="#b8">(Boyd and Vandenberghe, 2004)</ref>, we must have Z = 0. Therefore, we get S −1 AS −1 = θI. We now can multiply by S on the right and the left to get that A = θS 2 , which implies that S ∝ A 1 2 . If A is of full rank, the optimal solution for S ≻ 0 forces θ to be positive so that tr(S) = c. This yields the solution S = cA 1 / tr(A 1 ). In order to verify optimality of this solution, we set Z = 0 and θ = c −2 tr(A 1/2 ) 2 which gives ∇ S L(S, θ, Z) = 0, as is indeed required.</p><p>Suppose now that A is not full rank and that</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Appendix F. Proofs of Propositions 2 and 3</head><p>We begin with the proof of Proposition 2. The proof essentially builds upon <ref type="bibr" target="#b42">Xiao (2010)</ref> and <ref type="bibr" target="#b35">Nesterov (2009)</ref>, with some modification to deal with the indexing of ψ t . We include the proof for completeness. Proof of Proposition 2 Define ψ * t to be the conjugate dual of tϕ(x) + ψ t (x)/η:</p><p>Since ψ t /η is 1/η-strongly convex with respect to the norm • ψ t , the function ψ * t has η-Lipschitz continuous gradients with respect to • ψ * t :</p><p>for any g 1 , g 2 (see, e.g., <ref type="bibr">Nesterov, 2005, Theorem 1 or Hiriart-Urruty and</ref><ref type="bibr">Lemaréchal, 1996, Chapter X)</ref>. Further, a simple argument with the fundamental theorem of calculus gives that if f has</p><p>, and </p><p>The optimality of x t+1 for (4) implies for all x ∈ X and ϕ</p><p>In particular, this obtains for x = x * . From the subgradient inequality for convex functions, we have</p><p>x t − x * , and likewise for ϕ(x t+1 ). We thus have</p><p>Now, by (32), the first term in the last equation is non-positive. Thus we have that</p><p>In the above, the first equality follows from simple algebra with Bregman divergences, the second to last inequality follows from Fenchel's inequality applied to the conjugate functions 2 • 2 ψ t and 1 2 • 2 ψ * t <ref type="bibr">(Boyd and Vandenberghe, 2004, Example 3.27)</ref>, and the last inequality follows from the assumed strong convexity of B ψ t with respect to the norm • ψ t .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Proof of Proposition 3 Sum the equation in the conclusion of Lemma 16.</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Appendix G. Derivations of Algorithms</head><p>In this appendix, we give the formal derivations of the solution to the ADAGRAD update for ℓ 1regularization and projection to an ℓ 1 -ball, as described originally in Section 5.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>G.1 ℓ 1 -regularization</head><p>We give the derivation for the primal-dual subgradient update, as composite mirror-descent is entirely similar. We need to solve update (3), which amounts to</p><p>Letx denote the optimal solution of the above optimization problem. Standard subgradient calculus implies that when |ḡ t,i | ≤ λ the solution isx i = 0. Similarly, whenḡ t,i &lt; −λ, thenx i &gt; 0, the objective is differentiable, and the solution is obtained by setting the gradient to zero:</p><p>Likewise, whenḡ t,i &gt; λ thenx i &lt; 0, and the solution isx i = ηt H t,ii (−ḡ t,i + λ). Combining the three cases, we obtain the simple update (19) for x t+1,i .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>G.2 ℓ 1 -ball projections</head><p>The derivation we give is somewhat terse, and we refer the interested reader to <ref type="bibr" target="#b9">Brucker (1984)</ref> or <ref type="bibr" target="#b37">Pardalos and Rosen (1990)</ref> for more depth. Recall that our original problem (20) is symmetric in its objective and constraints, so we assume without loss of generality that v 0 (otherwise, we reverse the sign of each negative component in v, then flip the sign of the corresponding component in the solution vector). This gives min z 1 2 z − v 2 2 s.t. a, z ≤ c, z 0 .</p><p>Clearly, if a, v ≤ c the optimal z * = v, hence we assume that a, v &gt; c. We also assume without loss of generality that v i /a i ≥ v i+1 /a i+1 for simplicity of our derivation. (We revisit this assumption at the end of the derivation.) Introducing Lagrange multipliers θ ∈ R + for the constraint that a, z ≤ c and α ∈ R d + for the positivity constraint on z, we get</p><p>Computing the gradient of L, we have ∇ z L(z, α, θ) = z − v + θa − α. Suppose that we knew the optimal θ * ≥ 0. Using the complementarity conditions on z and α for optimality of z <ref type="bibr" target="#b8">(Boyd and Vandenberghe, 2004)</ref>, we see that the solution z * i satisfies</p><p>Analogously, the complimentary conditions on a, z ≤ c show that given θ * , we have</p><p>Conversely, had we obtained a value θ ≥ satisfying the above equation, then θ would evidently induce the optimal z * through the equation</p></div>			</div>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Optimal strategies and minimax lower bounds for online convex games</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Abernethy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">L</forename><surname>Bartlett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Rakhlin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Tewari</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Twenty First Annual Conference on Computational Learning Theory</title>
+		<meeting>the Twenty First Annual Conference on Computational Learning Theory</meeting>
+		<imprint>
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Concavity of certain maps on positive definite matrices and applications to Hadamard products</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Ando</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Linear Algebra and its Applications</title>
+		<imprint>
+			<biblScope unit="volume">26</biblScope>
+			<biblScope unit="page" from="203" to="241" />
+			<date type="published" when="1979" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<title level="m" type="main">UCI machine learning repository</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Asuncion</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Newman</surname></persName>
+		</author>
+		<ptr target="http://www.ics.uci.edu/˜mlearn/MLRepository.html" />
+		<imprint>
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Adaptive and self-confident online learning algorithms</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Auer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Gentile</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Thirteenth Annual Conference on Computational Learning Theory</title>
+		<meeting>the Thirteenth Annual Conference on Computational Learning Theory</meeting>
+		<imprint>
+			<date type="published" when="2000" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Adaptive online gradient descent</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">L</forename><surname>Bartlett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Hazan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Rakhlin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems 20</title>
+		<imprint>
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Mirror descent and nonlinear projected subgradient methods for convex optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Beck</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Teboulle</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Operations Research Letters</title>
+		<imprint>
+			<biblScope unit="volume">31</biblScope>
+			<biblScope unit="page" from="167" to="175" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Comments on and complements to Inequalities: Theory of Majorization and Its Applications</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">V</forename><surname>Bondar</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Linear Algebra and its Applications</title>
+		<imprint>
+			<biblScope unit="volume">199</biblScope>
+			<biblScope unit="page" from="115" to="129" />
+			<date type="published" when="1994" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Sgd-qn: Careful quasi-newton stochastic gradient descent</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bordes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Bottou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Gallinari</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">10</biblScope>
+			<biblScope unit="page" from="1737" to="1754" />
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<monogr>
+		<title level="m" type="main">Convex Optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Boyd</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Vandenberghe</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2004" />
+			<publisher>Cambridge University Press</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">An O(n) algorithm for quadratic knapsack problems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Brucker</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Operations Research Letters</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="163" to="166" />
+			<date type="published" when="1984" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">On the generalization ability of on-line learning algorithms</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Cesa-Bianchi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Conconi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Gentile</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Information Theory</title>
+		<imprint>
+			<biblScope unit="volume">50</biblScope>
+			<biblScope unit="issue">9</biblScope>
+			<biblScope unit="page" from="2050" to="2057" />
+			<date type="published" when="2004-09" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">A second-order perceptron algorithm</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Cesa-Bianchi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Conconi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Gentile</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">SIAM Journal on Computing</title>
+		<imprint>
+			<biblScope unit="volume">34</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="640" to="668" />
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Improved second-order bounds for prediction with expert advice</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Cesa-Bianchi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Mansour</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Stoltz</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Machine Learning</title>
+		<imprint>
+			<date type="published" when="2007" />
+			<biblScope unit="volume">66</biblScope>
+			<biblScope unit="page" from="321" to="352" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Online passive aggressive algorithms</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Crammer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Dekel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Keshet</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Shalev-Shwartz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Singer</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">7</biblScope>
+			<biblScope unit="page" from="551" to="585" />
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Exact convex confidence-weighted learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Crammer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Dredze</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Pereira</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems 22</title>
+		<imprint>
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Adaptive regularization of weight vectors</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Crammer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Dredze</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kulesza</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2009" />
+			<biblScope unit="volume">23</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Notions generalizing convexity for functions defined on spaces of matrices</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Davis</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Symposia in Pure Mathematics</title>
+		<meeting>the Symposia in Pure Mathematics</meeting>
+		<imprint>
+			<publisher>American Mathematical Society</publisher>
+			<date type="published" when="1963" />
+			<biblScope unit="volume">7</biblScope>
+			<biblScope unit="page" from="187" to="201" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">ImageNet: a large-scale hierarchical image database</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Deng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Dong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Socher</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Fei-Fei</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition</title>
+		<meeting>the IEEE Conference on Computer Vision and Pattern Recognition</meeting>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Efficient online and batch learning using forward backward splitting</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Duchi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Singer</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">10</biblScope>
+			<biblScope unit="page" from="2873" to="2908" />
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Composite objective mirror descent</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Duchi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Shalev-Shwartz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Singer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Tewari</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Twenty Third Annual Conference on Computational Learning Theory</title>
+		<meeting>the Twenty Third Annual Conference on Computational Learning Theory</meeting>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">A new approach to variable metric algorithms</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Fletcher</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Computer Journal</title>
+		<imprint>
+			<biblScope unit="volume">13</biblScope>
+			<biblScope unit="page" from="317" to="322" />
+			<date type="published" when="1970" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">A discriminative kernel-based model to rank images from text queries</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Grangier</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Pattern Analysis and Machine Intelligence</title>
+		<imprint>
+			<biblScope unit="volume">30</biblScope>
+			<biblScope unit="issue">8</biblScope>
+			<biblScope unit="page" from="1371" to="1384" />
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Extracting certainty from uncertainty: regret bounded by variation in costs</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Hazan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Kale</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Twenty First Annual Conference on Computational Learning Theory</title>
+		<meeting>the Twenty First Annual Conference on Computational Learning Theory</meeting>
+		<imprint>
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Logarithmic regret algorithms for online convex optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Hazan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kalai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Kale</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Agarwal</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Nineteenth Annual Conference on Computational Learning Theory</title>
+		<meeting>the Nineteenth Annual Conference on Computational Learning Theory</meeting>
+		<imprint>
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<monogr>
+		<title level="m" type="main">Convex Analysis and Minimization Algorithms II</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">B</forename><surname>Hiriart-Urruty</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1996" />
+			<publisher>Springer-Verlag</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">A</forename><surname>Horn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">R</forename><surname>Johnson</surname></persName>
+		</author>
+		<title level="m">Matrix Analysis</title>
+		<imprint>
+			<publisher>Cambridge University Press</publisher>
+			<date type="published" when="1985" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<monogr>
+		<title level="m" type="main">Solving variational inequalities with the stochastic mirror-prox algorithm</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Juditsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Nemirovski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Tauvel</surname></persName>
+		</author>
+		<ptr target="http://arxiv.org/abs/0809.0815" />
+		<imprint>
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Efficient algorithms for online decision problems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kalai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Vempala</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Computer and System Sciences</title>
+		<imprint>
+			<biblScope unit="volume">71</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="291" to="307" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">An optimal method for stochastic composite optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Lan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Mathematical Programming Series A</title>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+	<note>Online first. to appear</note>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">RCV1: A new benchmark collection for text categorization research</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Lewis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Rose</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Li</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">5</biblScope>
+			<biblScope unit="page" from="361" to="397" />
+			<date type="published" when="2004" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Adaptive bound optimization for online convex optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><forename type="middle">B</forename><surname>Mcmahan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Streeter</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Twenty Third Annual Conference on Computational Learning Theory</title>
+		<meeting>the Twenty Third Annual Conference on Computational Learning Theory</meeting>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<monogr>
+		<title level="m" type="main">Subgradient Methods for Convex Minimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Nedić</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2002" />
+		</imprint>
+		<respStmt>
+			<orgName>Massachusetts Institute of Technology</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">PhD thesis</note>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Robust stochastic approximation approach to stochastic programming</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Nemirovski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Juditsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Lan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Shapiro</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">SIAM Journal on Optimization</title>
+		<imprint>
+			<biblScope unit="volume">19</biblScope>
+			<biblScope unit="issue">4</biblScope>
+			<biblScope unit="page" from="1574" to="1609" />
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<monogr>
+		<title level="m" type="main">Problem Complexity and Efficiency in Optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">S</forename><surname>Nemirovski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">B</forename><surname>Yudin</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1983" />
+			<publisher>John Wiley and Sons</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">Smooth minimization of nonsmooth functions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Nesterov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Mathematical Programming</title>
+		<imprint>
+			<biblScope unit="volume">103</biblScope>
+			<biblScope unit="page" from="127" to="152" />
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<analytic>
+		<title level="a" type="main">Primal-dual subgradient methods for convex problems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Nesterov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Mathematical Programming</title>
+		<imprint>
+			<biblScope unit="volume">120</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="221" to="259" />
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<monogr>
+		<title level="m" type="main">Joint covariate selection for grouped classification</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Obozinski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Taskar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Jordan</surname></persName>
+		</author>
+		<idno>743</idno>
+		<imprint>
+			<date type="published" when="2007" />
+		</imprint>
+		<respStmt>
+			<orgName>Dept. of Statistics, University of California Berkeley</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">Technical Report</note>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">An algorithm for a singly constrained class of quadratic programs subject to upper and lower bounds</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">M</forename><surname>Pardalos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">B</forename><surname>Rosen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Mathematical Programming</title>
+		<imprint>
+			<biblScope unit="volume">46</biblScope>
+			<biblScope unit="page" from="321" to="328" />
+			<date type="published" when="1990" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<monogr>
+		<title level="m" type="main">Lecture notes on online learning. For the Statistical Machine Learning Course at University of California</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Rakhlin</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2009" />
+			<pubPlace>Berkeley</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">Term weighting approaches in automatic text retrieval</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Salton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Buckley</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Information Processing and Management</title>
+		<imprint>
+			<biblScope unit="volume">24</biblScope>
+			<biblScope unit="issue">5</biblScope>
+			<date type="published" when="1988" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<analytic>
+		<title level="a" type="main">Utilization of the operation of space dilation in the minimization of convex functions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><forename type="middle">Z</forename><surname>Shor</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Cybernetics and Systems Analysis</title>
+		<imprint>
+			<biblScope unit="volume">6</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="7" to="15" />
+			<date type="published" when="1972" />
+		</imprint>
+	</monogr>
+	<note>Translated from Kibernetika</note>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<monogr>
+		<title level="m" type="main">On accelerated proximal gradient methods for convex-concave optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Tseng</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2008" />
+		</imprint>
+		<respStmt>
+			<orgName>Department of Mathematics, University of Washington</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">Technical report</note>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<monogr>
+		<title level="m" type="main">Dual averaging methods for regularized stochastic learning and online optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Xiao</surname></persName>
+		</author>
+		<idno>MSR-TR-2010-23</idno>
+		<imprint>
+			<date type="published" when="2010" />
+			<pubPlace>Microsoft Research</pubPlace>
+		</imprint>
+	</monogr>
+	<note type="report_type">Technical Report</note>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

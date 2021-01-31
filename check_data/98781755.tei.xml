@@ -1,0 +1,1204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Good-Enough Compositional Data Augmentation</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author role="corresp">
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jacob</forename><surname>Andreas</surname></persName>
+							<email>jda@mit.edu</email>
+						</author>
+						<title level="a" type="main">Good-Enough Compositional Data Augmentation</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:43+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>We propose a simple data augmentation protocol aimed at providing a compositional inductive bias in conditional and unconditional sequence models. Under this protocol, synthetic training examples are constructed by taking real training examples and replacing (possibly discontinuous) fragments with other fragments that appear in at least one similar environment. The protocol is model-agnostic and useful for a variety of tasks. Applied to neural sequence-to-sequence models, it reduces error rate by as much as 87% on diagnostic tasks from the SCAN dataset and 16% on a semantic parsing task. Applied to n-gram language models, it reduces perplexity by roughly 1% on small corpora in several languages.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>This paper proposes a rule-based data augmentation protocol for sequence modeling. Our approach aims to supply a simple and model-agnostic bias toward compositional reuse of previously observed sequence fragments in novel environments. Consider a language modeling task in which we wish to estimate a probability distribution over a family of sentences with the following finite sample as training data:</p><p>(1) a. The cat sang.</p><p>b. The wug sang. c. The cat daxed.</p><p>In language processing problems, we often want models to generalize beyond this dataset and infer that (2a) is also probable but (2b) is not:</p><p>(2) a. The wug daxed. b. * The sang daxed.</p><p>This generalization amounts to an inference about syntactic categories <ref type="bibr" target="#b9">(Clark, 2000)</ref>. Because cat and wug are interchangeable in (1a) and (1b), they are also likely interchangeable elsewhere; cat and sang are not similarly interchangeable. Human learners make judgments like (2) about novel lexical items <ref type="bibr" target="#b3">(Berko, 1958)</ref> and fragments of novel languages (Lake et al., 2019). But we do not expect such judgments from unstructured generative models trained to maximize the likelihood of the training data in (1).</p><p>A large body of work in natural language processing provides generalization to data like (2a) by adding structure to the learned predictor <ref type="bibr" target="#b6">(Chelba and Jelinek, 1998;</ref><ref type="bibr" target="#b7">Chiang, 2005;</ref><ref type="bibr" target="#b10">Dyer et al., 2016)</ref>. On real-world datasets, however, such models are typically worse than "black-box" function approximators like neural networks, even for black-box models that fail to place probability mass on either example in (2) given small training sets like (1) <ref type="bibr" target="#b32">(Melis et al., 2018)</ref>. To the extent that we believe (2a) to capture an important inductive bias, we would like to find a way of softly encouraging it without tampering with the structure of predictors that work well at scale. In this paper, we introduce a procedure for generating synthetic training examples by recombining real ones, such that (2a) is assigned non-negligible probability because it already appears in the training dataset.</p><p>The basic operation underlying our proposal (which we call GECA, for "good-enough compositional augmentation") is depicted in <ref type="figure" target="#fig_1">Figure 1</ref>: if two (possibly discontinuous) fragments of training examples appear in some common environment, then any additional environment where the first fragment appears is also a valid environment for the second. ⇡ &lt; l a t e x i t s h a 1 _ b a s e 6 4 = " 1 q / 1 t Z x 1 S 5 C t s 5 q r + p V 1 2 v B H I p s = " &gt; A A A B 7 n i c b V B N S w M x E J 2 t X 7 V + V T 1 6 C R b B U 9 k V Q Y 9 F L x 4 r 2 A 9 o l 5 J N s 2 1 o N g l J V i x L f 4 Q X D 4 p 4 9 f d 4 8 9 + Y b f e g r Q 8 G H u / N M D M v U p w Z 6 / v f X m l t f W N z q 7 x d 2 d n d 2 z + o H h 6 1 j U w 1 o S 0 i u d T d C B v K m a A t y y y n X a U p T i J O O 9 H k N v c 7 j 1 Q b J s W D n S o a J n g k W M w I t k 7 q 9 L F S W j 4 N q j W / 7 s + B V k l Q k B o U a A 6 q X / 2 h J G l C h S U c G 9 M L f G X D D G v L C K e z S j 8 1 V G E y w S P a c 1 T g h J o w m 5 8 7 Q 2 d O G a J Y a l f C o r n 6 e y L D i T H T J H K d C b Z j s + z l 4 n 9 e L 7 X x d Z g x o V J L B V k s i l O O r E T 5 7 2 j I N C W W T x 3 B R D N 3 K y J j r D G x L q G K C y F Y f n m V t C / q g V 8 P 7 i 9 r j Z s i j j K c w C m c Q w B X 0 I A 7 a E I L C E z g G V 7 h z V P e i / f u f S x a S 1 4 x c w x / 4 H 3 + A J N i j 7 Y = &lt; / l a t e x i t &gt; &lt; l a t e x i t s h a 1 _ b a s e 6 4 = " 1 q / 1 t Z x 1 S 5 C t s 5 q r + p V 1 2 v B H I p s = " &gt; A A A B 7 n i c b</p><formula xml:id="formula_0">V B N S w M x E J 2 t X 7 V + V T 1 6 C R b B U 9 k V Q Y 9 F L x 4 r 2 A 9 o l 5 J N s 2 1 o N g l J V i x L f 4 Q X D 4 p 4 9 f d 4 8 9 + Y b f e g r Q 8 G H u / N M D M v U p w Z 6 / v f X m l t f W N z q 7 x d 2 d n d 2 z + o H h 6 1 j U w 1 o S 0 i u d T d C B v K m a A t y y y n X a U p T i J O O 9 H k N v c 7 j 1 Q b J s W D n S o a J n g k W M w I t k 7 q 9 L F S W j 4 N q j W / 7 s + B V k l Q k B o U a A 6 q X / 2 h J G l C h S U c G 9 M L f G X D D G v L C K e z S j 8 1 V G E y w S P a c 1 T g h J o w m 5 8 7 Q 2 d O G a J Y a l f C o r n 6 e y L D i T H T J H K d C b Z j s + z l 4 n 9 e L 7 X x d Z g x o V J L B V k s i l O O r E T 5 7 2 j I N C W W T x 3 B R D N 3 K y J j r D G x L q G K C y F Y f n m V t C / q g V 8 P 7 i 9 r j Z s i j j K c w C m c Q w B X 0 I A 7 a E I L C E z g G V 7 h z V P e i / f u f S x a S 1 4</formula><p>x c w x / 4 H 3 + A J N i j 7 Y = &lt; / l a t e x i t &gt; &lt; l a t e x i t s h a 1 _ b a s e 6 4 = " 1 q / 1 t Z x 1 S 5 C t s 5 q r + p</p><formula xml:id="formula_1">V 1 2 v B H I p s = " &gt; A A A B 7 n i c b V B N S w M x E J 2 t X 7 V + V T 1 6 C R b B U 9 k V Q Y 9 F L x 4 r 2 A 9 o l 5 J N s 2 1 o N g l J V i x L f 4 Q X D 4 p 4 9 f d 4 8 9 + Y b f e g r Q 8 G H u / N M D M v U p w Z 6 / v f X m l t f W N z q 7 x d 2 d n d 2 z + o H h 6 1 j U w 1 o S 0 i u d T d C B v K m a A t y y y n X a U p T i J O O 9 H k N v c 7 j 1 Q b J s W D n S o a J n g k W M w I t k 7 q 9 L F S W j 4 N q j W / 7 s + B V k l Q k B o U a A 6 q X / 2 h J G l C h S U c G 9 M L f G X D D G v L C K e z S j 8 1 V G E y w S P a c 1 T g h J o w m 5 8 7 Q 2 d O G a J Y a l f C o r n 6 e y L D i T H T J H K d C b Z j s + z l 4 n 9 e L 7 X x d Z g x o V J L B V k s i l O O r E T 5 7 2 j I N C W W T x 3 B R D N 3 K y J j r D G x L q G K C y F Y f n m V t C / q g V 8 P 7 i 9 r j Z s i j j K c w C m c Q w B X 0 I A 7 a E I L C E z g G V 7 h z V P e i / f u f S x a S 1 4</formula><p>x c w x / 4 H 3 + A J N i j 7 Y = &lt; / l a t e x i t &gt; &lt; l a t e x i t s h a 1 _ b a s e 6 4 = " 1 q / 1 t Z x 1 S 5 C t s 5 q r + p GECA is crude: as a linguistic principle, it is both limited and imprecise. As discussed in Sections 3 and 4, it captures a narrow slice of the many phenomena studied under the heading of "compositionality", while also making a number of incorrect predictions about real language data. Nevertheless, GECA appears to be quite effective across a range of learning problems. In semantic parsing, it gives improvements comparable to the task-specific data augmentation approach of Jia and Liang (2016) on logical expressions, better performance than that approach on a different split of the data designed to test generalization more rigorously, and corresponding improvements on a version of the dataset with a different meaning representation language. Outside of semantic parsing, it solves two representative problems from the SCAN dataset of Lake and Baroni (2018) that are synthetic but precise in the notion of compositionality they test. Finally, it helps with some (unconditional) low-resource language modeling problems in a typologically diverse set of six languages.</p><formula xml:id="formula_2">V 1 2 v B H I p s = " &gt; A A A B 7 n i c b V B N S w M x E J 2 t X 7 V + V T 1 6 C R b B U 9 k V Q Y 9 F L x 4 r 2 A 9 o l 5 J N s 2 1 o N g l J V i x L f 4 Q X D 4 p 4 9 f d 4 8 9 + Y b f e g r Q 8 G H u / N M D M v U p w Z 6 / v f X m l t f W N z q 7 x d 2 d n d 2 z + o H h 6 1 j U w 1 o S 0 i u d T d C B v K m a A t y y y n X a U p T i J O O 9 H k N v c 7 j 1 Q b J s W D n S o a J n g k W M w I t k 7 q 9 L F S W j 4 N q j W / 7 s + B V k l Q k B o U a A 6 q X / 2 h J G l C h S U c G 9 M L f G X D D G v L C K e z S j 8 1 V G E y w S P a c 1 T g h J o w m 5 8 7 Q 2 d O G a J Y a l f C o r n 6 e y L D i T H T J H K d C b Z j s + z l 4 n 9 e L 7 X x d Z g x o V J L B V k s i l O O r E T 5 7 2 j I N C W W T x 3 B R D N 3 K y J j r D G x L q G K C y F Y f n m V t C / q g V 8 P 7 i 9 r j Z s i j j K c w C m c Q w B X 0 I A 7 a E I L C E z g G V 7 h z V P e i / f u f S x a S 1 4 x c w x / 4 H 3 + A J N i j 7 Y = &lt; / l a t e x i t &gt; (a) (b) (c) (d) ⇡ &lt; l a t e x i t s h a 1 _ b a s e 6 4 = " 1 q / 1 t Z x 1 S 5 C t s 5 q r + p V 1 2 v B H I p s = " &gt; A A A B 7 n i c b V B N S w M x E J 2 t X 7 V + V T 1 6 C R b B U 9 k V Q Y 9 F L x 4 r 2 A 9 o l 5 J N s 2 1 o N g l J V i x L f 4 Q X D 4 p 4 9 f d 4 8 9 + Y b f e g r Q 8 G H u / N M D M v U p w Z 6 / v f X m l t f W N z q 7 x d 2 d n d 2 z + o H h 6 1 j U w 1 o S 0 i u d T d C B v K m a A t y y y n X a U p T i J O O 9 H k N v c 7 j 1 Q b J s W D n S o a J n g k W M w I t k 7 q 9 L F S W j 4 N q j W / 7 s + B V k l Q k B o U a A 6 q X / 2 h J G l C h S U c G 9 M L f G X D D G v L C K e z S j 8 1 V G E y w S P a c 1 T g h J o w m 5 8 7 Q 2 d O G a J Y a l f C o r n 6 e y L D i T H T J H K d C b Z j s + z l 4 n 9 e L 7 X x d Z g x o V J L B V k s i l O O r E T 5 7 2 j I N C W W T x 3 B R D N 3 K y J j r D G x L q G K C y F Y f n m V t C / q g V 8 P 7 i 9 r j Z s i j j K c w C m c Q w B X 0 I A 7 a E I L C E z g G V 7 h z V P e i / f u f S x a S 1 4 x c w x / 4 H 3 + A J N i j 7 Y = &lt; / l a t e x i t &gt; &lt; l a t e x i t s h a 1 _ b a s e 6 4 = " 1 q / 1 t Z x 1 S 5 C t s 5 q r + p V 1 2 v B H I p s = " &gt; A A A B 7 n i c b V B N S w M x E J 2 t X 7 V + V T 1 6 C R b B U 9 k V Q Y 9 F L x 4 r 2 A 9 o l 5 J N s 2 1 o N g l J V i x L f 4 Q X D 4 p 4 9 f d 4 8 9 + Y b f e g r Q 8 G H u / N M D M v U p w Z 6 / v f X m l t f W N z q 7 x d 2 d n d 2 z + o H h 6 1 j U w 1 o S 0 i u d T d C B v K m a A t y y y n X a U p T i J O O 9 H k N v c 7 j 1 Q b J s W D n S o a J n g k W M w I t k 7 q 9 L F S W j 4 N q j W / 7 s + B V k l Q k B o U a A 6 q X / 2 h J G l C h S U c G 9 M L f G X D D G v L C K e z S j 8 1 V G E y w S P a c 1 T g h J o w m 5 8 7 Q 2 d O G a J Y a l f C o r n 6 e y L D i T H T J H K d C b Z j s + z l 4 n 9 e L 7 X x d Z g x o V J L B V k s i l O O r E T 5 7 2 j I N C W W T x 3 B R D N 3 K y J j r D G x L q G K C y F Y f n m V t C / q g V 8 P 7 i 9 r j Z s i j j K c w C m c Q w B X 0 I A 7 a E I L C E z g G V 7 h z V P e i / f u f S x a S 1 4 x c w x / 4 H 3 + A J N i j 7 Y = &lt; / l a t e x i t &gt; &lt; l a t e x i t s h a 1 _ b a s e 6 4 = " 1 q / 1 t Z x 1 S 5 C t s 5 q r + p V 1 2 v B H I p s = " &gt; A A A B 7 n i c b V B N S w M x E J 2 t X 7 V + V T 1 6 C R b B U 9 k V Q Y 9 F L x 4 r 2 A 9 o l 5 J N s 2 1 o N g l J V i x L f 4 Q X D 4 p 4 9 f d 4 8 9 + Y b f e g r Q 8 G H u / N M D M v U p w Z 6 / v f X m l t f W N z q 7 x d 2 d n d 2 z + o H h 6 1 j U w 1 o S 0 i u d T d C B v K m a A t y y y n X a U p T i J O O 9 H k N v c 7 j 1 Q b J s W D n S o a J n g k W M w I t k 7 q 9 L F S W j 4 N q j W / 7 s + B V k l Q k B o U a A 6 q X / 2 h J G l C h S U c G 9 M L f G X D D G v L C K e z S j 8 1 V G E y w S P a c 1 T g h J o w m 5 8 7 Q 2 d O G a J Y a l f C o r n 6 e y L D i T H T J H K d C b Z j s + z l 4 n 9 e L 7 X x d Z g x o V J L B V k s i l O O r E T 5 7 2 j I N C W W T x 3 B R D N 3 K y J j r D G x L q G K C y F Y f n m V t C / q g V 8 P 7 i 9 r j Z s i j j K c w C m c Q w B X 0 I A 7 a E I L C E z g G V 7 h z V P e i / f u f S x a S 1 4 x c w x / 4 H 3 + A J N i j 7 Y = &lt; / l a t e x i t &gt; &lt; l a t e x i t s h a 1 _ b a s e 6 4 = " 1 q / 1 t Z x 1 S 5 C t s 5 q r + p V 1 2 v B H I p s = " &gt; A A A B 7 n i c b V B N S w M x E J 2 t X 7 V + V T 1 6 C R b B U 9 k V Q Y 9 F L x 4 r 2 A 9 o l 5 J N s 2 1 o N g l J V i x L f 4 Q X D 4 p 4 9 f d 4 8 9 + Y b f e g r Q 8 G H u / N M D M v U p w Z 6 / v f X m l t f W N z q 7 x d 2 d n d 2 z + o H h 6 1 j U w 1 o S 0 i u d T d C B v K m a A t y y y n X a U p T i J O O 9 H k N v c 7 j 1 Q b J s W D n S o a J n g k W M w I t k 7 q 9 L F S W j 4 N q j W / 7 s + B V k l Q k B o U a A 6 q X / 2 h J G l C h S U c G 9 M L f G X D D G v L C K e z S j 8 1 V G E y w S P a c 1 T g h J o w m 5 8 7 Q 2 d O G a J Y a l f C o r n 6 e y L D i T H T J H K d C b Z j s + z l 4 n 9 e L 7 X x d Z g x o V J L B V k s i l O O r E T 5 7 2 j I N C W W T x 3 B R D N 3 K y J j r D G x L q G K C y F Y f n m V t C / q g V 8 P 7 i 9 r j Z s i j j K c w C m c Q w B X 0 I A 7 a E I L C E z g G V 7 h z V P e i / f u f S x a S 1 4 x c w x / 4 H 3 + A J N i j 7 Y = &lt; / l a t e x i t &gt;</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Background</head><p>Recent years have seen tremendous success at natural language transduction and generation tasks using complex function approximators, especially recurrent <ref type="bibr" target="#b42">(Sutskever et al., 2014)</ref> and attentional <ref type="bibr" target="#b44">(Vaswani et al., 2017)</ref> neural models. With enough training data, these models are often more accurate than than approaches built on traditional tools like regular transducers and context-free grammars <ref type="bibr" target="#b28">(Knight and Graehl, 2005)</ref>, which are brittle and difficult to efficiently infer from large datasets.</p><p>However, models equipped with an explicit symbolic generative process have at least one significant advantage over the aforementioned black-box approaches: given a grammar, it is straightforward to precisely characterize how that grammar will extrapolate beyond the examples in a given training set to out-of-distribution data. Indeed, it is often possible for researchers to design the form that this extrapolation will take: smoothed n-gram language models ensure that no memorization is possible beyond a certain length <ref type="bibr" target="#b35">(Ney et al., 1994)</ref>; CCG-based semantic parsers can make immediate use of entity lexicons without having ever seen the lexicon entries used in real sentences <ref type="bibr" target="#b48">(Zettlemoyer and Collins, 2005)</ref>.</p><p>It is not the case that black-box neural models are fundamentally incapable of this kind of predictable generalization-the success of these models at capturing long-range structure in text <ref type="bibr" target="#b38">(Radford et al., 2019)</ref> and controlled algorithmic data <ref type="bibr" target="#b16">(Graves et al., 2014)</ref> indicate that some representation of hierarchical structure can be learned given enough data. But the precise point at which this transition occurs is not well characterized, and it is evidently beyond the scale available in many real-world problems.</p><p>How can we improve the behavior of highquality black-box models in these settings? There are many sophisticated tools available for improving the function approximators or loss functions themselves-structured regularization of parameters <ref type="bibr" target="#b36">(Oh et al., 2017)</ref>, posterior regularization <ref type="bibr" target="#b14">(Ganchev et al., 2010;</ref><ref type="bibr" target="#b21">Hu et al., 2018)</ref>, explicit stacks <ref type="bibr" target="#b17">(Grefenstette et al., 2015)</ref> and composition operators <ref type="bibr" target="#b4">(Bowman et al., 2016;</ref><ref type="bibr" target="#b40">Russin et al., 2019)</ref>. These existing proposals tend to be taskand architecture-specific. But to the extent that the generalization problem can be addressed by increasing the scale of the training data, it is natural to ask whether we can address the problem by increasing this scale artificially-in other words, via data augmentation.</p><p>Data augmentation techniques, which generate auxiliary training data by performing structured transformation or combination of training examples, are widely used in computer vision <ref type="bibr" target="#b29">(Krizhevsky et al., 2012;</ref><ref type="bibr" target="#b49">Zhang et al., 2017;</ref><ref type="bibr" target="#b41">Summers and Dinneen, 2019)</ref>. Within NLP, several data augmentation approaches have been proposed for text classification (e.g. Ratner et al., 2017; Wei and Zhou, 2019); these approaches give improvements even when combined with large-scale pretraining <ref type="bibr" target="#b20">(Hu et al., 2019)</ref>. Jia and Liang (2016) study data augmentation and compositionality in specific setting of learning language-to-logical-form mappings, beginning from the principle that data is compositional if it is generated by an explicit grammar that relates strings to logical forms. This view of compositionality as determined by synchronicity between form and meaning is essentially Montagovian and well-suited to problems in formal semantics <ref type="bibr" target="#b34">(Montague, 1973)</ref>; however, it requires access to structured meaning representations with explicit types and bracketings, which are not available in most NLP applications.</p><p>Here we aim at a notion of compositionality that is simpler and more general: a bias toward identifying recurring fragments seen at training time, and re-using them in environments distinct from those in which they were first observed. This view makes no assumptions about the availability of brackets and types, and is synchronous only to the extent that the notion of a fragment is permitted to include content from both the source and target sides. We will find that it is nearly as effective as existing approaches in the specific settings for which they were designed, but also effective on a variety of problems where they cannot be applied.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">Approach</head><p>Consider again the example in <ref type="figure" target="#fig_1">Figure 1</ref>. Our data augmentation protocol aims to discover substitutable sentence fragments (underlined), with the fact that a pair of fragments appear in some common sub-sentential environment (highlighted) taken as evidence that the fragments belong to a common category. To generate a new examples for the model, an occurrence of one fragment is removed from a sentence to produce a sentence template, which is then populated with the other fragment.</p><p>Why should we expect this procedure to produce well-formed training examples? The existence of syntactic categories, and the expressibility of well-formedness rules in terms of these abstract categories, is one of the foundational principles of generative approaches to syntax <ref type="bibr" target="#b8">(Chomsky, 1965)</ref>. The observation that context provides a strong signal about a sentence fragment's category is in turn the foundation of distributional techniques for the study of language <ref type="bibr" target="#b13">(Firth, 1957)</ref>. Combining the two gives the outlines of the above procedure.</p><p>This combination has a productive history in natural language processing: when fragments are single words, it yields class-based language models <ref type="bibr" target="#b5">(Brown et al., 1992)</ref>; when fragments are contiguous spans it yields unsupervised parsers <ref type="bibr" target="#b9">(Clark, 2000;</ref><ref type="bibr" target="#b27">Klein and Manning, 2002)</ref>. The present data augmentation scenario is distinguished mainly by the fact that we are unconcerned with producing a complete generative model of data, or with recovering the latent structure implied by the presence of nested syntactic categories. We can still synthesize high-precision examples of well-formed sequences by identifying individual substitutions that are likely to be correct without understanding how they fit into the grammar as a whole.</p><p>Indeed, if we are not concerned with recovering linguistically plausible analyses, we need not limit ourselves to words or contiguous sentence fragments. We can take</p><p>(3) a. She picks the wug up.</p><p>b. She puts the wug down.</p><p>as evidence that we can use picks. . . up wherever we can use puts. . . down. Indeed, given a translation dataset:</p><p>(4) a. I sing. Canto. b. I sing marvelously. Canto maravillosamente. c. I dax marvelously.</p><p>Dajo maravillosamente.</p><p>we can apply the same principle to synthesize I dax. Dajo. based on the common environment . . . marvelously . . . maravillosamente. From the perspective of a generalized substitution principle, the alignment problem in machine translation is the same as the class induction problem in language modeling, but with sequences featuring large numbers of gappy fragments and a boundary symbol . The only remaining question is what makes two environments similar enough to infer the existence of a common category. There is, again, a large literature on this question (including the aforementioned work in language modeling, unsupervised parsing, and alignment), but in the current work we will make use of a very simple criterion: fragments are interchangeable if they occur in at least one lexical environment that is exactly the same.</p><p>Given a window size k and sequence of n tokens w = w 1 w 2 • • • w n , define a fragment as a set of non-overlapping spans of w, a template as a version of w with a fragment removed, and an environment as a template restricted to a k-word window around each removed fragment. Formally, (letting [i, j] denote {i, i + 1, . . . , j}) we have:</p><formula xml:id="formula_3">fragments(w) = {{w a 1 ..b 1 , w a 2 ..b 2 , . . .} : 1 ≤ a i &lt; b i ≤ n, all [a i , b i ] disjoint} (1) tpl(w, f ) = (w j : ∀w a i ..b i ∈ f. j ∈ [a i , b i ]) (2) env(w, f ) = {w j : w j ∈ tpl(w, f ) and ∃w a i ..b i ∈ f. j ∈ [a i − k, b i + k]}<label>(3)</label></formula><p>In <ref type="figure" target="#fig_1">Figure 1(a)</ref>, the underlined picks. . . up is one possible fragment that could be extracted from the sentence. The corresponding template is She. . . the wug . . . in Fresno, and with k = 1 the environment is She. . . the wug . . . in. As shown in <ref type="figure" target="#fig_1">Figure 1(d)</ref>, any fragment may be substituted into any template with the same number of holes. Denote this substitution operation by t/f . The data augmentation operation that defines GECA is formally stated as follows:</p><p>If the training data contains sequences w = t 1 /f 1 , x = t 1 /f 1 and y = t 2 /f 2 , with env(w, t 1 ) = env(y, t 2 ) and t 1 = t 1 , then synthesize a new training example z = t 1 /f 2 .</p><p>If a fragment occurs multiple times within a given example, all instances are replaced (see <ref type="figure">Figure 3)</ref>.</p><p>Linguistic notes Despite the fact that the above operation is motivated by insights from generative syntax and distributional semantics, it should be emphasized that it is, as a statement of a general linguistic principle, obviously wrong. Counterexamples abound: in English, stress-derived nouns (e.g. récord from recórd) will be taken as evidence that many nouns and verbs are interchangeable; in Mandarin Chinese, kěshì and dànshì both mean "but", but kěshì alone can be used in particular constructions to mean "very".</p><p>What ultimately matters is the relative frequency of such errors: if their contribution to an inaccurate model is less than the inaccuracy caused by the original shortage of training data, the GECA still helps. In conditional problems, like the machine translation example above, such errors may be totally harmless: if we synthesize a new (x, y) pair with x outside the support of the real training data, they may not influence the model's predictions on the true support beyond providing useful general inductive bias.</p><p>Implementation Naïve implementation of the boxed operation takes O(t 3 f 3 ) time (where t is the number of distinct templates in the dataset and f the number of distinct fragments). This can be improved to O(f t 2 e) (where e is the number of templates that map to the same environment) by building appropriate data structures (Algorithm 1).</p><p>Space requirements might still be considerable (comparable to those used by n-gram language models), and strategies from the language modeling literature can be used to reduce memory usage <ref type="bibr" target="#b18">(Heafield, 2011)</ref>. This algorithm is agnostic with respect to the choice of fragmentation and environment functions; task-specific choices are described in more detail for each experiment below.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Diagnostic experiments</head><p>We begin with a set of experiments on synthetic data designed to precisely test whether GECA provides the kind of generalization it was designed for. Here we use the SCAN dataset (Lake and Baroni, 2018), which consists of simple English commands paired with sequences of discrete actions <ref type="figure">(Figure 2</ref>). We focus specifically on the add primitive (jump) and add template (around right) conditions, which test whether the agent can be exposed to individual commands or modifiers (e.g. jump JUMP) in isolation at training time, and incorporate them into more complex commands like the earlier example at test time.</p><p>We extract fragments with one gap and a maximum length of 4 tokens. The environment is taken to be the complete template. Generated examples are appended to the original dataset. As an exam-Algorithm 1 Sample GECA implementation.  <ref type="table">Table 1</ref>: Sequence match accuracies on SCAN datasets, in which the learner must generalize to new compositional uses of a single lexical item ("jump") or multi-word modifier ("around right") when mapping instructions to action sequences (SCAN) or vice-versa <ref type="bibr">(NACS, Bastings et al., 2018)</ref>. While the sequence-to-sequence model is unable to make any correct generalizations at all, applying GECA enables it to succeed most of the time. Scores are averaged over 10 random seeds; the standard deviation across seeds is shown. All improvements are significant (paired binomial test, p 0.001).</p><formula xml:id="formula_4">f2t = dict(default=set()) # fragment -&gt; template t2f = dict(default=set()) # template -&gt; fragment e2t = dict(default=set()) # env -&gt;</formula><p>ple of the effect of this augmentation procedure, the original jump split has 12620 training examples; GECA generates an additional 395 using 395 distinct templates and 6 distinct fragments.</p><p>With the original and augmented datasets, we train a one-layer LSTM encoder-decoder model with an embedding size of 64, a hidden size of 512, a bidirectional encoder and an attentional decoder <ref type="bibr" target="#b19">(Hochreiter and Schmidhuber, 1997;</ref><ref type="bibr" target="#b1">Bahdanau et al., 2015)</ref>. The model is trained using ADAM <ref type="bibr" target="#b26">(Kingma and Ba, 2014</ref>) with a step size of 0.001 and a dropout rate of 0.5.</p><p>Results are shown in <ref type="table">Table 1</ref>. In line with the original experiments of Lake and Baroni, the baseline sequence-to-sequence model completely fails to generalize to the test set. Applying GECA allows the learned model to successfully make most tested generalizations across single and multi-word entries, and in both instruction-to-action and actionto-instruction directions.</p><p>Analysis: examples Some synthesized examples are shown in <ref type="figure">Figure 3</ref>. Success at the add primitive condition stems from the constraint that the single example usage of the primitive must still be a valid (command, action) pair, and all verbs are valid commands in isolation. Only three examples-run RUN, walk WALK and look LOOK-provide the evidence that GECA uses to synthesize to new usages of jump; if these were removed, the sequenceto-sequence model's training accuracy would be unchanged but <ref type="bibr">GECA</ref>   <ref type="figure">Figure 3</ref>: Examples synthesized for the SCAN tasks. Underlined words belong to the filled-in fragment; the remaining text is the template. GECA synthesizes some examples that exactly capture the desired generalization, and some examples that are unrelated. set of analyses quantifying the overlap between the synthesized data and the held-out data. We first measure full example overlap, the fraction of test examples that appear in the augmented training set. (By design, no overlap exists between the test set and the original training set.) After applying GECA, 5% of test examples for the add primitive condition and 1% of examples for the add template condition are automatically synthesized. Next we measure token co-occurrence overlap: we compute the set of (input or output) tokens that occur together in any test example, and then measure the fraction of these pairs that also occur together in some training example. For the add primitive condition, GECA increases token co-occurrence overlap from 83% to 96%; for the add template condition it is 100% even prior to augmentation.</p><p>It is important to note that GECA, which sees only the training set, is unaware that some subset of the data is singled out for generalization testing at evaluation time. The data augmentation protocol generates a large number of spurious training examples unrelated to the desired generalization (e.g. the first example in <ref type="figure">Figure 3)</ref>; however, it also generates enough new usages of the target concept that the learner generalizes successfully.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Semantic parsing</head><p>Next we turn to the problem of semantic parsing, which has also been a popular subject of study for questions about compositionality, generalization, and data augmentation. For the reasons discussed in Section 3, we expect qualitatively different behavior from this approach on real language data without the controlled vocabulary of SCAN.</p><p>We study four versions of the GEOQUERY dataset <ref type="bibr" target="#b47">(Zelle, 1995)</ref>, which consists of 880 English questions about United States geography, paired with meaning representations in the form of either logical expressions or SQL queries. The standard train-test split for this dataset ensures that no natural language question is repeated between the train and test sets. As Finegan-Dollak et al. (2018) note, this provides only a limited test of generalization, as many test examples feature a logical form that overlaps with the training data; they introduce a more challenging query split to ensure that neither questions nor logical forms are repeated (even after anonymizing named entities).</p><p>We extract fragments with at most 2 gaps and at most 12 tokens. On the SQL query split, the original training set contains 695 examples. GECA generates an additional 1055 using 839 distinct templates and 379 distinct fragments. For the question split we use the baseline model of <ref type="bibr" target="#b24">Jia and Liang (2016)</ref>; for the query split we use the same sequence-to-sequence model as used for SCAN and introduce the supervised copy mechanism of <ref type="bibr" target="#b12">Finegan-Dollak et al. (2018)</ref>. Environments are again taken to be identical to templates.</p><p>Results are shown in <ref type="table">Table 2</ref>. On the split for which <ref type="bibr" target="#b24">Jia and Liang (2016)</ref> report results, GECA achieves nearly the same improvements with weaker domain assumptions. On the remaining splits it is more accurate.</p><p>Analysis: examples Synthesized examples for the logical and SQL representations are shown in <ref type="figure" target="#fig_3">Figure 4</ref>. Despite the fact that the sequenceto-sequence model uses neither gold entities or</p><p>In some cases these averages are slightly lower than the single-run results previously reported in the literature. Note also that the original publication from Jia and Liang reports denotation accuracies; the results here are taken from their accompanying code release. Overall trends across systems are comparable using either evaluation metric.  <ref type="table">Table 2</ref>: Meaning representation exact-match accuracies on the GEOQUERY dataset. On logical forms, GECA approaches the data augmentation approach of Jia and Liang (2016) on the standard split of the data ("Question") and outperforms it on a split designed to test compositionality ("Query"). On SQL expressions, GECA leads to substantial improvements on the query split and achieves state-of-the-art results. Scores are averaged over 10 random seeds; the standard deviation across seeds is shown. 1 † Significant improvement over seq2seq baseline (p &lt; 0.01). ‡ Significant improvement over <ref type="bibr" target="#b24">Jia and Liang (2016)</ref>  specialized entity linking machinery, the augmentation procedure successfully aligns natural language entity names to their logical representations and generalizes across entity choices. This procedure also produces plausible but unattested entities like a river named florida and a state named west wyoming. The last example in the "logical forms" section is particularly interesting. The extracted fragment contains lowest population density on the natural language side but only density on the logical form side. However, the environment constrains substitution to happen where appropriate: this fragment will only be used in cases where the environment already contains the necessary smallest.</p><p>Some substitutions are semantically problematic: for example, the final datapoint in <ref type="figure" target="#fig_3">Figure 4</ref> asks about the population of a number (because substitution has replaced capital with area); the corresponding SQL expression would fail to execute. Aside from typing problems, however, the example is syntactically well-formed and provides correct evidence about constituent boundaries, alignments and hierarchical structure within the geography domain. Other synthesized examples (like the secondto-last in <ref type="figure" target="#fig_3">Figure 4</ref>  Analysis: dataset statistics Applying GECA to the GEOQUERY data increases full example overlap (described at the end of Section 4) by 5% for the question split in both languages, 6% for the query split with logical forms, and 9% for the query split with SQL expressions, in line with the observation that accuracy improvements are greater for the query split than the question split. Augmentation increases token co-occurrence overlap by 3-4% across all conditions.</p><p>In a larger-scale manual analysis of 100 synthesized examples from the query split, evaluating them for grammaticality and accuracy (whether the natural language captures the semantics of the logical form), we find that 96% are grammatical, and 98% are semantically accurate.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Negative results</head><p>We conclude with a corresponding set of experiments on the SCHOLAR text-to-SQL dataset of <ref type="bibr" target="#b22">Iyer et al. (2017)</ref>  to GEOQUERY in size, diversity and complexity. In contrast to GEOQUERY, however, application of GECA to SCHOLAR provides no improvement. On the query split, there is limited compositional re-use of SQL sub-queries (in line with the observation of Finegan-Dollak et al. (2018) that average nesting depth in SCHOLAR is roughly half that of GEOQUERY). Correspondingly, full example overlap after augmentation remains at 0% and token co-occurrence overlap increases by only 1%. On the question split, full example overlap is larger (8%) but token co-occurrence overlap increases by less than 1%. These results suggest that GECA is most successful when it can increase similarity of word co-occurrence statistics in the training and test sets, and when the input dataset exhibits a high degree of recursion.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6">Low-resource language modeling</head><p>Both of the previous sections investigated conditional models. The fragments extracted and reused by GECA were essentially synchronous lexicon entries, in line with example (4). We originally motivated GECA with monolingual problems in which we simply wish to improve model judgments about well-formedness, so we conclude with a set of language modeling experiments. We use Wikipedia dumps 2 in five languages (Kinyarwanda, Lao, Pashto, Tok Pisin, and a subset of English Wikipedia) as well as the Na dataset of <ref type="bibr" target="#b0">Adams et al. (2017)</ref>. These languages exhibit the performance of GECA across a range of morpholog-  ical complexities: for example, Kinyarwanda has a complex noun class system <ref type="bibr" target="#b25">(Kimenyi, 1980)</ref> and Pashto has rich derivational morphology <ref type="bibr" target="#b43">(Tegey and Robson, 1996)</ref>, while Lao and Tok Pisin are comparatively simple morphologically <ref type="bibr" target="#b11">(Enfield, 2008;</ref><ref type="bibr" target="#b45">Verhaar, 1995)</ref>. Training datasets range from 10K-2M tokens. Like Adams et al., we found that a 5-gram modified Kneser-Ney language model <ref type="bibr" target="#b35">(Ney et al., 1994)</ref> outperformed several varieties of RNN language model, so we base our GECA experiments on the n-gram model instead. We use the implementation provided in KenLM <ref type="bibr" target="#b18">(Heafield, 2011)</ref>. We extract fragments with no gaps and a maximum size of 2 tokens, with the environment taken to be a 2-token window around the extracted fragment. New usages are generated only for fragments that occur fewer than 20 times in the data. In Kinyarwanda, the base dataset contains 3358 sentences. GECA generates an additional 913, using 913 distinct templates and 199 distinct fragments.</p><p>Rather than training directly on the augmented dataset, as in preceding sections, we found that the best performance came from training one language model on the original dataset and one on the augmented dataset, then interpolating their final probabilities. The weight for this interpolation is determined on a validation dataset and chosen to be one of 0.05, 0.1 and 0.5.</p><p>Results are shown in <ref type="table" target="#tab_7">Table 4</ref>. Improvements are not universal and are more modest than in preceding sections. However, GECA decreases perplexities across multiple languages and never increases them. These results suggest that the substitution principle underlying GECA is a useful mechanism for encouraging compositionality even outside conditional tasks and neural models.</p><p>Analysis: examples and statistics In language modeling, GECA functions as a smoothing scheme: its primary effect is to move mass toward n-grams that can appear in productive contexts. In this sense, GECA performs a similar role to the Kneser-Ney smoothing also used in all LM experiments. With GECA, in contrast to Kneser-Ney, the notion of "context" can look forward as well as backward, and capture longer-range interactions.</p><p>Examples of synthesized sentences are shown in <ref type="figure" target="#fig_4">Figure 5</ref>. Most sentences are grammatical, and many of the substitutions preserve relevant semantic type information (substituting locations for locations, times for times, etc.). However, some illformed sentences are also generated.</p><p>As in Section 5, we manually inspect 100 synthesized sentences. As before, sentences are evaluated for grammaticality; here, since no explicit semantics were provided, they are instead evaluated for generic semantic acceptability. In this case, only 51% of synthesized sentences are semantically acceptable, but 79% are grammatical.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7">Discussion</head><p>We introduced GECA, a simple data augmentation scheme based on identifying local phrase substitutions that are licensed by common contexts, and demonstrated that extra training examples genervarious copies of portions of the code of hammurabi have been found on baked clay tablets , some possibly older than the celebrated basalt stele now in the night sky . the work contains , in an appendix , the german equivalents for the technical terms used in the glock $num .</p><p>payments system in the aclu proposed new directions for the organization .</p><p>in the late triassic and early nineteenth century , a number of scots-irish traders lived among the choctaw and married high-status women . ated with GECA lead to substantial improvements on both diagnostic and natural datasets for semantic parsing and language modeling.</p><p>While the approach is surprisingly effective in its current form, we view these results primarily as an invitation to consider more carefully the role played by representations of sentence fragments in larger questions about compositionality in blackbox sequence models. The procedure detailed in this paper relies on exact string matching to identify common context; future work might take advantage of learned representations of spans and their environments <ref type="bibr" target="#b33">(Mikolov et al., 2013;</ref><ref type="bibr" target="#b37">Peters et al., 2018)</ref>. Further improvements are likely obtainable by constraining the extracted fragments to respect constituent boundaries when syntactic information is available.</p><p>The experiments presented here focus on rewriting sentences using evidence within a dataset to encourage generalization to new outputs. An alternative line of work on paraphrase-based data augmentation <ref type="bibr" target="#b15">(Ganitkevitch et al., 2013;</ref> uses external, text-only resources to encourage robust interpretation of new inputs corresponding to known outputs. The two lines of work could be combined, e.g. by using GECA-identified fragments to indicate productive locations for sub-sentential paraphrasing.</p><p>More generally, the present results underline the extent to which current models fail to learn simple, context-independent notions of reuse, but also how easy it is to make progress towards addressing this problem without fundamental changes in model architecture.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Reproducibility</head><p>Code for all experiments in this paper may be found at github.com/jacobandreas/geca.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head></head><label></label><figDesc>She picks the wug up in Fresno.She puts the wug down in Tempe.Pat picks cats up.Pat puts cats down.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 1 :</head><label>1</label><figDesc>Visualization of the proposed approach: two discontinuous sentence fragments (a-b, underlined) which appear in similar environments (a-b, highlighted) are identified. Additional sentences in which the first fragment appears (c) are used to synthesize new examples (d) by substituting in the second fragment. arXiv:1904.09545v4 [cs.CL] 19 May 2020</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head></head><label></label><figDesc>) have correct meaning representations but ungrammatical natural language inputs. Logical forms what is the lowest point in rhode island ( A , lowest ( A , ( place ( A ) , loc ( A , B ) , const ( B , stateid ( rhode island ) ) ) ) ) what states does the florida run through ( A , ( state ( A ) , const ( B , riverid ( florida ) ) , traverse ( B , A ) ) ) what state borders the state with the lowest population density ( A , ( state ( A ) , next_to ( A , B ) , smallest ( C , ( state ( B ) , density ( B , C ) ) ) ) ) SQL queries what rivers run through west wyoming SELECT RIVER0.NAME FROM RIVER AS RIVER0 WHERE RIVER0.TRAVERSE = " west wyoming " which states have towns major named springfield SELECT CITY0.STATE_NAME FROM CITY AS CITY0 WHERE CITY0.NAME = " springfield " AND CITY0.POP &gt; 150000what is the population of the area of the largest state SELECT CITY0.POP FROM CITY AS CITY0 WHERE CITY0.NAME = ( SELECT STATE0.AREA FROM STATE AS STATE0 WHERE STATE0.AREA = ( SELECT MAX ( STATE1.AREA ) FROM STATE AS STATE1 ) )</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 4 :</head><label>4</label><figDesc>Examples synthesized for semantic parsing on GEOQUERY. Substituted fragments are underlined. GECA aligns named entities to their logical representations and abstracts over predicates. Sometimes (as in the final example) synthesized examples are semantically questionable but have plausible hierarchical structure.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Figure 5 :</head><label>5</label><figDesc>Sentences synthesized for the English language modeling task. Most examples are syntactically well-formed; some are also semantically plausible.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head></head><label></label><figDesc>would fail to synthesize any new examples involving jump, and test accuracy would fall to zero. For the add template condition, GECA correctly replaces all occurrences of LTURN with RTURN to produce new examples of the around right template; this example highlights the usefulness of GECA's ability to discover discontinuous and non-context-free substitutions.</figDesc><table><row><cell>add primitive (jump)</cell></row><row><cell>walk thrice after walk right</cell></row><row><cell>RTURN WALK WALK WALK WALK</cell></row><row><cell>jump opposite left thrice after turn opposite right</cell></row><row><cell>RTURN RTURN LTURN LTURN JUMP LTURN LTURN JUMP</cell></row><row><cell>LTURN LTURN JUMP</cell></row><row><cell>add template (around right)</cell></row><row><cell>look right twice and turn opposite right twice</cell></row><row><cell>RTURN LOOK RTURN LOOK RTURN RTURN RTURN RTURN</cell></row><row><cell>run around right and walk opposite right twice</cell></row><row><cell>RTURN RUN RTURN RUN RTURN RUN RTURN RUN RTURN</cell></row><row><cell>RTURN WALK RTURN RTURN WALK</cell></row><row><cell>Analysis: dataset statistics To further under-</cell></row><row><cell>stand the behavior of GECA, we conduct a final</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_2"><head></head><label></label><figDesc>± 0.07 0.76 ± 0.02+ Jia et al. 16   0.61 ± 0.03 0.81 ± 0.01 + GECA 0.65 † ‡ ± 0.06 0.78 † ± 0.01 + GECA + concat 0.63 ± 0.04 0.79 † ± 0.01</figDesc><table><row><cell></cell><cell>Query</cell><cell>Question</cell></row><row><cell>Logical forms</cell><cell></cell><cell></cell></row><row><cell cols="2">seq2seq 0.62 SQL queries</cell><cell></cell></row><row><cell>Iyer et al. 17</cell><cell>0.40</cell><cell>0.66</cell></row><row><cell>seq2seq</cell><cell cols="2">0.39 ± 0.05 0.68 ± 0.02</cell></row><row><cell>+ GECA</cell><cell cols="2">0.49  † ± 0.02 0.68 ± 0.02</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_5"><head>Table 3</head><label>3</label><figDesc></figDesc><table><row><cell>: Negative results: meaning representation ac-</cell></row><row><cell>curacies on the SCHOLAR dataset. For the query split,</cell></row><row><cell>synthesized examples do not overlap with any of the</cell></row><row><cell>held-out data; for the question split, they provide little</cell></row><row><cell>information beyond what is already present in the train-</cell></row><row><cell>ing dataset. In both cases a model trained with GECA</cell></row><row><cell>performs indistinguishably from a the baseline model.</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_6"><head></head><label></label><figDesc>239 † 313 † 45.4 570 † 44.1</figDesc><table><row><cell></cell><cell>ENG</cell><cell>KIN</cell><cell>LAO</cell><cell>NA</cell><cell>PUS</cell><cell>TOK</cell></row><row><cell cols="2"># train tokens 2M</cell><cell cols="2">62K 10K</cell><cell cols="2">28K 2M</cell><cell>30K</cell></row><row><cell>5-MKN</cell><cell>369</cell><cell>241</cell><cell>315</cell><cell cols="2">45.4 574</cell><cell>44.3</cell></row><row><cell>+ GECA</cell><cell>365</cell><cell></cell><cell></cell><cell></cell><cell></cell></row><row><cell></cell><cell></cell><cell></cell><cell cols="4">https://dumps.wikimedia.org/</cell></row></table><note>†</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_7"><head>Table 4 :</head><label>4</label><figDesc>Perplexities on low-resource language modeling in English (ENG), Kinyarwanda (KIN), Lao, Na, Pashto (PUS) and Tok Pisin (TOK). Even with a Kneser-Ney smoothed 5-gram model (5-MKN) rather than a high-capacity neural model, applying GECA leads to small improvements in perplexity. † Significant improvement over 5-gram MKN baseline (paired binomial test, p &lt; 0.05).</figDesc><table /><note></note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgments</head><p>Thanks to Oliver Adams for assistance with the language modeling experiments, and to the anonymous reviewers for suggestions in the analysis sections.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Cross-lingual word embeddings for low-resource language modeling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Oliver</forename><surname>Adams</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adam</forename><surname>Makarucha</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Graham</forename><surname>Neubig</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Steven</forename><surname>Bird</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Trevor</forename><surname>Cohn</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Annual Meeting of the Association for Computational Linguistics</title>
+		<meeting>the Annual Meeting of the Association for Computational Linguistics</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Neural machine translation by jointly learning to align and translate</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dzmitry</forename><surname>Bahdanau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kyunghyun</forename><surname>Cho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the International Conference on Learning Representations</title>
+		<meeting>the International Conference on Learning Representations</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Jump to better conclusions: Scan both left and right</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Joost</forename><surname>Bastings</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marco</forename><surname>Baroni</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jason</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kyunghyun</forename><surname>Cho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Douwe</forename><surname>Kiela</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Workshop on Analyzing and Interpreting Neural Networks for NLP</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<monogr>
+		<title level="m" type="main">The child&apos;s learning of English morphology</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jean</forename><surname>Berko</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1958" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">A fast unified model for parsing and sentence understanding</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jon</forename><surname>Samuel R Bowman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Abhinav</forename><surname>Gauthier</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Raghav</forename><surname>Rastogi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Gupta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Christopher</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christopher</forename><surname>Manning</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Potts</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Annual Meeting of the Association for Computational Linguistics</title>
+		<meeting>the Annual Meeting of the Association for Computational Linguistics</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Classbased n-gram models of natural language</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Peter F Brown</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Peter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Desouza</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Robert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Vincent J Della</forename><surname>Mercer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jenifer C</forename><surname>Pietra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Lai</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Computational Linguistics</title>
+		<imprint>
+			<date type="published" when="1992" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Exploiting syntactic structure for language modeling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ciprian</forename><surname>Chelba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Frederick</forename><surname>Jelinek</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Annual Meeting of the Association for Computational Linguistics</title>
+		<meeting>the Annual Meeting of the Association for Computational Linguistics</meeting>
+		<imprint>
+			<date type="published" when="1998" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">A hierarchical phrase-based model for statistical machine translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Chiang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Annual Meeting of the Association for Computational Linguistics</title>
+		<meeting>the Annual Meeting of the Association for Computational Linguistics<address><addrLine>Ann Arbor, Michigan</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2005" />
+			<biblScope unit="page" from="263" to="270" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<monogr>
+		<title level="m" type="main">Aspects of the Theory of Syntax</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Noam</forename><surname>Chomsky</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1965" />
+			<publisher>MIT press</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Inducing syntactic categories by context distribution clustering</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alexander</forename><surname>Clark</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Conference on Natural Language Learning</title>
+		<imprint>
+			<date type="published" when="2000" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Recurrent neural network grammars</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chris</forename><surname>Dyer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adhiguna</forename><surname>Kuncoro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Miguel</forename><surname>Ballesteros</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Noah A</forename><surname>Smith</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Annual Meeting of the North American Chapter</title>
+		<meeting>the Annual Meeting of the North American Chapter</meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Nicholas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Enfield</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">A grammar of Lao</title>
+		<imprint>
+			<biblScope unit="volume">38</biblScope>
+			<date type="published" when="2008" />
+			<publisher>Walter de Gruyter</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Improving text-to-SQL evaluation methodology</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Catherine</forename><surname>Finegan-Dollak</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonathan</forename><forename type="middle">K</forename><surname>Kummerfeld</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Li</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Karthik</forename><surname>Ramanathan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sesh</forename><surname>Sadasivam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rui</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dragomir</forename><surname>Radev</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Annual Meeting of the Association for Computational Linguistics</title>
+		<meeting>the Annual Meeting of the Association for Computational Linguistics</meeting>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<monogr>
+		<title level="m" type="main">A Synopsis of Linguistic Theory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><surname>Rupert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Firth</forename></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1930" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Posterior regularization for structured latent variable models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kuzman</forename><surname>Ganchev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jennifer</forename><surname>Gillenwater</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ben</forename><surname>Taskar</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Machine Learning Research</title>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Ppdb: The paraphrase database</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Juri</forename><surname>Ganitkevitch</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Benjamin</forename><surname>Van Durme</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chris</forename><surname>Callison-Burch</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Annual Meeting of the North American Chapter</title>
+		<meeting>the Annual Meeting of the North American Chapter</meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Graves</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Greg</forename><surname>Wayne</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ivo</forename><surname>Danihelka</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1410.5401</idno>
+		<title level="m">Neural Turing machines</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Learning to transduce with unbounded memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Edward</forename><surname>Grefenstette</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Karl</forename><forename type="middle">Moritz</forename><surname>Hermann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mustafa</forename><surname>Suleyman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Phil</forename><surname>Blunsom</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">KenLM: Faster and smaller language model queries</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kenneth</forename><surname>Heafield</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Workshop on Machine Translation</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Long short-term memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sepp</forename><surname>Hochreiter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jürgen</forename><surname>Schmidhuber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural computation</title>
+		<imprint>
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="issue">8</biblScope>
+			<biblScope unit="page" from="1735" to="1780" />
+			<date type="published" when="1997" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<monogr>
+		<title level="m" type="main">Learning data manipulation for augmentation and weighting</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zhiting</forename><surname>Hu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bowen</forename><surname>Tan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ruslan</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tom</forename><surname>Mitchell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Eric</forename><forename type="middle">P</forename><surname>Xing</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1910.12795</idno>
+		<imprint>
+			<date type="published" when="2019" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Deep generative models with learnable knowledge constraints</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zhiting</forename><surname>Hu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zichao</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Ruslan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lianhui</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xiaodan</forename><surname>Qin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Haoye</forename><surname>Liang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Eric</forename><forename type="middle">P</forename><surname>Dong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Xing</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Learning a neural semantic parser from user feedback</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Srinivasan</forename><surname>Iyer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ioannis</forename><surname>Konstas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alvin</forename><surname>Cheung</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jayant</forename><surname>Krishnamurthy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Luke</forename><surname>Zettlemoyer</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Annual Meeting of the Association for Computational Linguistics</title>
+		<meeting>the Annual Meeting of the Association for Computational Linguistics</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Adversarial example generation with syntactically controlled paraphrase networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mohit</forename><surname>Iyyer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><surname>Wieting</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kevin</forename><surname>Gimpel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Luke</forename><surname>Zettlemoyer</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Annual Meeting of the North American Chapter of the Association for Computational Linguistics</title>
+		<meeting>the Annual Meeting of the North American Chapter of the Association for Computational Linguistics</meeting>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">Data recombination for neural semantic parsing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Robin</forename><surname>Jia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Percy</forename><surname>Liang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Annual Meeting of the Association for Computational Linguistics</title>
+		<meeting>the Annual Meeting of the Association for Computational Linguistics</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<monogr>
+		<title level="m" type="main">A relational grammar of Kinyarwanda</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alexandre</forename><surname>Kimenyi</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1980" />
+			<publisher>Univ. of California Press</publisher>
+			<biblScope unit="volume">91</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Adam: A method for stochastic optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Diederik</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jimmy</forename><surname>Ba</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the International Conference on Learning Representations</title>
+		<meeting>the International Conference on Learning Representations</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">A generative constituent-context model for improved grammar induction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dan</forename><surname>Klein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Christopher</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Manning</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Annual Meeting of the Association for Computational Linguistics</title>
+		<meeting>the Annual Meeting of the Association for Computational Linguistics</meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2002" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">An overview of probabilistic tree transducers for natural language processing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kevin</forename><surname>Knight</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonathan</forename><surname>Graehl</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the International Conference on Intelligent Text Processing and Computational Linguistics</title>
+		<meeting>the International Conference on Intelligent Text Processing and Computational Linguistics<address><addrLine>Mexico City, Mexico</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2005" />
+			<biblScope unit="page" from="1" to="24" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Imagenet classification with deep convolutional neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ilya</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geoffrey</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Generalization without systematicity: On the compositional skills of sequence-to-sequence recurrent networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Brenden</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marco</forename><surname>Lake</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Baroni</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the International Conference on Machine Learning</title>
+		<meeting>the International Conference on Machine Learning</meeting>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<monogr>
+		<title level="m" type="main">Human few-shot learning of compositional instructions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tal</forename><surname>Brenden M Lake</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marco</forename><surname>Linzen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Baroni</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1901.04587</idno>
+		<imprint>
+			<date type="published" when="2019" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">On the state of the art of evaluation in neural language models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Gábor</forename><surname>Melis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chris</forename><surname>Dyer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Phil</forename><surname>Blunsom</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the International Conference on Learning Representations</title>
+		<meeting>the International Conference on Learning Representations</meeting>
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<analytic>
+		<title level="a" type="main">Distributed representations of words and phrases and their compositionality</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tomas</forename><surname>Mikolov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ilya</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kai</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Greg</forename><forename type="middle">S</forename><surname>Corrado</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jeff</forename><surname>Dean</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="3111" to="3119" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">The proper treatment of quantification in ordinary english</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Richard</forename><surname>Montague</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Approaches to natural language</title>
+		<imprint>
+			<date type="published" when="1973" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<analytic>
+		<title level="a" type="main">On structuring probabilistic dependences in stochastic language modelling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hermann</forename><surname>Ney</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ute</forename><surname>Essen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Reinhard</forename><surname>Kneser</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Computer Speech &amp; Language</title>
+		<imprint>
+			<date type="published" when="1994" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<analytic>
+		<title level="a" type="main">Zero-shot task generalization with multi-task deep reinforcement learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Junhyuk</forename><surname>Oh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Satinder</forename><surname>Singh</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the International Conference on Machine Learning</title>
+		<meeting>the International Conference on Machine Learning</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note>Honglak Lee, and Pushmeet Kohli</note>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">Deep contextualized word representations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Matthew</forename><forename type="middle">E</forename><surname>Peters</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mark</forename><surname>Neumann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mohit</forename><surname>Iyyer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Matt</forename><surname>Gardner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christopher</forename><surname>Clark</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kenton</forename><surname>Lee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Luke</forename><surname>Zettlemoyer</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Annual Meeting of the North American Chapter</title>
+		<meeting>the Annual Meeting of the North American Chapter</meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<analytic>
+		<title level="a" type="main">Language models are unsupervised multitask learners</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alec</forename><surname>Radford</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jeffrey</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rewon</forename><surname>Child</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Luan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dario</forename><surname>Amodei</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ilya</forename><surname>Sutskever</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">OpenAI Blog</title>
+		<imprint>
+			<date type="published" when="2019" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">Learning to compose domain-specific transformations for data augmentation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Alexander</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Henry</forename><surname>Ratner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zeshan</forename><surname>Ehrenberg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jared</forename><surname>Hussain</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christopher</forename><surname>Dunnmon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ré</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="3236" to="3246" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<monogr>
+		<title level="m" type="main">Compositional generalization in a deep seq2seq model by separating syntax and semantics</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jake</forename><surname>Russin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jason</forename><surname>Jo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Randall C O'</forename><surname>Reilly</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1904.09708</idno>
+		<imprint>
+			<date type="published" when="2019" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<analytic>
+		<title level="a" type="main">Improved mixed-example data augmentation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Cecilia</forename><surname>Summers</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Michael J Dinneen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2019 IEEE Winter Conference on Applications of Computer Vision (WACV)</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2019" />
+			<biblScope unit="page" from="1262" to="1270" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<analytic>
+		<title level="a" type="main">Sequence to sequence learning with neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ilya</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Oriol</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Quoc</forename><surname>Le</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<monogr>
+		<title level="m" type="main">A reference grammar of Pashto</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Habibullah</forename><surname>Tegey</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Barbara</forename><surname>Robson</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1996" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<analytic>
+		<title level="a" type="main">Attention is all you need</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ashish</forename><surname>Vaswani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Noam</forename><surname>Shazeer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Niki</forename><surname>Parmar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jakob</forename><surname>Uszkoreit</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Llion</forename><surname>Jones</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aidan</forename><forename type="middle">N</forename><surname>Gomez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Łukasz</forename><surname>Kaiser</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Illia</forename><surname>Polosukhin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<monogr>
+		<title level="m" type="main">Toward a reference grammar of Tok Pisin: An experiment in corpus linguistics</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><forename type="middle">M</forename><surname>John</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Verhaar</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1995" />
+			<publisher>University of Hawaii Press</publisher>
+			<biblScope unit="volume">26</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b46">
+	<analytic>
+		<title level="a" type="main">Eda: Easy data augmentation techniques for boosting performance on text classification tasks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jason</forename><surname>Wei</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kai</forename><surname>Zhou</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Conference on Empirical Methods in Natural Language Processing</title>
+		<meeting>the Conference on Empirical Methods in Natural Language Processing</meeting>
+		<imprint>
+			<date type="published" when="2019" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b47">
+	<monogr>
+		<title level="m" type="main">Using Inductive Logic Programming to Automate the Construction of Natural Language Parsers</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><surname>Zelle</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1995" />
+		</imprint>
+		<respStmt>
+			<orgName>Department of Computer Sciences, The University of Texas at Austin</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">Ph.D. thesis</note>
+</biblStruct>
+
+<biblStruct xml:id="b48">
+	<analytic>
+		<title level="a" type="main">Learning to map sentences to logical form: Structured classification with probabilistic categorial grammars</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Luke</forename><forename type="middle">S</forename><surname>Zettlemoyer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Collins</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Conference on Uncertainty in Artificial Intelligence</title>
+		<meeting>the Conference on Uncertainty in Artificial Intelligence</meeting>
+		<imprint>
+			<date type="published" when="2005" />
+			<biblScope unit="page" from="658" to="666" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b49">
+	<analytic>
+		<title level="a" type="main">mixup: Beyond empirical risk minimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hongyi</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Moustapha</forename><surname>Cisse</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Yann N Dauphin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Lopez-Paz</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the International Conference on Learning Representations</title>
+		<meeting>the International Conference on Learning Representations</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

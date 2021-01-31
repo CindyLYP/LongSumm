@@ -1,0 +1,1032 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Automated Localization for Unreproducible Builds</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2018-03-19">19 Mar 2018</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zhilei</forename><surname>Ren</surname></persName>
+							<email>zren@dlut.edu.cn</email>
+							<affiliation key="aff0">
+								<orgName type="department">School of So ware</orgName>
+								<orgName type="laboratory">Key Laboratory for Ubiquitous Network and Service So ware of Liaoning Province</orgName>
+								<orgName type="institution">Dalian University of Technology</orgName>
+								<address>
+									<settlement>Dalian</settlement>
+									<country key="CN">China</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">He</forename><surname>Jiang</surname></persName>
+							<email>jianghe@dlut.edu.cn</email>
+							<affiliation key="aff1">
+								<orgName type="department">School of So ware</orgName>
+								<orgName type="laboratory">Key Laboratory for Ubiquitous Network and Service So ware of Liaoning Province</orgName>
+								<orgName type="institution">Dalian University of Technology</orgName>
+								<address>
+									<settlement>Dalian</settlement>
+									<country key="CN">China</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jifeng</forename><surname>Xuan</surname></persName>
+							<email>jxuan@whu.edu.cn</email>
+							<affiliation key="aff2">
+								<orgName type="department">School of Computer Science</orgName>
+								<orgName type="institution">Wuhan University</orgName>
+								<address>
+									<settlement>Wuhan</settlement>
+									<country key="CN">China</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zijiang</forename><surname>Yang</surname></persName>
+							<email>zijiang.yang@wmich.edu</email>
+							<affiliation key="aff3">
+								<orgName type="department">Department of Computer Science</orgName>
+								<orgName type="institution">Western Michigan University</orgName>
+								<address>
+									<settlement>Kalamazoo</settlement>
+									<region>MI</region>
+									<country key="US">USA</country>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Automated Localization for Unreproducible Builds</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2018-03-19">19 Mar 2018</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1803.06766v1[cs.SE]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:41+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<textClass>
+				<keywords>
+					<term>Unreproducible Build</term>
+					<term>Localization</term>
+					<term>So ware Maintenance</term>
+				</keywords>
+			</textClass>
+			<abstract>
+				<p>Reproducibility is the ability of recreating identical binaries under pre-de ned build environments. Due to the need of quality assurance and the bene t of be er detecting a acks against build environments, the practice of reproducible builds has gained popularity in many open-source so ware repositories such as Debian and Bitcoin. However, identifying the unreproducible issues remains a labour intensive and time consuming challenge, because of the lacking of information to guide the search and the diversity of the causes that may lead to the unreproducible binaries. In this paper we propose an automated framework called RepLoc to localize the problematic les for unreproducible builds. RepLoc features a query augmentation component that utilizes the information extracted from the build logs, and a heuristic rule-based ltering component that narrows the search scope. By integrating the two components with a weighted le ranking module, RepLoc is able to automatically produce a ranked list of les that are helpful in locating the problematic les for the unreproducible builds. We have implemented a prototype and conducted extensive experiments over 671 real-world unreproducible Debian packages in four di erent categories. By considering the topmost ranked le only, RepLoc achieves an accuracy rate of 47.09%. If we expand our examination to the top ten ranked les in the list produced by RepLoc, the accuracy rate becomes 79.28%. Considering that there are hundreds of source code, scripts, Make les, etc., in a package, RepLoc signi cantly reduces the scope of localizing problematic les. Moreover, with the help of RepLoc, we successfully identi ed and xed six new unreproducible packages from Debian and Guix.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">INTRODUCTION</head><p>As an indicator of the ability that the binaries could be recreated consistently from source, recent years have witnessed the emerging idea of reproducible builds. Given the source les, the reproducibility is described as the ability of building identical binary under pre-de ned build environments <ref type="bibr" target="#b14">[15]</ref>. In this study, source les include source code, scripts, Make les, build con gurations, etc <ref type="bibr" target="#b5">[6]</ref>. Checking the reproducibility of so ware creates a veri able linkage that bridges the gap between the readable source les and the binary packages, which is important from various perspectives.</p><p>Firstly, reproducibility is very important for the safety of build environments. For so ware ecosystems, a acks against the build environment may lead to serious consequences. By compromising the system to produce packages with backdoors <ref type="bibr" target="#b25">[26,</ref><ref type="bibr" target="#b44">45]</ref>, malicious behaviors such as trusting trust a ack <ref type="bibr" target="#b40">[41]</ref> may be introduced during the build time. For example, in 2015, over 4,000 iOS applications were infected by a counterfeit version of Apple's Xcode development environment (known as XcodeGhost) <ref type="bibr" target="#b0">[1]</ref>. XcodeGhost injected malicious code during compiling time so that developers unknowingly distributed malware embedded in their applications <ref type="bibr" target="#b20">[21]</ref>. Obviously, a solution is to ensure that the same source les always lead to the same binary packages so that an infected different binary immediately raises alarms. Unfortunately, a major obstacle of detecting such a acks lies in the transparency gap between the source les and their compiled binary packages. Due to non-deterministic issues such as timestamps and locales, it is not uncommon that rebuilding an application yields di erent binaries even within secure build environments. erefore, these kinds of a acks o en elude detection because di erent binaries of the same application is normal.</p><p>Besides detecting a acks against build environments, validating the reproducibility is also helpful in debugging and nding certain release-critical bugs (e.g., libical-dev 1.0-1.1) <ref type="bibr" target="#b1">[2]</ref>. Furthermore, in the context of and continuous integration and so ware upgrade <ref type="bibr" target="#b36">[37]</ref>, reproducible packages could be helpful in caching, and reducing redundant operations, e.g., by eliminating the necessity of delivering the di erent binaries compiled from the same source les. Due to the signi cant bene ts, many open-source so ware repositories have initiated their validation processes. ese repositories include GNU/Linux distributions such as Debian and Guix, as well as so ware systems like Bitcoin <ref type="bibr" target="#b18">[19]</ref>. For instance, since 2014, the number of Debian's reproducible packages has been steadily increasing. <ref type="figure" target="#fig_0">Figure 1</ref> presents the trend of the reproducible builds in Debian <ref type="bibr" target="#b13">[14]</ref>. As of August 2017, over 85% of Debian's packages could be reproducibly built.</p><p>Despite the e ort towards reproducibility, many packages remain unreproducible. For example, according to Debian's Bug Tracking System (BTS), as of August 23, 2017, there are 2,342 packages that are not reproducible <ref type="bibr" target="#b13">[14]</ref> for the unstable branch targeting the AMD64 architecture. Such large number of unreproducible packages implies the challenges in detecting and then xing the unreproducible issues. In particular, the localization task for the problematic les is the activity of identifying the source les that cause unreproducibility, which ranks source les based on their likelihood of containing unreproducible issues. Currently, the localization task is mostly manually conducted by developers. Since there may be hundreds to thousands of source les for a package, the localization tends to be labor intensive and time consuming.</p><p>To address this problem, we consider the source les as text corpus, and leverages the di log 1 generated by comparing the di erent binaries to guide the search. As such, the localization of the problematic les can be modeled as a classic Information Retrieval (IR) problem: given the source les and the di log, determine those problematic les from the source les that are relevant to the unreproducible issues. e IR model has the potential to automate the localization task. However, the localization task is challenging, due to its unique characteristics.</p><p>First, the information for locating the problematic les within the source les is very limited. e di log generated by comparing the di erent binaries, which is considered as the input of the IR process, may not be su ciently informative. We call this challenge an information barrier. In addition, there are many causes that may lead to unreproducible builds, such as embedding timestamps in les and recording le lists in non-deterministic order. e detailed issues are manually listed in Debian's documentation <ref type="bibr">[12]</ref>. Moreover, the diverse types of les in a package also add to the complexity of localizing the problematic les, which may reside in not only the source code, but also other types of les such as scripts, Make les and build con gurations. We call this challenge a diverse-cause barrier.</p><p>To break through the barriers, we propose a localization framework called RepLoc that targets the localization task in search of problematic les for unreproducible builds. Given an unreproducible package with two di erent built binaries as the input, Re-pLoc produces a list of ranked source les. RepLoc features two components that address the two aforementioned challenges. For the information barrier, we develop a ery Augmentation (QA) component that utilizes the information extracted from the build logs to enhance the quality of the queries (represented by the le names extracted from the di logs, see Section 2). For the diversecause barrier, we develop a Heuristic rule-based Filtering (HF) component. More speci cally, we propose 14 heuristic rules that are obtained by summarizing the information presented in Debian's documents. Furthermore, we employ a weighted File Ranking (FR) component to combine the QA and HF components, and build an integrated framework to automate the localization of the problematic les for unreproducible builds.</p><p>To evaluate RepLoc, we have collected a real-world dataset that consists of 671 unreproducible packages. Since these packages were later xed with patches from Debian's BTS, we know exactly which les caused the unreproducibility and thus can use the facts to evaluate the accuracy of RepLoc. If we consider the topmost ranked le only, RepLoc achieves an accuracy rate of 47.09%. If we expand the range to include top ten ranked les, the accuracy rate becomes <ref type="bibr" target="#b0">1</ref> Generated by diffoscope, h ps://di oscope.org  <ref type="table" target="#tab_1">Table 1</ref>: Snippet of altered environment variations</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Con guration</head><p>First build Second build env TZ "/usr/share/zoneinfo/Etc/GMT+12" "/usr/share/zoneinfo/Etc/GMT-14" env LANG "C" "fr CH.UTF-8" env LANGUAGE "en US:en" "fr CH:fr" env BUILDDIR "/build/1st" "/build/2nd" . . .</p><p>. . . . . .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>79.28%</head><p>. For other metrics such as precision and recall, RepLoc also outperforms the comparative approaches signi cantly. To further evaluate the e ectiveness of our approach, we use RepLoc on unreproducible packages that have never been xed before. With the help of RepLoc, we successfully identi ed the problematic les, then manually xed the unreproducible issues over three Debian packages. Moreover, the usefulness of RepLoc is examined over a di erent so ware repository (Guix <ref type="bibr" target="#b10">[11]</ref> in this study). Under the guidance of RepLoc, problematic les for three unreproducible packages from Guix are detected and xed. is paper makes the following main contributions.</p><p>• To the best of our knowledge, this is the rst work to address the localization task for unreproducible builds. • We propose an e ective framework RepLoc that integrates heuristic ltering and query augmentation. A prototype has been implemented based on the approach. • We have evaluated RepLoc on 671 unproducibile packages that were later xed in the Debian repository. e experimental results show that RepLoc is e ective. We have made the benchmarks publicly available at h ps://reploc.bitbucket.io.</p><p>• Under the guidance of RepLoc, we xed six unreproducible packages from Debian and Guix, and submi ed the patches to the BTSs of the two repositories. Among the submi ed patches, four have been accepted. e rest of this paper is organized as follows. In Section 2, we give the background of this work. Our approach is presented in Section 3, followed by experimental study in Section 4. e threats to validity and related work are described in Sections 5-6. Finally, Section 7 concludes the paper.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">BACKGROUND</head><p>Taking Debian as a typical example, <ref type="figure" target="#fig_1">Figure 2</ref> illustrates the common work ow of validating the reproducibility of packages <ref type="bibr" target="#b16">[17]</ref>.  First, the source les are compiled under two pre-de ned build environments (steps 1-2). More speci cally, the build environments are constructed by se ing up altered environment variables or so ware con gurations. For instance, within Debian's continuous integration system, 2 altered environment variables include locales, timezones, user privileges, etc. <ref type="table" target="#tab_1">Table 1</ref> presents a snippet of the altered environment (see <ref type="bibr" target="#b21">[22]</ref> for more detailed information). Two versions of binaries can be generated with respect to each environment. e two versions are then compared against each other (step 3). If they are not bit-to-bit identical, the localization of problematic les that lead to unreproducible builds is required, based on the di log and the source les (step 4). e build and the comparison procedures (steps 1-3) can easily be automated, but the localization (step 4) mainly relies on the developers. Unfortunately, manual e ort to identify the les that lead to unreproducible builds is nontrivial. As shown in <ref type="figure" target="#fig_1">Figure 2</ref>, the di logs are the major source of the information to guide the localization of the problematic les, which, unfortunately, are not always su ciently informative. <ref type="figure" target="#fig_2">Figure 3</ref> gives a snippet of the di log for dietlibc, a libc implementation optimized for small size. In the original version (0.33˜cvs20120325-6), a static library le di ers between the two versions during the build time (/usr/lib/diet/lib/libcompat.a). As shown in the di log, diffoscope indicates the di erence via the output of the GNU binary utility readelf. However, since the di content may not be well comprehensible (e.g., lines 7-8 in <ref type="figure" target="#fig_2">Figure 3</ref>), we do not leverage such information in this study. Meanwhile, <ref type="figure" target="#fig_7">Figure 4</ref> presents a snippet of a problematic le (/Makefile) and the patch that xes the issue. In <ref type="figure" target="#fig_7">Figure 4</ref>(b), line 8 indicates that the root cause of the unreproducibility lies in the non-stable order of the object les, which are fed to the ar utility to generate libcompat.a (lines 6-7 of <ref type="figure" target="#fig_7">Figure 4</ref>(a)). e di culty in this example is that, the di log may fail to provide su cient information.</p><p>ough it is possible to match the correct le with only the le   <ref type="figure" target="#fig_7">Figure 4</ref>(a), chances are that other irrelevant les containing the same le name might be matched as well. e aforementioned example illustrates how problematic les can be detected and xed. In reality there are multiple altered build con gurations and can be many corresponding causes that lead to unreproducible builds. For example, changing the timezone environment variable (env TZ) may cause the C/C++ packages that embed DATE macro to be unreproducible, and the locale environment variable (env LC *) may trigger unreproducible issues of packages that capture the text generated by programs. ese diverse unreproducible causes make the localization task di cult.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">OUR APPROACH</head><p>In this section, we discuss the details of RepLoc. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">ery Augmentation Component</head><p>e upper part of <ref type="figure">Figure 5</ref> depicts the QA component, which enriches the queried information by matching the les in the di log and the build logs, to tackle the information barrier. First, the di log is generated using diffoscope. en, the query extraction module takes the di log as the input, and generates the basic query. In this study, the basic query consists of the le names in the di log. As mentioned, due to the information barrier, the information that can be utilized to localize the problematic les is limited other than a list of les that are di erent within the two build processes. us, we enhance the quality of the queries with the build command retrieval module. e motivation for this module is that, during the build process, the build information such as the executed commands can be obtained. Moreover, based on the co-occurrence relationship between the le names in the di log and the build commands, we can identify the build commands with which the les mentioned in the di log are built. Hence, it is rational to augment the query by supplementing the build commands from the build log. <ref type="figure" target="#fig_6">Figure 6</ref> illustrates a snippet of the build log of the exemplifying package dietlibc. It can be observed that the build log is more informative and provides supplementary information with respect to the di log. More speci cally, we rst split the build log into build command segments, with respect to the "Entering/Leaving directory" tags generated by make (e.g., lines 1 and 10 of <ref type="figure" target="#fig_6">Figure 6</ref>). With this operation, the commands invoked under the same directory can be grouped together, as a le of the augmentation corpus (denoted as a command le). Note that though there are two versions of build logs with respect to the two build environments, since we are interested in the build command, the choice of either version of build log does not have an impact on the results. en, the relevant les in the corpus are obtained by utilizing an IR model. In essence, any IR model can be adopted. In this study, we employ the Vector Space Model (VSM), due to its simplicity and e ectiveness.</p><p>To realize the VSM based augmentation, we calculate the cosine similarity between basic query and the command les. erea er, the matched commands from the most relevant command les are obtained. In particular, for the VSM model, we assign weight value for each le with the TF-IDF (Term Frequency-Inverse Document Frequency) measurement, which is widely used in IR <ref type="bibr" target="#b31">[32]</ref>. In this paper, for a term t in a document d, its TF</p><formula xml:id="formula_0">-IDF t,d value is calculated based on f t,d × N n t , where f t,d</formula><p>indicates the number of t's occurrences in d, n t denotes the number of les in which t appears, and N means the number of source les. With TF-IDF de ned, each le is represented as a vector, and the cosine similarity with the basic query is used to rank the command les. where ì l • ì s represents the inner product of the basic query and the command le, and | ì l ||ì s | denotes the product of 2-norm of the vectors. A er that, the basic query and the retrieved contents, which are commands executed during the build process, are concatenated together as the enhanced query.</p><formula xml:id="formula_1">Sim( ì l, ì s) = ì l • ì s | ì l ||ì s | ,<label>(1)</label></formula><p>Running example: For dietlibc, all the le names in the di log, e.g., ./usr/lib/diet/lib/libcompat.a, are extracted as the basic query. en, within the augmentation, ar cru bin-x86 -64/libcompat.a [. . . ] (line 3 of <ref type="figure" target="#fig_6">Figure 6</ref>) and the build commands in the same command le are retrieved. Finally, the contents of the retrieved command les are appended a er the basic query, as the nal query.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">Heuristic Filtering Component</head><p>e HF component is designed to capture the problematic les by incorporating the domain knowledge, which is represented as frequently observed pa erns. In HF, the heuristic rules are constructed based on the following criteria: (1) e rules are manually constructed based on Debian's documentation <ref type="bibr" target="#b12">[13]</ref>. (2) e rules are summarized for the four major categories of unreproducible issues (see Setcion 4.2). We traverse the notes in the documentation, and capture those issues that are described as Perl Compatible Regular Expression (PCRE). For example, invoking gzip without "-n" argument could be expressed using the negative assertions feature of PCRE (rule 3 in <ref type="table" target="#tab_0">Table 2</ref>). Meanwhile, as a counterexample, the timestamps embedded in Portable Executable (PE) binaries are hard to be identi ed by heuristic rules or even by developers <ref type="bibr" target="#b19">[20]</ref>. A er manual inspection based on the criteria, we obtain 14 heuristic rules, which are presented in <ref type="table" target="#tab_0">Table 2</ref>, and described as follows:</p><p>(1) TIME MACRO: using C time preprocessing macro in source les will embed di erent timestamps when compiled at di erent times. (2) DATE MACRO: embedding C date preprocessing macro in source les is similar as the previous case. (3) GZIP ARG: if applying gzip without -n argument, timestamps will be embedded in the header of the nal compressed le.   <ref type="formula">14</ref>UNSORTED WILDCARD: using wildcard in Make les without sorting, similar with PL UNSORTED KEY.</p><p>By applying the rules over the source les (e.g., with GNU grep -r -P), we obtain a subset of les that may lead to unreproducible builds. Note that these rules equally treat the source les as plain text, rather than consider the le types (e.g., based on le extension).</p><p>e reason is that the unreproducible issues may reside in snippets or templates that do not follow le extension conventions, which are eventually embedded into unreproducible binaries. Based on such consideration, we do not sort the matched les in HF.</p><p>Running example: For dietlibc, there are in total ve problematic les, namely, /libpthread/Makefile, /libdl/Makefile, /debian/{rules, implicit}, and /Makefile. Among these les, /Makefile (see <ref type="figure" target="#fig_7">Figure 4</ref>(b)) can be captured by the UNSORTED -WILDCARD rule, in which sort does not appear before wildcard. However, we should note that there may be false alarms, e.g., for unexecuted commands or text in the comments. Consequently, HF may fail to place the matched problematic les at the top of the list.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">File Ranking Component</head><p>e motivations behind the combination of HF and QA are twofold: (1) e heuristic rules in HF focus on the static aspect of the source les, i.e., treat all the source les in a uni ed way, and capture the suspicious les that match the de ned pa erns. Such mechanism can handle various le types. Unfortunately, there may be false alarms, especially for those les unused during the build process.</p><p>(2) e build log based augmentation takes the dynamic aspect of the build process into consideration. With QA, we concentrate on the commands invoked during the build process. Hence, by combining the mechanisms, we can strengthen the visibility of the problematic les that lead to unreproducible builds.</p><p>In the FR component, these goals are realized as follows. First, with the augmented query, the relevant les are obtained with the 1, the VSM model is adopted to calculate the similarity values between the augmented query and each source le. Second, since we have acquired both the les retrieved by HF and the similarity values between source les and the augmented query, in the le ranking module, it is natural to combine these two types of information, to be er capture the problematic les. For example, we can modify Equation 1 and apply Sim to rank the source les:</p><formula xml:id="formula_2">Sim ( ì l, ì s) = (1 − α) × Sim( ì l, ì s) + α × w s ,<label>(2)</label></formula><p>where w s = 1 for those source les matched by the HF component, and w s = 0 otherwise. α ∈ [0, 1] is a weight parameter to balance the two terms, e.g., large α values make RepLoc favor the HF component. With Equation 2, the source les are ranked according to their modi ed similarity to the augmented query, and the top ranked les are returned as the nal results of RepLoc. We should note that, in this study, we adopt the le-level localization paradigm, in that the xing for many unreproducible packages is not unique. For instance, statements declaring missing environmental variables can appear anywhere in the le before it is needed. Hence, it is di cult to establish line-level ground-truth. In Algorithm 1, we present the pseudo-code of RepLoc, which combines QA (lines 2-6), HF (lines 7-10), and FR (lines 11-16) sequentially.</p><p>Running example: In <ref type="table" target="#tab_2">Table 3</ref>, we present the top ve les retrieved by RepLoc and its individual components. From the table, we can observe that without augmenting the query, FR is able to retrieve two problematic les. However, the topmost ranked le is a changelog (/CHANGES), in that the le names in the di log appear in this le. In contrast, with the query augmented, FR (with QA) is able to rank the two problematic les at the top of the list. Meanwhile, although HF is able to capture /libpthread/Makefile, the le is not assigned top rank due to other false alarms, e.g., /t.c. Finally, by combining FR, QA, and HF, RepLoc is able to locate four problematic les.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">EXPERIMENTAL RESULTS</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Research estions</head><p>In this study, we intend to systematically analyze RepLoc, by investigating the following Research estions (RQs):</p><p>• RQ1: Is RepLoc sensitive to the weighting parameter α?</p><p>• RQ2: How e ective is RepLoc?</p><p>• RQ3: How e cient is RepLoc?</p><p>• RQ4: Is RepLoc helpful in localizing un xed packages?</p><p>Among these RQs, RQ1 concentrates on the impact of the weighting scheme between the components in RepLoc. RQ2 focuses on how well RepLoc performs in terms of di erent quality metrics. RQ3 examines whether RepLoc is time consuming, and RQ4 investigates the RepLoc's generalization.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Data Preparation</head><p>In this study, the dataset is constructed by mining Debian's BTS. To the best of our knowledge, Debian is the only repository providing both past-version packages and reproducibility-related patches, which are crucial for generating the corpus and the ground truth. Consequently, all the packages within the dataset are extracted from Debian' BTS, which are tagged as unreproducible by bug reporter via debtags, i.e., the command line interface for accessing the BTS. According to Debian's documentation, there are 14 categories of reproducible issues <ref type="bibr" target="#b15">[16]</ref>. ere are also two special categories indicating the packages that fail to build from source, and the toolchain issues (non-deterministic issues introduced by other packages, see Section 5), which are not considered in this study.</p><p>We download all the 14 categories of 1716 bug reports, and download the packages, with their corresponding patches. en, we apply the validation tool kit, <ref type="bibr" target="#b2">3</ref> to obtain the corresponding di logs and build logs. In this study, we consider those categories with more than 30 packages. With such criterion, we obtain 671 packages in the dataset, which fall into the four largest categories. <ref type="figure" target="#fig_9">Figure 7</ref>(a) illustrates the statistics of the dataset. In the gure, we present the numbers of the open and closed bugs in Debian's BTS, as well as the number of packages in the dataset. Among the four categories of packages, the Timestamps category contains the most packages (462), followed by File-ordering (118), Randomness (50), and Locale <ref type="bibr" target="#b40">(41)</ref>. For all the four categories of 1491 packages that are labeled as "done", the packages in the dataset take a portion of 45.34%. Note that there are less packages in the dataset than closed bug reports, since packages may not be compilable due to the upgrade of their dependencies.</p><p>In <ref type="figure" target="#fig_9">Figure 7</ref>(b), we illustrate the statistics of the patches in the dataset. From the gure, we could observe that there are many types of les that might be involved in the unreproducible builds. For these les, the Debian rules les, which are the main build scripts, take the largest portion of the xed les (29.82%). Auxiliary les, such as the configure scripts and input les (*.in), takes the second largest portion (17.21%). A er that, there are the Make les (11.68%), scripts such as Python/Perl/PHP les (14.60%), C/C++ les (5.94%), XML les (4.80%), implicit build les (2.71%). Since we classify the les based on their le extensions heuristically, there are also 13.24% of the les that are not easy to classify, e.g, those without le extensions.</p><p>is phenomenon conforms with the second barrier mentioned in Section 1, i.e., the causes to the unreproducible builds are diverse, which makes the localization task very challenging.  </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">Implementation and Metrics</head><p>RepLoc is implemented in Perl 5.24 and Java 1.8. All the experiments are conducted on an Intel Core i7 4.20 GHz CPU server with 16 GB memory, running GNU/Linux with kernel 4.9.0. For the comparative algorithms, we consider four variants of RepLoc, since there is no prior approach addressing this problem. e rst two variants implement two baseline algorithms, which only consider either the HF or the FR model (denoted as RepLoc(HF) and RepLoc(FR)). ese two variants are incorporated to examine the performance of its building-block components. Moreover, RepLoc(FR) could be considered the simulation of the manual localization, since in FR, the retrieval is realized by matching source les with di log contents. en, RepLoc(FR+QA) considers utilizing the QA component to enhance the basic queries extracted from the di logs. Finally, RepLoc indicates the version discussed in Section 3.</p><p>To evaluate the e ectiveness of RepLoc, metrics commonly used in the IR literatures are employed to evaluate the performance of RepLoc, including the accuracy rate, the precision, the recall, and the Mean Average Precision (MAP). e metrics are computed by examining the ranked list of source les returned by the framework in response to a query. e Top-N source les in the ranked list is called the retrieved set and is compared with the relevance list to compute the Precision and Recall metrics (denoted by P@N and R@N respectively). Given an unreproducible package with problematic les, a Top-N accuracy rate score, e.g. A@1, A@5, and A@10, of a localization tool is the portion of Top-N lists a tool provides that at least one problematic le contains in it <ref type="bibr" target="#b29">[30,</ref><ref type="bibr" target="#b47">48]</ref>. In this study, we also report P@1, P@5, P@10 and R@1, R@5, R@10 <ref type="bibr" target="#b27">[28,</ref><ref type="bibr" target="#b47">48]</ref>. P@N means the portion of problematic les successfully retrieved in a Top-N list, while R@N measures how many problematic les are retrieved in a Top-N list among all the problematic les:</p><formula xml:id="formula_3">P@N = # of les that cause unreproducible builds N ,<label>(3)</label></formula><p>R@N = # retrieved problematic les in the Top-N list # of problematic les .</p><p>Precision and Recall usually share an inverse relationship, in that, the Precision is higher than Recall for lower values of N and vice versa for higher values of N . An overall metric of retrieval accuracy is known as Mean Average Precision (MAP), which is the average of the Average Precision (AP) values over all the problematic les in unreproducible packages. For an unreproducible package with several problematic les, the AP is computed as   # of les related in the patch , where M is the size of a ranking list, pos(k) indicates whether the kth le in a ranking list is related to the unreproducible build, and P@k is the precision described in Equation 3. With AP de ned, MAP can be calculated by averaging all the AP scores across all the unreproducible packages.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.4">Investigation of RQ1</head><p>In this RQ, we intend to investigate whether RepLoc is sensitive to the weighting parameter α. As described in Section 3, in Equation 2, we propose the weighted similarity between queries and source les. Hence, in this RQ, we are interested in investigating RepLoc's behavior as we alter the weight of the two components. More speci cally, for each category of dataset, we randomly select half of the packages, and a grid search from 0.1 to 0.9 with a step of 0.1 is employed to analyze the impact of varying α.</p><p>Considering the Timestamps and the Locale datasets, we visually present the trend of the A@10, P@10, R@10 and the MAP values against the α value in <ref type="figure" target="#fig_10">Figure 8</ref>. From the gure, the following observations can be drawn. First, for the randomly selected packages, the performance of RepLoc exhibits similar trend, i.e., when α is set within the range [0.2, 0.4], RepLoc obtains the best results. Second, we observe that RepLoc is not very sensitive to α, unless α is too large, which will make RepLoc prefer the HF component. Hence, for the subsequent experiments, α is set with 0.3.</p><p>Answer to RQ1: Experimental results show that, RepLoc is not very sensitive to the parameter, which to some extent demonstrates the robustness of RepLoc.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.5">Investigation of RQ2</head><p>In this RQ, we examine whether RepLoc locates the problematic les accurately. We present the experimental results, and discuss the phenomena observed. In <ref type="table" target="#tab_3">Table 4</ref>, we rst give the results over the datasets. e table is organized as follows. e rst column indicates the four categories of datasets we built in this study (see Section 4.2).</p><p>e second column represents the four variants of RepLoc. en, the rest of the table presents the metrics that evaluate the performance of each variant. Note that for the accuracy rate, the precision, and the recall, the metric values are averaged over all the packages. Besides, we also present the aggregate performance at the bo om of the table.</p><p>Taking the Timestamps dataset as an example, several interesting phenomena can be observed. First, the performance of RepLoc(HF) is not satisfying. Even considering the Top-10 results, the corresponding accuracy rate is around 70%. To examine the representativeness of the heuristic rules, in <ref type="table" target="#tab_4">Table 5</ref> we present the results of RepLoc(HF) with single rule. We report the A@10, P@10, R@10, and MAP of the ve rules that perform the best. Among the rules, the GZIP ARG rule achieves the highest accuracy rate. However, the A@10 value is below 30%, which is signi cantly outperformed by RepLoc(HF) that considers all the rules. Similar observations could be drawn for other performance metrics, which to some extent con rms the diverse-cause barrier.</p><p>Second, by comparing the results of RepLoc(FR+QA) against RepLoc(FR) in <ref type="table" target="#tab_3">Table 4</ref>, we can con rm the usefulness of QA. As <ref type="figure">Figure 9</ref>: Trends of precision and recall of RepLoc mentioned, RepLoc(FR) could be loosely considered the simulation of manual localization, which tries to match the problematic les with the di log contents. Over the Timestamps dataset, A@10 of RepLoc(FR) is 71.21%. With the augmentation of the query, A@10 improves to 76.41%. Moreover, when we combine RepLoc(FR+QA) with HF, the performance is further improved, i.e., A@10 of RepLoc achieves 82.90%, which implies that for over 80% of the unreproducible packages in the Timestamps dataset, at least one problematic le is located in the Top-10 list. Besides, similar results are obtained over the other datasets, i.e., RepLoc(HF) and RepLoc(FR) perform the worst, RepLoc(FR+QA) outperforms RepLoc(FR) considering the A@10 value, and RepLoc performs the best.</p><p>Associated with <ref type="table" target="#tab_3">Table 4</ref>, we also conduct statistical tests, to draw con dent conclusions whether one algorithm outperforms the other. For the statistical test, we employ the Wilcoxon's signed rank test, with a null hypothesis stating that there exists no difference between the results of the algorithms in comparison. We consider the 95% con dence level (i.e., p-values below 0.05 are considered statistically signi cant), and adopt the P@10 and R@10 as the performance metrics. We do not consider the accuracy rate and the MAP metrics, in that these are aggregate metrics. Over all the instances, when comparing RepLoc with any of the other three baseline variants, the null hypothesis is rejected (p-value &lt; 0.05 for both P@10 and R@10), which implies that RepLoc outperforms their baseline variants in a statistically signi cant way.</p><p>To gain more insights into the behavior of RepLoc, we present the performance of the four variants against the number of retrieved results in <ref type="figure">Figure 9</ref>, over typical datasets. In the gure, the x-axis and the y-axis indicate the number of retrieved les, and the performance metrics. From the sub-gures, we con rm that over both the datasets, RepLoc outperforms the other variants signi cantly, i.e., the performance curves for RepLoc lie above those for other variants, which implies that for all the cases of the retrieved results, combining the two components is able to obtain be er results. is phenomenon conforms with our observations in <ref type="table" target="#tab_3">Table 4</ref>.</p><p>Answer to RQ2: By comparing the variants of RepLoc over 671 real world packages, we con rm that by combining the heuristic </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.6">Investigation of RQ3</head><p>In this RQ, we evaluate RepLoc from the e ciency perspectives. Since manually localizing the unreproducible issues is a time consuming task, automating such process is pro table only if the proposed approach is time e cient. Hence, we present the time statistics of the experiments. <ref type="figure" target="#fig_0">Figure 10</ref> depicts the statistics of the source les as histograms, in which the x-axis indicates the number of source les ( leNum) and the words (wordNum), and the y-axis represents the associated frequency. In this study, the number of les ranges within <ref type="bibr" target="#b5">[6,</ref><ref type="bibr">19890]</ref>, and the number of words for the majority of the packages ranges around 1 × 10 4 , which implies that manually inspecting the les would be di cult.</p><p>Since the scale of the packages in this study varies greatly, it is intuitive that the localization process over di erent packages will vary accordingly. To investigate this issue, we present the results related to time e ciency considering the three variants of RepLoc. In <ref type="figure" target="#fig_0">Figure 11</ref>, we illustrate the distributions of the dataset scalability and the execution time. In the sub-gures, the x-axis indicates the time in seconds, and the y-axis represents the frequency. From the results, we observe that, the indexing of the documents consumes the largest portion of time, compared with other components. In particular, the median of the execution time for RepLoc is 5.14 seconds.</p><p>Answer to RQ3: In this RQ, we investigate the e ciency perspectives of RepLoc. In this study, the indexing of the document consume the majority of the time.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.7">Investigation of RQ4</head><p>For RQ1-RQ3, to evaluate the performance of RepLoc properly, we employ the packages that have been xed, and adopt the patches from the BTS as the ground truth. However, in the real-world traversed. Such observation to some extent demonstrates the usefulness of RepLoc in leveraging the knowledge from Debian to a di erent repository such as Guix. A er localizing the problematic le and manually xing, the submi ed patch has been accepted and pushed into the code base of Guix <ref type="bibr" target="#b9">[10]</ref>. Similarly, the patches for djvulibre <ref type="bibr" target="#b7">[8]</ref> and libjpeg-turbo <ref type="bibr" target="#b8">[9]</ref> have also been accepted.</p><p>Answer to RQ4: We demonstrate that RepLoc is helpful in localizing un xed unreproducible packages from both Debian and Guix. In particular, unreproducible issues of 6 packages from both repositories are xed under the guidance of RepLoc, which have not been xed before this study.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">THREATS TO VALIDITY</head><p>ere are several objections a critical reader might raise to the evaluation presented in this study, among which the following two threats deserve special a ention.</p><p>First, in this study, the heuristic rules in HF are summarized from Debian's documentation. Also, we leverage the build log gathered from the build process. Hence, some may argue that the approach cannot be generalized to other so ware repositories because it relies too much on Debian's infrastructure. To mitigate this threat, in RepLoc, a ention is paid so that the components are not specialized for Debian. For example, despite knowing that the Debian rules les take the largest portion of the problematic les (see <ref type="figure" target="#fig_9">Figure 7</ref>(b)), no extra priority is given to these les during ranking. Also, in HF, we avoid using heuristic rules speci c to Debian, and intend to make the rules as general as possible. For instance, UNSORTED WILDCARD is applicable for Make le based build systems, and GZIP ARG is helpful if gzip-based compression is involved. As a result, the results of this study can be generalized to other repositories. As demonstrated in RQ4, we have successfully applied RepLoc to Guix. For other repositories, applying RepLoc should only require minor adaptation. For example, for the Fedora project, the build log can be gathered by parsing the verbose output of the mock build tool, and the di log could be generated by diffoscope as well.</p><p>Second, when constructing the datasets, the unreproducible packages caused by the tool-chain issues are not considered. For these packages, the unreproducible issues are introduced by the depended packages rather than the current package. Hence, identi cation of the tool-chain issues is another challenging task that requires further manual investigation <ref type="bibr" target="#b6">[7]</ref>. Besides, we should note that xing the tool-chain issues may help make more packages reproducible.</p><p>For example, when reproducible-related patches were accepted by gcc from upstream, around 200 unreproducible packages that depended on gcc became reproducible automatically <ref type="bibr" target="#b17">[18]</ref>. We plan to explore the tool-chain issues in the future.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6">RELATED WORK 6.1 Bug Localization Related Work</head><p>First, this study is closely related to the fault localization studies, especially the IR-based approaches.</p><p>For example, Zhou et al. <ref type="bibr" target="#b48">[49]</ref> proposed a specialized VSM based approach, and consider the similarities between bug reports to localize buggy les. Wang et al. <ref type="bibr" target="#b43">[44]</ref> propose a compositional model that integrates multiple variants of VSM. In particular, they model the composition of di erent VSM variants as a optimization problem, and apply a genetic algorithm to search for the suitable composition pa ern between VSM variants. Wang et al. <ref type="bibr" target="#b41">[42]</ref> investigate the usefulness of IR-based fault localization techniques, and discover that the quality of the bug reports are crucial to the performance of localization tasks.</p><p>Meanwhile, domain knowledge is utilized to improve the performance of IR-based bug localization techniques. Ye et al. <ref type="bibr" target="#b47">[48]</ref> nd bug-xing frequency and bug-xing recency of source code les are helpful for bug localization. Saha et al. <ref type="bibr" target="#b37">[38]</ref> nd the structure of bug reports and source code les are also good knowledge for bug localization. ey consider bug reports or source code les as documents with structured elds, e.g., summary and description, or le name, class name, and method name, respectively. Stacktrace information in bug report is also analyzed <ref type="bibr" target="#b32">[33,</ref><ref type="bibr" target="#b45">46]</ref> to improve the performance of bug localization. Besides, version histories <ref type="bibr" target="#b38">[39,</ref><ref type="bibr" target="#b39">40,</ref><ref type="bibr" target="#b42">43]</ref> and similar bug reports <ref type="bibr" target="#b23">[24]</ref> are proved to be useful.</p><p>Besides, with the development of IR techniques, other text mining methodologies are also incorporated to support locating buggy les. For example, due to its e ectiveness, Latent Dirichlet Allocation (LDA) has gained its popularity in the eld of bug localization. Lukins et al. <ref type="bibr" target="#b30">[31]</ref> propose a static LDA-based technique for automatic bug localization. Lam et al. <ref type="bibr" target="#b28">[29]</ref> propose a localization framework HyLoc that combines deep learning and IR-based model. ey integrate deep neural network and a VSM variant, to complement the two standalone components. Experimental results over real world projects demonstrate that their proposed model outperforms the individual models. Rao et al. <ref type="bibr" target="#b34">[35]</ref> propose an incremental framework to update the model parameters of the Latent Semantic Analysis, which is then applied to localize buggy les. Experiments over so ware libraries with ten years of version history validate their framework.</p><p>However, despite the closeness to these studies, we should note that the problem in this study has its unique features. For example, the counterpart of the bug reports in IR-based fault localization, i.e., the di logs, are not su ciently informative to guide the retrieval.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.2">Reproducible Build Related Work</head><p>To the best of our knowledge, there have not been studies on localizing les that cause unreproducible builds. However, there have been studies that address the importance of reproducible builds. For example, Wheeler <ref type="bibr" target="#b44">[45]</ref> describes a practical technique named diverse double compiling. By compiling the source les twice with di erent compilers, and verifying the compiled binaries, certain types of malicious a acks can be detected and prevented. According to Debian's documentation, this work partially motivates the reproducible builds practice <ref type="bibr" target="#b14">[15]</ref>. Holler et al. <ref type="bibr" target="#b25">[26]</ref> investigate the diverse compilation under embedded system, and experimentally quantify the e ciency of diverse compiling for so ware fault tolerance. Carnavalet and Mannan <ref type="bibr" target="#b24">[25]</ref> conduct an empirical study, focusing on the reproducible builds in the context of security-critical so ware. Based on the experiments on the encryption tool TrueCrypt, they summarize the challenges of reproducibility in practice. Ruiz et al. <ref type="bibr" target="#b35">[36]</ref> address the reproducibility in cloud computing. ey adopt the term reconstructable so ware, and propose a prototype to simplify the creation of reliable distributed so ware.</p><p>In this study, we focus on the localization task for unreproducible builds, which has not been addressed in the existing studies.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7">CONCLUSIONS</head><p>In this study, we investigate the localization task for unreproducible builds. We present components that consider heuristic knowledge, similarity based information, as well as their integration as Re-pLoc. For empirical validation, we create four categories of publicly available datasets with 671 unreproducible packages from Debian. Extensive experiments reveal that RepLoc is able to e ectively localize the les that lead to unreproducible builds. Furthermore, with the help of RepLoc, we successfully identi ed and xed 6 new unreproducible packages from Debian and Guix.</p><p>For the future work, we are interested in the localization of problematic les for the tool-chain related issues. Also, inspired by the record-and-play techniques <ref type="bibr" target="#b33">[34]</ref> from the crash reproduction based debugging research <ref type="bibr" target="#b26">[27,</ref><ref type="bibr" target="#b46">47]</ref>, it would be interesting to leverage these techniques to detect more accurate correspondence between the build commands executed and the built binaries.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 :</head><label>1</label><figDesc>Reproducibility status of Debian unstable for AMD64</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 2 :</head><label>2</label><figDesc>Reproducibility validation work ow</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 3 :</head><label>3</label><figDesc>Di log snippet for dietlibc</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head></head><label></label><figDesc>2 h ps://jenkins.debian.net (a) Make le snippet (b) Patch snippet</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Figure 4 :Figure 5 :</head><label>45</label><figDesc>Make le and patch snippet for dietlibc e RepLoc Framework name, i.e., line 6 of</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head></head><label></label><figDesc>Figure 5depicts the work ow of RepLoc that consists of three components QA, HF, and FR. For each component, we shall explain its design and implementation, companioned with the intermediate results over the running example dietlibc.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_6"><head>Figure 6 :</head><label>6</label><figDesc>Build log snippet for dietlibc</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_7"><head>( 4 )</head><label>4</label><figDesc>DATE CMD: capturing the current date with the date shell command. (5) PY DATE: obtaining date time in Python scripts. (6) PL LOCALTIME: obtaining date time in Perl scripts. (7) SYSTEM DATE: recording system time in the compiled binary. (8) DATE IN TEX: embedding date in TeX les, which in uences the built pdf les. (9) SORT IN PIPE: execute sort in pipeline without locale se ing. (10) GMTIME: obtaining current date time. (11) TAR GZIP PIPE: execute tar and gzip in pipeline.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_8"><head></head><label></label><figDesc>e tool kit realizes steps 1-3 of Figure 2, available at h ps://anonscm.debian.org/ cgit/reproducible/misc.git (a) Number of packages (b) Problematic le types</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_9"><head>Figure 7 :</head><label>7</label><figDesc>File statistics of the dataset</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_10"><head>Figure 8 :</head><label>8</label><figDesc>Impact of varying α M k =1 P @k×pos(k )</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_11"><head>Figure 10 :Figure 11 :</head><label>1011</label><figDesc>Histogram for scale statistics Histogram for e ciency evaluation rule-based lter and the query augmentation, RepLoc is able to outperform its variants.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head>Table 2 :</head><label>2</label><figDesc>Heuristic rule set LS WITHOUT LOCALEˆ. *\$\(. *( . *LC ALL=). *\s*\bls\b UNSORTED WILDCARD (ˆ( . *sort). *\s*\bwildcard\b)</figDesc><table><row><cell>ID Rule</cell><cell>PCRE statement</cell></row><row><cell>TIME MACRO</cell><cell>TIME</cell></row><row><cell>DATE MACRO</cell><cell>DATE</cell></row><row><cell>GZIP ARG</cell><cell>\bgzip\s( . *-[a-z9]*n)</cell></row><row><cell>DATE CMD</cell><cell>(\$\(date) |(\$\(shell\s*date) |(\`date)</cell></row><row><cell>PY DATE</cell><cell>datetime\.datetime\.today</cell></row><row><cell>PL LOCALTIME</cell><cell>\$\. *localtime</cell></row><row><cell>SYSTEM DATE</cell><cell>system.*date</cell></row><row><cell>DATE IN TEX</cell><cell>\\date. *\\today</cell></row><row><cell cols="2">SORT IN PIPEˆ. *\ |'( . *LC ALL=). *\s*sort\b</cell></row><row><cell>GMTIME</cell><cell>gmtime\(</cell></row><row><cell>TAR GZIP PIPE</cell><cell>\btar\b. *\ |\s*\bgzip\b</cell></row><row><cell>PL UNSORTED KEY</cell><cell>(ˆ( . *sort). *\s*keys\s*%)</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>Algorithm 1 :</head><label>1</label><figDesc>RepLoc Input: binary package rst, binary package second, weight α Output: candidate le list result for each source le s do if s is matched by any rule in Table 2 then list ← list ∪ {s } Calculate Sim with respect to Equation 2 PL UNSORTED KEY: traversing unsorted hash keys in Perl script does not guarantee identical order. (13) LS WITHOUT LOCALE : capturing ls without locale se ing is similar with SORT IN PIPE.</figDesc><table><row><cell cols="2">1 begin</cell></row><row><cell></cell><cell>// Query Augmentation</cell></row><row><cell>2</cell><cell>log ← diffoscope( rst, second)</cell></row><row><cell>3</cell><cell>query ← parse log(log)</cell></row><row><cell>4</cell><cell>command les ← parse build log(build log)</cell></row><row><cell>5</cell><cell>relevant command ← retrieve relevant(query, command les)</cell></row><row><cell>6</cell><cell>augmented ← concatenate(query, relevant commant)</cell></row><row><cell></cell><cell>// Heuristic Filtering</cell></row><row><cell>7</cell><cell>l ist ← ∅</cell></row><row><cell>10</cell><cell>end</cell></row><row><cell></cell><cell>// File Ranking</cell></row><row><cell>11</cell><cell>for each source le s do</cell></row><row><cell></cell><cell>if s ∈ list then w s ← 1</cell></row><row><cell>13</cell><cell>else w s ← 0</cell></row><row><cell>15</cell><cell>end</cell></row><row><cell>16</cell><cell>return sort(source les, score)</cell></row><row><cell>17 end</cell><cell></cell></row><row><cell>(12)</cell><cell></cell></row></table><note>814 scores ←</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_2"><head>Table 3 :</head><label>3</label><figDesc>Files retrieved by RepLoc and its components over dietlibc, with successful hits in bold</figDesc><table><row><cell>Rank</cell><cell>FR (without QA)</cell><cell>Rank</cell><cell>FR (with QA)</cell></row><row><cell cols="2">/CHANGES</cell><cell cols="2">/debian/rules</cell></row><row><cell cols="2">/debian/rules</cell><cell cols="2">/Make le</cell></row><row><cell cols="2">/Make le</cell><cell cols="2">/CHANGES</cell></row><row><cell cols="2">/debian/control</cell><cell cols="2">/debian/patches/0005-[. . . ].di</cell></row><row><cell>/FAQ</cell><cell></cell><cell>/diet.c</cell><cell></cell></row><row><cell>Rank</cell><cell>HF</cell><cell>Rank</cell><cell>RepLoc</cell></row><row><cell>/t.c</cell><cell></cell><cell cols="2">/debian/rules</cell></row><row><cell cols="2">2 /debian/implicit</cell><cell cols="2">2 /Make le</cell></row><row><cell cols="4">3 /debian/dietlibc-dev.postinst.in /CHANGES</cell></row><row><cell cols="2">/debian/rules</cell><cell cols="2">/libpthread/Make le</cell></row><row><cell cols="2">/libugly/gmtime.c</cell><cell cols="2">/libdl/Make le</cell></row></table><note>source le retrieval module. Similar as in Section 3.</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_3"><head>Table 4 :</head><label>4</label><figDesc>Comparison results between RepLoc and its variants</figDesc><table><row><cell>Dataset</cell><cell>Model</cell><cell>A@1</cell><cell>A@5</cell><cell>A@10</cell><cell>P@1</cell><cell>P@5</cell><cell>P@10</cell><cell>R@1</cell><cell>R@5</cell><cell>R@10</cell><cell>MAP</cell></row><row><cell></cell><cell>RepLoc(HF)</cell><cell>0.4048</cell><cell>0.6775</cell><cell>0.7229</cell><cell>0.4048</cell><cell>0.1511</cell><cell>0.0835</cell><cell>0.3587</cell><cell>0.6222</cell><cell>0.6682</cell><cell>0.3522</cell></row><row><cell>Timestamps</cell><cell>RepLoc(FR) RepLoc(FR+QA)</cell><cell>0.3160 0.4762</cell><cell>0.5736 0.6753</cell><cell>0.7121 0.7641</cell><cell>0.3160 0.4762</cell><cell>0.1268 0.1511</cell><cell>0.0807 0.0883</cell><cell>0.2821 0.4155</cell><cell>0.5253 0.6177</cell><cell>0.6553 0.7102</cell><cell>0.2777 0.4009</cell></row><row><cell></cell><cell>RepLoc</cell><cell cols="10">0.5238 0.7792 0.8290 0.5238 0.1792 0.0991 0.4538 0.7295 0.7839 0.4400</cell></row><row><cell></cell><cell>RepLoc(HF)</cell><cell>0.3136</cell><cell>0.4407</cell><cell>0.4576</cell><cell>0.3136</cell><cell>0.0983</cell><cell>0.0534</cell><cell>0.2653</cell><cell>0.3968</cell><cell>0.4197</cell><cell>0.2528</cell></row><row><cell>File-ordering</cell><cell>RepLoc(FR) RepLoc(FR+QA)</cell><cell>0.1525 0.3814</cell><cell>0.5169 0.6780</cell><cell>0.6949 0.7627</cell><cell>0.1525 0.3814</cell><cell>0.1085 0.1492</cell><cell>0.0729 0.0864</cell><cell>0.1215 0.3040</cell><cell>0.4427 0.5978</cell><cell>0.6150 0.6856</cell><cell>0.1136 0.2804</cell></row><row><cell></cell><cell>RepLoc</cell><cell cols="10">0.4492 0.7288 0.7966 0.4492 0.1661 0.0966 0.3774 0.6506 0.7331 0.3572</cell></row><row><cell></cell><cell>RepLoc(HF)</cell><cell>0.1000</cell><cell>0.2200</cell><cell>0.2600</cell><cell>0.1000</cell><cell>0.0480</cell><cell>0.0280</cell><cell>0.0850</cell><cell>0.2100</cell><cell>0.2500</cell><cell>0.0813</cell></row><row><cell>Randomness</cell><cell cols="2">RepLoc(FR) RepLoc(FR+QA) 0.2200 0.1000</cell><cell>0.3000 0.3200</cell><cell>0.4800 0.4200</cell><cell>0.1000 0.2200</cell><cell>0.0640 0.0680</cell><cell>0.0500 0.0460</cell><cell>0.1000 0.2100</cell><cell>0.3000 0.3050</cell><cell>0.4650 0.4100</cell><cell>0.1000 0.2050</cell></row><row><cell></cell><cell>RepLoc</cell><cell>0.2000</cell><cell cols="2">0.4200 0.5000</cell><cell>0.2000</cell><cell cols="2">0.0880 0.0540</cell><cell>0.1900</cell><cell cols="2">0.4050 0.4900</cell><cell>0.1854</cell></row><row><cell></cell><cell>RepLoc(HF)</cell><cell>0.0976</cell><cell>0.3171</cell><cell>0.3659</cell><cell>0.0976</cell><cell>0.0634</cell><cell>0.0366</cell><cell>0.0976</cell><cell>0.3049</cell><cell>0.3415</cell><cell>0.0976</cell></row><row><cell>Locale</cell><cell>RepLoc(FR) RepLoc(FR+QA)</cell><cell>0.1463 0.2439</cell><cell>0.2439 0.4146</cell><cell>0.4634 0.5610</cell><cell>0.1463 0.2439</cell><cell>0.0488 0.0829</cell><cell>0.0463 0.0561</cell><cell>0.1463 0.2317</cell><cell>0.2317 0.4024</cell><cell>0.4512 0.5488</cell><cell>0.1494 0.2256</cell></row><row><cell></cell><cell>RepLoc</cell><cell cols="10">0.2683 0.5122 0.7317 0.2683 0.1024 0.0732 0.2561 0.5000 0.7195 0.2500</cell></row><row><cell></cell><cell>RepLoc(HF)</cell><cell>0.3472</cell><cell>0.5797</cell><cell>0.6200</cell><cell>0.3472</cell><cell>0.1288</cell><cell>0.0712</cell><cell>0.3059</cell><cell>0.5324</cell><cell>0.5734</cell><cell>0.2990</cell></row><row><cell>Overall</cell><cell>RepLoc(FR) RepLoc(FR+QA)</cell><cell>0.2608 0.4262</cell><cell>0.5231 0.6334</cell><cell>0.6766 0.7258</cell><cell>0.2608 0.4262</cell><cell>0.1142 0.1404</cell><cell>0.0750 0.0829</cell><cell>0.2320 0.3694</cell><cell>0.4760 0.5777</cell><cell>0.6216 0.6736</cell><cell>0.2278 0.3544</cell></row><row><cell></cell><cell>RepLoc</cell><cell cols="10">0.4709 0.7273 0.7928 0.4709 0.1654 0.0937 0.4087 0.6774 0.7491 0.3949</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_4"><head>Table 5 :</head><label>5</label><figDesc>Result of RepLoc(HF), with single heuristic rule</figDesc><table><row><cell>ID Rule</cell><cell>A@10</cell><cell>P@10</cell><cell>R@10</cell><cell>MAP</cell></row><row><cell>GZIP ARG</cell><cell cols="4">0.2981 0.0341 0.2823 0.1864</cell></row><row><cell>DATE CMD</cell><cell cols="4">0.2191 0.0253 0.1878 0.1250</cell></row><row><cell cols="5">UNSORTED WILDCARD 0.1058 0.0112 0.0968 0.0578</cell></row><row><cell>LS WITHOUT LOCALE</cell><cell cols="4">0.0671 0.0072 0.0428 0.0247</cell></row><row><cell>SORT IN PIPE</cell><cell cols="4">0.0387 0.0039 0.0351 0.0261</cell></row></table><note></note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>ACKNOWLEDGEMENTS</head><p>is work is supported in part by the National Natural Science Foundation of China under Grants 61772107, 61722202, 61502345, and 61403057, and in part by the Fundamental Research Funds for the Central Universities under Grant DUT16RC(4)62.</p></div>
+			</div>
+
+			<div type="annex">
+<div xmlns="http://www.tei-c.org/ns/1.0"><p>First, we are interested in whether RepLoc could be generalized to un xed packages, which are obtained from the continuous integration system of Debian. We also check the BTS, to ensure that the packages have not been xed. We apply RepLoc to localize the problematic les, and then manually check and x the unreproducible issues. rough localization and xing, 3 unreproducible packages belonging to the Timestamps category are xed, i.e., regina-rexx (3.6-2), fonts-uralic (0.0.20040829-5), and manpages-tr (1.0.5.1-2). We submit the corresponding patches to the BTS <ref type="bibr" target="#b2">[3]</ref><ref type="bibr" target="#b3">[4]</ref><ref type="bibr" target="#b4">[5]</ref>, and the one for fonts-uralic has been accepted.</p><p>For these packages, the problematic les are ranked among the top of the retrieved list by RepLoc. For example, in <ref type="table">Table 6</ref>, we present the results over the package manpages-tr. e table is organized similarly as <ref type="table">Table.</ref> 3. From the table, we observe that RepLoc is able to localize problematic les e ectively, i.e., the problematic les are ranked the rst in the result. e package is unreproducible due to the invocation of gzip without "-n", and the issue can be captured by the GZIP ARG rule in "/source/manderle.sh". However, since the heuristic rules fail to capture the dynamic aspect of the build process, a le ("/source/man1/gzip.1.xml") unused during compilation is also retrieved. In contrast, with FR and QA, we concentrate on the les involved by the build process. By combining both the static (HF) and the dynamic (HF and QA) perspectives, the problematic le is ranked the rst of the list with higher probability.</p><p>Second, we consider the packages from the Guix repository, to investigate whether the knowledge obtained from Debian could be generalized to other repositories. e reasons we choose Guix are that, (1) the repository is interested in the reproducible builds practice <ref type="bibr" target="#b22">[23]</ref>, and (2) its package manager provides the functionality of validating package reproducibility locally, which facilitates the experimental design. As a demonstration, we localize and manually x the problematic les of 3 packages, namely libjpeg-turbo (1.5.2), djvulibre (3.5.27), and skalibs (2.3.10.0). Similar with the previous case, the patches were submi ed to Guix's BTS <ref type="bibr" target="#b7">[8]</ref><ref type="bibr" target="#b8">[9]</ref><ref type="bibr" target="#b9">[10]</ref>. Taking skalibs as an example, we present the results of the variants of RepLoc in <ref type="table">Table 7</ref>. From the table, we could observe that the problematic le "/Makefile" is assigned the top rank. Contrarily, without RepLoc, over 900 source les have to be manually </p></div>			</div>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<title level="m" type="main">Protecting our customers from XcodeGhost</title>
+		<ptr target="ps://www.reeye.com/blog/executive-perspective/2015/09/protectingourcusto.html" />
+		<imprint>
+			<date type="published" when="2015-09" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<monogr>
+		<title level="m" type="main">Debian bug report logs -#773916: libical. h ps://bugs.debian.org/cgi-bin/ bugreport.cgi?bug=773916</title>
+		<imprint>
+			<date type="published" when="2017-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title/>
+		<ptr target="manpages-tr.hps://bugs.debian.org/cgi-bin/bugreport.cgi?bug=854293" />
+	</analytic>
+	<monogr>
+		<title level="j">Debian bug report logs -#</title>
+		<imprint>
+			<biblScope unit="volume">854293</biblScope>
+			<date type="published" when="2017-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title/>
+		<ptr target="regina-rexx.hps://bugs.debian.org/cgi-bin/bugreport.cgi?bug=854294" />
+	</analytic>
+	<monogr>
+		<title level="j">Debian bug report logs -#</title>
+		<imprint>
+			<biblScope unit="volume">854294</biblScope>
+			<date type="published" when="2017-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<monogr>
+		<title level="m" type="main">Debian bug report logs -#854362: fonts-uralic. h ps://bugs.debian.org/ cgi-bin/bugreport.cgi?bug=854362</title>
+		<imprint>
+			<date type="published" when="2017-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<monogr>
+		<title level="m" type="main">Debian packaging/source package. h ps://wiki.debian.org/Packaging/ SourcePackage</title>
+		<imprint>
+			<date type="published" when="2017-02" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<monogr>
+		<title level="m" type="main">Fixing a toolchain package. h ps://reproducible-builds.org/contribute</title>
+		<imprint>
+			<date type="published" when="2017-01" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<title level="m" type="main">GNU bug report logs -#28015: djvulibre</title>
+		<ptr target="//debbugs.gnu.org/cgi/bugreport.cgi?bug=28015" />
+		<imprint>
+			<date type="published" when="2017-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<monogr>
+		<title level="m" type="main">GNU bug report logs -#28016: libjpeg-turbo</title>
+		<ptr target="//debbugs.gnu.org/cgi/bugreport.cgi?bug=28016" />
+		<imprint>
+			<date type="published" when="2017-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<monogr>
+		<title level="m" type="main">GNU bug report logs -#28017: skalibs</title>
+		<ptr target="//debbugs.gnu.org/cgi/bugreport.cgi?bug=28017" />
+		<imprint>
+			<date type="published" when="2017-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<monogr>
+		<title level="m" type="main">Guix System Distribution</title>
+		<ptr target="ps://www.gnu.org/soware/guix/" />
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Known issues related to reproducible builds</title>
+	</analytic>
+	<monogr>
+		<title level="m">/tests. reproducible-builds.org/index issues.html</title>
+		<imprint>
+			<date type="published" when="2017-07" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<title level="m" type="main">Notes on build reproducibility of Debian packages</title>
+		<ptr target="//anonscm.debian.org/git/reproducible/notes.git." />
+		<imprint>
+			<date type="published" when="2017-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<monogr>
+		<title level="m" type="main">Overview of reproducible builds for packages in unstable for amd64. h ps://tests.reproducible-builds.org/debian/unstable/index suite amd64 stats.html</title>
+		<imprint>
+			<date type="published" when="2017-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<monogr>
+		<title level="m" type="main">Reproducible builds. h ps://reproducible-builds.org</title>
+		<imprint>
+			<date type="published" when="2017-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<monogr>
+		<title level="m" type="main">Reproducible builds bugs led. h ps://tests.reproducible-builds.org/debian/ index bugs.html</title>
+		<imprint>
+			<date type="published" when="2017-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<monogr>
+		<title level="m" type="main">Reproducible Builds Experimental Toolchain. h ps://wiki.debian.org/ ReproducibleBuilds/ExperimentalToolchain</title>
+		<imprint>
+			<date type="published" when="2017-02" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<title level="m" type="main">Reproducible builds: week 54 in Stretch cycle</title>
+		<ptr target="//reproducible.alioth.debian.org/blog/posts/54/." />
+		<imprint>
+			<date type="published" when="2017-10" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<monogr>
+		<title level="m" type="main">Reproducible builds: who&apos;s involved. h ps://reproducible-builds.org/who</title>
+		<imprint>
+			<date type="published" when="2017-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title/>
+		<ptr target="ps://wiki.debian.org/ReproducibleBuilds/TimestampsInPEBinaries." />
+	</analytic>
+	<monogr>
+		<title level="j">Timestamps In PE Binaries. h</title>
+		<imprint>
+			<date type="published" when="2017-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<monogr>
+		<title level="m" type="main">Validating Your Version of Xcode. h ps://electricnews.fr/ validating-your-version-of-xcode</title>
+		<imprint>
+			<date type="published" when="2017-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<monogr>
+		<title level="m" type="main">Variations introduced when testing Debian packages. h ps://tests. reproducible-builds.org/debian/index variations.html</title>
+		<imprint>
+			<date type="published" when="2017-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<monogr>
+		<title level="m" type="main">Reproducible builds: a means to an end</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ludovic</forename><surname>Courtès</surname></persName>
+		</author>
+		<ptr target="ps://www.gnu.org/soware/guix/news/reproducible-builds-a-means-to-an-end.html" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Using bug report similarity to enhance bug localisation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Steven</forename><surname>Davies</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marc</forename><surname>Roper</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Murray</forename><surname>Wood</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Reverse Engineering (WCRE), 2012 19th Working Conference on</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="125" to="134" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">Challenges and Implications of Veri able Builds for Security-critical Open-source So ware</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xavier</forename><surname>De Carné De</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Carnavalet</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mohammad</forename><surname>Mannan</surname></persName>
+		</author>
+		<idno type="DOI">10.1145/2664243.2664288</idno>
+		<ptr target="//dx.doi.org/10.1145/2664243.2664288" />
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 30th Annual Computer Security Applications Conference (ACSAC &apos;14)</title>
+		<meeting>the 30th Annual Computer Security Applications Conference (ACSAC &apos;14)<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="16" to="25" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Evaluation of diverse compiling for so ware-fault detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrea</forename><surname>Höller</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nermin</forename><surname>Kajtazovic</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tobias</forename><surname>Rauter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kay</forename><surname>Römer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christian</forename><surname>Kreiner</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2015 Design, Automation &amp; Test in Europe Conference &amp; Exhibition. EDA Consortium</title>
+		<meeting>the 2015 Design, Automation &amp; Test in Europe Conference &amp; Exhibition. EDA Consortium</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="531" to="536" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Replay Debugging: Leveraging Record and Replay for Program Debugging</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nima</forename><surname>Honarmand</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Josep</forename><surname>Torrellas</surname></persName>
+		</author>
+		<ptr target="//dl.acm.org/citation.cfm?id=2665671.2665737" />
+	</analytic>
+	<monogr>
+		<title level="m">Proceeding of the 41st Annual International Symposium on Computer Architecuture (ISCA &apos;14)</title>
+		<meeting>eeding of the 41st Annual International Symposium on Computer Architecuture (ISCA &apos;14)<address><addrLine>Piscataway, NJ, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>IEEE Press</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="445" to="456" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Potential biases in bug localization: Do they ma er</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pavneet</forename><surname>Singh Kochhar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yuan</forename><surname>Tian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Lo</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 29th ACM/IEEE international conference on Automated so ware engineering</title>
+		<meeting>the 29th ACM/IEEE international conference on Automated so ware engineering</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="803" to="814" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">Combining Deep Learning with Information Retrieval to Localize Buggy Files for Bug Reports (N)</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">An</forename><forename type="middle">Ngoc</forename><surname>Lam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Anh</forename><forename type="middle">Tuan</forename><surname>Nguyen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Anh</forename><surname>Hoan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tien N</forename><surname>Nguyen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Nguyen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">30th IEEE/ACM International Conference on. IEEE</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="476" to="481" />
+		</imprint>
+	</monogr>
+	<note>Automated So ware Engineering (ASE)</note>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Learning to rank for information retrieval and natural language processing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hang</forename><surname>Li</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Synthesis Lectures on Human Language Technologies</title>
+		<imprint>
+			<biblScope unit="volume">7</biblScope>
+			<biblScope unit="page" from="1" to="121" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Bug localization using latent Dirichlet allocation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Stacy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Lukins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Nicholas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Letha</forename><forename type="middle">H</forename><surname>Kra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Etzkorn</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Technology</title>
+		<imprint>
+			<biblScope unit="volume">52</biblScope>
+			<biblScope unit="page" from="972" to="990" />
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<monogr>
+		<title level="m" type="main">Introduction to information retrieval</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Christopher</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Prabhakar</forename><surname>Manning</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Raghavan</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2008" />
+			<publisher>Cambridge university press Cambridge</publisher>
+			<biblScope unit="volume">1</biblScope>
+		</imprint>
+	</monogr>
+	<note>Hinrich Schütze, and others</note>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Automatically Discovering, Reporting and Reproducing Android Application Crashes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kevin</forename><surname>Moran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mario</forename><forename type="middle">Linares</forename><surname>Vásquez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Carlos</forename><surname>Bernal-Cárdenas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christopher</forename><surname>Vendome</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Denys</forename><surname>Poshyvanyk</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2016 IEEE International Conference on So ware Testing, Veri cation and Validation</title>
+		<meeting><address><addrLine>Chicago, IL, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>ICST</publisher>
+			<date type="published" when="2016-04-11" />
+			<biblScope unit="page" from="33" to="44" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<analytic>
+		<title level="a" type="main">Engineering Record and Replay for Deployability</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chris</forename><surname>Robert O'callahan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nathan</forename><surname>Jones</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kyle</forename><surname>Froyd</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Albert</forename><surname>Huey</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nimrod</forename><surname>Noll</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Partush</surname></persName>
+		</author>
+		<ptr target="//dl.acm.org/citation.cfm?id=3154690.3154727" />
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2017 USENIX Conference on Usenix Annual Technical Conference (USENIX ATC &apos;17). USENIX Association</title>
+		<meeting>the 2017 USENIX Conference on Usenix Annual Technical Conference (USENIX ATC &apos;17). USENIX Association<address><addrLine>Berkeley, CA, USA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="377" to="389" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">Comparing Incremental Latent Semantic Analysis Algorithms for E cient Retrieval from So ware Libraries for Bug Localization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Shivani</forename><surname>Rao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Henry</forename><surname>Medeiros</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Avinash</forename><surname>Kak</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM SIGSOFT So ware Engineering Notes</title>
+		<imprint>
+			<biblScope unit="volume">40</biblScope>
+			<biblScope unit="page" from="1" to="8" />
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<analytic>
+		<title level="a" type="main">Reconstructable So ware Appliances with Kameleon</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Cristian</forename><surname>Ruiz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Salem</forename><surname>Harrache</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Mercier</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Olivier</forename><surname>Richard</surname></persName>
+		</author>
+		<idno type="DOI">10.1145/2723872.2723883</idno>
+	</analytic>
+	<monogr>
+		<title level="j">SIGOPS Oper. Syst. Rev</title>
+		<imprint>
+			<biblScope unit="volume">49</biblScope>
+			<biblScope unit="page" from="80" to="89" />
+			<date type="published" when="2015-01" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<analytic>
+		<title level="a" type="main">Simulating upgrades of complex systems: e case of Free and Open Source So ware</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Davide</forename><surname>Di Ruscio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Patrizio</forename><surname>Pelliccione</surname></persName>
+		</author>
+		<idno type="DOI">10.1016/j.infsof.2014.01.006</idno>
+		<ptr target="//dx.doi.org/hps://doi.org/10.1016/j.infsof.2014.01.006" />
+	</analytic>
+	<monogr>
+		<title level="j">Technology</title>
+		<imprint>
+			<biblScope unit="volume">56</biblScope>
+			<biblScope unit="page" from="438" to="462" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">Improving bug localization using structured information retrieval</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Ripon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ma</forename><surname>Saha</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sarfraz</forename><surname>Hew Lease</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dewayne</forename><forename type="middle">E</forename><surname>Khurshid</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Perry</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Automated So ware Engineering (ASE), 2013 IEEE/ACM 28th International Conference on. IEEE</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="345" to="355" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<analytic>
+		<title level="a" type="main">Incorporating version histories in information retrieval based bug localization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bunyamin</forename><surname>Sisman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Avinash</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Kak</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 9th IEEE Working Conference on Mining So ware Repositories</title>
+		<meeting>the 9th IEEE Working Conference on Mining So ware Repositories</meeting>
+		<imprint>
+			<publisher>IEEE Press</publisher>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="50" to="59" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">Using co-change histories to improve bug localization performance</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chakkrit</forename><surname>Tantithamthavorn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Akinori</forename><surname>Ihara</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ken-Ichi</forename><surname>Matsumoto</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">So ware Engineering, Arti cial Intelligence, Networking and Parallel/Distributed Computing (SNPD)</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="543" to="548" />
+		</imprint>
+	</monogr>
+	<note>14th ACIS International Conference on. IEEE</note>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<analytic>
+		<title level="a" type="main">Re ections on trusting trust</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ken</forename><forename type="middle">Ompson</forename></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Commun. ACM</title>
+		<imprint>
+			<biblScope unit="volume">27</biblScope>
+			<biblScope unit="page" from="761" to="763" />
+			<date type="published" when="1984" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<analytic>
+		<title level="a" type="main">Evaluating the Usefulness of IR-based Fault Localization Techniques</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Qianqian</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chris</forename><surname>Parnin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alessandro</forename><surname>Orso</surname></persName>
+		</author>
+		<idno type="DOI">10.1145/2771783.2771797</idno>
+		<ptr target="//dx.doi.org/10.1145/2771783.2771797" />
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2015 International Symposium on So ware Testing and Analysis</title>
+		<meeting>the 2015 International Symposium on So ware Testing and Analysis<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="1" to="11" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<analytic>
+		<title level="a" type="main">Version history, similar report, and structure: Pu ing them together for improved bug localization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Shaowei</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Lo</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 22nd International Conference on Program Comprehension</title>
+		<meeting>the 22nd International Conference on Program Comprehension</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="53" to="63" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<analytic>
+		<title level="a" type="main">Compositional vector space models for improved bug localization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Shaowei</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Lo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Julia</forename><surname>Lawall</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2014 IEEE International Conference on So ware Maintenance and Evolution (ICSME)</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="171" to="180" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<analytic>
+		<title level="a" type="main">Countering trusting trust through diverse doublecompiling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>David</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Wheeler</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Computer Security Applications Conference, 21st Annual</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2005" />
+			<biblScope unit="page">13</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<analytic>
+		<title level="a" type="main">Boosting bug-report-oriented fault localization with segmentation and stack-trace analysis</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chu-Pan</forename><surname>Wong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yingfei</forename><surname>Xiong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hongyu</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dan</forename><surname>Hao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lu</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hong</forename><surname>Mei</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2014 IEEE International Conference on So ware Maintenance and Evolution (ICSME)</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="181" to="190" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b46">
+	<analytic>
+		<title level="a" type="main">Crash reproduction via test case mutation: let existing test cases help</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jifeng</forename><surname>Xuan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xiaoyuan</forename><surname>Xie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><surname>Monperrus</surname></persName>
+		</author>
+		<idno type="DOI">10.1145/2786805.2803206</idno>
+		<ptr target="//dx.doi.org/10.1145/2786805.2803206" />
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2015 10th Joint Meeting on Foundations of So ware Engineering</title>
+		<meeting>the 2015 10th Joint Meeting on Foundations of So ware Engineering<address><addrLine>Bergamo, Italy</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2015-08-30" />
+			<biblScope unit="page" from="910" to="913" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b47">
+	<analytic>
+		<title level="a" type="main">Learning to rank relevant les for bug reports using domain knowledge</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xin</forename><surname>Ye</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Razvan</forename><surname>Bunescu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chang</forename><surname>Liu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 22nd ACM SIGSOFT International Symposium on Foundations of So ware Engineering</title>
+		<meeting>the 22nd ACM SIGSOFT International Symposium on Foundations of So ware Engineering</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="689" to="699" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b48">
+	<analytic>
+		<title level="a" type="main">Where should the bugs be xed? more accurate information retrieval-based bug localization based on bug reports</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jian</forename><surname>Zhou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hongyu</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Lo</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">So ware Engineering (ICSE), 2012 34th International Conference on. IEEE</title>
+		<imprint>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="14" to="24" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

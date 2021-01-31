@@ -1,0 +1,1232 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Two-Stage Synthesis Networks for Transfer Learning in Machine Comprehension</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2017-09-23">23 Sep 2017</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Golub</surname></persName>
+							<email>golubd@cs.stanford.edu</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Po-Sen</forename><surname>Huang</surname></persName>
+							<email>pshuang@microsoft.com</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xiaodong</forename><surname>He</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Li</forename><surname>Deng</surname></persName>
+							<email>l.deng@ieee.org</email>
+						</author>
+						<author>
+							<affiliation key="aff0">
+								<orgName type="institution">Stanford University</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff1">
+								<orgName type="institution">Microsoft Research</orgName>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Two-Stage Synthesis Networks for Transfer Learning in Machine Comprehension</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2017-09-23">23 Sep 2017</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1706.09789v3[cs.CL]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:45+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>We develop a technique for transfer learning in machine comprehension (MC) using a novel two-stage synthesis network (SynNet). Given a high-performing MC model in one domain, our technique aims to answer questions about documents in another domain, where we use no labeled data of question-answer pairs. Using the proposed SynNet with a pretrained model from the SQuAD dataset on the challenging NewsQA dataset, we achieve an F1 measure of 44.3% with a single model and 46.6% with an ensemble, approaching performance of in-domain models (F1 measure of 50.0%) and outperforming the outof-domain baseline of 7.6%, without use of provided annotations. 1 * Work performed while interning at Microsoft Research. † Work performed when the author was at Microsoft Research. 1 Code will be available at https://github.com/ davidgolub/QuestionGeneration This assumption holds for MC datasets such as SQuAD and NewsQA, but there are exceptions in certain subdomains of MSMARCO.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>Machine comprehension (MC), the ability to answer questions over a provided context paragraph, is a key task in natural language processing. The rise of high-quality, large-scale human-annotated datasets for this task <ref type="bibr" target="#b26">(Rajpurkar et al., 2016;</ref><ref type="bibr" target="#b33">Trischler et al., 2016)</ref> has allowed for the training of data-intensive but expressive models such as deep neural networks <ref type="bibr" target="#b21">(Wang et al., 2016;</ref><ref type="bibr" target="#b30">Seo et al., 2016)</ref>. Moreover, these datasets have the attractive quality that the answer is a short snippet of text within the paragraph, which narrows the search space of possible answer spans.</p><p>However, many of these models rely on large amounts of human-labeled data for training. Yet data collection is a time-consuming and expensive task. Moreover, direct application of a MC model trained on one domain to answer questions over paragraphs from another domain may suffer performance degradation.</p><p>While understudied, the ability to transfer a MC model to multiple domains is of great practical importance. For instance, the ability to quickly use a MC model trained on Wikipedia to bootstrap a question-answering system over customer support manuals or news articles, where there is no labeled data, can unlock a great number of practical applications.</p><p>In this paper, we address this problem in MC through a two-stage synthesis network (SynNet). The SynNet generates synthetic question-answer pairs over paragraphs in a new domain that are then used in place of human-generated annotations to finetune a MC model trained on the original domain.</p><p>The idea of generating synthetic data to augment insufficient training data has been explored before. For example, for the target task of translation, <ref type="bibr" target="#b29">Sennrich et al. (2016)</ref> present a method to generate synthetic translations given real sentences to refine an existing machine translation system.</p><p>However, unlike machine translation, for tasks like MC, we need to synthesize both the question and answers given the context paragraph. Moreover, while the question is a syntactically fluent natural language sentence, the answer is mostly a salient semantic concept in the paragraph, e.g., a named entity, an action, or a number, which is often a single word or short phrase. Since the an-  <ref type="figure">Figure 1</ref>: Illustration of the two-stage SynNet. The SynNet is trained to synthesize the answer and the question, given the paragraph. The first stage of the model, an answer synthesis module, uses a bi-directional LSTM to predict IOB tags on the input paragraph, which mark out key semantic concepts that are likely answers. The second stage, a question synthesis module, uses a uni-directional LSTM to generate the question, while attending on embeddings of the words in the paragraph and IOB ids. Although multiple spans in the paragraph could be identified as potential answers, we pick one span when generating the question. swer has a very different linguistic structure compared to the question, it may be more appropriate to view answers and questions as two different types of data. Hence, the synthesis of a (question, answer) tuple is needed.</p><p>In our approach, we decompose the process of generating question-answer pairs into two steps, answer generation conditioned on the paragraph, and question generation conditioned on the paragraph and answer. We generate the answer first because answers are usually key semantic concepts, while questions can be viewed as a full sentence composed to inquire the concept.</p><p>Using the proposed SynNet, we are able to outperform a strong baseline of directly applying a high-performing MC model trained on another domain. For example, when we apply our algorithm using a pretrained model on the Stanford Question-Answering Dataset (SQuAD) <ref type="bibr" target="#b26">(Rajpurkar et al., 2016)</ref>, which consists of Wikipedia articles, to answer questions on the NewsQA dataset <ref type="bibr" target="#b33">(Trischler et al., 2016)</ref>, which consists of CNN/Daily Mail articles, we improve the performance of the single-model SQuAD baseline from 39.0% to 44.3% F1, and boost results further with an ensemble to 46.6% F1, approaching results of previously published work of <ref type="bibr" target="#b33">Trischler et al. (2016)</ref> (50.0% F1), without use of labeled data in the new domain. Moreover, an error analysis reveals that we achieve higher accuracy over the baseline on all common question types.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Related Work</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1">Question Answering</head><p>Question answering is an active area in natural language processing with ongoing research in many directions <ref type="bibr" target="#b1">(Berant et al., 2013;</ref><ref type="bibr" target="#b13">Hill et al., 2015;</ref><ref type="bibr" target="#b10">Golub and He, 2016;</ref><ref type="bibr" target="#b5">Chen et al., 2016;</ref><ref type="bibr" target="#b12">Hermann et al., 2015)</ref>. Machine comprehension, a form of extractive question answering where the answer is a snippet or multiple snippets of text within a context paragraph, has recently attracted a lot of attention in the community. The rise of large-scale human annotated datasets with over 100,000 realistic question-answer pairs such as SQuAD <ref type="bibr" target="#b26">(Rajpurkar et al., 2016)</ref>, NewsQA <ref type="bibr" target="#b33">(Trischler et al., 2016)</ref>, and MSMARCO <ref type="bibr" target="#b23">(Nguyen et al., 2016)</ref>, has led to a large number of successful deep learning models <ref type="bibr" target="#b20">(Lee et al., 2016;</ref><ref type="bibr" target="#b30">Seo et al., 2016;</ref><ref type="bibr" target="#b6">Dhingra et al., 2016;</ref><ref type="bibr" target="#b35">Wang and Jiang, 2016)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">Semi-Supervised Learning</head><p>Semi-supervised learning has a long history (c.f. <ref type="bibr" target="#b3">Chapelle et al. (2009)</ref> for an overview), and has been applied to many tasks in natural language processing such as dependency parsing <ref type="bibr" target="#b18">(Koo et al., 2008)</ref>, sentiment analysis <ref type="bibr" target="#b40">(Yang et al., 2015)</ref>,machine translation <ref type="bibr" target="#b29">(Sennrich et al., 2016)</ref>, and semantic parsing <ref type="bibr" target="#b21">Wang et al.;</ref><ref type="bibr" target="#b15">Jia and Liang, 2016)</ref>. Recent work generated synthetic annotations on unsupervised data to boost the performance of both reading comprehension and visual question answering models <ref type="bibr" target="#b41">(Yang et al., 2017;</ref><ref type="bibr" target="#b27">Ren et al., 2015)</ref>, but on domains with some form of annotated data. There has also been work on generating high-quality questions <ref type="bibr" target="#b43">(Yuan et al., 2017;</ref><ref type="bibr" target="#b31">Serban et al., 2016;</ref><ref type="bibr" target="#b19">Labutov et al.)</ref>, but not how to best use them to train a model. In contrast, we use the two-stage SynNet to generate data tuples to directly boost performance of a model on a domain with no annotations.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.3">Transfer Learning</head><p>Transfer learning (Pan and Yang, 2010) has been successfully applied to numerous domains in machine learning, such as machine translation <ref type="bibr" target="#b45">(Zoph et al., 2016)</ref>, computer vision, <ref type="bibr" target="#b32">(Sharif Razavian et al., 2014)</ref>, and speech recognition <ref type="bibr" target="#b7">(Doulaty et al., 2015)</ref>. Specifically, object recognition models trained on the large-scale ImageNet challenge <ref type="bibr" target="#b28">(Russakovsky et al., 2015)</ref> have proven to be excellent feature extractors for diverse tasks such as image captioning (i.e., ; Fang et al. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">The Transfer Learning Task for MC</head><p>We formalize the task of machine comprehension below. Our MC model takes as input a tokenized question q = {q 0 , q 1 , ...q n }, a context paragraph p = {p 0 , p 1 , ...p n }, where q i , p i are words, and learns a function f (p, q) → {a start , a end } where a start and a end are pointer indices into paragraph p, i.e., the answer a = p astart ...p a end .</p><p>Given a collection of labeled paragraph, question, answer triples {p, q, a} n i=1 from a particular domain s, i.e., Wikipedia articles, we can learn a MC model f s (p, q) that is able to answer questions in that domain.</p><p>However, when applying the model trained in one domain to answer questions in another, the performance may degrade. On the other hand, labeling data to train a model in the new domain is expensive and time-consuming.</p><p>In this paper, we propose the task of transferring a MC system f s (p, q) that is trained in a source domain to answer questions over another target domain, t. In the target domain t, we are given an unlabeled set p t = {p} k i=1 of k paragraphs. During test time, we are given an unseen set of paragraphs, p * , in the target domain, over which we would like to answer questions.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>The Model</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Two-Stage SynNet</head><p>To bootstrap our model f s we use a SynNet <ref type="figure">(Figure 1)</ref>, which consists of answer synthesis and question synthesis modules, to generate data on p t . Our SynNet learns the conditional probability of generating answer a = {a start , a end } and question q = {q 1 , ...q n } given paragraph p, P (q, a|p). We decompose the joint probability distribution P (q, a|p) into a conditional probability distribution P (q|p, a)P (a|p), where we first generate the answer a, followed by generating the question q conditioned on the answer and paragraph.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.1">Answer Synthesis Module</head><p>In our answer synthesis module we train a simple IOB tagger to predict whether each word in the paragraph is part of an answer or not.</p><p>More formally, given a set of words in a paragraph p = {p 1 ...p n }, our IOB tagging model learns the conditional probability of labels y 1 ...y n , where y 1 ∈ IOB START , IOB MID , IOB END if a word p i is marked as an answer by the annotator in our train set, NONE otherwise.</p><p>We use a bi-directional Long-Short Term Memory Network (Bi-LSTM) <ref type="bibr" target="#b14">(Hochreiter and Schmidhuber, 1997)</ref> for tagging. Specifically, we project each word p i → p * i into a continuous vector space via pretrained GloVe embeddings <ref type="bibr" target="#b25">(Pennington et al., 2014)</ref>. We then run a Bi-LSTM over the word embeddings p * 1 , ...p * n to produce a contextdependent word representation h 1 , ...h n , which we feed into two fully connected layers followed by a softmax to produce our tag likelihoods for each word.</p><p>We select all consecutive spans where y = NONE produced by the tagger as our candidate answer chunks, which we feed into our question synthesis module for question generation.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.2">Question Synthesis Module</head><p>Our question synthesis module learns the conditional probability of generating question q = {q 1 , ...q n } given answer a = a start , a end and paragraph p = p 1 ...p n , P (q 1 , ...q n |p 1 ...p n , a start , a end ). We decompose the joint probability distribution of generating all the question words q 1 , ...q n into generating the question one word at a time, i.e.</p><formula xml:id="formula_0">n i=1 P (q i |p, a, q 1...i−1 ).</formula><p>The model is similar to an encoder-decoder network with attention <ref type="bibr" target="#b0">(Bahdanau et al., 2014)</ref>, which computes the conditional probability</p><formula xml:id="formula_1">P (q i |p 1 ...p n , a start , a end , q 1...i−1 ).</formula><p>We run a Bi-LSTM over the paragraph to produce contextdependent word representations h = {h 1 , ...h n }.</p><p>To model where the answer is in the paragraph, similar to Yang et al. <ref type="formula">2017</ref>, we insert answer information by appending a zero/one feature to the paragraph word embeddings. Then, at each time step i, a decoder network attends to both h and the previously generated question token q i−1 to produce a hidden representation r i . Since paragraphs may often have named entities and rare words not present during training, we incorporate a copy mechanism into our models <ref type="bibr" target="#b11">(Gu et al., 2016)</ref>.</p><p>We use an architecture motivated by latent predictor networks <ref type="bibr" target="#b21">(Ling et al., 2016)</ref> to force the model to learn when to copy vs. directly predict the word, without direct supervision of what action to choose. Specifically, at every time step i, two latent predictors generate the probability of generating word w i , a pointer network C p <ref type="bibr" target="#b34">(Vinyals et al., 2015)</ref> which can copy a word from the context paragraph, and a vocabulary predictor V p which directly generates a probability distribution of choosing a word w i from a predefined vocabulary. The likelihood of choosing predictor k at time step i is proportional to w k r i , and the likelihood of predicting question token q i is given by</p><formula xml:id="formula_2">q * i = p v l v (w i ) + (1 − p v )l c (w i ),</formula><p>where v represents the vocabulary predictor and c represents the copy predictor, and l(w i ) is the likelihood of the word given by the predictor. 3 For training, since no direct supervision is given as to which predictor to choose, we minimize the cross entropy loss of producing the correct question tokens n j=1 −log(q * j ) by marginalizing out latent variables using a variant of the forward-backward algorithm (see <ref type="bibr" target="#b21">Ling et al. (2016)</ref> for full details).</p><p>During inference, to generate a question q 1 ...q n , we use greedy decoding in the following manner. At time step i, we select the most likely predictor (C p or V p ), followed by the most likely word q i given the predictor. We feed the predicted word as input at the next timestep back into the decoder until we predict the end symbol, END, after which we stop decoding.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Machine Comprehension Model</head><p>Our machine comprehension model f (p, q) → a learns the conditional likelihood of predicting answer pointers a = {a start , a end } given paragraph p and question q, P (a|p, q). In our experiments we use the open-source Bi-directional Attention Flow</p><p>Since we only have two predictors,</p><formula xml:id="formula_3">p c = 1 − p v</formula><p>Algorithm 1: Training Algorithm Input :</p><formula xml:id="formula_4">x s = {p s , q s , a s } n i=1 triplets from source domain s; pretrained MC model on s, f s (p, q) → {a start , a end }; paragraphs from target domain t, p m j=1 Output: MC model on target domain, f t (p, q) → {a start , a end } 1 Train SynNet g to maximize P (q, a|p) on source s;</formula><p>(BiDAF) network <ref type="bibr" target="#b30">(Seo et al., 2016)</ref> 4 since it is one of the best-performing models on the SQuAD dataset, 5 although we note that our algorithm for data synthesis can be used with any MC model.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">Algorithm Overview</head><p>Having given an overview of our SynNet and a brief overview of the MC model we describe our training procedure, which is illustrated in Algorithm 1.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.4">Training</head><p>Our approach for transfer learning consists of several training steps. First, given a series of labeled examples</p><formula xml:id="formula_5">x s = {p s , q s , a s } n i=1 from domain s, paragraphs p m</formula><p>j=1 from domain t, and pretrained MC model f s (p, q), we train the SynNet g s to maximize the likelihood of the question-answer pairs in s.</p><p>Second, we fix our SynNet g s and we sample</p><formula xml:id="formula_6">x t = {p t , q t , a t } k</formula><p>i=1 question-answer pairs on the paragraphs in domain t. Several examples of generated questions can be found in <ref type="table">Table 1</ref>.</p><p>We then transfer the MC model originally learned on the source domain to the target domain t using SGD on the synthetic data. However, since the synthetic data is usually noisy, we alternatively train the MC model with mini-batches from x s and x t , which we call data-regularization. Every k batches from x, we sample 1 batch of synthetic Snippet of context paragraph (answer in bold) Generated questions (bold) vs. human questions ...At this point, some of these used-luxe models have been around so long that they almost qualify as vintage throwback editions. Recently, Consumer Report magazine issued its list of best and worst used cars, and divvied them up by price range ...</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>What magazine made best used cars in the USAF?</head><p>Who released a list of best and worst used cars ...A high court in northern India on Friday acquitted a wealthy businessman facing the death sentence for the killing of a teen in a case dubbed "the house of horrors." Moninder Singh Pandher was sentenced to death by a lower court in February. The teen was one of 19 victims -children and ...</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>How many victims were in India ?</head><p>What was the amount of children murdered ?</p><p>Joe Pantoliano has met with the Obama and Mc-Cain camps to promote mental health and recovery. Pantoliano, founder and president of the eightmonth-old advocacy organization No Kidding, Me Too, released a teaser of his new film about various forms of mental illness... Which two groups did Joe Pantoliano meet with? Who did he meet with to discuss the issue?</p><p>...Former boxing champion Vernon Forrest , 38 , was shot and killed in southwest Atlanta , Georgia , on July 25 . A grand jury indicted the three suspects -Charman Sinkfield , 30 ; Demario Ware , 20 ; and Jquante...</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Where was the first person to be shot ?</head><p>Where was Forrest killed? <ref type="table">Table 1</ref>: Randomly sampled paragraphs and corresponding synthetic vs. human questions from the NewsQA train set. Human-selected answers from the train set were used as input.</p><p>data from x , where k is a hyper-parameter, which we set to 4. Letting the model encounter many examples from source domain s serves to regularize the distribution of the synthetic data in the target domain with real data from s. We checkpoint finetuned model f * s every i mini-batches, i = 1000 in our experiments, and save a copy of the model at each checkpoint.</p><p>At test time, to generate an answer, we feed paragraph p = {p 0 , p 1 , ...p n } and question q through our finetuned MC model f * (p, q) to get P (p i = a start ), P (p i = a end ) for all i ∈ 1...n. We then use dynamic programming <ref type="bibr" target="#b30">(Seo et al., 2016)</ref> to find the optimal answer span {a start , a end }. To improve the stability of using our model for inference, we average the predicted answer likelihoods from model copies at different checkpoints, which we call checkpoint− averaging, prior to running the dynamic programming algorithm.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Experimental Setup</head><p>We summarize the datasets we use in our experiments, parameters for our model architectures, and training details.</p><p>The SQuAD dataset consists of approximately 100,000 question-answer pairs on Wikipedia, 87,600 of which are used for training, 10,570 for development, and an unknown number in a hidden test set. The NewsQA dataset consists of 92,549 train, 5,166 development and 5,165 test questions on CNN/Daily Mail news articles. Both the domain type (i.e., news) and question types differ between the two datasets. For example, an analysis of a randomly generated sample of 1,000 questions from both NewsQA and SQuAD <ref type="bibr" target="#b33">(Trischler et al., 2016)</ref> reveals that approximately 74.1% of questions in SQuAD require word matching or paraphrasing to retrieve the answer, as opposed to 59.7% in NewsQA. As our test metrics, we report two numbers, exact match (EM) and F1 score.</p><p>We train a BIDAF model on the SQuAD train dataset and use a two-stage SynNet to finetune it on the NewsQA train dataset.</p><p>We initialize word-embeddings for the BIDAF model, answer synthesis module, and question synthesis module with 300-dimensional-GloVe vectors <ref type="bibr" target="#b25">(Pennington et al., 2014)</ref> trained on the 840 Billion Words Common Crawl corpus. We set all embeddings of unknown word tokens to zero.</p><p>For both the answer synthesis and question synthesis module, we use a vocabulary of size 110,179. We use LSTMs with hidden states of size 150 for the answer module vs. those of size 100 for the question module since the answer module is less memory intensive than the question module.</p><p>We train both the answer and question module with Adam <ref type="bibr" target="#b17">(Kingma and Ba, 2014</ref>) and a learning rate of 1e-2. We train a BIDAF model with the default hyperparameters provided in the open-source repository. To stop training of the question synthesis module, after each epoch, we monitor both the loss as well as the quality of questions generated on the SQuAD development set. To stop training of the answer synthesis module, we similarly monitor predictions on the SQuAD development set.</p><p>To train the question synthesis module, we only use the questions provided in the SQuAD train set. However, to train the answer synthesis module, we further augment the human-annotated labels of each paragraph with tags from a simple NER system 6 because labels of answers provided in the train set are underspecified, i.e., many words in the paragraph that could be potential answers are not labeled. Therefore, we assume any named entities could also be potential answers of certain questions, in addition to the answers explicitly labeled by annotators.</p><p>To generate question-answer pairs on the NewsQA train set using the SynNet, we first run every paragraph through our answer synthesis module. We then randomly sample up to 30 candidate answers extracted by our module, which we feed into the question synthesis module. This results in 250,000 synthetic question-answer pairs that we can use to finetune our MC model.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Experimental Results</head><p>We report the main results on the NewsQA test set <ref type="table">(Table 2)</ref>, report brief results on SQuAD <ref type="table">(Table 3)</ref>, conduct ablation studies <ref type="table">(Table 4)</ref>, and conduct an error analysis.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.1">Results</head><p>We compare to the best previously published work, which trains BARB <ref type="bibr" target="#b33">(Trischler et al., 2016)</ref> and Match-LSTM <ref type="bibr" target="#b35">(Wang and Jiang, 2016)</ref> architectures, and a BIDAF model we train on NewsQA. Directly applying a BIDAF model trained on SQuAD to predict on NewsQA leads to poor performance with an F1 measure of 39.0%, 13.2% lower than one trained on labeled NewsQA data. Using the 2-stage SynNet already leads to a slight boost in performance (F1 measure of 40.9%), which implies that having exposure to the new domain via question-answer pairs provides important signal for the model during training. With checkpoint-averaging, we see an additional improvement of 3.4% (F1 measure of 44.3%). When we ensemble a BIDAF model trained on https://spacy.io/ questions and answers from the SynNet with three BIDAF models trained on questions by Q gen and answers from a generic NER system, we have an additional 2.3% performance boost. Finally, when we ensemble the original BIDAF model trained on SQuAD in the ensemble, we boost the EM further by 0.2%. Our final system achieves an F1 measure of 46.6%, approaching previously published results of 50.0%. The results demonstrate that using the proposed architecture and training procedure, we can transfer a MC model from one domain to another, without use of annotated data.</p><p>We also evaluate the SynNet on the NewsQAto-SQuAD direction. We directly apply the best setting from the other direction and report the result in <ref type="table">Table 3</ref>. The SynNet improves over the baseline by 1.6% in EM and 0.7% in F1. Limited by space, we leave out ablation studies in this direction.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.2">Ablation Studies</head><p>To better understand how various components in our training procedure and model impact overall performance we conduct several ablation studies, as summarized in <ref type="table">Table 4</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.2.1">Answer Synthesis</head><p>We experiment with using the answer chunks given in the train set, A oracle , to generate synthetic questions, versus those from an NER system, A ner . Results in <ref type="table">Table 4</ref>(A) show that using human-annotated answers to generate questions leads to a significant performance boost over using answers from an answer generation module. This supports the hypothesis that the answers humans choose to generate questions for provide important linguistic cues for finetuning the machine comprehension model.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.2.2">Question Synthesis</head><p>To see how copying impacts performance, we explore using the entire paragraph to generate the question vs. only the two sentences before and one sentence after the answer span and report results in <ref type="table">Table 4</ref>(B). On the NewsQA train set, synthetic questions that use 2 sentences contain an average of 3.0 context words within 10 words to the left and right of the answer chunk, those that use the entire context have 2.1 context words, and human generated questions only have 1.7 words. Training with generated questions that have a large amount of overlap with words close to the an-</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Method</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>System</head><p>EM F1</p><p>Transfer Learning M sq (SQuAD baseline) 24.9 39.0 M sq + A gen + Q gen (single model on NewsQA)</p><p>26.6 40.9 M sq + A gen + Q gen + M * sq (single model on NewsQA) 29.0 43.1 M sq + A gen + Q gen (single model on NewsQA, cpavg) 30.6 44.3 M sq + A gen + A ner + Q gen (4-model ensemble, cpavg) 32.8 46.6 M sq + A gen + A ner + Q gen + M * sq (4-model ensemble, cpavg) 33.0 46.6 Supervised Learning Barb-LSTM on NewsQA <ref type="bibr" target="#b33">(Trischler et al., 2016)</ref> 34.9 50.0 Match-LSTM on NewsQA <ref type="bibr" target="#b33">(Trischler et al., 2016)</ref> 34.1 48.2 BIDAF on NewsQA 37.1 52.3 BIDAF on SQuAD finetuned on NewsQA 37.3 52.2 <ref type="table">Table 2</ref>: Main Results. Exact match (EM) and span F1 scores on the NewsQA test set of a BIDAF model finetuned with our SynNet. M sq refers to a baseline BIDAF model trained on SQuAD, A gen , Q gen refers to using answers generated from our SynNet respectively to finetune the model on NewsQA, A ner refers to using answers extracted from a standard NER system to generate questions, cpavg refers to using checkpoint-averaging, and M * sq refers to using the baseline SQuAD model in the ensemble.</p><formula xml:id="formula_7">System EM F1 M newsqa</formula><p>46.3 60.8 M newsqa + S net 47.9 61.5 <ref type="table">Table 3</ref>: NewsQA to SQuAD. Exact match (EM) and span F1 results on SQuAD development set of a NewsQA BIDAF model baseline vs. one finetuned on SQuAD using the data generated by a 2-stage SynNet (S net ). swer span (i.e., those that use 2-sentences vs. entire context for generation) leads to models that perform worse, especially with synthetic answer spans and no data regularization (35.6% F1 vs. 34.3% F1). One possible reason is that, according to analysis in <ref type="bibr" target="#b33">Trischler et al. (2016)</ref>, significantly more questions in the NewsQA dataset require paraphrase, inference, and synthesis as opposed to word-matching.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.2.3">Model Finetuning</head><p>To see how the quantity of synthetic questions encountered during training impacts performance, we use k = {0, 2, 4} mini-batches from SQuAD for every synthetic mini-batch from NewsQA to finetune our model, and average the prediction of 4 checkpointed models during testing. As we see from the results, letting the model to encounter data from human annotations, although from another domain, serves as a key form of data-  <ref type="table">Table 4</ref>: Ablation Studies. Exact match (EM) and span F1 results on NewsQA test set of a BIDAF model finetuned with a 2-stage SynNet. In study A, we vary k, the number of mini-batches from SQuAD for every batch in NewsQA. In study B, we set k = 0, and vary the answer type and how much of the paragraph we use for question synthesis. 2 − sent refers to using two sentences before answer span, while all refers to using the entire paragraph. A ner refers to using an NER system and A or refers to using the human-annotated answers to generate questions.</p><formula xml:id="formula_8">A) EM F1 B) EM F1</formula><p>regularization, yielding consistent improvement as k increases. We hypothesize this is because the data distribution of machine-generated questions is different than human-annotated ones; our batching scheme provides a simple way to prevent overfitting to this distribution.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.3">Error Analysis</head><p>In this section we provide a qualitative analysis of some of our components to help guide further research in this task.</p><p>They are ghost hunters , or , as they prefer to be called , paranormal investigators . " Ghost-Hunters ", which airs a special live show at 7 p.m. Halloween night , is helping lift the stigma once attached to paranormal investigators . The show has become so popular that the group featured in each episode -Atlantic Paranormal Society -has spawned imitators across United States and affiliates in countries . TAPS , as the " Hunters" group is informally known , even has its own " Reality Radio" show , magazine , lecture tours , T-shirts -and groupies . " Hunters" has made creepy cool , says David Schrader , a paranormal investigator and co-host of " Radio ", a radio show that investigates paranormal activity.  : Predictions from the question synthesis module on a subset of a paragraph.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.3.1">Answer Synthesis</head><p>We randomly sample and present a paragraph with answers extracted by our answer synthesis module <ref type="table" target="#tab_1">(Tables 5 and 6</ref>). Although the module appears to have high precision, i.e., it picks up entities such as the "Atlantic Paranormal Society", it misses clear entities such as "David Schrader", which suggests training a system with full NER/POS tags as labels would yield better results, and also explains why augmenting synthetic data generated by Syn-Net with such tags leads to improved performance.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.3.2">Question Synthesis</head><p>We randomly sample synthetic questions generated by our module and present our results in Table 6. Due to the copy mechanism, our module has the tendency to directly use many words from the paragraph, especially common entities, such as "Oklahoma" in the example. Thus, one way to generate higher-quality questions may be to introduce a cost function that promotes diversity during decoding, especially within a single paragraph. In turn, this would expose the RC model to a larger variety of training examples in the new domain, which can lead to better performance.  <ref type="formula">436</ref>what did (411) how many <ref type="formula">296</ref>who is <ref type="formula">238</ref>what does <ref type="formula">217</ref>what was <ref type="formula">206</ref>who was <ref type="formula">162</ref>where did <ref type="formula">102</ref>what are <ref type="formula">92</ref>where was <ref type="formula">89</ref>Top N-grams <ref type="figure">Figure 2</ref>: NewsQA accuracy of baseline BIDAF model trained on SQuAD (light green), vs. model finetuned with our method (red) vs. one trained from scratch on NewsQA (dark grey).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.3.3">Machine Comprehension Model</head><p>We examine the performance over various question types of a finetuned BIDAF on NewsQA vs. one trained on NewsQA vs. one trained on SQuAD <ref type="figure">(Figure 2</ref>). Finetuning with Syn-Net improves performance over all question types given, with the largest performance boost on location and person-identification questions. Similarly, models trained on synthetic questions tend to approach in-domain performance on numeric and person-identification questions, but still struggle with questions that require higher-order reasoning, i.e. those starting with "what was" or "what did". Designing a question generator that explicitly requires such reasoning may be one way to further bridge the gap in performance.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7">Conclusion</head><p>We introduce a two-stage SynNet for the task of transfer learning for machine comprehension, a task which is both challenging and of practical importance. With our network and a simple training algorithm where we generate synthetic question-answer pairs on the target domain, we are able to generalize a MC model from one domain to another with no annotated data. We present strong results on the NewsQA test set, with a single model improving performance of a baseline BIDAF model by 5.3% and an ensemble by 7.6% F1. Through ablation studies and error analysis, we provide insights into our methodology on the SynNet and MC models that can help guide further research in this task.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head></head><label></label><figDesc>(2015); Karpathy and Fei-Fei (2015)) and visual question answering (i.e., Zhou et al. (2015); Xu and Saenko (2016); Fukui et al. (2016); Yang et al. (2016)), among others. In a similar fashion, we use a model pretrained on the SQuAD dataset as a generic feature extractor to bootstrap a QA system on NewsQA.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>Table 5 :</head><label>5</label><figDesc>Sample predictions from our answer synthesis module.</figDesc><table><row><cell>What is Oklahoma's unemployment rate until Oklahoma City ?</cell></row><row><cell>What was the manager of the Oklahoma City agency ?</cell></row><row><cell>How many companies are in Oklahoma City ?</cell></row><row><cell>How many workers may Oklahoma have as fair hold ?</cell></row><row><cell>Who said the bureau has already hired civilians to choose</cell></row><row><cell>What was the average hour manager of Oklahoma City ?</cell></row><row><cell>How much would Oklahoma have a year to be held</cell></row><row><cell>What year did Oklahoma 's census build job industry ?</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_2"><head>Table 6</head><label>6</label><figDesc></figDesc><table /><note></note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="2">Generate samples x t = (q, a|p) k i=1 on text in target domain t; 3 Use x s ∪ x t to finetune MC model f s on domain t. For every batch sampled from x t , sample k batches from x s ;</note>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="4">See https://github.com/allenai/bi-att-flow 5 See https://rajpurkar.github.io/SQuAD-explorer/ for latest results</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgments</head><p>We would like to thank Yejin Choi and Luke Zettlemoyer for helpful discussions concerning this work.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<title level="m" type="main">Neural machine translation by jointly learning to align and translate</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dzmitry</forename><surname>Bahdanau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kyunghyun</forename><surname>Cho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1409.0473</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Semantic parsing on freebase from question-answer pairs</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonathan</forename><surname>Berant</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><surname>Chou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Roy</forename><surname>Frostig</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Percy</forename><surname>Liang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">EMNLP</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page">6</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonathan</forename><surname>Berant</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Percy</forename><surname>Liang</surname></persName>
+		</author>
+		<title level="m">Semantic parsing via paraphrasing</title>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<monogr>
+		<title level="m" type="main">Semi-supervised learning (chapelle, o</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Olivier</forename><surname>Chapelle</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bernhard</forename><surname>Scholkopf</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alexander</forename><surname>Zien</surname></persName>
+		</author>
+		<editor>. et al.</editor>
+		<imprint>
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+	<note>book reviews</note>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title/>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Neural Networks</title>
+		<imprint>
+			<biblScope unit="volume">20</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="542" to="542" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<monogr>
+		<title level="m" type="main">A thorough examination of the cnn/daily mail reading comprehension task</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Danqi</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jason</forename><surname>Bolton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christopher D</forename><surname>Manning</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1606.02858</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<monogr>
+		<title level="m" type="main">Gated-attention readers for text comprehension</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bhuwan</forename><surname>Dhingra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hanxiao</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>William</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ruslan</forename><surname>Cohen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Salakhutdinov</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1606.01549</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<title level="m" type="main">Data-selective transfer learning for multidomain speech recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mortaza</forename><surname>Doulaty</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Oscar</forename><surname>Saz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Thomas</forename><surname>Hain</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1509.02409</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">From captions to visual concepts and back</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Saurabh</forename><surname>Hao Fang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Forrest</forename><surname>Gupta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Iandola</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Rupesh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Li</forename><surname>Srivastava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Piotr</forename><surname>Deng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jianfeng</forename><surname>Dollár</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xiaodong</forename><surname>Gao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Margaret</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><forename type="middle">C</forename><surname>Mitchell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Platt</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition</title>
+		<meeting>the IEEE Conference on Computer Vision and Pattern Recognition</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="1473" to="1482" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<monogr>
+		<title level="m" type="main">Multimodal compact bilinear pooling for visual question answering and visual grounding</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Akira</forename><surname>Fukui</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dong</forename><forename type="middle">Huk</forename><surname>Park</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daylen</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Anna</forename><surname>Rohrbach</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Trevor</forename><surname>Darrell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marcus</forename><surname>Rohrbach</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1606.01847</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Golub</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xiaodong</forename><surname>He</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1604.00727</idno>
+		<title level="m">Character-level question answering with attention</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<monogr>
+		<title level="m" type="main">Incorporating copying mechanism in sequence-to-sequence learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jiatao</forename><surname>Gu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zhengdong</forename><surname>Lu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hang</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><forename type="middle">K</forename><surname>Victor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Li</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1603.06393</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Teaching machines to read and comprehend</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Karl</forename><surname>Moritz Hermann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tomas</forename><surname>Kocisky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Edward</forename><surname>Grefenstette</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lasse</forename><surname>Espeholt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Will</forename><surname>Kay</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mustafa</forename><surname>Suleyman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Phil</forename><surname>Blunsom</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="1693" to="1701" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<monogr>
+		<title level="m" type="main">The goldilocks principle: Reading children&apos;s books with explicit memory representations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Felix</forename><surname>Hill</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Antoine</forename><surname>Bordes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sumit</forename><surname>Chopra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jason</forename><surname>Weston</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1511.02301</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Long short-term memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sepp</forename><surname>Hochreiter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jürgen</forename><surname>Schmidhuber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural computation</title>
+		<imprint>
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="issue">8</biblScope>
+			<biblScope unit="page" from="1735" to="1780" />
+			<date type="published" when="1997" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<monogr>
+		<title level="m" type="main">Data recombination for neural semantic parsing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Robin</forename><surname>Jia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Percy</forename><surname>Liang</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1606.03622</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Deep visualsemantic alignments for generating image descriptions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrej</forename><surname>Karpathy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Li</forename><surname>Fei-Fei</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition</title>
+		<meeting>the IEEE Conference on Computer Vision and Pattern Recognition</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="3128" to="3137" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<title level="m" type="main">Adam: A method for stochastic optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Diederik</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jimmy</forename><surname>Ba</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.6980</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Simple semi-supervised dependency parsing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Terry</forename><surname>Koo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Xavier Carreras Pérez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Collins</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">46th Annual Meeting of the Association for Computational Linguistics</title>
+		<imprint>
+			<date type="published" when="2008" />
+			<biblScope unit="page" from="595" to="603" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Igor</forename><surname>Labutov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sumit</forename><surname>Basu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lucy</forename><surname>Vanderwende</surname></persName>
+		</author>
+		<title level="m">Deep questions without deep understanding</title>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<monogr>
+		<title level="m" type="main">Learning recurrent span representations for extractive question answering</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kenton</forename><surname>Lee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tom</forename><surname>Kwiatkowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ankur</forename><surname>Parikh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dipanjan</forename><surname>Das</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1611.01436</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<monogr>
+		<title level="m" type="main">Latent predictor networks for code generation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Wang</forename><surname>Ling</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Edward</forename><surname>Grefenstette</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Karl</forename><forename type="middle">Moritz</forename><surname>Hermann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tomáš</forename><surname>Kočiskỳ</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><surname>Senior</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Fumin</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Phil</forename><surname>Blunsom</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1603.06744</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<monogr>
+		<title level="m" type="main">Knowing when to look: Adaptive attention via a visual sentinel for image captioning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jiasen</forename><surname>Lu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Caiming</forename><surname>Xiong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Devi</forename><surname>Parikh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Richard</forename><surname>Socher</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1612.01887</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<monogr>
+		<title level="m" type="main">Ms marco: A human generated machine reading comprehension dataset</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tri</forename><surname>Nguyen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mir</forename><surname>Rosenberg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xia</forename><surname>Song</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jianfeng</forename><surname>Gao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Saurabh</forename><surname>Tiwary</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rangan</forename><surname>Majumder</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Li</forename><surname>Deng</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1611.09268</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">A survey on transfer learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Qiang</forename><surname>Sinno Jialin Pan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Yang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on knowledge and data engineering</title>
+		<imprint>
+			<biblScope unit="volume">22</biblScope>
+			<biblScope unit="issue">10</biblScope>
+			<biblScope unit="page" from="1345" to="1359" />
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Glove: Global vectors for word representation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jeffrey</forename><surname>Pennington</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Richard</forename><surname>Socher</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christopher</forename><surname>Manning</surname></persName>
+		</author>
+		<ptr target="http://www.aclweb.org/anthology/D14-1162" />
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2014 Conference on Empirical Methods in Natural Language Processing (EMNLP). Association for Computational Linguistics</title>
+		<meeting>the 2014 Conference on Empirical Methods in Natural Language Processing (EMNLP). Association for Computational Linguistics<address><addrLine>Doha, Qatar</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="1532" to="1543" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<monogr>
+		<title level="m" type="main">Squad: 100,000+ questions for machine comprehension of text</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pranav</forename><surname>Rajpurkar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jian</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Konstantin</forename><surname>Lopyrev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Percy</forename><surname>Liang</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1606.05250</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Exploring models and data for image question answering</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mengye</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ryan</forename><surname>Kiros</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Richard</forename><surname>Zemel</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="2953" to="2961" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">Imagenet large scale visual recognition challenge</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Olga</forename><surname>Russakovsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jia</forename><surname>Deng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hao</forename><surname>Su</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonathan</forename><surname>Krause</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sanjeev</forename><surname>Satheesh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sean</forename><surname>Ma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zhiheng</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrej</forename><surname>Karpathy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aditya</forename><surname>Khosla</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Bernstein</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">International Journal of Computer Vision</title>
+		<imprint>
+			<biblScope unit="volume">115</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="211" to="252" />
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Improving neural machine translation models with monolingual data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rico</forename><surname>Sennrich</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Barry</forename><surname>Haddow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alexandra</forename><surname>Birch</surname></persName>
+		</author>
+		<ptr target="http://www.aclweb.org/anthology/P16-1009" />
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics</title>
+		<meeting>the 54th Annual Meeting of the Association for Computational Linguistics<address><addrLine>Berlin, Germany</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="page" from="86" to="96" />
+		</imprint>
+	</monogr>
+	<note>Long Papers). Association for Computational Linguistics</note>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<monogr>
+		<title level="m" type="main">Bidirectional attention flow for machine comprehension</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Min Joon</forename><surname>Seo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aniruddha</forename><surname>Kembhavi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ali</forename><surname>Farhadi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hannaneh</forename><surname>Hajishirzi</surname></persName>
+		</author>
+		<idno>abs/1611.01603</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Iulian</forename><surname>Vlad Serban</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alberto</forename><surname>García-Durán</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Caglar</forename><surname>Gulcehre</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sungjin</forename><surname>Ahn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sarath</forename><surname>Chandar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aaron</forename><surname>Courville</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1603.06807</idno>
+		<title level="m">Generating factoid questions with recurrent neural networks: The 30m factoid question-answer corpus</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Cnn features offthe-shelf: an astounding baseline for recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ali</forename><surname>Sharif Razavian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hossein</forename><surname>Azizpour</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Josephine</forename><surname>Sullivan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Stefan</forename><surname>Carlsson</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition Workshops</title>
+		<meeting>the IEEE Conference on Computer Vision and Pattern Recognition Workshops</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="806" to="813" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adam</forename><surname>Trischler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tong</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xingdi</forename><surname>Yuan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Justin</forename><surname>Harris</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alessandro</forename><surname>Sordoni</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Philip</forename><surname>Bachman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kaheer</forename><surname>Suleman</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1611.09830</idno>
+		<title level="m">Newsqa: A machine comprehension dataset</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">Pointer networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Oriol</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Meire</forename><surname>Fortunato</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Navdeep</forename><surname>Jaitly</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="2692" to="2700" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Shuohang</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jing</forename><surname>Jiang</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1608.07905</idno>
+		<title level="m">Machine comprehension using match-lstm and answer pointer</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yushi</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonathan</forename><surname>Berant</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Percy</forename><surname>Liang</surname></persName>
+		</author>
+		<title level="m">Building a semantic parser overnight</title>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<monogr>
+		<title level="m" type="main">Multi-perspective context matching for machine comprehension</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zhiguo</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Haitao</forename><surname>Mi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Wael</forename><surname>Hamza</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Radu</forename><surname>Florian</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1612.04211</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<monogr>
+		<title level="m" type="main">Dynamic coattention networks for question answering</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Caiming</forename><surname>Xiong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Victor</forename><surname>Zhong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Richard</forename><surname>Socher</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1611.01604</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">Ask, attend and answer: Exploring question-guided spatial attention for visual question answering</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Huijuan</forename><surname>Xu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kate</forename><surname>Saenko</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">European Conference on Computer Vision</title>
+		<imprint>
+			<publisher>Springer</publisher>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="451" to="466" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<analytic>
+		<title level="a" type="main">Lcct: a semisupervised model for sentiment classification</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Min</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Wenting</forename><surname>Tu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ziyu</forename><surname>Lu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Wenpeng</forename><surname>Yin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kam-Pui</forename><surname>Chow</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Human Language Technologies: The 2015 Annual Conference of the North American Chapter of the ACL. Association for Computational Linguistics (ACL)</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zhilin</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Junjie</forename><surname>Hu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ruslan</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">William</forename><forename type="middle">W</forename><surname>Cohen</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1702.02206</idno>
+		<title level="m">Semi-supervised qa with generative domain-adaptive nets</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<analytic>
+		<title level="a" type="main">Stacked attention networks for image question answering</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zichao</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xiaodong</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jianfeng</forename><surname>Gao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Li</forename><surname>Deng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Smola</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition</title>
+		<meeting>the IEEE Conference on Computer Vision and Pattern Recognition</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="21" to="29" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<monogr>
+		<title level="m" type="main">Machine comprehension by text-to-text neural question generation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xingdi</forename><surname>Yuan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tong</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alessandro</forename><surname>Aglar Gülçehre</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Philip</forename><surname>Sordoni</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sandeep</forename><surname>Bachman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Saizheng</forename><surname>Subramanian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adam</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Trischler</surname></persName>
+		</author>
+		<idno>abs/1705.02012</idno>
+		<ptr target="http://arxiv.org/abs/1705.02012" />
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<monogr>
+		<title level="m" type="main">Simple baseline for visual question answering</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bolei</forename><surname>Zhou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yuandong</forename><surname>Tian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sainbayar</forename><surname>Sukhbaatar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Arthur</forename><surname>Szlam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rob</forename><surname>Fergus</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1512.02167</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<monogr>
+		<title level="m" type="main">Transfer learning for lowresource neural machine translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Barret</forename><surname>Zoph</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Deniz</forename><surname>Yuret</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonathan</forename><surname>May</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kevin</forename><surname>Knight</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1604.02201</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

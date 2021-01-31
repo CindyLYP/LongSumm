@@ -1,0 +1,1228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">KRONECKER RECURRENT UNITS</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2017-12-31">31 Dec 2017</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Cijo</forename><surname>Jose</surname></persName>
+							<email>cijo.jose@idiap.ch</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Moustapha</forename><surname>Cissé</surname></persName>
+							<email>moustaphacisse@fb.com</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">François</forename><surname>Fleuret</surname></persName>
+							<email>francois.fleuret@idiap.ch</email>
+						</author>
+						<author>
+							<affiliation key="aff0">
+								<orgName type="institution">Idiap Research Institute &amp; EPFL</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff1">
+								<orgName type="department">Idiap Research Institute &amp; EPFL</orgName>
+							</affiliation>
+						</author>
+						<title level="a" type="main">KRONECKER RECURRENT UNITS</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2017-12-31">31 Dec 2017</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1705.10142v7[cs.LG]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:43+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Our work addresses two important issues with recurrent neural networks: (1) they are over-parametrized, and (2) the recurrent weight matrix is ill-conditioned. The former increases the sample complexity of learning and the training time. The latter causes the vanishing and exploding gradient problem. We present a flexible recurrent neural network model called Kronecker Recurrent Units (KRU). KRU achieves parameter efficiency in RNNs through a Kronecker factored recurrent matrix. It overcomes the ill-conditioning of the recurrent matrix by enforcing soft unitary constraints on the factors. Thanks to the small dimensionality of the factors, maintaining these constraints is computationally efficient. Our experimental results on seven standard data-sets reveal that KRU can reduce the number of parameters by three orders of magnitude in the recurrent weight matrix compared to the existing recurrent models, without trading the statistical performance. These results in particular show that while there are advantages in having a high dimensional recurrent space, the capacity of the recurrent part of the model can be dramatically reduced.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">INTRODUCTION</head><p>Deep neural networks have defined the state-of-the-art in a wide range of problems in computer vision, speech analysis, and natural language processing <ref type="bibr" target="#b28">(Krizhevsky et al., 2012;</ref><ref type="bibr" target="#b36">Mikolov, 2012)</ref>. However, these models suffer from two key issues. (1) They are over-parametrized; thus it takes a very long time for training and inference. (2) Learning deep models is difficult because of the poor conditioning of the matrices that parameterize the model. These difficulties are especially relevant to recurrent neural networks. Indeed, the number of distinct parameters in RNNs grows as the square of the size of the hidden state conversely to convolutional networks which enjoy weight sharing. Moreover, poor conditioning of the recurrent matrices results in the gradients to explode or vanish exponentially fast along the time horizon. This problem prevents RNN from capturing long-term dependencies <ref type="bibr" target="#b22">(Hochreiter, 1991;</ref><ref type="bibr" target="#b5">Bengio et al., 1994)</ref>.</p><p>There exists an extensive body of literature addressing over-parametrization in neural networks. <ref type="bibr" target="#b31">LeCun et al. (1990)</ref> first studied the problem and proposed to remove unimportant weights in neural networks by exploiting the second order information. Several techniques which followed include low-rank decomposition <ref type="bibr" target="#b13">(Denil et al., 2013)</ref>, training a small network on the soft-targets predicted by a big pre-trained network <ref type="bibr" target="#b2">(Ba &amp; Caruana, 2014)</ref>, low bit precision training <ref type="bibr" target="#b12">(Courbariaux et al., 2014)</ref>, hashing <ref type="bibr" target="#b8">(Chen et al., 2015)</ref>, etc. A notable exception is the deep fried convnets <ref type="bibr" target="#b44">(Yang et al., 2015)</ref> which explicitly parameterizes the fully connected layers in a convnet with a computationally cheap and parameter-efficient structured linear operator, the Fastfood transform <ref type="bibr" target="#b29">(Le et al., 2013)</ref>. These techniques are primarily aimed at feed-forward fully connected networks and very few studies have focused on the particular case of recurrent networks <ref type="bibr" target="#b1">(Arjovsky et al., 2016)</ref>.</p><p>The problem of vanishing and exploding gradients has also received significant attention. <ref type="bibr" target="#b23">Hochreiter &amp; Schmidhuber (1997)</ref> proposed an effective gating mechanism in their seminal work on LSTMs.</p><p>Later, this technique was adopted by other models such as the Gated Recurrent Units (GRU) <ref type="bibr" target="#b10">(Chung et al., 2015)</ref> and the Highway networks <ref type="bibr" target="#b39">(Srivastava et al., 2015)</ref> for recurrent and feed-forward neural networks respectively. Other popular strategies include gradient clipping <ref type="bibr" target="#b37">(Pascanu et al., 2013)</ref>, and orthogonal initialization of the recurrent weights . More recently <ref type="bibr" target="#b1">(Arjovsky et al., 2016)</ref> proposed to use a unitary recurrent weight matrix. The use of norm preserving unitary maps prevent the gradients from exploding or vanishing, and thus help to capture long-term dependencies. The resulting model called unitary <ref type="bibr">RNN (uRNN)</ref> is computationally efficient since it only explores a small subset of general unitary matrices. Unfortunately, since uRNNs can only span a reduced subset of unitary matrices their expressive power is limited <ref type="bibr" target="#b42">(Wisdom et al., 2016)</ref>. We denote this restricted capacity unitary <ref type="bibr">RNN as RC uRNN. Full capacity unitary RNN (FC uRNN)</ref>  <ref type="bibr" target="#b42">(Wisdom et al., 2016)</ref> proposed to overcome this issue by parameterizing the recurrent matrix with a full dimensional unitary matrix, hence sacrificing computational efficiency. Indeed, FC uRNN requires a computationally expensive projection step which takes O(N 3 ) time (N being the size of the hidden state) at each step of the stochastic optimization to maintain the unitary constraint on the recurrent matrix. <ref type="bibr" target="#b35">Mhammedi et al. (2016)</ref> in their orthogonal RNN (oRNN) avoided the expensive projection step in FC uRNN by parametrizing the orthogonal matrices using Householder reflection vectors, it allows a fine-grained control over the number of parameters by choosing the number of Householder reflection vectors. When the number of Householder reflection vector approaches N this parametrization spans the full reflection set, which is one of the disconnected subset of the full orthogonal set. <ref type="bibr" target="#b25">Jing et al. (2017)</ref> also presented a way of parametrizing unitary matrices which allows fine-grained control on the number of parameters. This work called as Efficient Unitary RNN (EURNN), exploits the continuity of unitary set to have a tunable parametrization ranging from a subset to the full unitary set.</p><p>Although the idea of parametrizing recurrent weight matrices with strict unitary linear operator is appealing, it suffers from several issues: (1) Strict unitary constraints severely restrict the search space of the model, thus making the learning process unstable. (2) Strict unitary constraints make forgetting irrelevant information difficult. While this may not be an issue for problems with non-vanishing long term influence, it causes failure when dealing with real world problems that have vanishing long term influence 4.7. <ref type="bibr" target="#b20">Henaff et al. (2016)</ref> have previously pointed out that the good performance of strict unitary models on certain synthetic problems is because it exploits the biases in these data-sets which favors a unitary recurrent map and these models may not generalize well to real world data-sets. More recently <ref type="bibr" target="#b41">Vorontsov et al. (2017)</ref> have also studied this problem of unitary RNNs and the authors found out that relaxing the strict unitary constraint on the recurrent matrix to a soft unitary constraint improved the convergence speed as well as the generalization performance.</p><p>Our motivation is to address the problems of existing recurrent networks mentioned above. We present a new model called Kronecker Recurrent Units (KRU). At the heart of KRU is the use of Kronecker factored recurrent matrix which provide an elegant way to adjust the number of parameters to the problem at hand. This factorization allows us to finely modulate the number of parameters required to encode N × N matrices, from O(log(N )) when using factors of size 2 × 2, to O(N 2 ) parameters when using a single factor of the size of the matrix itself. We tackle the vanishing and exploding gradient problem through a soft unitary constraint <ref type="bibr" target="#b26">(Jose &amp; Fleuret, 2016;</ref><ref type="bibr" target="#b20">Henaff et al., 2016;</ref><ref type="bibr" target="#b11">Cisse et al., 2017;</ref><ref type="bibr" target="#b41">Vorontsov et al., 2017)</ref>. Thanks to the properties of Kronecker matrices <ref type="bibr" target="#b40">(Van Loan, 2000)</ref>, this constraint can be enforced efficiently. Please note that KRU can readily be plugged into vanilla real space RNN, LSTM and other variants in place of standard recurrent matrices. However in case of LSTMs we do not need to explicitly enforce the approximate orthogonality constraints as the gating mechanism is designed to prevent vanishing and exploding gradients. Our experimental results on seven standard data-sets reveal that KRU and KRU variants of real space RNN and LSTM can reduce the number of parameters drastically (hence the training and inference time) without trading the statistical performance. Our core contribution in this work is a flexible, parameter efficient and expressive recurrent neural network model which is robust to vanishing and exploding gradient problem.</p><p>The paper is organized as follows, in section 2 we restate the formalism of RNN and detail the core motivations for KRU. In section 3 we present the Kronecker recurrent units (KRU). We present our experimental findings in section 4 and section 5 concludes our work. </p><formula xml:id="formula_0">∈ R D or C D , h t ∈ C D Input and hidden state at time t y t ∈ R M or C M ,ŷ t ∈ R M or C M Prediction targets and RNN predictions at time t U ∈ C N ×D , W ∈ C N ×N , V ∈ C M ×N Input, recurrent amd output weight matrices b ∈ R N or C N , c ∈ R M or C M</formula><p>Hidden and output bias σ(.), L(ŷ, y) Point-wise non-linear activation function and the loss function 2 RECURRENT NEURAL NETWORK FORMALISM <ref type="table" target="#tab_0">Table 1</ref> summarizes some notations that we use in the paper. We consider the field to be complex rather than real numbers. We will motivate the choice of complex numbers later in this section. Consider a standard recurrent neural network <ref type="bibr" target="#b14">(Elman, 1990)</ref>. Given a sequence of T input vectors:</p><formula xml:id="formula_1">x 0 , x 1 , . . . , x T −1 ,</formula><p>at a time step t RNN performs the following:</p><formula xml:id="formula_2">h t = σ(Wh t−1 + Ux t + b)</formula><p>(1)</p><formula xml:id="formula_3">y t = Vh t + c,<label>(2)</label></formula><p>whereŷ t is the predicted value at time step t.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1">OVER PARAMETERIZATION AND COMPUTATIONAL EFFICIENCY</head><p>The total number of parameters in a RNN is c(DN</p><formula xml:id="formula_4">+ N 2 + N + M + M N ),</formula><p>where c is 1 for real and 2 for complex parametrization. As we can see, the number of parameters grows quadratically with the hidden dimension, i.e., O(N 2 ). We show in the experiments that this quadratic growth is an over parametrization for many real world problems. Moreover, it has a direct impact on the computational efficiency of RNNs because the evaluation of Wh t−1 takes O(N 2 ) time and it recursively depends on previous hidden states. However, other components Ux t and Vh t can usually be computed efficiently by a single matrix-matrix multiplication for each of the components. That is, we can perform</p><formula xml:id="formula_5">U[x 0 , . . . , x T ] and V[h 0 , . . . , h T −1 ]</formula><p>, this is efficient using modern BLAS libraries. So to summarize, if we can control the number of parameters in the recurrent matrix W, then we can control the computational efficiency.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">POOR CONDITIONING IMPLIES GRADIENTS EXPLODE OR VANISH</head><p>The vanishing and exploding gradient problem refers to the decay or growth of the partial derivative of the loss L(.) with respect to the hidden state h t i.e. ∂L ∂ht as the number of time steps T grows <ref type="bibr" target="#b1">(Arjovsky et al., 2016)</ref>. By the application of the chain rule, the following can be shown <ref type="bibr" target="#b1">(Arjovsky et al., 2016)</ref>:</p><formula xml:id="formula_6">∂L ∂h t ≤ W T −t .<label>(3)</label></formula><p>From Equation 3, it is clear that if the absolute value of the eigenvalues of W deviates from 1 then ∂L ∂ht may explode or vanish exponentially fast with respect to T − t. So a strategy to prevent vanishing and exploding gradient is to control the spectrum of W.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.3">WHY COMPLEX FIELD?</head><p>Although <ref type="bibr" target="#b1">Arjovsky et al. (2016)</ref> and <ref type="bibr" target="#b42">Wisdom et al. (2016)</ref> use complex valued networks with unitary constraints on the recurrent matrix, the motivations for such models are not clear. We give a simple but compelling reason for complex-valued recurrent networks.</p><p>The absolute value of the determinant of a unitary matrix is 1. Hence in the real space, the set of all unitary (orthogonal) matrices have a determinant of 1 or −1, i.e., the set of all rotations and reflections respectively. Since the determinant is a continuous function, the unitary set in real space is disconnected. Consequently, with the real-valued networks we cannot span the full unitary set using the standard continuous optimization procedures. On the contrary, the unitary set is connected in the complex space as its determinants are the points on the unit circle and we do not have this issue.</p><p>As we mentioned in the introduction <ref type="bibr" target="#b25">(Jing et al., 2017)</ref> uses this continuity of unitary space to have a tunable continuous parametrization ranging from subspace to full unitary space. Any continuous parametrization in real space can only span a subset of the full orthogonal set. For example, the Householder parametrization <ref type="bibr" target="#b35">(Mhammedi et al., 2016)</ref> suffers from this issue.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">KRONECKER RECURRENT UNITS (KRU)</head><p>We consider parameterizing the recurrent matrix W as a Kronecker product of F matrices</p><formula xml:id="formula_7">W 0 , . . . , W F −1 , W = W 0 ⊗ • • • ⊗ W F −1 = ⊗ F −1 f =0 W f .<label>(4)</label></formula><p>Where each W f ∈ C P f ×Q f and F −1</p><formula xml:id="formula_8">f =0 P f = F −1 f =0 Q f = N . W f 's are called as Kronecker factors.</formula><p>To illustrate the Kronecker product of matrices, let us consider the simple case when ∀ f {P f = Q f = 2}. This implies F = log 2 N . And W is recursevly defined as follows:</p><formula xml:id="formula_9">W = ⊗ log 2N −1 f =0 W f = w 0 (0, 0) w 0 (0, 1) w 0 (1, 0) w 0 (1, 1) ⊗ log 2N −1 f =1 W f ,<label>(5)</label></formula><formula xml:id="formula_10">= w 0 (0, 0)W 1 w 0 (0, 1)W 1 w 0 (1, 0)W 1 w 0 (1, 1)W 1 ⊗ log 2N −1 f =2 W f .<label>(6)</label></formula><p>When ∀ f {p f = q f = 2} the number of parameters is 8 log 2 N and the time complexity of hidden state computation is O(N log 2 N ). When ∀ f {p f = q f = N } then F = 1 and we will recover standard complex valued recurrent neural network. We can span every Kronecker representations in between by choosing the number of factors and the size of each factor. In other words, the number of Kronecker factors and the size of each factor give us fine-grained control over the number of parameters and hence over the computational efficiency. This strategy allows us to design models with the appropriate trade-off between computational budget and statistical performance. All the existing models lack this flexibility.</p><p>The idea of using Kronecker factorization for approximating Fisher matrix in the context of natutal gradient methods have recently recieved much attention. The algorithm was originally presented in <ref type="bibr" target="#b33">Martens &amp; Grosse (2015)</ref> and was later extended to convolutional layers , distributed second order optimization <ref type="bibr" target="#b3">(Ba et al., 2016)</ref> and for deep reinforcement learning <ref type="bibr" target="#b43">(Wu et al., 2017)</ref>. However Kronecker matrices have not been well explored as learnable parameters except <ref type="bibr" target="#b45">(Zhang et al., 2015</ref>) used it's spectral property for fast orthogonal projection and <ref type="bibr" target="#b46">(Zhou et al., 2015)</ref> used it as a layer in convolutional neural networks.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">SOFT UNITARY CONSTRAINT</head><p>Poor conditioning results in vanishing or exploding gradients. Unfortunately, the standard solution which consists of optimization on the strict unitary set suffers from the retention of noise over time. Indeed, the small eigenvalues of the recurrent matrix can represent a truly vanishing long-term influence on the particular problem and in that sense, there can be good or bad vanishing gradients. Consequently, enforcing strict unitary constraint (forcing the network to never forget) can be a bad strategy. A simple solution to get the best of both worlds is to enforce unitary constraint approximately by using the following regularization:</p><formula xml:id="formula_11">W H f W f − I 2 , ∀f ∈ {0, . . . , F − 1}<label>(7)</label></formula><p>Please note that these constraints are enforced on each factor of the Kronecker factored recurrent matrix. This procedure is computationally very efficient since the size of each factor is typically small. It suffices to do so because if each of the Kronecker factors {W 0 , . . . , W F −1 } are unitary then the full matrix W is unitary <ref type="bibr" target="#b40">(Van Loan, 2000)</ref> and if each of the factors are approximately unitary then the full matrix is approximately unitary. We apply soft unitary constraints as a regularizer whose strength is cross-validated on the validation set.</p><p>This type of regularizer has recently been exploited for real-valued models. <ref type="bibr" target="#b11">(Cisse et al., 2017)</ref> showed that enforcing approximate orthogonality constraint on the weight matrices make the network robust to adversarial samples as well as improve the learning speed. In metric learning <ref type="bibr" target="#b26">(Jose &amp; Fleuret, 2016)</ref> have shown that it better conditions the projection matrix thereby improving the robustness of stochastic gradient over a wide range of step sizes as well asthe generalization performance. <ref type="bibr" target="#b20">Henaff et al. (2016)</ref> and <ref type="bibr" target="#b41">Vorontsov et al. (2017)</ref> have also used this soft unitary contraints on standard RNN after identifying the problems with the strict unitary RNN models. However the computational complexity of naively applying this soft constraint is O(N 3 ). This is prohibitive for RNNs with large hidden state unless one considers a Kronecker factorization.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">EXPERIMENTS</head><p>Existing deep learning libraries such as Theano <ref type="bibr" target="#b6">(Bergstra et al., 2011)</ref>, Tensorflow <ref type="bibr" target="#b0">(Abadi et al., 2016)</ref> and Pytorch <ref type="bibr" target="#b38">(Paszke et al., 2017)</ref> do not support fast primitives for Kronecker products with arbitrary number of factors. So we wrote custom CUDA kernels for Kronecker forward and backward operations. All our models are implemented in C++. We will release our library to reproduce all the results which we report in this paper. We use tanh as activation function for RNN, LSTM and our model KRU-LSTM. Whereas RC uRNN, FC uRNN and KRU uses complex rectified linear units <ref type="bibr" target="#b1">(Arjovsky et al., 2016)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">COPY MEMORY PROBLEM</head><p>Copy memory problem <ref type="bibr" target="#b23">(Hochreiter &amp; Schmidhuber, 1997)</ref> tests the model's ability to recall a sequence after a long time gap. In this problem each sequence is of length T + 20 and each element in the sequence come from 10 classes {0, . . . , 9}. The first 10 elements are sampled uniformly with replacement from {1, . . . , 8}. The next T − 1 elements are filled with 0, the 'blank' class followed by 9, the 'delimiter' and the remaining 10 elements are 'blank' category. The goal of the model is to output a sequence of T + 10 blank categories followed by the 10 element sequence from the beginning of the input sequence. The expected average cross entropy for a memory-less strategy is  we choose the training and test set size to be 100K and 10K respectively. All the models were trained using RMSprop with a learning rate of 1e−3, decay of 0.9 and a batch size of 20. For both the settings T = 1000 and T = 2000, KRU converges to zero average cross entropy faster than FC uRNN. All the other baselines are stuck at the memory-less cross entropy.</p><p>The results are shown in figure 1. For this problem we do not learn the recurrent matrix of KRU, We initialize it by random unitary matrix and just learn the input to hidden, hidden to output matrices and the bias. We found out that this strategy already solves the problem faster than all other methods. Our model in this case is similar to a parametrized echo state networks (ESN). ESNs are known to be able to learn long-term dependencies if they are properly initialized <ref type="bibr" target="#b24">(Jaeger, 2001)</ref>. We argue that this data-set is not an ideal benchmark for evaluating RNNs in capturing long term dependencies. Just a unitary initialization of the recurrent matrix would solve the problem.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">ADDING PROBLEM</head><p>Following Arjovsky et al. <ref type="formula">2016</ref>we describe the adding problem <ref type="bibr" target="#b23">(Hochreiter &amp; Schmidhuber, 1997)</ref>.</p><p>Each input vector is composed of two sequences of length T . The first sequence is sampled from U[0, 1]. In the second sequence exactly two of the entries is 1, the 'marker' and the remaining is 0. The first 1 is located uniformly at random in the first half of the sequence and the other 1 is located again uniformly at random in the other half of the sequence. The network's goal is to predict the sum of the numbers from the first sequence corresponding to the marked locations in the second sequence.  <ref type="figure">Figure 2</ref>: Results on adding problem for T =100, T =200, T =400 and T =750. KRU consistently outperforms the baselines on all the settings with fewer parameters.</p><p>We evaluate four settings as in <ref type="bibr" target="#b1">Arjovsky et al. (2016)</ref> with T =100, T =200, T =400, and T =750. For all four settings, KRU uses a hidden dimension N of 512 with 2x2 Kronecker factors which corresponds to ≈3K parameters in total. We use a RNN of N = 128 (≈ 17K parameters) , LSTM of N = 128 ( ≈ 67K parameters), RC uRNN of N = 512 ( ≈ 7K parameters) , FC uRNN of N = 128 ( ≈ 33K parameters). The train and test set sizes are chosen to be 100K and 10K respectively. All the models were trained using RMSprop with a learning rate of 1e−3 and a batch size of 20 or 50 with the best results are being reported here.</p><p>The results are presented in figure 2. KRU converges faster than all other baselines even though it has much fewer parameters. This shows the effectiveness of soft unitary constraint which controls the flow of gradients through very long time steps and thus deciding what to forget and remember in an adaptive way. LSTM also converges to the solution and this is achieved through its gating mechanism which controls the flow of the gradients and thus the long term influence. However LSTM has 10 times more parameters than KRU. Both RC uRNN and FC uRNN converges for T = 100 but as we can observe, the learning is not stable. The reason for this is that RC uRNN and FC uRNN retains noise since they are strict unitary models. Please note that we do not evaluate RC uRNN for T = 400 and T = 750 because we found out that the learning is unstable for this model and is often diverging.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">PIXEL BY PIXEL MNIST</head><p>As outlined by , we evaluate the Pixel by pixel MNIST task. MNIST digits are shown to the network pixel by pixel and the goal is to predict the class of the digit after seeing all the pixels one by one. We consider two tasks: (1) Pixels are read from left to right from top or bottom and (2) Pixels are randomly permuted before being shown to the network. The sequence length for these tasks is T = 28 × 28 = 784. The size of the MNIST training set is 60K among which we choose 5K as the validation set. The models are trained on the remaining 55K points. The model which gave the best validation accuracy is chosen for test set evaluation. All the models are trained using RMSprop with a learning rate of 1e−3 and a decay of 0.9.   The results are summarized in figure 3 and table 2. On the unpermuted task LSTM achieve the state of the art performance even though the convergence speed is slow. Recently a low rank plus diagonal gated recurrent unit (LRD GRU) (Barone, 2016) have shown to achieves 94.7 accuracy on permuted MNIST with 41.2K parameters whereas KRU achieves 94.5 with just 12K parameters i.e KRU has 3x parameters less than LRD GRU. Please also note that KRU is a simple model without a gating mechanism. KRU can be straightforwardly plugged into LSTM and GRU to exploit the additional benefits of the gating mechanism which we will show in the next experiments with a KRU-LSTM.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.4">CHARACTER LEVEL LANGUAGE MODELLING ON PENN TREEBANK (PTB)</head><p>We now consider character level language modeling on Penn TreeBank data-set <ref type="bibr" target="#b32">(Marcus et al., 1993)</ref>. Penn TreeBank is composed of 5017K characters in the training set, 393K characters in the validation set and 442K characters in the test set. The size of the vocabulary was limited to 10K most frequently occurring words and the rest of the words are replaced by a special &lt;UNK&gt; character <ref type="bibr" target="#b36">(Mikolov, 2012)</ref>. The total number of unique characters in the data-set is 50, including the special &lt;UNK&gt; character.</p><p>All our models were trained for 50 epochs with a batch size of 50 and using ADAM <ref type="bibr" target="#b27">(Kingma &amp; Ba, 2014)</ref>. We use a learning rate of 1e−3 which was found through cross-validation with default beta parameters <ref type="bibr" target="#b27">(Kingma &amp; Ba, 2014</ref>). If we do not see an improvement in the validation bits per character (BPC) after each epoch then the learning rate is decreased by 0.30. Back-propagation through time (BPTT) is unrolled for 30 time frames on this task.</p><p>We did two sets of experiments to have fair evaluation with the models whose results were available for a particular parameter setting <ref type="bibr" target="#b35">(Mhammedi et al., 2016)</ref> and also to see how the performance evolves as the number of parameters are increased. We present our results in table 3. We observe that the strict orthogonal model, oRNN fails to generalize as well as other models even with a high capacity recurrent matrix. KRU and KRU-LSTM performs very close to RNN and LSTM with fewer parameters in the recurrent matrix. Please recall that the computational bottleneck in RNN is the computation of hidden states 2.1 and thus having fewer parameters in the recurrent matrix can significantly reduce the training and inference time.</p><p>Recently HyperNetworks <ref type="bibr" target="#b18">(Ha et al., 2016)</ref> have shown to achieve the state of the art performance of 1.265 and 1.219 BPC on the PTB test set with 4.91 and 14.41 million parameters respectively. This is respectively 13 and 38 times more parameters than the KRU-LSTM model which achieves 1.47 test BPC. Also Recurrent Highway Networks (RHN) (Zilly et al., 2016) proved to be a promising model for learning very deep recurrent neural networks. Running experiments, and in particular exploring meta-parameters with models of that size, requires unfortunately computational means beyond what was at our disposal for this work. However, there is no reason that the consistent behavior and improvement observed on the other reference baselines would not generalize to that type of large-scale models. We exactly follow the experimental framework of <ref type="bibr" target="#b9">Chung et al. (2014)</ref> for Polyphonic music modeling (Boulanger-Lewandowski et al., 2012) on two datasets: JSB Chorales and Piano-midi. Similar to <ref type="bibr" target="#b9">(Chung et al., 2014)</ref> our main objective here is to have a fair evaluation of different recurrent neural networks. We took the baseline RNN and LSTM models of <ref type="bibr" target="#b9">(Chung et al., 2014)</ref> whose model sizes were chosen to be small enough to avoid overfitting. We choose the model size of KRU and KRU-LSTM in such way that it has fewer parameters compared to the baselines. As we can in the table 4 both our models (KRU and KRU-LSTM) overfit less and generalizes better. We also present the wall-clock running time of different methods in the figure 4.  <ref type="bibr" target="#b9">(Chung et al., 2014)</ref> 100 ≈20K 10K 8.82 9.10 5.64 9.03 LSTM <ref type="bibr" target="#b9">(Chung et al., 2014)</ref>   <ref type="figure">Figure 4</ref>: Wall clock training time on JSB Chorales and Piano-midi data-set.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.6">FRAMEWISE PHONEME CLASSIFICATION ON TIMIT</head><p>Framewise phoneme classification <ref type="bibr" target="#b16">(Graves &amp; Schmidhuber, 2005)</ref> is the problem of classifying the phoneme corresponding to a sound frame. We evaluate the models for this task on the real world TIMIT data-set <ref type="bibr" target="#b15">(Garofolo et al., 1993)</ref>. TIMIT contains a training set of 3696 utterances among which we use 184 as the validation set. The test set is composed of 1344 utterances. We extract 12 Mel-Frequency Cepstrum Coefficients (MFCC) <ref type="bibr" target="#b34">(Mermelstein, 1976)</ref> from filter banks and also the log energy per frame. We also concatenate the first derivative, resulting in a feature descriptor of dimension 26 per frame. The frame size is chosen to be 10ms and the window size is 25ms.</p><p>The number of time steps to which back-propagation through time (BPTT) is unrolled corresponds to the length of each sequence. Since each sequence is of different length this implies that for each sample BPTT steps are different. All the models are trained for 20 epochs with a batch size of 1 using ADAM with default beta parameters <ref type="bibr" target="#b27">(Kingma &amp; Ba, 2014)</ref>. The learning rate was cross-validated for each of the models from η ∈ {1e−2, 1e−3, 1e−4} and the best results are reported here. The best learning rate for all the models was found out to be 1e−3 for all the models. Again if we do not observe a decrease in the validation error after each epoch, we decrease the learning rate by a factor of γ ∈ {1e−1, 2e−1, 3e−1} which is again cross-validated. <ref type="figure">Figure 5</ref> summarizes our results. Figure 5: KRU and KRU-LSTM performs better than the baseline models with far less parameters in the recurrent weight matrix on the challenging TIMIT data-set <ref type="bibr" target="#b15">(Garofolo et al., 1993)</ref>. This significantly bring down the training and inference time of RNNs. Both LSTM and KRU-LSTM converged within 5 epochs whereas RNN and KRU took 20 epochs. A similar result was obtained by <ref type="bibr" target="#b16">(Graves &amp; Schmidhuber, 2005)</ref> using RNN and LSTM with 4 times less parameters respectively than our models. However in their work the LSTM took 20 epochs to converge and the RNN took 70 epochs. We have also experimented with the same model size as that of <ref type="bibr" target="#b16">(Graves &amp; Schmidhuber, 2005)</ref> and have obtained very similar results as in the table but at the expense of longer training times.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.7">INFLUENCE OF SOFT UNITARY CONSTRAINTS</head><p>Here we study the properties of soft unitary constraints on KRU. We use Polyphonic music modeling data-sets <ref type="bibr" target="#b7">(Boulanger-Lewandowski et al., 2012)</ref>: JSB Chorales and Piano-midi, as well as TIMIT data-set for this set of experiments. We varied the amplitude of soft unitary constraints from 1e − 7 to 1e − 1, the higher the amplitude the closer the recurrent matrix will be to the unitary set. All other hyper-parameters, such as the learning rate and the model size are fixed. We present our studies in the figure 6. As we increase the amplitude we can see that the recurrent matrix is getting better conditioned and the spectral norm or the spectral radius is approaching towards 1. As we can see that the validation performance can be improved using this simple soft unitary constraints. For JSB Chorales the best validation performance is achieved at an amplitude of 1e − 2, whereas for Piano-midi it is at 1e − 1.</p><p>For TIMIT phoneme recognition problem, the best validation error is achieved at 1e − 5 but as we increase the amplitude further, the performance drops. This might be explained by a vanishing long-term influence that has to be forgotten. Our model achieve this by cross-validating the amplitude of soft unitary constraints. These experiments also reveals the problems of strict unitary models such as RC uRNN <ref type="bibr" target="#b1">(Arjovsky et al., 2016)</ref>, FC uRNN <ref type="bibr" target="#b42">(Wisdom et al., 2016)</ref>, oRNN <ref type="bibr" target="#b35">(Mhammedi et al., 2016)</ref> and EURNN <ref type="bibr" target="#b25">(Jing et al., 2017)</ref> that they suffer from the retention of noise from a vanishing long term influence and thus fails to generalize.</p><p>A popular heuristic strategy to avoid exploding gradients in RNNs and thereby making their training robust and stable is gradient clipping. Most of the state of the art RNN models use gradient clipping for training. Please note that we are not using gradient clipping with KRU. Our soft unitary constraints offer a principled alternative to gradient clipping.</p><p>Moreover <ref type="bibr" target="#b19">Hardt et al. (2016)</ref> recently showed that gradient descent converges to the global optimizer of linear recurrent neural networks even though the learning problem is non-convex. The necessary condition for the global convergence guarantee requires that the spectral norm of recurrent matrix is bounded by 1. This seminal theoretical result also inspires to use regularizers which control the spectral norm of the recurrent matrix, such as the soft unitary constraints.</p><p>10 -7 -6 -5 -4 -3 -2 -1</p><p>Condition number of W Amplitude of soft unitary constraint JSB Chorales 1 10 -7 10 -6 10 -5 10 -4 -3 10 -2 10 -1</p><p>Condition number of W</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Amplitude of soft unitary constraint</head><p>Piano-midi 1 10 -7 -6 -5 -4 -3 -2 -1</p><p>Condition number of W</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Amplitude of soft unitary constraint</head><p>Phoneme classification on TIMIT 1 -7 10 -6 10 -5 -4 -3 - 10 -7 10 -6 10 -5 10 -4 10 -3 10 -2 10 -1 10 -6 10 -5 10 -4 10 -3 10 -2 10 -1</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Validation error</head><p>Amplitude of soft unitary constraint Phoneme classification on TIMIT <ref type="figure">Figure 6</ref>: Analysis of soft unitary constraints on three data-sets. First, second and the third column presents JSB Chorales, Piano-midi and TIMIT data-sets respectively.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>CONCLUSION</head><p>We have presented a new recurrent neural network model based on its core a Kronecker factored recurrent matrix. Our core reason for using a Kronecker factored recurrent matrix stems from it's elegant algebraic and spectral properties. Kronecker matrices are neither low-rank nor block-diagonal but it is multi-scale like the FFT matrix. Kronecker factorization provides a fine control over the model capacity and it's algebraic properties enable us to design fast matrix multiplication algorithms. It's spectral properties allow us to efficiently enforce constraints like positive semi-definitivity, unitarity and stochasticity. As we have shown, we used the spectral properties to efficiently enforce a soft unitary constraint.</p><p>Experimental results show that our approach out-perform classical methods which uses O(N 2 ) parameters in the recurrent matrix. Maybe as important, these experiments show that both on toy problems ( § 4.1 and 4.2), and on real ones ( § 4.3, 4.4, , and § 4.6), while existing methods require tens of thousands of parameters in the recurrent matrix, competitive or better than state-of-the-art performance can be achieved with far less parameters in the recurrent weight matrix. These surprising results provide a new and counter-intuitive perspective on desirable memory-capable architectures: the state should remain of high dimension to allow the use of high-capacity networks to encode the input into the internal state, and to extract the predicted value, but the recurrent dynamic itself can, and should, be implemented with a low-capacity model.</p><p>From a practical standpoint, the core idea in our method is applicable not only to vanilla recurrent neural networks and LSTMS as we showed, but also to a variety of machine learning models such as feed-forward networks <ref type="bibr" target="#b46">(Zhou et al., 2015)</ref>, random projections and boosting weak learners. Our future work encompasses exploring other machine learning models and on dynamically increasing the capacity of the models on the fly during training to have a perfect balance between computational efficiency and sample complexity.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>APPENDICES A ANALYSIS OF VANISHING AND EXPLODING GRADIENTS IN RNN</head><p>Given a sequence of T input vectors: x 0 , x 1 , . . . , x T −1 , let us consider the operation at the hidden layer t of a recurrent neural network:</p><formula xml:id="formula_12">z t = W t h t−1 + U t x t + b (8) h t = σ(z t )<label>(9)</label></formula><p>By the chain rule,</p><formula xml:id="formula_13">∂L ∂h t = ∂L ∂h T ∂h T ∂h t (10) = ∂L ∂h T T −1 k=t ∂h k+1 ∂h k = ∂L ∂h T T −1 k=t J k+1 W T (11)</formula><p>where σ is the non-linear activation function and J k+1 = diag(σ (z k+1 )) is the Jacobian matrix of the non-linear activation function.</p><formula xml:id="formula_14">∂L ∂h t = ∂L ∂h T T −1 k=t J k+1 W T (12) ≤ ∂L ∂h T T −1 k=t J k+1 W T (13) ≤ ∂L ∂h T W T −t T −1 k=t J k+1<label>(14)</label></formula><p>From equation 14 it is clear the norm of the gradient is exponentially dependent upon two factors along the time horizon:</p><p>• The norm of the Jacobian matrix of the non-linear activation function J k+1 .</p><p>• The norm of the hidden to hidden weight matrix W .</p><p>These two factors are causing the vanishing and exploding gradient problem.</p><p>Since the gradient of the standard non-linear activation functions such as tanh and ReLU are bounded between [0, 1], J k+1 does not contribute to the exploding gradient problem but it can still cause vanishing gradient problem.</p><p>B LONG SHORT-TERM MEMORY (LSTM) <ref type="bibr" target="#b23">(HOCHREITER &amp; SCHMIDHUBER, 1997)</ref> LSTM networks presented an elegant solution to the vanishing and exploding gradients through the introduction of gating mechanism. Apart from the standard hidden state in RNN, LSTM introduced one more state called cell state c t . LSTM has three different gates whose functionality is described as follows:</p><formula xml:id="formula_15">• Forget gate (W f , U f , b f ):</formula><p>Decides what information to keep and erase from the previous cell state.</p><formula xml:id="formula_16">• Input gate (W i , U f , b i ):</formula><p>Decides what new information should be added to the cell state.</p><p>• Output gate (W o , U o , b o ):Decides which information from the cell state is going to the output.</p><p>In addition to the gates, LSTM prepares candidates for the information from the input gate that might get added to the cell state through the action of input gate. Let's denote the parameters describing the function that prepares this candidate information as W c , U c , b c .</p><p>Given a sequence of T input vectors: x 0 , x 1 , . . . , x T −1 , at a time step t LSTM performs the following:</p><formula xml:id="formula_17">f t = σ(W f h t−1 + U f x t + b f )<label>(15)</label></formula><formula xml:id="formula_18">i t = σ(W i h t−1 + U i x t + b i ) (16) o t = σ(W o h t−1 + U o x t + b o )<label>(17)</label></formula><formula xml:id="formula_19">c t = τ (W c h t−1 + U c x t + b c ) (18) c t = c t−1 f t +ĉ t i t (19) h t = τ (c t ) o t<label>(20)</label></formula><p>where σ(.) and τ (.) are the point-wise sigmoid and tanh functions. indicates element-wise multiplication. The first three are gating operations and the 4th one prepares the candidate information. The 5th operation updates the cell-state and finally in the 6th operation the output gate decided what to go into the current hidden state.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>C UNITARY EVOLUTION RNN (ARJOVSKY ET AL., 2016)</head><p>Unitary evolution <ref type="bibr">RNN (uRNN)</ref> proposed to solve the vanishing and exploding gradients through a unitary recurrent matrix, which is for the form:</p><formula xml:id="formula_20">W = D 3 R 2 F −1 D 2 ΠR 1 F D 1 .<label>(21)</label></formula><p>Where:</p><formula xml:id="formula_21">• D 1 , D 2 , D 3 :</formula><p>Diagonal matrices whose diagonal entries are of the from D kk = e iθ k , implies each matrix have N parameters, (θ 0 , . . . , θ N −1 ).</p><p>• F and F −1 : Fast Fourier operator and inverse fast Fourier operator respectively.</p><p>• R 1 , R 2 : Householder reflections. R = I − 2 vv H v , where v ∈ C N . The total number of parameters for this uRNN operator is 7N and the matrix vector can be done N log(N ) time. It is parameter efficient and fast but not flexible and suffers from the retention of noise and difficulty in optimization due its unitarity.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>D FULL CAPACITY UNITARY RNN (WISDOM ET AL., 2016)</head><p>Full capacity unitary RNN (FC uRNN) does optimization on the full unitary set instead on a subset like uRNN. That is FC uRNN's recurrent matrix W ∈ U (N ). There are several challenges in optimization over unitary manifold especially when combined with stochastic gradient method. The primary challenge being the optimization cost is O(N 3 ) per step.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>E ORTHOGONAL RNN (MHAMMEDI ET AL., 2016)</head><p>Orthogonal RNN (oRNN) parametrizes the recurrent matrices using Householder reflections.</p><formula xml:id="formula_22">W = H N (v N )...H N −K+1 (v N −k+1 ).<label>(22)</label></formula><p>where</p><formula xml:id="formula_23">H K (v K ) = I N −K 0 0 I K − 2 v K v H K v K<label>(23)</label></formula><p>and</p><formula xml:id="formula_24">H 1 (v) = I N −1 0 0 v ∈ {−1, 1}<label>(24)</label></formula><p>where v K ∈ R K . The number of parameters in this parametrization is O(N K). When N = K = 1 and v = 1, it spans the rotation subset and when v = −1, it spans the full reflection subset.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>F PROPERTIES OF KRONECKER MATRIX (VAN LOAN, 2000)</head><p>Consider a matrix W ∈ C N ×N factorized as a Kronecker product of F matrices W 0 , . . . ,</p><formula xml:id="formula_25">W F −1 , W = W 0 ⊗ • • • ⊗ W F −1 = ⊗ F −1 i=0 W i .<label>(25)</label></formula><p>Where each W i ∈ C Pi×Qi respectively and f −1</p><formula xml:id="formula_26">i=0 P i = F −1 i=0 Q i = N . W i 's are called as Kronecker factors. If the factors W i 's are                Nonsingular Symmetric Stochatsic Orthogonal Unitary PSD Toeplitz                then W is                Nonsingular Symmetric Stochatsic Orthogonal Unitary PSD Block Toeplitz                Theorem 1. If ∀i ∈ 0, . . . , F − 1, W i is unitary then W is also unitary. Proof. W H W = (W 0 ⊗ • • • ⊗ W f −1 ) H (W 0 ⊗ • • • ⊗ W f −1 ) (26) = (W H 0 ⊗ • • • ⊗ W H f −1 )(W 0 ⊗ • • • ⊗ W f −1 ) (27) = W H 0 W 0 ⊗ • • • ⊗ W H f −1 W f −1 = I.<label>(28)</label></formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>G PRODUCT BETWEEN A DENSE MATRIX AND A KRONECKER MATRIX</head><p>For simplicity here we use real number notations. Consider a dense matrix X ∈ R M ×K and a Kronecker factored matrix W ∈ R N ×K . That is W = ⊗ F −1 f =0 W f , where each W f ∈ R P f ×Q f respectively and F −1</p><formula xml:id="formula_27">f =0 P f = N and F −1</formula><p>f =0 Q f = K. Let us illustrate the matrix product XW T resulting in a matrix Y ∈ R M ×N .</p><formula xml:id="formula_28">Y = XW T .<label>(29)</label></formula><p>The computational complexity first expanding the Kronecker factored matrix and then computing the matrix product is O(M N K). This can be reduced by exploiting the recursive definition of Kronecker matrices. For examples when N = K and ∀ f {P f = Q f = 2}, the matrix product can be computed in O(M N log N ) time instead of O(M N 2 ).</p><p>The matrix product in 29 can be recursively defined as</p><formula xml:id="formula_29">Y = (. . . (X W T 0 ) ⊗ • • • ⊗ W T F −1 ).<label>(30)</label></formula><p>Please note that the binary operator is not the standard matrix multiplication operator but instead it denotes a strided matrix multiplication. The stride is computed according to the algebra of Kronecker matrices. Let us define Y recursively:</p><formula xml:id="formula_30">Y 0 = X W 0 (31) Y f = Y f −1 W f .<label>(32)</label></formula><p>Combining equation 34 and 32</p><formula xml:id="formula_31">Y = Y F −1 = (. . . (X W T 0 ) ⊗ • • • ⊗ W T F −1 ).<label>(33)</label></formula><p>We use the above notation for Y in the algorithm. That is the algorithm illustrated here will cache all the intermediate outputs (Y 0 , . . . , Y F −1 ) instead of just Y F −1 . These intermediate outputs are then later to compute the gradients during the back-propagation. This cache will save some computation during the back-propagation. If the model is just being used for inference then the algorithm can the organized in such a way that we do not need to cache the intermediate outputs and thus save memory.</p><p>Algorithm for computing the product between a dense matrix and a Kronecker factored matrix34 is given below 1. All the matrices are assumed to be stored in row major order. For simplicity the algorithm is illustrated in a serial fashion. Please note the lines 4 to 15 except lines 9-11 can be trivially parallelized as it writes to independent memory locations. The GPU implementation exploits this fact.</p><p>Algorithm 1 Dense matrix product with a Kronecker matrix, Y = (. . . (XW T 0 ) ⊗ • • • ⊗ W T F −1 ) Input: Dense matrix X ∈ R M ×K , Kronecker factors {W 0 , . . . , W F −1 } : W f ∈ R p f ×q f , Size of each Kronecker factors {(P 0 , Q 0 ), . . . , (P F −1 , Q F −1 )} : for q = 0 to Q k − 1 do 10: Following the notations from the above section G, here we illustrate the algorithm for computing the gradients in a Kronecker layer. To be clear and concrete the Kronecker layer does the following computation in the forward pass 32.</p><formula xml:id="formula_32">F −1 f =0 P f = N, F −1 f =0 Q f = K</formula><formula xml:id="formula_33">Y f [index] = Y f [index] + X m [q × stride + s] × W f [p × Q f + q]</formula><formula xml:id="formula_34">Y = Y F −1 = (. . . (X W T 0 ) ⊗ • • • ⊗ W T F −1 ).<label>(34)</label></formula><p>That is, the Kronecker layer is parametrized by a Kronecker factored matrix W = ⊗ F −1 f =0 W f stored as it factors {W 0 , . . . , W F −1 } and it takes an input X and produces output Y = Y F −1 using the algorithm 1.</p><p>The following algorithm 2 computes the Gradient of the Kronecker factors: {gW 0 , . . . , gW F −1 } and the Jacobian of the input matrix gX given the Jacobian of the output matrix: gY = gY F −1 .</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 :</head><label>1</label><figDesc>Learning curves on copy memory problem for T =1000 and T =2000.Our experimental setup closely follows<ref type="bibr" target="#b42">Wisdom et al. (2016)</ref> which in turn follows<ref type="bibr" target="#b1">Arjovsky et al. (2016)</ref> but T extended to 1000 and 2000. Our model, KRU uses a hidden dimension N of 128 with 2x2 Kronecker factors which corresponds to ≈5K parameters in total. We use a RNN of N = 128 (≈ 19K parameters) , LSTM of N = 128 ( ≈ 72K parameters), RC uRNN of N = 470 ( ≈ 21K parameters) , FC uRNN of N = 128 ( ≈ 37K parameters). All the baseline models are deliberately chosen to have more parameters than KRU. Following<ref type="bibr" target="#b42">Wisdom et al. (2016)</ref>;<ref type="bibr" target="#b1">Arjovsky et al. (2016)</ref>,</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 3 :</head><label>3</label><figDesc>Validation accuracy on pixel by pixel MNIST and permuted MNIST class prediction as the learning progresses.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head></head><label></label><figDesc>, Output:Output matrix Y F −1 ∈ R M ×N 1: for f = 0 to F − 1 do for m = 0 to M − 1 do 5: X m = X + m × K 6:for p = 0 to P f − 1 do 7:for s = 0 to stride − 1 do 8:Y f [index] = 0 9:</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head>Table 1 :</head><label>1</label><figDesc>Notations D, N, M Input, hidden and output dimensions x t</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_4"><head>Table 2 :</head><label>2</label><figDesc>KRU achieves state of the art performance on pixel by pixel permuted MNIST while having up to four orders of magnitude less parameters than other models.</figDesc><table><row><cell>Model</cell><cell>n</cell><cell cols="5"># Parameters Total Recurrent Valid. Unpermuted accuracy Permuted accuracy Test Valid. Test</cell></row><row><cell cols="3">LSTM (Arjovsky et al., 2016) RC uRNN (Wisdom et al., 2016) 512 128 FC uRNN (Wisdom et al., 2016) 512 ≈540K ≈68K ≈16K FC uRNN (Wisdom et al., 2016) 116 ≈30K oRNN (Mhammedi et al., 2016) 256 ≈11K EURNN (Jing et al., 2017) 1024 ≈13K KRU 512 ≈11K</cell><cell>≈65K ≈3.6K ≈524K ≈27K ≈8K ≈4K 72</cell><cell>98.1 97.9 97.5 92.7 97.0 -96.6</cell><cell>97.8 97.5 96.9 92.8 97.2 -96.4</cell><cell>91.7 94.2 94.7 92.2 -94.0 94.7</cell><cell>91.3 93.3 94.1 92.1 -93.7 94.5</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_5"><head>Table 3 :</head><label>3</label><figDesc>Performance in BPC of KRU variants and other models for character level language modeling on Penn TreeBank data-set. KRU has fewer parameters in the recurrent matrix which significantly bring down training and inference time.</figDesc><table><row><cell>Model</cell><cell>N</cell><cell cols="2"># Parameters Total Recurrent</cell><cell>Valid. BPC Test BPC</cell></row><row><cell cols="3">RNN LSTM oRNN (Mhammedi et al., 2016) 512 ≈183K 300 ≈120K 150 ≈127K KRU 411 ≈120K RNN 600 ≈420K LSTM 300 ≈435K KRU 993 ≈418K KRU-LSTM 500 ≈377K</cell><cell>90K 90K ≈130K ≈38K 360K 360K ≈220K ≈250K</cell><cell>1.65 1.63 1.73 1.65 1.56 1.50 1.53 1.53</cell><cell>1.60 1.59 1.68 1.60 1.51 1.45 1.48 1.47</cell></row><row><cell>4.5 POLYPHONIC MUSIC MODELING</cell><cell></cell><cell></cell><cell></cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_6"><head>Table 4 :</head><label>4</label><figDesc>Average negative log-likelihood of KRU and KRU-LSTM compared to the baseline models.</figDesc><table><row><cell>Model</cell><cell>n</cell><cell># Parameters Total Recurrent Train Test Train Test JSB Chorales Piano-midi</cell></row><row><cell>RNN</cell><cell></cell><cell></cell></row></table><note></note></figure>
+		</body>
+		<back>
+			<div type="annex">
+<div xmlns="http://www.tei-c.org/ns/1.0"><p>Algorithm 2 Gradient computation in a Kronecker layer.</p><p>Input: </p></div>			</div>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martín</forename><surname>Abadi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ashish</forename><surname>Agarwal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Paul</forename><surname>Barham</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Eugene</forename><surname>Brevdo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zhifeng</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Craig</forename><surname>Citro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Greg</forename><forename type="middle">S</forename><surname>Corrado</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andy</forename><surname>Davis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jeffrey</forename><surname>Dean</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Matthieu</forename><surname>Devin</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1603.04467</idno>
+		<title level="m">Large-scale machine learning on heterogeneous distributed systems</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Unitary evolution recurrent neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Martin</forename><surname>Arjovsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Amar</forename><surname>Shah</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="1120" to="1128" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Do deep nets really need to be deep?</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jimmy</forename><surname>Ba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rich</forename><surname>Caruana</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="2654" to="2662" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<monogr>
+		<title level="m" type="main">Distributed second-order optimization using kroneckerfactored approximations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jimmy</forename><surname>Ba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Roger</forename><surname>Grosse</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">James</forename><surname>Martens</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Antonio</forename><surname>Valerio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Miceli</forename><surname>Barone</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1603.03116</idno>
+		<title level="m">Low-rank passthrough neural networks</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Learning long-term dependencies with gradient descent is difficult</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Patrice</forename><surname>Simard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Paolo</forename><surname>Frasconi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE transactions on neural networks</title>
+		<imprint>
+			<biblScope unit="volume">5</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="157" to="166" />
+			<date type="published" when="1994" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">James</forename><surname>Bergstra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Olivier</forename><surname>Breuleux</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pascal</forename><surname>Lamblin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Razvan</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Olivier</forename><surname>Delalleau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Guillaume</forename><surname>Desjardins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ian</forename><surname>Goodfellow</surname></persName>
+		</author>
+		<title level="m">Arnaud Bergeron, Yoshua Bengio, and Pack Kaelbling. Theano: Deep learning on gpus with python</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<title level="m" type="main">Modeling temporal dependencies in high-dimensional sequences: Application to polyphonic music generation and transcription</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nicolas</forename><surname>Boulanger-Lewandowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pascal</forename><surname>Vincent</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1206.6392</idno>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Compressing neural networks with the hashing trick</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Wenlin</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">James</forename><surname>Wilson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Stephen</forename><surname>Tyree</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kilian</forename><surname>Weinberger</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yixin</forename><surname>Chen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="2285" to="2294" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<monogr>
+		<title level="m" type="main">Empirical evaluation of gated recurrent neural networks on sequence modeling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Junyoung</forename><surname>Chung</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Caglar</forename><surname>Gulcehre</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kyunghyun</forename><surname>Cho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.3555</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Gated feedback recurrent neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Junyoung</forename><surname>Chung</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Caglar</forename><surname>Gülçehre</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kyunghyun</forename><surname>Cho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="2067" to="2075" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Moustapha</forename><surname>Cisse</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Piotr</forename><surname>Bojanowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Edouard</forename><surname>Grave</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yann</forename><surname>Dauphin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nicolas</forename><surname>Usunier</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1704.08847</idno>
+		<title level="m">Parseval networks: Improving robustness to adversarial examples</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<title level="m" type="main">Low precision storage for deep learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Matthieu</forename><surname>Courbariaux</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jean-Pierre</forename><surname>David</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<idno>Arxiv: 1412.7024</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Predicting parameters in deep learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Misha</forename><surname>Denil</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Babak</forename><surname>Shakibi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Laurent</forename><surname>Dinh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Nando De Freitas</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="2148" to="2156" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Finding structure in time</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Jeffrey L Elman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Cognitive science</title>
+		<imprint>
+			<biblScope unit="volume">14</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="179" to="211" />
+			<date type="published" when="1990" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<monogr>
+		<title level="m" type="main">Darpa timit acoustic-phonetic continous speech corpus cd-rom. nist speech disc 1-1.1. NASA STI/Recon technical report n</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Lori</forename><forename type="middle">F</forename><surname>John S Garofolo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Lamel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>William</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonathon</forename><forename type="middle">G</forename><surname>Fisher</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><forename type="middle">S</forename><surname>Fiscus</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Pallett</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1993" />
+			<biblScope unit="volume">93</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Framewise phoneme classification with bidirectional lstm and other neural network architectures</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Graves</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jürgen</forename><surname>Schmidhuber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural Networks</title>
+		<imprint>
+			<biblScope unit="volume">18</biblScope>
+			<biblScope unit="issue">5</biblScope>
+			<biblScope unit="page" from="602" to="610" />
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">A kronecker-factored approximate fisher matrix for convolution layers</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Roger</forename><surname>Grosse</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">James</forename><surname>Martens</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="573" to="582" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Ha</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><surname>Dai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Quoc</forename><surname>Le</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Hypernetworks</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<title level="m" type="main">Gradient descent learns linear dynamical systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Moritz</forename><surname>Hardt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tengyu</forename><surname>Ma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Benjamin</forename><surname>Recht</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1609.05191</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<monogr>
+		<title level="m" type="main">Orthogonal RNNs and long-memory tasks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mikael</forename><surname>Henaff</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Arthur</forename><surname>Szlam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yann</forename><surname>Lecun</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1602.06662</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Deep neural networks for acoustic modeling in speech recognition: The shared views of four research groups</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geoffrey</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Li</forename><surname>Deng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dong</forename><surname>Yu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">George</forename><forename type="middle">E</forename><surname>Dahl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Abdel-Rahman</forename><surname>Mohamed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Navdeep</forename><surname>Jaitly</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><surname>Senior</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Vincent</forename><surname>Vanhoucke</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Patrick</forename><surname>Nguyen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tara</forename><forename type="middle">N</forename><surname>Sainath</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Signal Processing Magazine</title>
+		<imprint>
+			<biblScope unit="volume">29</biblScope>
+			<biblScope unit="issue">6</biblScope>
+			<biblScope unit="page" from="82" to="97" />
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<monogr>
+		<title level="m" type="main">Untersuchungen zu dynamischen neuronalen Netzen. PhD thesis, diploma thesis, institut für informatik, lehrstuhl prof. brauer, technische universität münchen</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sepp</forename><surname>Hochreiter</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1991" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Long short-term memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sepp</forename><surname>Hochreiter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jürgen</forename><surname>Schmidhuber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural computation</title>
+		<imprint>
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="issue">8</biblScope>
+			<biblScope unit="page" from="1735" to="1780" />
+			<date type="published" when="1997" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">The echo state approach to analysing and training recurrent neural networks-with an erratum note</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Herbert</forename><surname>Jaeger</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">German National Research Center for Information Technology GMD Technical Report</title>
+		<imprint>
+			<biblScope unit="volume">148</biblScope>
+			<biblScope unit="issue">34</biblScope>
+			<biblScope unit="page">13</biblScope>
+			<date type="published" when="2001" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Tunable efficient unitary neural networks (EUNN) and their application to RNNs</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Li</forename><surname>Jing</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yichen</forename><surname>Shen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tena</forename><surname>Dubcek</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><surname>Peurifoy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Scott</forename><surname>Skirlo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yann</forename><surname>Lecun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Max</forename><surname>Tegmark</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marin</forename><surname>Soljačić</surname></persName>
+		</author>
+		<ptr target="http://proceedings.mlr.press/v70/jing17a.html" />
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 34th International Conference on Machine Learning</title>
+		<editor>Doina Precup and Yee Whye Teh</editor>
+		<meeting>the 34th International Conference on Machine Learning<address><addrLine>Sydney, Australia</addrLine></address></meeting>
+		<imprint>
+			<publisher>International Convention Centre</publisher>
+			<date type="published" when="2017-08" />
+			<biblScope unit="volume">70</biblScope>
+			<biblScope unit="page" from="6" to="11" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Scalable metric learning via weighted approximate rank component analysis</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Cijo</forename><surname>Jose</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">François</forename><surname>Fleuret</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">European Conference on Computer Vision</title>
+		<imprint>
+			<publisher>Springer</publisher>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="875" to="890" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<monogr>
+		<title level="m" type="main">Adam: A method for stochastic optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Diederik</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jimmy</forename><surname>Ba</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.6980</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">Imagenet classification with deep convolutional neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ilya</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geoffrey</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="1097" to="1105" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Fastfood-approximating kernel expansions in loglinear time</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Quoc</forename><surname>Le</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tamás</forename><surname>Sarlós</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Smola</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the international conference on machine learning</title>
+		<meeting>the international conference on machine learning</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<monogr>
+		<title level="m" type="main">A simple way to initialize recurrent networks of rectified linear units</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Navdeep</forename><surname>Quoc V Le</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geoffrey</forename><forename type="middle">E</forename><surname>Jaitly</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Hinton</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1504.00941</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">Optimal brain damage</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yann</forename><surname>Lecun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>John</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sara</forename><forename type="middle">A</forename><surname>Denker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Solla</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="1990" />
+			<biblScope unit="page" from="598" to="605" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Building a large annotated corpus of english: The penn treebank</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Mitchell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mary</forename><forename type="middle">Ann</forename><surname>Marcus</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Beatrice</forename><surname>Marcinkiewicz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Santorini</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Computational linguistics</title>
+		<imprint>
+			<biblScope unit="volume">19</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="313" to="330" />
+			<date type="published" when="1993" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<analytic>
+		<title level="a" type="main">Optimizing neural networks with kronecker-factored approximate curvature</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">James</forename><surname>Martens</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Roger</forename><surname>Grosse</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="2408" to="2417" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<monogr>
+		<title level="m" type="main">Distance measures for speech recognition, psychological and instrumental. Pattern recognition and artificial intelligence</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Paul</forename><surname>Mermelstein</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1976" />
+			<biblScope unit="volume">116</biblScope>
+			<biblScope unit="page" from="374" to="388" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<monogr>
+		<title level="m" type="main">Efficient orthogonal parametrisation of recurrent neural networks using householder reflections</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zakaria</forename><surname>Mhammedi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><surname>Hellicar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ashfaqur</forename><surname>Rahman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">James</forename><surname>Bailey</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1612.00188</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<monogr>
+		<title level="m" type="main">Statistical Language Models Based on Neural Networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tomáš</forename><surname>Mikolov</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+		<respStmt>
+			<orgName>Brno University of Technology</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">PhD thesis</note>
+	<note>Ph. D. thesis</note>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">On the difficulty of training recurrent neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Razvan</forename><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tomas</forename><surname>Mikolov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ICML</title>
+		<imprint>
+			<biblScope unit="volume">28</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="1310" to="1318" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Adam</forename><surname>Paszke</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sam</forename><surname>Gross</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Soumith</forename><surname>Chintala</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Pytorch</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Klaus</forename><surname>Rupesh Kumar Srivastava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jürgen</forename><surname>Greff</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Schmidhuber</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1505.00387</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Highway networks. arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<analytic>
+		<title level="a" type="main">The ubiquitous kronecker product</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Charles F Van Loan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of computational and applied mathematics</title>
+		<imprint>
+			<biblScope unit="volume">123</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="85" to="100" />
+			<date type="published" when="2000" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Eugene</forename><surname>Vorontsov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chiheb</forename><surname>Trabelsi</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1702.00071</idno>
+		<title level="m">Samuel Kadoury, and Chris Pal. On orthogonality and learning recurrent networks with long term dependencies</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<analytic>
+		<title level="a" type="main">Full-capacity unitary recurrent neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Scott</forename><surname>Wisdom</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Thomas</forename><surname>Powers</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><surname>Hershey</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonathan</forename><forename type="middle">Le</forename><surname>Roux</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Les</forename><surname>Atlas</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances In Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="4880" to="4888" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<monogr>
+		<title level="m" type="main">Scalable trust-region method for deep reinforcement learning using kronecker-factored approximation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yuhuai</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Elman</forename><surname>Mansimov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Shun</forename><surname>Liao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Roger</forename><surname>Grosse</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jimmy</forename><surname>Ba</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1708.05144</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<analytic>
+		<title level="a" type="main">Deep fried convnets</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zichao</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marcin</forename><surname>Moczulski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Misha</forename><surname>Denil</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Nando De Freitas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Le</forename><surname>Smola</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ziyu</forename><surname>Song</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Wang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the IEEE International Conference on Computer Vision</title>
+		<meeting>the IEEE International Conference on Computer Vision</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="1476" to="1483" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<analytic>
+		<title level="a" type="main">Fast orthogonal projection based on kronecker product</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xu</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Felix</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ruiqi</forename><surname>Yu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sanjiv</forename><surname>Guo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Shengjin</forename><surname>Kumar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Shi-Fu</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Chang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the IEEE International Conference on Computer Vision</title>
+		<meeting>the IEEE International Conference on Computer Vision</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="2929" to="2937" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b46">
+	<monogr>
+		<title level="m" type="main">Exploiting local structures with the kronecker layer in convolutional networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Shuchang</forename><surname>Zhou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jia-Nan</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yuxin</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xinyu</forename><surname>Zhou</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1512.09194</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b47">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Julian</forename><surname>Georg Zilly</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rupesh</forename><forename type="middle">Kumar</forename><surname>Srivastava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jan</forename><surname>Koutník</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jürgen</forename><surname>Schmidhuber</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1607.03474</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+	<note>Recurrent highway networks</note>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

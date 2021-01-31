@@ -1,0 +1,1359 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Unsupervised Learning by Predicting Noise</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Piotr</forename><surname>Bojanowski</surname></persName>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Armand</forename><surname>Joulin</surname></persName>
+						</author>
+						<title level="a" type="main">Unsupervised Learning by Predicting Noise</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:45+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Convolutional neural networks provide visual features that perform remarkably well in many computer vision applications. However, training these networks requires significant amounts of supervision. This paper introduces a generic framework to train deep networks, end-to-end, with no supervision. We propose to fix a set of target representations, called Noise As Targets (NAT), and to constrain the deep features to align to them. This domain agnostic approach avoids the standard unsupervised learning issues of trivial solutions and collapsing of features. Thanks to a stochastic batch reassignment strategy and a separable square loss function, it scales to millions of images. The proposed approach produces representations that perform on par with state-of-the-art unsupervised methods on Ima-geNet and PASCAL VOC.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.">Introduction</head><p>In recent years, convolutional neural networks, or convnets <ref type="bibr" target="#b13">(Fukushima, 1980;</ref><ref type="bibr" target="#b29">LeCun et al., 1989)</ref> have pushed the limits of computer vision <ref type="bibr" target="#b27">(Krizhevsky et al., 2012;</ref><ref type="bibr" target="#b17">He et al., 2016)</ref>, leading to important progress in a variety of tasks, like object detection <ref type="bibr" target="#b14">(Girshick, 2015)</ref> or image segmentation <ref type="bibr" target="#b41">(Pinheiro et al., 2015</ref>). Key to this success is their ability to produce features that easily transfer to new domains when trained on massive databases of labeled images <ref type="bibr" target="#b44">(Razavian et al., 2014;</ref><ref type="bibr" target="#b39">Oquab et al., 2014)</ref> or weaklysupervised data <ref type="bibr" target="#b22">(Joulin et al., 2016)</ref>. However, human annotations may introduce unforeseen bias that could limit the potential of learned features to capture subtle information hidden in a vast collection of images.</p><p>Several strategies exist to learn deep convolutional features with no annotation <ref type="bibr" target="#b10">(Donahue et al., 2016)</ref>. They either try to capture a signal from the source as a form of selfsupervision <ref type="bibr" target="#b9">(Doersch et al., 2015;</ref><ref type="bibr" target="#b52">Wang &amp; Gupta, 2015)</ref> or learn the underlying distribution of images <ref type="bibr">(Vincent et al.,</ref> Facebook AI Research. Correspondence to: Piotr Bojanowski &lt;bojanowski@fb.com&gt;. <ref type="bibr" target="#b15">Goodfellow et al., 2014)</ref>. While some of these approaches obtain promising performance in transfer learning <ref type="bibr" target="#b10">(Donahue et al., 2016;</ref><ref type="bibr" target="#b52">Wang &amp; Gupta, 2015)</ref>, they do not explicitly aim to learn discriminative features. Some attempts were made with retrieval based approaches <ref type="bibr" target="#b11">(Dosovitskiy et al., 2014)</ref> and clustering <ref type="bibr" target="#b55">(Yang et al., 2016;</ref><ref type="bibr" target="#b30">Liao et al., 2016)</ref>, but they are hard to scale and have only been tested on small datasets. Unfortunately, as in the supervised case, a lot of data is required to learn good representations.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>2010;</head><p>In this work, we propose a novel discriminative framework designed to learn deep architectures on massive amounts of data. Our approach is general, but we focus on convnets since they require millions of images to produce good features. Similar to self-organizing maps <ref type="bibr" target="#b24">(Kohonen, 1982;</ref><ref type="bibr" target="#b35">Martinetz &amp; Schulten, 1991)</ref>, we map deep features to a set of predefined representations in a low dimensional space. As opposed to these approaches, we aim to learn the features in a end-to-end fashion, which traditionally suffers from a feature collapsing problem. Our approach deals with this issue by fixing the target representations and aligning them to our features. These representations are sampled from a uninformative distribution and we use this Noise As Targets (NAT). Our approach also shares some similarities with standard clustering approches like k-means <ref type="bibr" target="#b32">(Lloyd, 1982)</ref> or discriminative clustering <ref type="bibr" target="#b1">(Bach &amp; Harchaoui, 2007)</ref>.</p><p>In addition, we propose an online algorithm able to scale to massive image databases like ImageNet <ref type="bibr" target="#b7">(Deng et al., 2009)</ref>. Importantly, our approach is barely less efficient to train than standard supervised approaches and can reuse any optimization procedure designed for them. This is achieved by using a quadratic loss as in <ref type="bibr" target="#b48">(Tygert et al., 2017</ref>) and a fast approximation of the Hungarian algorithm. We show the potential of our approach by training end-to-end on ImageNet a standard architecture, namely AlexNet <ref type="bibr" target="#b27">(Krizhevsky et al., 2012)</ref> with no supervision.</p><p>We test the quality of our features on several image classification problems, following the setting of <ref type="bibr" target="#b10">Donahue et al. (2016)</ref>. We are on par with state-of-the-art unsupervised and self-supervised learning approaches while being much simpler to train and to scale.</p><p>The paper is organized as follows: after a brief review of the related work in Section 2, we present our approach in arXiv:1704.05310v1 <ref type="bibr">[stat.ML]</ref> 18 Apr 2017 Section 3. We then validate our solution with several experiments and comparisons with standard unsupervised and self-supervised approaches in Section 4.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">Related work</head><p>Several approaches have been recently proposed to tackle the problem of deep unsupervised learning <ref type="bibr" target="#b5">(Coates &amp; Ng, 2012;</ref><ref type="bibr" target="#b34">Mairal et al., 2014;</ref><ref type="bibr" target="#b11">Dosovitskiy et al., 2014)</ref>. Some of them are based on a clustering loss <ref type="bibr" target="#b53">(Xie et al., 2016;</ref><ref type="bibr" target="#b55">Yang et al., 2016;</ref><ref type="bibr" target="#b30">Liao et al., 2016)</ref>, but they are not tested at a scale comparable to that of supervised convnet training. <ref type="bibr" target="#b5">Coates &amp; Ng (2012)</ref> uses k-means to pre-train convnets, by learning each layer sequentially in a bottom-up fashion. In our work, we train the convnet end-to-end with a loss that shares similarities with k-means. Closer to our work, <ref type="bibr" target="#b11">Dosovitskiy et al. (2014)</ref> proposes to train convnets by solving a retrieval problem. They assign a class per image and its transformation. In contrast to our work, this approach can hardly scale to more than a few hundred of thousands of images, and requires a custom-tailored architecture while we use a standard AlexNet.</p><p>Another traditional approach for learning visual representations in an unsupervised manner is to define a parametrized mapping between a predefined random variable and a set of images. Traditional examples of this approach are variational autoencoders <ref type="bibr" target="#b23">(Kingma &amp; Welling, 2013)</ref>, generative adversarial networks <ref type="bibr" target="#b15">(Goodfellow et al., 2014)</ref>, and to a lesser extent, noisy autoencoders <ref type="bibr" target="#b51">(Vincent et al., 2010)</ref>. In our work, we are doing the opposite; that is, we map images to a predefined random variable. This allows us to re-use standard convolutional networks and greatly simplifies the training.</p><p>Generative adversarial networks. Among those approaches, generative adversarial networks (GANs) <ref type="bibr" target="#b15">(Goodfellow et al., 2014;</ref><ref type="bibr" target="#b8">Denton et al., 2015;</ref><ref type="bibr" target="#b10">Donahue et al., 2016)</ref> share another similarity with our approach, namely they are explicitly minimizing a discriminative loss to learn their features. While these models cannot learn an inverse mapping, <ref type="bibr" target="#b10">Donahue et al. (2016)</ref> recently proposed to add an encoder to extract visual features from GANs. Like ours, their encoder can be any standard convolutional network. However, their loss aims at differentiating real and generated images, while we are aiming directly at differentiating between images. This makes our approach much simpler and faster to train, since we do not need to learn the generator nor the discriminator.</p><p>Self-supervision. Recently, a lot of work has explored self-supervison: leveraging supervision contained in the input signal <ref type="bibr" target="#b9">(Doersch et al., 2015;</ref><ref type="bibr" target="#b38">Noroozi &amp; Favaro, 2016;</ref><ref type="bibr" target="#b40">Pathak et al., 2016)</ref>.</p><p>In the same vein as word2vec <ref type="bibr" target="#b37">(Mikolov et al., 2013)</ref>, <ref type="bibr" target="#b9">Doersch et al. (2015)</ref> show that spatial context is a strong signal to learn visual features. <ref type="bibr" target="#b38">Noroozi &amp; Favaro (2016)</ref> have further extended this work. Others have shown that temporal coherence in videos also provides a signal that can be used to learn powerful visual features <ref type="bibr" target="#b0">(Agrawal et al., 2015;</ref><ref type="bibr" target="#b19">Jayaraman &amp; Grauman, 2015;</ref><ref type="bibr" target="#b52">Wang &amp; Gupta, 2015)</ref>. In particular, <ref type="bibr" target="#b52">Wang &amp; Gupta (2015)</ref> show that such features provide promising performance on ImageNet. In contrast to our work, these approaches are domain dependent since they require explicit derivation of weak supervision directly from the input.</p><p>Autoencoders. Many have also used autoencoders with a reconstruction loss <ref type="bibr" target="#b2">(Bengio et al., 2007;</ref><ref type="bibr" target="#b43">Ranzato et al., 2007;</ref><ref type="bibr" target="#b36">Masci et al., 2011)</ref>. The idea is to encode and decode an image, while minimizing the loss between the decoded and original images. Once trained, the encoder produces image features and the decoder can be used to generate images from codes. The decoder is often a fully connected network <ref type="bibr" target="#b43">(Ranzato et al., 2007)</ref> or a deconvolutional network <ref type="bibr" target="#b36">(Masci et al., 2011;</ref><ref type="bibr" target="#b57">Zhao et al., 2016)</ref> but can be more sophisticated, like a PixelCNN network (van den Oord et al., 2016).</p><p>Self-organizing map. This family of unsupervised methods aims at learning a low dimensional representation of the data that preserves certain topological properties <ref type="bibr" target="#b24">(Kohonen, 1982;</ref><ref type="bibr" target="#b50">Vesanto &amp; Alhoniemi, 2000)</ref>. In particular, Neural Gas <ref type="bibr" target="#b35">(Martinetz &amp; Schulten, 1991)</ref> aligns feature vectors to the input data. Each input datum is then assigned to one of these vectors in a winner-takes-all manner. These feature vectors are in spirit similar to our target representations and we use a similar assignment strategy. In contrast to our work, the target vectors are not fixed and aligned to the input vectors. Since we primarly aim at learning the input features, we do the opposite.</p><p>Discriminative clustering. Many methods have been proposed to use discriminative losses for clustering <ref type="bibr" target="#b54">(Xu et al., 2004;</ref><ref type="bibr" target="#b1">Bach &amp; Harchaoui, 2007;</ref><ref type="bibr" target="#b26">Krause et al., 2010;</ref><ref type="bibr" target="#b20">Joulin &amp; Bach, 2012)</ref>. In particular, <ref type="bibr" target="#b1">Bach &amp; Harchaoui (2007)</ref> shows that the ridge regression loss could be use to learn discriminative clusters. It has been successfully applied to several computer vision applications, like object discovery <ref type="bibr" target="#b21">(Joulin et al., 2010;</ref><ref type="bibr" target="#b47">Tang et al., 2014)</ref> or video/text alignment <ref type="bibr" target="#b3">(Bojanowski et al., 2013;</ref><ref type="bibr" target="#b42">Ramanathan et al., 2014)</ref>. In this work, we show that a similar framework can be designed for neural networks. As opposed to <ref type="bibr" target="#b54">Xu et al. (2004)</ref>, we address the empty assignment problems by restricting the set of possible reassignments to permutations rather than using global linear constrains the assignments. Our assignments can be updated online, allowing our approach to scale to very large datasets.</p><p>Target space <ref type="figure">Figure 1</ref>. Our approach takes a set of images, computes their deep features with a convolutional network and matches them to a set of predefined targets from a low dimensional space. The parameters of the network are learned by aligning the features to the targets.</p><formula xml:id="formula_0">Features Assignment Images c j P f(X) CNN</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">Method</head><p>In this section, we present our model and discuss its relations with several clustering approaches including kmeans. <ref type="figure">Figure 1</ref> shows an overview of our approach. We also show that it can be trained on massive datasets using an online procedure. Finally, we provide all the implementation details.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1.">Unsupervised learning</head><p>We are interested in learning visual features with no supervision. These features are produced by applying a parametrized mapping f θ to the images. In the presence of supervision, the parameters θ are learned by minimizing a loss function between the features produced by this mapping and some given targets, e.g., labels. In absence of supervision, there is no clear target representations and we thus need to learn them as well. More precisely, given a set of n images x i , we jointly learn the parameters θ of the mapping f θ , and some target vectors y i :</p><formula xml:id="formula_1">min θ 1 n n i=1 min yi∈R d (f θ (x i ), y i ),<label>(1)</label></formula><p>where d is the dimension of target vectors. In the rest of the paper, we use matrix notations, i.e., we denote by Y the matrix whose rows are the target representations y i , and by X the matrix whose rows are the images x i . With a slight abuse of notation, we denote by f θ (X) the n × d matrix of features whose rows are obtained by applying the function f θ to each image independently.</p><p>Choosing the loss function. In the supervised setting, a popular choice for the loss is the softmax function. However, computing this loss is linear in the number of targets, making it impractical for large output spaces <ref type="bibr" target="#b16">(Goodman, 2001)</ref>. While there are workarounds to scale these losses to large output spaces, <ref type="bibr" target="#b48">Tygert et al. (2017)</ref> has recently shown that using a squared 2 distance works well in many supervised settings, as long as the final activations are unit normalized. This loss only requires access to a single target per sample, making its computation independent of the number of targets. This leads to the following problem:</p><formula xml:id="formula_2">min θ min Y ∈R n×d 1 2n f θ (X) − Y 2 F ,<label>(2)</label></formula><p>where we still denote by f θ (X) the unit normalized features.</p><p>Using fixed target representations. Directly solving the problem defined in Eq. (2) would lead to a representation collapsing problem: all the images would be assigned to the same representation <ref type="bibr" target="#b54">(Xu et al., 2004)</ref>. We avoid this issue by fixing a set of k predefined target representations and matching them to the visual features. More precisely, the matrix Y is defined as the product of a matrix C containing these k representations and an assignment matrix P in {0, 1} n×k , i.e., Y = P C.</p><p>Note that we can assume that k is greater than n with no loss of generality (by duplicating representations otherwise). Each image is assigned to a different target and each target can only be assigned once. This leads to a set P of constraints for the assignment matrices:</p><formula xml:id="formula_4">P = {P ∈ {0, 1} n×k | P 1 k ≤ 1 n , P 1 n = 1 k }. (4)</formula><p>This formulation forces the visual features to be diversified, avoiding the collapsing issue at the cost of fixing the target representations. Predefining these targets is an issue if their number k is small, which is why we are interested in the case where k is at least as large as the number n of images.</p><p>Choosing the target representations. Until now, we have not discussed the set of target representations stored in C. A simple choice for the targets would be to take k elements of the canonical basis of R d . If d is larger than n, this formulation would be similar to the framework of <ref type="bibr" target="#b11">Dosovitskiy et al. (2014)</ref>, and is impractical for large n. On the other hand, if d is smaller than n, this formulation is equivalent to the discriminative clustering approach of <ref type="bibr" target="#b1">Bach &amp; Harchaoui (2007)</ref>. Choosing such targets makes very strong assumptions on the nature of the underlying problem. Indeed, it assumes that each image belongs to a unique class and that all classes are orthogonal. While this assumption might be true for some classification datasets, it does not generalize to huge image collections nor capture subtle similarities between images belonging to different classes.</p><p>Since our features are unit normalized, another natural choice is to uniformly sample target vectors on the 2 unit sphere. Note that the dimension d will then directly influence the level of correlation between representations, i.e., the correlation is inversely proportional to the square root of d. Using this Noise As Targets (NAT), Eq. <ref type="formula" target="#formula_2">2</ref>is now equivalent to:</p><formula xml:id="formula_5">max θ max P ∈P Tr P Cf θ (X) .<label>(5)</label></formula><p>This problem can be interpreted as mapping deep features to a uniform distribution over a manifold, namely the ddimension 2 sphere. Using k predefined representations is a discrete approximation of this manifold that justifies the restriction of the mapping matrices to the set P of 1-to-1 assignment matrices. In some sense, we are optimizing a crude approximation of the earth mover's distance between the distribution of deep features and a given target distribution <ref type="bibr" target="#b45">(Rubner et al., 1998)</ref>.</p><p>Relation to clustering approaches. Using the same notations as in Eq. <ref type="formula" target="#formula_5">5</ref>, several clustering approaches share similarities with our method. In the linear case, spherical k-means minimizes the same loss function w.r.t. P and C, i.e., max</p><formula xml:id="formula_6">C max P ∈Q tr P CX T .</formula><p>A key difference is the set Q of assignment matrices:</p><formula xml:id="formula_7">Q = {P ∈ {0, 1} n×k | P 1 k = 1 n }.</formula><p>This set only guarantees that each data point is assigned to a single target representation. Once we jointly learn the features and the assignment, this set does not prevent the collapsing of the data points to a single target representation.</p><p>Another similar clustering approach is Diffrac <ref type="bibr" target="#b1">(Bach &amp; Harchaoui, 2007)</ref>. Their loss is equivalent to ours in the case of unit normalized features. Their set R of assignment matrices, however, is different:</p><formula xml:id="formula_8">R = {P ∈ {0, 1} n×k | P 1 n ≥ c1 k },</formula><p>where c &gt; 0 is some fixed parameter. While restricting the assignment matrices to this set prevents the collapsing issue, it introduces global constraints that are not suited for online optimization. This makes their approach hard to scale to large datasets.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2.">Optimization</head><p>In this section, we describe how to efficiently optimize the cost function described in Eq. (5). In particular, we explore Algorithm 1 Stochastic optimization of Eq. (5).</p><p>Require: T batches of images, λ 0 &gt; 0 for t = {1, . . . , T } do Obtain batch b and representations r Compute</p><formula xml:id="formula_9">f θ (X b ) Compute P * by minimizing Eq. (2) w.r.t. P Compute ∇ θ L(θ) from Eq. (2) with P * Update θ ← θ − λ t ∇ θ L(θ) end for</formula><p>approximated updates of the assignment matrix that are compatible with online optimization schemes, like stochastic gradient descent (SGD).</p><p>Updating the assignment matrix P . Directly solving for the optimal assignment requires to evaluate the distances between all the n features and the k representations. In order to efficiently solve this problem, we first reduce the number k of representations to n. This limits the set P to the set of permutation matrices, i.e.,</p><formula xml:id="formula_10">P = {P ∈ {0, 1} n×n | P 1 n = 1 n , P 1 n = 1 n }. (6)</formula><p>Restricting the problem defined in Eq. (5) to this set, the linear assignment problem in P can be solved exactly with the Hungarian algorithm <ref type="bibr" target="#b28">(Kuhn, 1955)</ref>, but at the prohibitive cost of O(n 3 ).</p><p>Instead, we perform stochastic updates of the matrix. Given a batch of samples, we optimize the assignment matrix P on its restriction to this batch. Given a subset B of b distinct images, we only update the b × b square sub matrix P B obtained by restricting P to these b images and their corresponding targets. In other words, each image can only be re-assigned to a target that was previously assigned to another image in the batch. This procedure has a complexity of O(b 3 ) per batch, leading to an overall complexity of O(nb 2 ), which is linear in the number of data points. We perform this update before updating the parameters θ of our features, in an on-line manner. Note that this simple procedure would not have been possible if k &gt; n; we would have had to also consider the k − n unassigned representations.</p><p>Stochastic gradient descent. Apart from the update of the assignment matrix P , we use the same optimization scheme as standard supervised approaches, i.e., SGD with batch normalization <ref type="bibr" target="#b18">(Ioffe &amp; Szegedy, 2015)</ref>. As noted by <ref type="bibr" target="#b48">Tygert et al. (2017)</ref>, batch normalization plays a crucial role when optimizing the l 2 loss, as it avoids exploding gradients. For each batch b of images, we first perform a forward pass to compute the distance between the images and the corresponding subset of target representations r. The Hungarian algorithm is then used on these distances to obtain the optimal reassignments within the batch. Once Softmax Square loss ImageNet 59.2 58.4 <ref type="table">Table 1</ref>. Comparison between the softmax and the square loss for supervised object classification on ImageNet. The architecture is an AlexNet. The features are unit normalized for the square loss <ref type="bibr" target="#b48">(Tygert et al., 2017)</ref>. We report the accuracy on the validation set.</p><p>the assignments are updated, we use the chain rule in order to compute the gradients of all our parameters. Our optimization algorithm is summarized in Algorithm 1.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3.">Implementation details</head><p>Our experiments solely focus on learning visual features with convnets. All the details required to train these architectures with our approach are described below. Most of them are standard tricks used in the usual supervised setting.</p><p>Deep features. To ensure a fair empirical comparison with previous work, we follow <ref type="bibr" target="#b52">Wang &amp; Gupta (2015)</ref> and use an AlexNet architecture. We train it end to end using our unsupervised loss function. We subsequently test the quality of the learned visual feature by re-training a classifier on top. During transfer learning, we consider the output of the last convolutional layer as our features as in <ref type="bibr" target="#b44">Razavian et al. (2014)</ref>. We use the same multi-layer perceptron (MLP) as in <ref type="bibr" target="#b27">Krizhevsky et al. (2012)</ref> for the classifier.</p><p>Pre-processing. We observe in practice that preprocessing the images greatly helps the quality of our learned features. As in <ref type="bibr" target="#b43">Ranzato et al. (2007)</ref>, we use image gradients instead of the images to avoid trivial solutions like clustering according to colors. Using this preprocessing is not surprising since most hand-made features like SIFT or HoG are based on image gradients <ref type="bibr" target="#b33">(Lowe, 1999;</ref><ref type="bibr" target="#b6">Dalal &amp; Triggs, 2005)</ref>. In addition to this preprocessing, we also perform all the standard image transformations that are commonly applied in the supervised setting <ref type="bibr" target="#b27">(Krizhevsky et al., 2012)</ref>, such as random cropping and flipping of images.</p><p>Optimization details. We project the output of the network on the 2 sphere as in <ref type="bibr" target="#b48">Tygert et al. (2017)</ref>. The network is trained with SGD with a batch size of 256. During the first t 0 batches, we use a constant step size. After t 0 batches, we use a linear decay of the step size, i.e., l t = l0 1+γ[t−t0]+ . Unless mentioned otherwise, we permute the assignments within batches every 3 epochs. For the transfer learning experiments, we follow the guideline described in <ref type="bibr" target="#b10">Donahue et al. (2016)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">Experiments</head><p>We perform several experiments to validate different design choices in NAT. We then evaluate the quality of our features by comparing them to state-of-the-art unsupervised approaches on several auxiliary supervised tasks, namely object classification on ImageNet and object classification and detection of <ref type="bibr">PASCAL VOC 2007</ref><ref type="bibr" target="#b12">(Everingham et al., 2010</ref>.</p><p>Transfering the features. In order to measure the quality of our features, we measure their performance on transfer learning. We freeze the parameters of all the convolutional layers and overwrite the parameters of the MLP classifier with random Gaussian weights. We precisely follow the training and testing procedure that is specific to each of the datasets following <ref type="bibr" target="#b10">Donahue et al. (2016)</ref>.</p><p>Datasets and baselines. We use the training set of Im-ageNet to learn our convolutional network <ref type="bibr" target="#b7">(Deng et al., 2009)</ref>. This dataset is composed of 1, 281, 167 images that belong to 1, 000 object categories. For the transfer learning experiments, we also consider PASCAL VOC 2007. In addition to fully supervised approaches <ref type="bibr" target="#b27">(Krizhevsky et al., 2012)</ref>, we compare our method to several unsupervised approaches, i.e., autoencoder, GAN and BiGAN as reported in <ref type="bibr" target="#b10">Donahue et al. (2016)</ref>. We also compare to selfsupervised approaches, i.e., <ref type="bibr" target="#b0">Agrawal et al. (2015)</ref>; <ref type="bibr" target="#b9">Doersch et al. (2015)</ref>; <ref type="bibr" target="#b40">Pathak et al. (2016)</ref>; <ref type="bibr" target="#b52">Wang &amp; Gupta (2015)</ref> and <ref type="bibr" target="#b56">Zhang et al. (2016)</ref>. Finally we compare to state-ofthe-art hand-made features, i.e., SIFT with Fisher Vectors (SIFT+FV) <ref type="bibr" target="#b46">(Sánchez et al., 2013)</ref>. They reduce the Fisher Vectors to a 4, 096 dimensional vector with PCA, and apply an 8, 192 unit 3-layer MLP on top.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.">Detailed analysis</head><p>In this section, we validate some of our design choices, like the loss function, representations and the influences of some parameters on the quality of our features. All the experiments are run on ImageNet.</p><p>Softmax versus square loss. <ref type="table">Table 1</ref> compares the performance of an AlexNet trained with a softmax and a square loss. We report the accuracy on the validation set. The square loss requires the features to be unit normalized to avoid exploding gradients. As previously observed by <ref type="bibr" target="#b48">Tygert et al. (2017)</ref>, the performances are similar, hence validating our choice of loss function.</p><p>Effect of image preprocessing. In supervised classification, image pre-processing is not frequently used, and transformations that remove information are usually avoided. In the unsupervised case, however, we observe that is it is preferable to work with simpler inputs as clean high-pass sobel acc@1 59.7 58.5 57.4 <ref type="table">Table 2</ref>. Performance of supervised models with various image pre-processings applied. We train an AlexNet on ImageNet, and report classification accuracy.</p><p>it avoids learning trivial features. In particular, we observe that using grayscale image gradients greatly helps our method, as mentioned in Sec. 3. In order to verify that this preprocessing does not destroy crucial information, we propose to evaluate its effect on supervised classification. We also compare with high-pass filtering. <ref type="table">Table 2</ref> shows the impact of this preprocessing methods on the accuracy of an AlexNet on the validation set of ImageNet. None of these pre-processings degrade the perform significantly, meaning that the information related to gradients are sufficient for object classification. This experiment confirms that such pre-processing does not lead to a significant drop in the upper bound performance for our model.</p><p>Continuous versus discrete representations. We compare our choice for the target vectors to those commonly used for clustering, i.e., elements of the canonical basis of a k dimensional space. Such discrete representation make a strong assumption on the underlying structure of the problem, that it can be linearly separated in k different classes. This assumption holds for ImageNet giving a fair advantage to this discrete representation. We test this representation with k in {10 3 , 10 4 , 10 5 }, which is a range well-suited for the 1, 000 classes of ImageNet. The matrix C contains n/k replications of k elements of the canonical basis. This assumes that the clusters are balanced, which is verified on ImageNet.</p><p>We compare these cluster-like representations to our continuous target vectors on the transfer task on ImageNet. Using discrete targets achieves an accuracy of 19%, which is significantly worse that our best performance, i.e., 33.5%. A possible explanation is that binary vectors induce sharp discontinuous distances between representations. Such distances are hard to optimize over and may result in early convergence to poorer local minima.</p><p>Evolution of the features. In this experiment, we are interested in understanding how the quality of our features evolves with the optimization of our cost function. During the unsupervised training, we freeze the network every 20 epochs and learn a MLP classifier on top. We report the accuracy on the validation set of ImageNet.  <ref type="figure">Figure 2</ref>. On the left, we measure the accuracy on ImageNet after training the features with different permutation rates There is a clear trade-off with an optimum at permutations performed every epochs. On the right, we measure the accuracy on ImageNet after training the features with our unsupervised approach as a function of the number of epochs. The performance improves with longer unsupervised training.</p><p>of the unsupervised training. This suggests that optimizing our objective function correlates with learning transferable features, i.e., our features do not destroy useful class-level information. On the other hand, the test accuracy seems to saturate after a hundred epochs. This suggests that the MLP is overfitting rapidly on pre-trained features.</p><p>Effect of permutations. Assigning images to their target representations is a crucial feature of our approach. In this experiment, we are interested in understanding how frequently we should update this assignment. Indeed, updating the assignment, even partially, is relatively costly and may not be required to achieve good performance. <ref type="figure">Figure  shows</ref> the transfer accuracies on ImageNet as a function of the frequency of these updates. The model is quite robust to choice of frequency, with a test accuracy always above 30%. Interestingly, the accuracy actually degrades slightly with high frequency. A possible explanation is that the network overfits rapidly to its own output, leading to relatively worse features. In practice, we observe that updating the assignment matrix every 3 epochs offers a good trade-off between performance and accuracy.</p><p>Visualizing the filters. <ref type="figure" target="#fig_2">Figure 4</ref> shows a comparison between the first convolutional layer of an AlexNet trained with and without supervision. Both take grayscale gradient images as input. The visualization are obtained by composing the Sobel filtering with the filters of the first layer of the AlexNet. Unsupervised filters are slightly less sharp than their supervised counterpart, but still maintain edge and orientation information.</p><p>Nearest neighbor queries. Our loss optimizes a distance between features and fixed vectors. This means that looking at the distance between features should provide some information about the type of structure that our model cap-  tures. Given a query image x, we compute its feature f θ (x) and search for its nearest neighbors according to the distance. <ref type="figure" target="#fig_1">Figure 3</ref> shows images and their nearest neighbors.</p><p>The features capture relatively complex structures in images. Objects with distinctive structures, like trunks or fruits, are well captured by our approach. However, this information is not always related to true labels. For example, the image of bird over the sea is matched to images capturing information about the sea or the sky rather than the bird.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.">Comparison with the state of the art</head><p>We report results on the transfer task both on ImageNet and PASCAL VOC 2007. In both cases, the model is trained on ImageNet.</p><p>ImageNet classification. In this experiment, we evaluate the quality of our features for the object classification task of ImageNet. Note that in this setup, we build the unsupervised features on images that correspond to predefined image categories. Even though we do not have access to category labels, the data itself is biased towards these classes. In order to evaluate the features, we freeze the layers up to the last convolutional layer and train the classifier with supervision. This experimental setting follows <ref type="bibr" target="#b38">Noroozi &amp; Favaro (2016)</ref>. We compare our model with several self-supervised approaches <ref type="bibr" target="#b52">(Wang &amp; Gupta, 2015;</ref><ref type="bibr" target="#b9">Doersch et al., 2015;</ref><ref type="bibr" target="#b56">Zhang et al., 2016)</ref> and an unsupervised approach, i.e., <ref type="bibr" target="#b10">Donahue et al. (2016)</ref>. Note that self-supervised approaches use losses specifically designed for visual features. Like BiGANs <ref type="bibr" target="#b10">(Donahue et al., 2016)</ref>, NAT does not make any assumption about the domain but of the structure of its features. <ref type="table">Table compares</ref> NAT with these approaches.</p><p>Among unsupervised approaches, NAT compares favorably to BiGAN <ref type="bibr" target="#b10">(Donahue et al., 2016)</ref>. Interestingly, the performance of NAT are slightly better than self-supervised</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Method</head><p>Acc@1</p><p>Random <ref type="bibr" target="#b38">(Noroozi &amp; Favaro, 2016)</ref> 12.0 SIFT+FV <ref type="bibr" target="#b46">(Sánchez et al., 2013)</ref> 55.6</p><p>Wang &amp; Gupta (2015) 29.8 <ref type="bibr" target="#b9">Doersch et al. (2015)</ref> 30.4 <ref type="bibr" target="#b56">Zhang et al. (2016)</ref> 35.2 1 <ref type="bibr" target="#b38">Noroozi &amp; Favaro (2016)</ref> 38.1</p><p>BiGAN <ref type="bibr" target="#b10">(Donahue et al., 2016)</ref> 32.2 NAT 36.0 <ref type="table">Table 3</ref>. Comparison of the proposed approach to state-of-the-art unsupervised feature learning on ImageNet. A full multi-layer perceptron is retrained on top of the features. We compare to several self-supervised approaches and an unsupervised approach, i.e., BiGAN <ref type="bibr" target="#b10">(Donahue et al., 2016)</ref>. <ref type="bibr">1 Noroozi &amp; Favaro (2016)</ref> uses a significantly larger amount of features than the original AlexNet. We report classification accuracy.</p><p>methods, even though we do not explicitly use domainspecific clues in images or videos to guide the learning. While all the models provide performance in the − 36% range, it is not clear if they all learn the same features. Finally, all the unsupervised deep features are outperformed by hand-made features, in particular Fisher Vectors with SIFT descriptors. This baseline uses a slightly bigger MLP for the classifier and its performance can be improved by 2.2% by bagging 8 of these models. This difference of 20% in accuracy shows that unsupervised deep features are still quite far from the state-of-the-arts among all unsupervised features.</p><p>Transferring to PASCAL VOC 2007. We carry out a second transfer experiment on the PASCAL VOC dataset, on the classification and detection tasks. The model is trained on ImageNet. Depending on the task, we finetune all layers in the network, or solely the classifier, following <ref type="bibr" target="#b10">Donahue et al. (2016)</ref>. In all experiments, the parameters of the convolutional layers are initialized with the ones obtained with our unsupervised approach. The parameters of the classification layers are initialized with gaussian weights. We get rid of batch normalization layers and use a data-dependent rescaling of the parameters <ref type="bibr" target="#b25">(Krähenbühl et al., 2015)</ref>. <ref type="table">Table 4</ref> shows the comparison between our model and other unsupervised approaches. The results for other methods are taken from <ref type="bibr" target="#b10">Donahue et al. (2016)</ref> except for <ref type="bibr" target="#b56">Zhang et al. (2016)</ref>.</p><p>As with the ImageNet classification task, our performance is on par with self-supervised approaches, for both detection and classification. Among purely unsupervised approaches, we outperform standard approaches like autoencoders or GANs by a large margin. Our model also  <ref type="table">Table 4</ref>. Comparison of the proposed approach to state-of-the-art unsupervised feature learning on VOC 2007 Classification and detection. We either fix the features after conv5 or we fine-tune the whole model. We compare to several self-supervised and an unsupervised approaches. The GAN and autoencoder baselines are from <ref type="bibr" target="#b10">Donahue et al. (2016)</ref>. We report mean average prevision as customary on PASCAL VOC.</p><p>performs slightly better than the best performing BiGAN model <ref type="bibr" target="#b10">(Donahue et al., 2016)</ref>. These experiments confirm our findings from the ImageNet experiments. Despite its simplicity, NAT learns feature that are as good as those obtained with more sophisticated and data-specific models.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.">Conclusion</head><p>This paper presents a simple unsupervised framework to learn discriminative features. By aligning the output of a neural network to low-dimensional noise, we obtain features on par with state-of-the-art unsupervised learning approaches. Our approach explicitly aims at learning discriminative features, while most unsupervised approaches target surrogate problems, like image denoising or image generation. As opposed to self-supervised approaches, we make very few assumptions about the input space. This makes our appproach very simple and fast to train. Interestingly, it also shares some similarities with traditional clustering approaches as well as retrieval methods. While we show the potential of our approach on visual data, it will be interesting to try other domains. Finally, this work only considers simple noise distributions and alignment methods. A possible direction of research is to explore target distributions and alignments that are more informative. This also would strengthen the relation between NAT and methods based on distribution matching like the earth mover distance.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head></head><label></label><figDesc>Figure showsthe evolution of the performance on this transfer task as we optimize for our unsupervised approach. The training performance improves monotonically with the epochs</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 3 .</head><label>3</label><figDesc>Images and their 3 nearest neighbors in ImageNet according to our model using an 2 distance. The query images are shown on the top row, and the nearest neighbors are sorted from the closer to the further. Our features seem to capture global distinctive structures.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 4 .</head><label>4</label><figDesc>Filters form the first layer of an AlexNet trained on Im-ageNet with supervision (left) or with NAT (right). The filters are in grayscale, since we use grayscale gradient images as input. This visualization shows the composition of the gradients with the first layer.</figDesc></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><p>Acknowledgement. We greatly thank Hervé Jégou for his help throughout the development of this project. We also thank Allan Jabri, Edouard Grave, Iasonas Kokkinos,</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Unsupervised Learning by Predicting Noise</head><p>Léon Bottou, Matthijs Douze and the rest of FAIR for their support and helpful discussion. Finally, we thank Richard Zhang, Jeff Donahue and Florent Perronnin for their help.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Learning to see by moving</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Agrawal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Carreira</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Malik</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICCV</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Diffrac: a discriminative and flexible framework for clustering</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Bach</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Harchaoui</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Greedy layer-wise training of deep networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Lamblin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Popovici</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Larochelle</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Finding actors and actions in movies</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Bojanowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Bach</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Laptev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Ponce</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Schmid</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sivic</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICCV</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Weakly supervised action labeling in videos under ordering constraints</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Bojanowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Lajugie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Bach</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Laptev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Ponce</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Schmid</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sivic</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ECCV</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Learning feature representations with k-means</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Coates</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Ng</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Neural Networks: Tricks of the Trade</title>
+		<imprint>
+			<publisher>Springer</publisher>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Histograms of oriented gradients for human detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Dalal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Triggs</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Imagenet: A large-scale hierarchical image database</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Deng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Dong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Socher</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">J</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Fei-Fei</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Deep generative image models using a laplacian pyramid of adversarial networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">L</forename><surname>Denton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Chintala</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Fergus</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Unsupervised visual representation learning by context prediction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Doersch</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Gupta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Efros</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Donahue</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Krähenbühl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Darrell</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename></persName>
+		</author>
+		<idno type="arXiv">arXiv:1605.09782</idno>
+		<title level="m">Adversarial feature learning</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Discriminative unsupervised feature learning with convolutional neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Dosovitskiy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Springenberg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Riedmiller</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Brox</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<title level="m" type="main">The PASCAL visual object classes (VOC) challenge. IJCV</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Everingham</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Van Gool</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">K I</forename><surname>Williams</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Winn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Zisserman</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Neocognitron: A self-organizing neural network model for a mechanism of pattern recognition unaffected by shift in position</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Fukushima</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Biological Cybernetics</title>
+		<imprint>
+			<biblScope unit="volume">36</biblScope>
+			<biblScope unit="page" from="193" to="202" />
+			<date type="published" when="1980" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Fast r-cnn</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Girshick</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Generative adversarial nets</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Goodfellow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Pouget-Abadie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Mirza</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Xu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Warde-Farley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ozair</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Courville</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Classes for fast maximum entropy training</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Goodman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICASSP</title>
+		<imprint>
+			<date type="published" when="2001" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Deep residual learning for image recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<monogr>
+		<title level="m" type="main">Batch normalization: Accelerating deep network training by reducing internal covariate shift</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ioffe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Szegedy</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1502.03167</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Learning image representations tied to ego-motion</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Jayaraman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Grauman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICCV</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">A convex relaxation for weakly supervised classifiers</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Joulin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Bach</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Discriminative clustering for image co-segmentation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Joulin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Bach</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Ponce</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Learning visual features from large weakly supervised data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Joulin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Van Der Maaten</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Jabri</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Vasilache</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ECCV</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Welling</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1312.6114</idno>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Auto-encoding variational bayes. arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">Self-organized formation of topologically correct feature maps</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Kohonen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Biological cybernetics</title>
+		<imprint>
+			<date type="published" when="1982" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Philipp</forename><surname>Krähenbühl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Doersch</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Carl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jeff</forename><surname>Donahue</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Trevor</forename><surname>Darrell</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1511.06856</idno>
+		<title level="m">Data-dependent initializations of convolutional neural networks</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Discriminative clustering by regularized information maximization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krause</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Perona</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">G</forename><surname>Gomes</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Imagenet classification with deep convolutional neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Hinton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">The hungarian method for the assignment problem</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><forename type="middle">W</forename><surname>Kuhn</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Naval research logistics quarterly</title>
+		<imprint>
+			<date type="published" when="1955" />
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page" from="83" to="97" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Handwritten digit recognition with a back-propagation network</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Boser</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">S</forename><surname>Denker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Henderson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">E</forename><surname>Howard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Hubbard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">D</forename><surname>Jackel</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="1989" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Learning deep parsimonious representations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Liao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Schwing</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Zemel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Urtasun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<monogr>
+		<title level="m" type="main">Unsupervised Learning by Predicting Noise</title>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Least squares quantization in pcm</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Lloyd</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Transactions on information theory</title>
+		<imprint>
+			<date type="published" when="1982" />
+			<biblScope unit="volume">28</biblScope>
+			<biblScope unit="page" from="129" to="137" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<analytic>
+		<title level="a" type="main">Object recognition from local scale-invariant features</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Lowe</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICCV</title>
+		<imprint>
+			<date type="published" when="1999" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">Convolutional kernel networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Mairal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Koniusz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Harchaoui</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Schmid</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<monogr>
+		<title level="m" type="main">A&quot; neural-gas&quot; network learns topologies</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Martinetz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Schulten</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1991" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<analytic>
+		<title level="a" type="main">Stacked convolutional auto-encoders for hierarchical feature extraction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Masci</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">U</forename><surname>Meier</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Cireşan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schmidhuber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICANN</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<monogr>
+		<title level="m" type="main">Efficient estimation of word representations in vector space</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mikolov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Corrado</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Dean</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1301.3781</idno>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<monogr>
+		<title level="m" type="main">Unsupervised learning of visual representations by solving jigsaw puzzles</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Noroozi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Favaro</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1603.09246</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">Learning and transferring mid-level image representations using convolutional neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Oquab</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Bottou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Laptev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sivic</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<analytic>
+		<title level="a" type="main">Context encoders: Feature learning by inpainting</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Pathak</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Krahenbuhl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Donahue</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Darrell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Efros</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<analytic>
+		<title level="a" type="main">Learning to segment object candidates</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">O</forename><surname>Pinheiro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Collobert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dollar</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<analytic>
+		<title level="a" type="main">Linking people in videos with their names using coreference resolution</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Ramanathan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Joulin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Liang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Fei-Fei</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ECCV</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<analytic>
+		<title level="a" type="main">Unsupervised learning of invariant feature hierarchies with applications to object recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">A</forename><surname>Ranzato</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><forename type="middle">J</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><forename type="middle">L</forename><surname>Boureau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<monogr>
+		<title level="m" type="main">CNN features off-the-shelf: an astounding baseline for recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Razavian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Sharif</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Azizpour</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sullivan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Carlsson</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename></persName>
+		</author>
+		<idno>arXiv 1403.6382</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<analytic>
+		<title level="a" type="main">A metric for distributions with applications to image databases</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Rubner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Tomasi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">J</forename><surname>Guibas</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICCV</title>
+		<imprint>
+			<date type="published" when="1998" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b46">
+	<monogr>
+		<title level="m" type="main">Image classification with the fisher vector: Theory and practice</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sánchez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Perronnin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mensink</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Verbeek</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="volume">IJCV</biblScope>
+			<biblScope unit="page" from="222" to="245" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b47">
+	<analytic>
+		<title level="a" type="main">Colocalization in real-world images</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Tang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Joulin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L.-J</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Fei-Fei</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b48">
+	<analytic>
+		<title level="a" type="main">Scale-invariant learning and convolutional networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Tygert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Chintala</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Szlam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Tian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Zaremba</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Applied and Computational Harmonic Analysis</title>
+		<imprint>
+			<biblScope unit="volume">42</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="154" to="166" />
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b49">
+	<analytic>
+		<title level="a" type="main">Conditional image generation with pixelcnn decoders</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Van Den Oord</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Kalchbrenner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Espeholt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Graves</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b50">
+	<analytic>
+		<title level="a" type="main">Clustering of the selforganizing map</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Vesanto</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Alhoniemi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Transactions on neural networks</title>
+		<imprint>
+			<date type="published" when="2000" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b51">
+	<analytic>
+		<title level="a" type="main">Stacked denoising autoencoders: Learning useful representations in a deep network with a local denoising criterion</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Vincent</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Larochelle</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Lajoie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P.-A</forename><surname>Manzagol</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMLR</title>
+		<imprint>
+			<biblScope unit="volume">11</biblScope>
+			<biblScope unit="page" from="3371" to="3408" />
+			<date type="published" when="2010-12" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b52">
+	<analytic>
+		<title level="a" type="main">Unsupervised learning of visual representations using videos</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Gupta</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICCV</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b53">
+	<analytic>
+		<title level="a" type="main">Unsupervised deep embedding for clustering analysis</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Xie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Girshick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Farhadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b54">
+	<analytic>
+		<title level="a" type="main">Maximum margin clustering</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Xu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Neufeld</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Larson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Schuurmans</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2004" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b55">
+	<analytic>
+		<title level="a" type="main">Joint unsupervised learning of deep representations and image clusters</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Parikh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Batra</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">CVPR</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b56">
+	<analytic>
+		<title level="a" type="main">Colorful image colorization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Isola</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Efros</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ECCV</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b57">
+	<analytic>
+		<title level="a" type="main">Stacked What-Where Auto-encoders</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Zhao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Mathieu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Goroshin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Workshop at ICLR</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

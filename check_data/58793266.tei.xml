@@ -1,0 +1,812 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Under review as a conference paper at ICLR 2016 DROPOUT AS DATA AUGMENTATION</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2016-01-08">8 Jan 2016</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xavier</forename><surname>Bouthillier</surname></persName>
+							<email>xavier.bouthillier@umontreal.ca</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kishore</forename><surname>Konda</surname></persName>
+							<email>konda.kishorereddy@gmail.com</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pascal</forename><surname>Vincent</surname></persName>
+							<email>pascal.vincent@umontreal.ca</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Roland</forename><surname>Memisevic</surname></persName>
+							<email>roland.memisevic@umontreal.ca</email>
+						</author>
+						<author>
+							<affiliation key="aff0">
+								<orgName type="institution">Université de Montréal</orgName>
+								<address>
+									<country key="CA">Canada</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff1">
+								<orgName type="institution">Goethe University</orgName>
+								<address>
+									<settlement>Frankfurt</settlement>
+									<country key="DE">Germany</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff2">
+								<orgName type="institution">Université de Montréal</orgName>
+								<address>
+									<country key="CA">Canada</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff3">
+								<orgName type="institution">Université de Montréal</orgName>
+								<address>
+									<country key="CA">Canada</country>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Under review as a conference paper at ICLR 2016 DROPOUT AS DATA AUGMENTATION</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2016-01-08">8 Jan 2016</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1506.08700v4[stat.ML]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:42+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Dropout is typically interpreted as bagging a large number of models sharing parameters. We show that using dropout in a network can also be interpreted as a kind of data augmentation in the input space without domain knowledge. We present an approach to projecting the dropout noise within a network back into the input space, thereby generating augmented versions of the training data, and we show that training a deterministic network on the augmented samples yields similar results. Finally, we propose a new dropout noise scheme based on our observations and show that it improves dropout results without adding significant computational cost.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">INTRODUCTION</head><p>Noise is normally seen as intrinsically undesirable. The word itself bears a very negative connotation. It is not surprising then that many early mathematical models in neuroscience aimed to factor out noise by any means. A few decades ago, the use of stochastic resonance <ref type="bibr" target="#b22">(Wiesenfeld et al., 1995)</ref> in neuro-scientific models initiated a new interest in neurosience regarding random fluctuations and the role they play in the brain. Theories about neuronal noise are now flourishing and previous deterministic models are improved by the incorporation of noise <ref type="bibr" target="#b23">(Yarom &amp; Hounsgaard, 2011)</ref>.</p><p>Biological brains have always been a strong inspiration when it comes to developing learning algorithms. Considering the amount of noise which takes place in the brain during learning, one can wonder if this has any beneficial effect. Many techniques in machine learning have made use of noise to improve performance recently, namely, Denoising Autoencoders <ref type="bibr" target="#b20">(Vincent et al., 2008)</ref>, dropout <ref type="bibr" target="#b12">(Hinton et al., 2012)</ref> and its relative, DropConnect <ref type="bibr" target="#b21">(Wan et al., 2013)</ref>. Those successful approaches suggest that neuronal noise plays a fundamental role in the process of learning and should be studied more thoroughly.</p><p>Using dropout can be viewed as training a huge number of neural networks with shared parameters and applying bagging at test time for better generalization <ref type="bibr" target="#b1">(Baldi &amp; Sadowski, 2013)</ref>. Binary noise can also be viewed as preventing neurons from co-adapting, which improves the generalization of the model even more. In this paper, we propose an alternative view and suggest noise schemes like dropout are implicitly incorporating a form of sophisticated data augmentation. In Section 3, we formulate a method to generate data which replicates dropout noise within a deterministic network, and demonstrate in Section 5 that there is no significant loss of accuracy.</p><p>Finally, capitalizing on the idea of data augmentation, we present in section 4 an extension of dropout which uses random noise levels to improve the variety of samples. This simple extension improves classification performance across different network architectures, yielding competitive results on the MNIST permutation invariant classification task.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>DROPOUT</head><p>The main goal when using dropout is to regularize the neural network we are training. The technique consists of dropping neurons randomly with some probability p. Those random modifications of the network's stucture are believed to avoid co-adaptation of neurons by making it impossible for two subsequent neurons to rely solely on each other <ref type="bibr" target="#b18">(Srivastava et al., 2014)</ref>. The most accepted interpretation of dropout is that is implicitely bagging at test time a large number of neural networks which share parameters.</p><p>Assume h(x) is a linear projection of a d i -dimensional input x into a d h -dimensional space:</p><formula xml:id="formula_0">h(x) = xW + b<label>(1)</label></formula><p>Given a(h) andã(h), an activation function and its noisy version where M ∼ B(p h ) and rect(h) is a rectifier</p><formula xml:id="formula_1">a(h) = rect(h) (2) a(h) = M rect (h)<label>(3)</label></formula><p>Eq. 3 denotes the activation with dropout during training and eq. 2 the equation of the activation at test time. <ref type="bibr" target="#b18">Srivastava et al. (2014)</ref> suggest to scale the activations a(h) with p at test time to get an approximate average of the unit activation.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>FROM A DATA AUGMENTATION PERSPECTIVE</head><p>In many previous works it has been shown that augmenting data by using domain specific transformations helps in learning better models <ref type="bibr" target="#b14">(LeCun et al., 1998;</ref><ref type="bibr" target="#b17">Simard et al., 2003;</ref><ref type="bibr" target="#b13">Krizhevsky et al., 2012;</ref><ref type="bibr" target="#b6">Ciresan et al., 2012)</ref>.</p><p>In this work, we analyze dropout in the context of data augmentation.</p><p>Considering the task of classification, given a set of training samples, the objective would be to learn a mapping function which maps every input to its corresponding output label. To generalize, the mapping function needs to be able to correctly map not just the training samples but also any other samples drawn from the data distribution. This means that it must not only map input space sub-regions represented by training samples, but all high-probability sub-regions of the natural distribution.</p><p>One way to learn such a mapping function is by augmenting the training data such that it covers a larger portion of the natural distribution. Domain-based data augmentation helps to artificially boost training data coverage which makes it possible to train a better mapping function. We hypothesize that noise based regularization techniques result in a similar effect of increasing training data coverage at every hidden layer and this work presents multiple experimental observations to support our hypothesis.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">PROJECTING NOISE BACK INTO THE INPUT SPACE</head><p>We assume that for a givenã(h), there exist an x * , such that</p><formula xml:id="formula_2">(a • h)(x * ) = rect(h(x * )) ≈ m rect (h(x)) = (ã • h)(x)<label>(4)</label></formula><p>Similarly to adversarial examples from <ref type="bibr" target="#b10">Goodfellow et al. (2014b)</ref>, an x * can be found by minimizing the squared error L using stochastic gradient descent</p><formula xml:id="formula_3">L (x, x * )) = |(a • h)(x * ) − (ã • h)(x)| 2<label>(5)</label></formula><p>Equation 5 can be generalized to a network with n hidden layers. To lighten notation we first define</p><formula xml:id="formula_4">f (i) (x) = ã (i) • h (i) • • • • •ã (1) • h (1) (x) (6) f (i) (x * ) = a (i) • h (i) • • • • • a (1) • h (1) (x * )<label>(7)</label></formula><p>We can now compute the back projection corresponding to all hidden layer activations at once, which results in minizing the loss L</p><formula xml:id="formula_5">L x, x (1) * , . . . , x (n) * = n i=1 λ i f (i) x (i) * −f (i) (x) 2<label>(8)</label></formula><p>We can show by contradiction that one is unlikely to find a single</p><formula xml:id="formula_6">x * = x (1) * = x (2) * = • • • = x (n) * that significantly reduces L.</formula><p>The proof is detailed in appendix subsection 8.1. Fortunately, it is easy to find a different x * for each hidden layer, by providing multiple inputs (x,</p><formula xml:id="formula_7">x (1) * , x (2) * , . . . , x (n) * ),</formula><p>where n is the number of hidden layers. As each x (i) * is the back projection of a transformation in the representation space defined by the i-th hidden layer, it suggests viewing dropout as a sophisticated data augmentation procedure that samples data around training examples with respect to different level of representations. This raises the question whether we can train the network deterministically on the x (i) * rather than using dropout. The answer is not trivial, because</p><formula xml:id="formula_8">1. When using (x, x (1) * , x (2) * , . . . , x (n) * )</formula><p>as inputs, dropout is not effectively applied to every layer at the same time. The local stochasticity preventing co-adaptation is then present at a specific layer only once for every x (i) * . This could be not aggressive enough to avoid co-adaptation.</p><p>2. The gradients of the linear projections will differ greatly. In the case of dropout, ∂h ∂W (i) is always equal to its input transformation, i.e.f (i−1) (x), whereas the deterministic version of the training will update</p><formula xml:id="formula_9">W (i) according to f (i−1) (x (1) * ), . . . , f (i−1) (x (n) * ) 1 .</formula><p>Although we proved a single x * minimising 8 is difficult to find for a large network, we show experimentally in section 5 that it is possible to do so within reasonable approximation for a relatively small two hidden layer network. We further show that dropout can be replicated by projecting the noise back on the input space without a significant loss of accuracy.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>IMPROVING THE SET OF AUGMENTATIONS</head><p>When dealing with domain-based transformations, we intuitively look for the richest set of transformations. In computer vision for instance, translations, rotations, scalings, shearings and elastic transformations are often combined. Looking at dropout from a data augmentation perspective, this intuition raises the following question: given that noise scheme used is implicitely applying some transformations in the input space, which one would produce the richest set of transformations?</p><p>With noise schemes like dropout, there are two important components which influence the transformations; The probability distribution of m and the features of the neural network used to encode h(x). Modifying the probability distribution is the most straighforward way to improve the set of transformations and will be the main focus of this paper. However, features of the neural network play a key role in the transformations and we will outline some possible avenues in the conclusion section.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">RANDOM NOISE LEVELS</head><p>While using dropout, the proportion of neurons dropped is very close to probability p. It follows naturally from Binomial distribution's expectation. The transformations induced are as different as the values M can take. Despite this, their magnitude is as constant as the proportion of neurons Probability density function on proportion of neurons dropped with p =0.5 <ref type="figure">Figure 1</ref>: The density function on proportion of neurons dropped is very peaked around p for dropout. This results in a low variance of the transformations magnitude induced by dropout. Random dropout on the other hand has a constant density function under pN , N being the number of neurons, because ρ ∼ U(0, p). It is thus more likely to see transformations closer to identity while it is very unlikely for standard dropout. This is intuitively desirable, as much as varying translation distances is preferable over constant large distances.</p><p>dropped. That means, every transformations displaces the sample to a relatively constant distance but in random directions in a high dimensional space.</p><p>A simple way to vary the transformation magnitude randomly is to replace p by a random variable.</p><formula xml:id="formula_10">Let ρ h ∼ U(0, p h ) and M hij ∼ B(ρ h )</formula><p>where h defines the layer, i the sample, and j the layer's neuron. It is important to use the same ρ for all neurons of a layer, otherwise we would have</p><formula xml:id="formula_11">M hij ∼ B( p h ).</formula><p>To compensate for the change of level of activations during test, a scaling is normally applied. One could also simply apply the inverse scaling during training, turning equation 3 intõ</p><formula xml:id="formula_12">a(h) = 1 − p M rect (h)<label>(9)</label></formula><p>To adapt the equation to random dropout level, we simply need to replace p with ρ</p><formula xml:id="formula_13">a(h) = 1 − ρ M rect (h)<label>(10)</label></formula><p>No scaling needs to be done during test anymore. <ref type="figure">Figure 1</ref> shows the differences between density function on proportion of neurons dropped for dropout and random dropout. Transformations induced by random dropout are clearly more diverse than those induced by dropout.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>EXPERIMENTS</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1">VISUALIZATIONS OF NOISE PROJECTED BACK INTO THE INPUT SPACE</head><p>Visualizing the noise projected back into the input space helps to understand what kind of transformations are induced by dropout. Unsupervised models learn more general features than supervised fully connected neural networks and produce thus more visually appealing transformations. For this reason, we trained autoencoders with dropout on the hidden layer to generate samples of transformations.</p><p>The autoencoder is very similar to denoising autoencoders, the only difference is that a Bernoulli mask is applied to the hidden activations rather than to the input. There is thus no noise applied to the input explicitly. Models are trained for 300 epochs, with mini-batch size of 100, p = 0.4, a learning rate of 0.001 on MNIST, 0.0001 on CIFAR-10 and a momentum of 0.7 on MNIST, 0.5 on Second column represents the five most active features on each given original sample. Last column represents noisy samples produced by back-projecting the noise into the input space while keeping the selected feature shut off to 0. We can see that the features are not simply removed from the input, but rather destroyed in such a way that other features highly dependant on the same subregion still have the same activation level.</p><p>CIFAR-10. For CIFAR-10, we do preprocessing with PCA dimensionality reduction and retain 781 features.</p><p>Once the model is trained, we use gradient descent to compute x * as described in 3.1. We iterate for 10 epochs with a learning rate of 100 for both MNIST and CIFAR-10. <ref type="figure" target="#fig_2">Figure 5</ref> shows well how close x * are from the natural input space and we clearly see that the classes are still distinguishable.</p><p>To help understand how each feature influences the transformation, we isolate five most active features for a given input and shut them off, each separately. For each feature shut off, we compute x * using gradient descent. <ref type="figure">Figure 3</ref> shows the results found for MNIST. One could think the features dropped by the noise are simply removed from the input. It turns out removing the feature would affect the activation of other neurons. Because of this, features are rather destroyed in the input in such a way that other features highly dependant on the same subregion still have the same activation level.  <ref type="figure">Figure 4</ref>: Error percentages on the MNIST and CIFAR-10 datasets using MLP architectures trained with different corruption schemes. Row-1: Experiments using dropout. Row-2: Experiments using noise back projection. Column-1: CIFAR-10 Column-2: MNIST.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2">EQUIVALENCE OF DROPOUT AND NOISY SAMPLES</head><p>We ran a series of experiments with fully connected feed forward neural networks on the MNIST and CIFAR-10 datasets to study the effect of replacing dropout by corresponding noisy inputs. Each network consists of two hidden layers with rectified linear units followed by a softmax layer. We experimented with four different architectures each one with a different number of units in the hidden layers: 2500-2500, 2500-1250, 1500-1500 and 1500-750.</p><p>The MNIST dataset consists of 60000 training samples and 10000 test samples. We split the training set into a set of 50000 samples for training and 10000 for validation. Each network is trained for epochs and the best model based on validation error is selected. Later the best model is further trained on the complete training set of 60000 samples (training + validation split) for another 150 epochs. The mean error percentage for the last 75 epochs is used for comparison.</p><p>We also ran experiments on the CIFAR-10 permutation invariant task using the same network architectures described above. The dataset consists of 50000 training samples and 10000 test samples. We use PCA based dimensionality reduction without whitening as preprocessing scheme, retaining features. We used the same approach as in the MNIST experiments to train the networks and for reporting the performances.</p><p>At each epoch, an x * is generated for each training sample. It proved to be possible to find good x * approximations for the entire network at once for a 2-hidden layer network. Thus, we trained on x and x * solely rather than x, x (1) * and x (2) * as it gave a significant speed up. For simplicity, the network is trained on x for an epoch than on x * for an epoch. All x * are generated with parameter values of the model at the beginning of the epoch.</p><p>Noisy inputs x * are found using stochastic gradient descent. 20 learning steps are done with a learning rate of 300.0 for first hidden layer and 30 for second hidden layer. The results for these experiments are shown in figure 4.</p><p>Results suggest that Dropout can be replicated by projecting the noise back into the input and training a neural network deterministically on this generated data. There is not significant drop in ac- Random dropout applies transformations with different strenghs, i.e., the transformed input can be very close to very far from the original input while standard dropout always applies transformations with the same strengh.</p><p>curacy, it is even slightly better than Dropout in the case of CIFAR-10. This supports the idea that dropout can be seen as data augmentation.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3">RICHER NOISE SCHEMES</head><p>We ran a series of experiments with fully connected feed forward neural networks on the MNIST and CIFAR-10 datasets to compare dropout. Each networks consist of two hidden layers with rectified linear units followed by a softmax layer. We experimented with three different network architectures each one with a different number of units in the hidden layers: 2500-625, 2500-1250 and 2500-2500. Each network is trained and validated the same way as mentioned in previous section.</p><p>First, we evaluated the dropout noise scheme by training the networks with a fixed hidden noise level of 0.5 and the input noise level varying from 0.0 to 0.7 with increments of 0.1 for each experiment. In the second experiment, we fixed the input noise level at 0.2 and the hidden noise level is varied from 0.0 to 0.7, again with an increment of 0.1. In the final set of experiments we use the random dropout noise scheme using the same noise level at input and hidden layers. The noise level in this case is a range [0, x] where x is varied from 0.0 to 0.8 with increment 0.1. The classification performances corresponding to the all the experiments on both the datasets are reported in <ref type="figure" target="#fig_3">Figure 6</ref>.</p><p>Random dropout improves the performance of the models over dropout with no additional computational cost.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6">RELATED WORK</head><p>To the best of our knowledge there is no work analyzing dropout from a data augmentation perspective. Nonetheless, there is a plethora of excellent works about dropout, some describing his regularisation properties and others developing new kind of noise schemes based on different intuitions.</p><p>Regularization properties of noise have been known for more than a decade, <ref type="bibr" target="#b4">Bishop (1995)</ref> showed for instance that the regularization term induced by noise belongs to the class of generalized Tikhonov regularizers for sum-of-squares error functions. More recently, <ref type="bibr" target="#b1">Baldi &amp; Sadowski (2013)</ref> proved that dropout noise scheme specifically applies a regularisation term very similar to usual weight decay. Not exactly about regularization, but uncertainty, <ref type="bibr" target="#b7">Gal &amp; Ghahramani (2015)</ref> gave a very inspiring interpretation of dropout as a Bayesian approximation.</p><p>Different noise schemes are used by <ref type="bibr" target="#b15">Poole et al. (2014)</ref> and applied at different positions in autoencoders; input, pre-activation and post-activations. They report better results than denoising autoencoders and also support that Gaussian noise yields better results than dropout on MNIST classification task. <ref type="bibr" target="#b0">Bachman et al. (2014)</ref> emphasise bagging interpretation of dropout and propose a generalization called pseudo-ensembles and a related regularizer which makes it possible to train semi-supervised networks.</p><p>Some recent work reports that noise level schedules, inspired by simulated annealing, help in supervised and unsupervised tasks <ref type="bibr" target="#b8">(Geras &amp; Sutton, 2014;</ref><ref type="bibr" target="#b5">Chandra &amp; Sharma, 2014;</ref><ref type="bibr" target="#b16">Rennie et al., 2014)</ref>. We propose an alternative that avoids a schedule and rather uses random noise levels such that the model cannot adapt to slowly changing noise distribution.</p><p>A similar approach of sampling the noise level was used in <ref type="bibr" target="#b8">Geras &amp; Sutton (2014)</ref> in the context of unsupervised learning using an autoencoder (on input not features). However, they show that the approach is not very useful in their case.</p><p>Finally, work by <ref type="bibr" target="#b11">Graham et al. (2015)</ref> is related to random noise as both their submatrix multiplications and random noise level ρ are inducing an independence between neurons of a single layer. They found that the independence is not to damageable if they use enough different submatrix patterns.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7">CONCLUSION</head><p>We have presented and justified a novel interpretation of dropout as prior-knowledge free data augmentation. We described a new procedure to generate samples by back projecting the dropout noise into the input space. Our results suggest neural networks can be trained without dropout on such noisy samples and still yield good results. Nonetheless, experiments should be performed on larger networks in order to determine whether this observation is just a particular property of relatively small networks. Furthermore, trained networks should be analyzed to determine if co-adaptation is still avoided when using per-layer noise back-projection on deep neural networks.</p><p>Presenting only random dropout, the list of possible substitute to dropout in this work is far from exhaustive. As described in section 4, important knobs to modify induced data augmentation by noise are model's features and the noise scheme applied on them. Using semi-supervised cost can influence the implicit transformations by forcing the network to learn more general features. A network could also be trained on x * samples generated from another network, similarly to generative adverserial networks <ref type="bibr" target="#b9">(Goodfellow et al., 2014a)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="8">APPENDIX</head><p>8.1 PROOF OF x * UNLIKELINESS</p><p>We can show, with a proof by contradiction, that it's unlikely to find a single x * = x (1) * = x (2) * = • • • = x (n) * that minimizes well L.</p><p>By the associative property of function composition, we can rewrite equation</p><formula xml:id="formula_14">f (i) (x * ) = a (i) • h (i) f (i−1) (x * )<label>(11)</label></formula><p>Suppose there exist an x * such that</p><formula xml:id="formula_15">a (i) • h (i) f (i−1) (x * ) = ã (i) • h (i) f (i−1) (x)<label>(12)</label></formula><formula xml:id="formula_16">a (i−1) • h (i−1) f (i−2) (x * ) = ã (i−1) • h (i−1) f (i−2) (x)<label>(13)</label></formula><p>Based on 11 and 13, we have that f (i−1) (x * ) =f (i−1) (x). The proof is concluded by replacing the latter in 12 and then expanding the composed functions.</p><formula xml:id="formula_17">a (i) • h (i) f (i−1) (x * ) = ã (i) • h (i) f (i−1) (x * ) rect h (i) f (i−1) (x * ) = m (i) rect h (i) f (i−1) (x * )<label>(14)</label></formula><p>Equation 14 can only be true if m <ref type="bibr">(i)</ref> does not apply any modification to rect h (i) f (i−1) (x * ) , that means m (i) j = 1 when rect j h (i) f (i−1) (x * ) &gt; 0. It happens with a probability p</p><formula xml:id="formula_18">d (i) s (i) (i)</formula><p>where p (i) is the Bernoulli success probability, d (i) is the number of hidden units and s (i) is the mean sparsity level, i.e. mean percentage of active hidden units, of the i-th hidden layer. This probability is very low for standard hyper-parameters values. For instance, with p (i) = 0.5, d (i) = 1000 and s (i) = 0.15, the probability is as low as 10 −47 .</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 2 :Figure 3 :</head><label>23</label><figDesc>Visualization of noisy samples on MNIST and CIFAR-10. The first column represent original samples from MNIST and CIFAR-10 datasets. Each row contains samples from the same original sample. Every other column represents noisy samples produced by back-projecting the noise into the input space. Each one is induced by a different noise mask, i.e. a different value of M . Visualization of the influence of the features on the transformations induced by dropout on MNIST. First column represent original samples from MNIST dataset.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 5 :</head><label>5</label><figDesc>Visualization of noisy samples from random dropout on MNIST and CIFAR-10. The first column represent original samples from MNIST and CIFAR-10 datasets. Each row contains samples from the same original sample. Every other column represents noisy samples produced by back-projecting the noise into the input space. Each one is induced by a different noise mask and a different noise level, i.e. a different value of ρ and M . The transformations from figure 5 and this one are clearly different.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 6 :</head><label>6</label><figDesc>Error percentages on the MNIST and CIFAR-10 datasets using MLP architectures trained with different corruption schemes. Row-1: Experiments on CIFAR-10. Row-2: Experiments on MNIST. Column-1: Using dropout with varying input noise and fixed hidden noise of 0.5. Column-2: Using dropout with varying hidden noise with fixed input noise of 0.2. Column-3: Using Random-dropout with varying noise range [0, x] used at hidden and input layers.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head></head><label></label><figDesc>Because we train on n samples from x, one for each hidden layer</figDesc><table><row><cell></cell><cell>8.0%</cell><cell>dropout random dropout</cell></row><row><cell>f(k)</cell><cell>4.0%</cell></row><row><cell></cell><cell>0.0%</cell></row><row><cell></cell><cell></cell><cell>0 proportion of dropped neurons (k) 25 50 75 100</cell></row></table><note></note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>ACKNOWLEDGEMENTS</head><p>This work was supported by the German Federal Ministry of Education and Research (BMBF) in the project 01GQ0841 (BFNT Frankfurt), an NSERC Discovery grant, a Google faculty research award and Ubisoft. We are grateful towards the developers of Theano <ref type="bibr" target="#b3">(Bergstra et al., 2010;</ref><ref type="bibr" target="#b2">Bastien et al., 2012)</ref>, Fuel and Blocks (van Merriënboer et al., 2015).</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Learning with pseudo-ensembles</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Phil</forename><surname>Bachman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ouais</forename><surname>Alsharif</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Doina</forename><surname>Precup</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="3365" to="3373" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Understanding dropout</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pierre</forename><surname>Baldi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Peter</forename><forename type="middle">J</forename><surname>Sadowski</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="2814" to="2822" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Frédéric</forename><surname>Bastien</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Lamblin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Pascal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Razvan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bergstra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>James</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Goodfellow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bergeron</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Arnaud</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nicolas</forename><surname>Bouchard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Warde</forename><forename type="middle">-</forename><surname>Farley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename></persName>
+		</author>
+		<idno type="arXiv">arXiv:1211.5590</idno>
+		<title level="m">Theano: new features and speed improvements</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Theano: a cpu and gpu math expression compiler</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">James</forename><surname>Bergstra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Breuleux</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Olivier</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bastien</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Frédéric</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Lamblin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Pascal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Pascanu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Razvan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Desjardins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Guillaume</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Joseph</forename><surname>Turian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Warde</forename><forename type="middle">-</forename><surname>Farley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Python for scientific computing conference (SciPy)</title>
+		<meeting>the Python for scientific computing conference (SciPy)<address><addrLine>Austin, TX</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2010" />
+			<biblScope unit="volume">4</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Training with noise is equivalent to tikhonov regularization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chris</forename><forename type="middle">M</forename><surname>Bishop</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural computation</title>
+		<imprint>
+			<biblScope unit="volume">7</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="108" to="116" />
+			<date type="published" when="1995" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Adaptive noise schedule for denoising autoencoder</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Chandra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rajesh</forename><surname>Sharma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Kumar</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Neural Information Processing</title>
+		<imprint>
+			<publisher>Springer</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="535" to="542" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Multi-column deep neural networks for image classification</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dan</forename><surname>Ciresan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ueli</forename><surname>Meier</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jürgen</forename><surname>Schmidhuber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Computer Vision and Pattern Recognition (CVPR), 2012 IEEE Conference on</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="3642" to="3649" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yarin</forename><surname>Gal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zoubin</forename><surname>Ghahramani</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1506.02142</idno>
+		<title level="m">Dropout as a bayesian approximation: Representing model uncertainty in deep learning</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Krzysztof</forename><forename type="middle">J</forename><surname>Geras</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Charles</forename><surname>Sutton</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1406.3269</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Scheduled denoising autoencoders. arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Generative adversarial nets</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ian</forename><surname>Goodfellow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Pouget-Abadie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Jean</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Mirza</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Mehdi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Xu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Warde</forename><forename type="middle">-</forename><surname>Bing</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Farley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>David</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Ozair</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Sherjil</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Aaron</forename><surname>Courville</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="2672" to="2680" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<monogr>
+		<title level="m" type="main">Explaining and harnessing adversarial examples</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ian</forename><forename type="middle">J</forename><surname>Goodfellow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jonathon</forename><surname>Shlens</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christian</forename><surname>Szegedy</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.6572</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ben</forename><surname>Graham</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jeremy</forename><surname>Reizenstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Leigh</forename><surname>Robinson</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1502.02478</idno>
+		<title level="m">Efficient batchwise dropout training using submatrices</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<title level="m" type="main">Improving neural networks by preventing co-adaptation of feature detectors</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geoffrey</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Srivastava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Nitish</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ilya</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ruslan</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+		<idno>abs/1207.0580</idno>
+		<imprint>
+			<date type="published" when="2012" />
+			<publisher>CoRR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Imagenet classification with deep convolutional neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ilya</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geoffrey</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="1097" to="1105" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Gradient-based learning applied to document recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yann</forename><surname>Lecun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bottou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Léon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Patrick</forename><surname>Haffner</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Proceedings of the IEEE</title>
+		<imprint>
+			<biblScope unit="volume">86</biblScope>
+			<biblScope unit="issue">11</biblScope>
+			<biblScope unit="page" from="2278" to="2324" />
+			<date type="published" when="1998" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ben</forename><surname>Poole</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jascha</forename><surname>Sohl-Dickstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ganguli</forename></persName>
+		</author>
+		<idno type="arXiv">arXiv:1406.1831</idno>
+		<title level="m">Surya. Analyzing noise in autoencoders and deep networks</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Annealed dropout training of deep networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Steven</forename><surname>Rennie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Vaibhava</forename><surname>Goel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Samuel</forename><surname>Thomas</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Spoken Language Technology (SLT)</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Best practices for convolutional neural networks applied to visual document analysis</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Patrice</forename><forename type="middle">Y</forename><surname>Simard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dave</forename><surname>Steinkraus</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">John</forename><forename type="middle">C</forename><surname>Platt</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">12th International Conference on Document Analysis and Recognition</title>
+		<imprint>
+			<publisher>IEEE Computer Society</publisher>
+			<date type="published" when="2003" />
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page" from="958" to="958" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Dropout: A simple way to prevent neural networks from overfitting</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nitish</forename><surname>Srivastava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geoffrey</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ilya</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ruslan</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">The Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">15</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="1929" to="1958" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Van Merriënboer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bart</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bahdanau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Dzmitry</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Dumoulin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Vincent</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Serdyuk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Warde</forename><forename type="middle">-</forename><surname>Dmitriy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Farley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>David</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jan</forename><surname>Chorowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Bengio</forename></persName>
+		</author>
+		<idno type="arXiv">arXiv:1506.00619</idno>
+		<title level="m">Yoshua. Blocks and fuel: Frameworks for deep learning</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Extracting and composing robust features with denoising autoencoders</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pascal</forename><surname>Vincent</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Larochelle</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Hugo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pierre-Antoine</forename><surname>Manzagol</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 25th international conference on Machine learning</title>
+		<meeting>the 25th international conference on Machine learning</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2008" />
+			<biblScope unit="page" from="1096" to="1103" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Regularization of neural networks using dropconnect</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Li</forename><surname>Wan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Zeiler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Matthew</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Sixin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Cun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Yann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Fergus</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rob</forename></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 30th International Conference on Machine Learning (ICML-13)</title>
+		<meeting>the 30th International Conference on Machine Learning (ICML-13)</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="1058" to="1066" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Stochastic resonance and the benefits of noise: from ice ages to crayfish and squids</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kurt</forename><surname>Wiesenfeld</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Moss</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Frank</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nature</title>
+		<imprint>
+			<biblScope unit="volume">373</biblScope>
+			<biblScope unit="issue">6509</biblScope>
+			<biblScope unit="page" from="33" to="36" />
+			<date type="published" when="1995" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Voltage fluctuations in neurons: signal or noise?</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yosef</forename><surname>Yarom</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jorn</forename><surname>Hounsgaard</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Physiological reviews</title>
+		<imprint>
+			<biblScope unit="volume">91</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="917" to="929" />
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

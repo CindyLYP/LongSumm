@@ -1,0 +1,1223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Detect to Track and Track to Detect</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2018-03-07">7 Mar 2018</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author role="corresp">
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christoph</forename><surname>Feichtenhofer</surname></persName>
+							<email>feichtenhofer@tugraz.at</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrew</forename><surname>Zisserman</surname></persName>
+						</author>
+						<author>
+							<affiliation key="aff0">
+								<orgName type="institution">Graz University of Technology</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff1">
+								<orgName type="department">Axel Pinz Graz</orgName>
+								<orgName type="institution">University of Technology</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff2">
+								<orgName type="institution">University of Oxford</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff3">
+								<orgName type="department">Institute of Electrical Measurement and Measurement Signal Processing</orgName>
+								<orgName type="institution">Graz University of Technology</orgName>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Detect to Track and Track to Detect</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2018-03-07">7 Mar 2018</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1710.03958v2[cs.CV]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:42+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Recent approaches for high accuracy detection and tracking of object categories in video consist of complex multistage solutions that become more cumbersome each year. In this paper we propose a ConvNet architecture that jointly performs detection and tracking, solving the task in a simple and effective way. Our contributions are threefold: (i) we set up a ConvNet architecture for simultaneous detection and tracking, using a multi-task objective for frame-based object detection and across-frame track regression; (ii) we introduce correlation features that represent object co-occurrences across time to aid the ConvNet during tracking; and (iii) we link the frame level detections based on our across-frame tracklets to produce high accuracy detections at the video level. Our ConvNet architecture for spatiotemporal object detection is evaluated on the large-scale ImageNet VID dataset where it achieves state-of-the-art results. Our approach provides better single model performance than the winning method of the last ImageNet challenge while being conceptually much simpler. Finally, we show that by increasing the temporal stride we can dramatically increase the tracker speed. Our code and models are available at http://github.com/feichtenhofer/detect-track</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.">Introduction</head><p>Object detection in images has received a lot of attention over the last years with tremendous progress mostly due to the emergence of deep Convolutional Networks <ref type="bibr" target="#b11">[12,</ref><ref type="bibr" target="#b18">19,</ref><ref type="bibr" target="#b20">21,</ref><ref type="bibr" target="#b35">36,</ref><ref type="bibr" target="#b37">38]</ref> and their region based descendants <ref type="bibr" target="#b2">[3,</ref><ref type="bibr" target="#b8">9,</ref><ref type="bibr" target="#b9">10,</ref><ref type="bibr" target="#b30">31]</ref>. In the case of object detection and tracking in videos, recent approaches have mostly used detection as a first step, followed by post-processing methods such as applying a tracker to propagate detection scores over time. Such variations on the 'tracking by detection' paradigm have seen impressive progress but are dominated by frame-level detection methods. Object detection in video has seen a surge in interest lately, especially since the introduction of the ImageNet <ref type="bibr" target="#b31">[32]</ref> video object detection challenge (VID). Different from the ImageNet object detection (DET) challenge, VID shows objects in image sequences and comes with additional challenges of (i) size: the sheer number of frames that video provides (VID has around 1.3M images, compared to around 400K in DET or 100K in COCO <ref type="bibr" target="#b21">[22]</ref>), (ii) motion blur: due to rapid camera or object motion, (iii) quality: internet video clips are typically of lower quality than static photos, (iv) partial occlusion: due to change in objects/viewer positioning, and (v) pose: unconventional object-to-camera poses are frequently seen in video. In <ref type="figure" target="#fig_0">Fig. 1</ref>, we show example images from the VID dataset; for more examples please see <ref type="bibr" target="#b0">1</ref> .</p><p>To solve this challenging task, recent top entries in the ImageNet <ref type="bibr" target="#b31">[32]</ref> video detection challenge use exhaustive post-processing on top of frame-level detectors. For example, the winner <ref type="bibr" target="#b16">[17]</ref> of ILSVRC'15 uses two multi-stage Faster R-CNN <ref type="bibr" target="#b30">[31]</ref> detection frameworks, context suppression, multi-scale training/testing, a ConvNet tracker <ref type="bibr" target="#b38">[39]</ref>, optical-flow based score propagation and model ensembles.</p><p>In this paper we propose a unified approach to tackle the problem of object detection in realistic video. Our objective is to directly infer a 'tracklet' over multiple frames by simultaneously carrying out detection and tracking with a ConvNet. To achieve this we propose to extend the R-FCN <ref type="bibr" target="#b2">[3]</ref> detector with a tracking formulation that is inspired by current correlation and regression based trackers <ref type="bibr" target="#b0">[1,</ref><ref type="bibr" target="#b12">13,</ref><ref type="bibr" target="#b24">25]</ref>. We train a fully convolutional architecture end-to-end using a detection and tracking based loss and term our approach D&amp;T for joint Detection and Tracking. The input to the network consists of multiple frames which are first passed through a ConvNet trunk (e.g. a ResNet-101 <ref type="bibr" target="#b11">[12]</ref>) to produce convolutional features which are shared for the task of detection and tracking. We compute convolutional cross-correlation between the feature responses of adjacent frames to estimate the local displacement at different feature scales. On top of the features, we employ an RoIpooling layer <ref type="bibr" target="#b2">[3]</ref> to classify and regress box proposals as well as an RoI-tracking layer that regresses box transformations (translation, scale, aspect ratio) across frames. Finally, to infer long-term tubes of objects across a video we link detections based on our tracklets.</p><p>An evaluation on the large-scale ImageNet VID dataset shows that our approach is able to achieve better singlemodel performance than the winner of the last ILSVRC'16 challenge, despite being conceptually simple and much faster. Moreover, we show that including a tracking loss may improve feature learning for better static object detection, and we also present a very fast version of D&amp;T that works on temporally-strided input frames.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">Related work</head><p>Object detection. Two families of detectors are currently popular: First, region proposal based detectors R-CNN <ref type="bibr" target="#b9">[10]</ref>, Fast R-CNN <ref type="bibr" target="#b8">[9]</ref>, Faster R-CNN <ref type="bibr" target="#b30">[31]</ref> and R-FCN <ref type="bibr" target="#b2">[3]</ref> and second, detectors that directly predict boxes for an image in one step such as YOLO <ref type="bibr" target="#b29">[30]</ref> and SSD <ref type="bibr" target="#b22">[23]</ref>.</p><p>Our approach builds on R-FCN <ref type="bibr" target="#b2">[3]</ref> which is a simple and efficient framework for object detection on region proposals with a fully convolutional nature. In terms of accuracy it is competitive with Faster R-CNN <ref type="bibr" target="#b30">[31]</ref> which uses a multilayer network that is evaluated per-region (and thus has a cost growing linearly with the number of candidate RoIs). R-FCN reduces the cost for region classification by pushing the region-wise operations to the end of the network with the introduction of a position-sensitive RoI pooling layer which works on convolutional features that encode the spatially subsampled class scores of input RoIs.</p><p>Tracking. Tracking is also an extensively studied problem in computer vision with most recent progress devoted to trackers operating on deep ConvNet features. In <ref type="bibr" target="#b25">[26]</ref> a ConvNet is fine-tuned at test-time to track a target from the same video via detection and bounding box regression. Training on the examples of a test sequence is slow and also not applicable in the object detection setting. Other methods use pre-trained ConvNet features to track and have achieved strong performance either with correlation <ref type="bibr" target="#b0">[1,</ref><ref type="bibr" target="#b24">25]</ref> or regression trackers on heat maps <ref type="bibr" target="#b38">[39]</ref> or bounding boxes <ref type="bibr" target="#b12">[13]</ref>. The regression tracker in <ref type="bibr" target="#b12">[13]</ref> is related to our method. It is based on a Siamese ConvNet that predicts the location in the second image of the object shown in the center of the previous image. Since this tracker predicts a bounding box instead of just the position, it is able to model changes in scale and aspect of the tracked template. The major drawback of this approach is that it only can process a single target template and it also has to rely on significant data augmentation to learn all possible transformations of tracked boxes. The approach in <ref type="bibr" target="#b0">[1]</ref> is an example of a correlation tracker and inspires our method. The tracker also uses a fully-convolutional Siamese network that takes as input the tracking template and the search image. The ConvNet features from the last convolutional layer are correlated to find the target position in the response map. One drawback of many correlation trackers <ref type="bibr" target="#b0">[1,</ref><ref type="bibr" target="#b24">25]</ref> is that they only work on single targets and do not account for changes in object scale and aspect ratio.</p><p>Video object detection. Action detection is also a related problem and has received increased attention recently, mostly with methods building on two-stream ConvNets <ref type="bibr" target="#b34">[35]</ref>. In <ref type="bibr" target="#b10">[11]</ref> a method is presented that uses a two-stream R-CNN <ref type="bibr" target="#b9">[10]</ref> to classify regions and link them across frames based on the action predictions and their spatial overlap. This method has been adopted by <ref type="bibr" target="#b32">[33]</ref> and <ref type="bibr" target="#b26">[27]</ref> where the R-CNN was replaced by Faster R-CNN with the RPN operating on two streams of appearance and motion information.</p><p>One area of interest is learning to detect and localize in each frame (e.g. in video co-localization) with only weak supervision. The YouTube Object Dataset <ref type="bibr" target="#b27">[28]</ref>, has been used for this purpose, e.g. <ref type="bibr" target="#b14">[15,</ref><ref type="bibr" target="#b19">20]</ref>.</p><p>Since the object detection from video task has been introduced at the ImageNet challenge, it has drawn significant attention. In <ref type="bibr" target="#b17">[18]</ref> tubelet proposals are generated by applying a tracker to frame-based bounding box proposals. The detector scores across the video are re-scored by a 1D CNN model. In their corresponding ILSVRC submission the group <ref type="bibr" target="#b16">[17]</ref> added a propagation of scores to nearby frames based on optical flows between frames and suppression of class scores that are not among the top classes in a video. A more recent work <ref type="bibr" target="#b15">[16]</ref> introduces a tubelet proposal network that regresses static object proposals over multiple frames, extracts features by applying Faster R-CNN which are finally processed by an encoder-decoder LSTM. In deep feature flow <ref type="bibr" target="#b41">[42]</ref> a recognition ConvNet is applied to key frames only and an optical flow ConvNet is used for propagating the deep feature maps via a flow field to the rest of the frames. This approach can increase detection speed by a factor of 5 at a slight accuracy cost. The approach is error-prone due largely to two aspects: First, propagation from the key frame to the current frame can be erroneous and, second, the key frames can miss features from current frames. Very recently a new large-scale dataset for video object detection has been introduced <ref type="bibr" target="#b28">[29]</ref> with single objects annotations over video sequences.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">D&amp;T Approach</head><p>In this section we first give an overview of the Detect and Track (D&amp;T) approach (Sect. 3.1) that generates tracklets given two (or more) frames as input. We then give the details, starting with the baseline R-FCN detector <ref type="bibr" target="#b2">[3]</ref> (Sect. 3.2), and formulating the tracking objective as crossframe bounding box regression (Sect. 3.3); finally, we introduce the correlation features (Sect. 3.4) that aid the network in the tracking process.</p><p>Sect. 4 shows how we link across-frame tracklets to tubes over the temporal extent of a video, and Sect. 5 describes how we apply D&amp;T to the ImageNet VID challenge.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1.">D&amp;T overview</head><p>We aim at jointly detecting and tracking (D&amp;T) objects in video. <ref type="figure" target="#fig_1">Fig. 2</ref> illustrates our D&amp;T architecture. We build on the R-FCN <ref type="bibr" target="#b2">[3]</ref> object detection framework which is fully convolutional up to region classification and regression, and extend it for multi-frame detection and tracking. Given a set of two high-resolution input frames our architecture first computes convolutional feature maps that are shared for the tasks of detection and tracking (e.g. the features of a ResNet-101 <ref type="bibr" target="#b11">[12]</ref>). An RPN is used to propose candidate regions in each frame based on the objectness likelihood for pre-defined candidate boxes (i.e. "anchors" <ref type="bibr" target="#b30">[31]</ref>). Based on these regions, RoI pooling is employed to aggregate position-sensitive score and regression maps, produced from intermediate convolutional layers, to classify boxes and refine their coordinates (regression), respectively.</p><p>We extend this architecture by introducing a regressor that takes the intermediate position-sensitive regression maps from both frames (together with correlation maps, see below) as input to an RoI tracking operation which outputs the box transformation from one frame to the other. The correspondence between frames is thus simply accomplished by pooling features from both frames, at the same proposal region. We train the RoI tracking task by extending the multi-task objective of R-FCN with a tracking loss that regresses object coordinates across frames. Our tracking loss operates on ground truth objects and evaluates a soft L1 norm <ref type="bibr" target="#b8">[9]</ref> between coordinates of the predicted track and the ground truth track of an object.</p><p>Such a tracking formulation can be seen as a multiobject extension of the single target tracker in <ref type="bibr" target="#b12">[13]</ref> where a ConvNet is trained to infer an object's bounding box from features of the two frames. One drawback of such an approach is that it does not exploit translational equivariance which means that the tracker has to learn all possible translations from training data. Thus such a tracker requires exceptional data augmentation (artificially scaling and shifting boxes) during training <ref type="bibr" target="#b12">[13]</ref> .</p><p>A tracking representation that is based on correlation filters <ref type="bibr" target="#b1">[2,</ref><ref type="bibr" target="#b3">4,</ref><ref type="bibr" target="#b13">14]</ref> can exploit the translational equivariance as correlation is equivariant to translation. Recent correlation trackers <ref type="bibr" target="#b0">[1,</ref><ref type="bibr" target="#b24">25]</ref> typically work on high-level ConvNet features and compute the cross correlation between a tracking template and the search image (or a local region around the tracked position from the previous frame). The resulting correlation map measures the similarity between the template and the search image for all circular shifts along the horizontal and vertical dimension. The displacement of a target object can thus be found by taking the maximum of the correlation response map.</p><p>Different from typical correlation trackers that work on single target templates, we aim to track multiple objects simultaneously. We compute correlation maps for all positions in a feature map and let RoI tracking additionally operate on these feature maps for better track regression. Our architecture is able to be trained end-to-end taking as input frames from a video and producing object detections and their tracks. The next sections describe how we structure our architecture for end-to-end learning of object detection and tracklets.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2.">Object detection and tracking in R-FCN</head><p>Our architecture takes frames I t ∈ R H0×W0×3 at time t and pushes them through a backbone ConvNet (i.e. ResNet-101 <ref type="bibr" target="#b11">[12]</ref>) to obtain feature maps x t l ∈ R H l ×W l ×D l where W l , H l and D l are the width, height and number of channels of the respective feature map output by layer l. As in R-FCN <ref type="bibr" target="#b2">[3]</ref> we reduce the effective stride at the last convolutional layer from 32 pixels to 16 pixels by modifying the conv5 block to have unit spatial stride, and also increase its receptive field by dilated convolutions <ref type="bibr" target="#b23">[24]</ref>.</p><p>Our overall system builds on the R-FCN <ref type="bibr" target="#b2">[3]</ref> object detector which works in two stages: first it extracts candidate regions of interest (RoI) using a Region Proposal Network (RPN) <ref type="bibr" target="#b30">[31]</ref>; and, second, it performs region classification into different object categories and background by using a position-sensitive RoI pooling layer <ref type="bibr" target="#b2">[3]</ref>. The input to this RoI pooling layer comes from an extra convolutional layer with output x t cls that operates on the last convolutional layer of a ResNet <ref type="bibr" target="#b11">[12]</ref>. The layer produces a bank of D cls = k 2 (C + 1) position-sensitive score maps which correspond to a k × k spatial grid describing relative positions to be used in the RoI pooling operation for each of the C categories and background. Applying the softmax function to the outputs leads to a probability distribution p over C + 1 classes for each RoI. In a second branch R-FCN puts a sibling convolutional layer with output x t reg after the  Let us now consider a pair of frames I t , I t+τ , sampled at time t and t+τ , given as input to the network. We introduce an inter-frame bounding box regression layer that performs position sensitive RoI pooling on the concatenation of the bounding box regression features {x t reg , x t+τ reg } to predict the transformation ∆ t+τ = (∆ t+τ</p><p>x , ∆ t+τ y , ∆ t+τ w , ∆ t+τ h ) of the RoIs from t to t + τ . The correlation features, that are also used by the bounding box regressors, are described in section 3.4. <ref type="figure">Fig. 3</ref> shows an illustration of this approach.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3.">Multitask detection and tracking objective</head><p>To learn this regressor, we extend the multi-task loss of Fast R-CNN <ref type="bibr" target="#b8">[9]</ref>, consisting of a combined classification L cls and regression loss L reg , with an additional term that scores the tracking across two frames L tra . For a single iteration and a batch of N RoIs the network predicts softmax probabilities</p><formula xml:id="formula_0">{p i } N i=1 , regression offsets {b i } N i=1</formula><p>, and cross-frame RoI-tracks {∆ t+τ i } Ntra i=1 . Our overall objective function is written as: </p><formula xml:id="formula_1">L({p i }, {b i }, {∆ i }) = 1 N N i=1 L cls (p i,c * ) +λ 1 N f g N i=1 [c * i &gt; 0]L reg (b i , b * i ) +λ 1 N tra Ntra i=1 L tra (∆ t+τ i , ∆ * ,t+τ i ).<label>(1)</label></formula><formula xml:id="formula_2">i = 0). L cls (p i,c * ) = − log(p i,c * )</formula><p>is the cross-entropy loss for box classification, and L reg &amp; L tra are bounding box and track regression losses defined as the smooth L1 function in <ref type="bibr" target="#b8">[9]</ref>. The tradeoff parameter is set to λ = 1 as in <ref type="bibr" target="#b2">[3,</ref><ref type="bibr" target="#b8">9]</ref>. The assignment of RoIs to ground truth is as follows: a class label c * and regression targets b * are assigned if the RoI overlaps with a ground-truth box at least by 0.5 in intersection-overunion (IoU) and the tracking target ∆ * ,t+τ is assigned only to ground truth targets which are appearing in both frames. Thus, the first term of (1) is active for all N boxes in a training batch, the second term is active for N f g foreground RoIs and the last term is active for N tra ground truth RoIs which have a track correspondence across the two frames.</p><p>For track regression we use the bounding box regression parametrisation of R-CNN <ref type="bibr" target="#b8">[9,</ref><ref type="bibr" target="#b9">10,</ref><ref type="bibr" target="#b30">31]</ref>. For a single object we have ground truth box coordinates B t = (B t</p><p>x , B t y , B t w , B t h ) in frame t, and similarly B t+τ for frame t + τ , denoting the horizontal &amp; vertical centre coordinates and its width and height. The tracking regression values for the target ∆ * ,t+τ = {∆ * ,t+τ</p><formula xml:id="formula_3">x , ∆ * ,t+τ y , ∆ * ,t+τ w , ∆ * ,t+τ h } are then ∆ * ,t+τ x = B t+τ x − B t x B t w ∆ * ,t+τ y = B t+τ y − B t y B t h (2) ∆ * ,t+τ w = log( B t+τ w B t w ) ∆ * ,t+τ h = log( B t+τ h B t h )). (3)</formula></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4.">Correlation features for object tracking</head><p>Different from typical correlation trackers on single target templates, we aim to track multiple objects simultaneously. We compute correlation maps for all positions in a feature map and let RoI pooling operate on these feature maps for track regression. Considering all possible circular shifts in a feature map would lead to large output dimensionality and also produce responses for too large displace-  <ref type="figure">Figure 3</ref>. Schematic of our approach for two frames at time t and t + τ . The inputs are first passed through a fully-convolutional network to produce feature maps. A correlation layer operates on multiple feature maps of different scales (only the coarsest scale is shown in the figure) and estimates local feature similarity for various offsets between the two frames. Finally, position sensitive RoI-pooling <ref type="bibr" target="#b2">[3]</ref> operates on the convolutional features of the individual frames to produce per-frame detections and also on a stack of individual frame-features as well as the between frame correlation features to output regression offsets of the boxes across the two frames (RoI-tracking).</p><p>ments. Therefore, we restrict correlation to a local neighbourhood. This idea was originally used for optical flow estimation in <ref type="bibr" target="#b4">[5]</ref>, where a correlation layer is introduced to aid a ConvNet in matching feature points between frames. The correlation layer performs point-wise feature comparison of two feature maps</p><formula xml:id="formula_4">x t l , x t+τ l x t,t+τ corr (i, j, p, q) = x t l (i, j), x t+τ l (i + p, j + q)<label>(4)</label></formula><p>where −d ≤ p ≤ d and −d ≤ q ≤ d are offsets to compare features in a square neighbourhood around the locations i, j in the feature map, defined by the maximum displacement, d. Thus the output of the correlation layer is a feature map of size x corr ∈ R H l ×W l ×(2d+1)×(2d+1) . Equation (4) can be seen as a correlation of two feature maps within a local square window defined by d. We compute this local correlation for features at layers conv3, conv4 and conv5 (we use a stride of 2 in i, j to have the same size in the conv3 correlation). We show an illustration of these features for two sample sequences in <ref type="figure" target="#fig_3">Fig. 4</ref>. To use these features for track-regression, we let RoI pooling operate on these maps by stacking them with the bounding box features in Sect. 3.2 {x t,t+τ</p><p>corr , x t reg , x t+τ reg }.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">Linking tracklets to object tubes</head><p>One drawback of high-accuracy object detection is that high-resolution input images have to be processed which puts a hard constraint on the number of frames a (deep) architecture can process in one iteration (due to memory limitations in GPU hardware). Therefore, a tradeoff between the number of frames and detection accuracy has to be made. Since video possesses a lot of redundant information and objects typically move smoothly in time we can use our inter-frame tracks to link detections in time and build longterm object tubes. To this end, we adopt an established technique from action localization <ref type="bibr" target="#b10">[11,</ref><ref type="bibr" target="#b26">27,</ref><ref type="bibr" target="#b32">33]</ref>, which is used to to link frame detections in time to tubes.</p><p>Consider the class detections for a frame at time t, D t,c</p><formula xml:id="formula_5">i = {x t i , y t i , w t i , h t i , p t i,c }, where D t,c</formula><p>i is a box indexed by i, centred at (x t i , y t i ) with width w t i and height h t i , and p t i,c is the softmax probability for class c. Similarly, we also have tracks T t,t+τ</p><formula xml:id="formula_6">i = {x t i , y t i , w t i , h t i ; x t i + ∆ t+τ x , y t i + ∆ t+τ y , w t i + ∆ t+τ w , h t i + ∆ t+τ</formula><p>h } that describe the transformation of the boxes from frame t to t + τ . We can now define a class-wise linking score that combines detections and tracks across time</p><formula xml:id="formula_7">s c (D t i,c , D t+τ j,c , T t,t+τ ) = p t i,c + p t+τ j,c + ψ(D t i , D j , T t,t+τ )<label>(5)</label></formula><p>where the pairwise score is</p><formula xml:id="formula_8">ψ(D t i,c , D t+τ j,c , T t,t+τ ) = 1, if D t i , D t+τ j ∈ T t,t+τ , 0, otherwise.<label>(6)</label></formula><p>Here, the pairwise term ψ evaluates to 1 if the IoU over-   <ref type="figure">(d)</ref> and (e) the correlation maps computed by using features from conv3, conv4 and conv5, respectively. The feature maps are shown as arrays with the centre map corresponding to zero offsets p, q between the frames and the neighbouring rows and columns correspond to shifted correlation maps of increasing p, q. We observe that the airplane moves to the top-right; hence the feature maps corresponding to p = 2, q = 3 show strong responses (highlighted in red). Note that the features at conv4 and conv5 have the same resolution, whereas at conv3 we use stride 2 correlation sampling to produce equal sized outputs. In (h),(i) and (j) we show additional multiscale correlation maps for the frames in (f) &amp; (g) which are affected by camera motion resulting in correlation patterns that correctly estimate this at the lower layer (conv3 corr. responds on the grass and legs of the animal (h)), and also handles the independent motion of the animals at the higher conv5 corr (j).</p><p>lap a track correspondences T t,t+τ with the detection boxes D t i , D t+τ j is larger than 0.5. This is necessary, because the output of the track regressor does not have to exactly match the output of the box regressor.</p><p>The optimal path across a video can then be found by maximizing the scores over the duration T of the video <ref type="bibr" target="#b10">[11]</ref> </p><formula xml:id="formula_9">D c = argmax D 1 T T −τ t=1 s c (D t , D t+τ , T t,t+τ ).<label>(7)</label></formula><p>Eq. (7) can be solved efficiently by applying the Viterbi algorithm <ref type="bibr" target="#b10">[11]</ref>. Once the optimal tubeD c is found, the detections corresponding to that tube are removed from the set of regions and (7) is applied again to the remaining regions. After having found the class-specific tubesD c for one video, we re-weight all detection scores in a tube by adding the mean of the α = 50% highest scores in that tube. We found that overall performance is largely robust to that parameter, with less than 0.5% mAP variation when varying 10% ≤ α ≤ 100%. Our simple tube-based re-weighting aims to boost the scores for positive boxes on which the detector fails. Using the highest scores of a tube for reweighting acts as a form of non-maximum suppression. It is also inspired by the hysteresis tracking in the Canny edge detector. Our reweighting assumes that the detector fails at most in half of a tubes frames, and improves robustness of the tracker, though the performance is quite insensitive to the proportion chosen (α). Note that our approach enforces the tube to span the whole video and, for simplicity, we do not prune any detections in time. Removing detections with subsequent low scores along a tube (e.g. <ref type="bibr" target="#b26">[27,</ref><ref type="bibr" target="#b32">33]</ref>) could clearly improve the results, but we leave that for future work. In the following section our approach is applied to the video object detection task.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.">Experiments</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1.">Dataset sampling and evaluation</head><p>We evaluate our method on the ImageNet <ref type="bibr" target="#b31">[32]</ref> object detection from video (VID) dataset 2 which contains 30 classes in 3862 training and 555 validation videos. The objects have ground truth annotations of their bounding box and track ID in a video. Since the ground truth for the test set is not publicly available, we measure performance as mean average precision (mAP) over the 30 classes on the validation set by following the protocols in <ref type="bibr" target="#b15">[16,</ref><ref type="bibr" target="#b16">17,</ref><ref type="bibr" target="#b17">18,</ref><ref type="bibr" target="#b41">42]</ref>, as is standard practice.</p><p>The 30 object categories in ImageNet VID are a subset of the 200 categories in the ImageNet DET dataset. Thus we follow previous approaches <ref type="bibr" target="#b15">[16,</ref><ref type="bibr" target="#b16">17,</ref><ref type="bibr" target="#b17">18,</ref><ref type="bibr" target="#b41">42]</ref> and train our R-FCN detector on an intersection of ImageNet VID and DET set (only using the data from the 30 VID classes). Since the DET set contains large variations in the number of samples per class, we sample at most 2k images per class from DET. We also subsample the VID training set by using only 10 frames from each video. The subsampling reduces the effect of dominant classes in DET (e.g. there are 56K images for the dog class in the DET training set) and very long video sequences in the VID training set.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2.">Training and testing</head><p>RPN. Our RPN is trained as originally proposed <ref type="bibr" target="#b30">[31]</ref>. We attach two sibling convolutional layers to the stride-reduced ResNet-101 (Sect. 3.2) to perform proposal classification and bounding box regression at 15 anchors corresponding to 5 scales and 3 aspect ratios. As in <ref type="bibr" target="#b30">[31]</ref> we also extract proposals from 5 scales and apply non-maximum suppression (NMS) with an IoU threshold of 0.7 to select the top http://www.image-net.org/challenges/LSVRC/ detector. We found that pre-training on the full ImageNet DET set helps to increase the recall; thus, our RPN is first pre-trained on the 200 classes of ImageNet DET before fine-tuning on only the 30 classes which intersect ImageNet DET and VID. Our 300 proposals per image achieve a mean recall of 96.5% on the ImageNet VID validation set.</p><p>R-FCN. Our R-FCN detector is trained similar to <ref type="bibr" target="#b2">[3,</ref><ref type="bibr" target="#b41">42]</ref>. We use the stride-reduced ResNet-101 with dilated convolution in conv5 (see Sect. 3.2) and online hard example mining <ref type="bibr" target="#b33">[34]</ref>. A randomly initialized 3 × 3, dilation 6 convolutional layer is attached to conv5 for reducing the feature dimension to 512 <ref type="bibr" target="#b41">[42]</ref> (in the original R-FCN this is a 1 × 1 convolutional layer without dilation and an output dimension of 1024). For object detection and box regression, two sibling 1 × 1 convolutional layers provide the D cls = k 2 (C + 1) and D reg = 4k 2 inputs to the positionsensitive RoI pooling layer. We use a k × k = 7 × 7 spatial grid for encoding relative positions as in <ref type="bibr" target="#b2">[3]</ref>.</p><p>In both training and testing, we use single scale images with shorter dimension of 600 pixels. We use a batch size of 4 in SGD training and a learning rate of 10 −3 for 60K iterations followed by a learning rate of 10 −4 for 20K iterations. For testing we apply NMS with IoU threshold of 0.3.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>D &amp; T.</head><p>For training our D&amp;T architecture we start with the R-FCN model from above and further fine-tune it on the full ImageNet VID training set with randomly sampling a set of two adjacent frames from a different video in each iteration. In each other iteration we also sample from the ImageNet DET training set to avoid biasing our model to the VID training set. When sampling from the DET set we send the same two frames through the network as there are no sequences available. Besides not forgetting the images from the DET training set, this has an additional beneficial effect of letting our model prefer small motions over large ones (e.g. the tracker in <ref type="bibr" target="#b12">[13]</ref> samples motion augmentation from a Laplacian distribution with zero mean to bias a regression tracker on small displacements). Our correlation features (4) are computed at layers conv3, conv4 and conv5 with a maximum displacement of d = 8 and a stride of 2 in i, j for the the conv3 correlation. For training, we use a learning rate of 10 −4 for 40K iterations and 10 −5 for 20K iterations at a batch size of 4. During testing our architecture is applied to a sequence with temporal stride τ , predicting detections D and tracklets T between them. For objectcentred tracks, we use the regressed frame boxes as input of the ROI-tracking layer. We perform non-maximum suppression with bounding-box voting <ref type="bibr" target="#b7">[8]</ref> before the tracklet linking step to reduce the number of detections per image and class to 25. These detections are then used in eq. <ref type="formula" target="#formula_9">7</ref>to extract tubes and the corresponding detection boxes are re-weighted as outlined in Sect. 4 for evaluation.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3.">Results</head><p>We show experimental results for our models and the current state-of-the-art in <ref type="table">Table 1</ref>. Qualitative results for difficult validation videos can be seen in <ref type="figure">Fig. 5</ref> and also at http://www.robots.ox.ac.uk/˜vgg/ research/detect-track/ Frame level methods. First we compare methods working on single frames without any temporal processing. Our R-FCN baseline achieves 74.2% mAP which compares favourably to the best performance of 73.9% mAP in <ref type="bibr" target="#b41">[42]</ref>. We think our slightly better accuracy comes from the use of 15 anchors for RPN instead of the 9 anchors in <ref type="bibr" target="#b41">[42]</ref>. The Faster R-CNN models working as single frame baselines in <ref type="bibr" target="#b17">[18]</ref>, <ref type="bibr" target="#b15">[16]</ref> and <ref type="bibr" target="#b16">[17]</ref> score with 45.3%, 63.0% and 63.9%, respectively. We think their lower performance is mostly due to the difference in training procedure and data sampling, and not originating from a weaker base ConvNet, since our frame baseline with a weaker ResNet-50 produces 72.1% mAP (vs. the 74.2% for ResNet-101). Next, we are interested in how our model performs after fine-tuning with the tracking loss, operating via RoI tracking on the correlation and track regression features (termed D (&amp; T loss) in <ref type="table">Table 1</ref>). The resulting performance for single-frame testing is 75.8% mAP. This 1.6% gain in accuracy shows that merely adding the tracking loss can aid the per-frame detection. A possible reason is that the correlation features propagate gradients back into the base ConvNet and therefore make the features more sensitive to important objects in the training data. We see significant gains for classes like panda, monkey, rabbit or snake which are likely to move. Video level methods. Next, we investigate the effect of multi-frame input during testing. In <ref type="table">Table 1</ref> we see that linking our detections to tubes based on our tracklets, D&amp;T (τ = 1), raises performance substantially to 79.8% mAP. Some class-AP scores can be boosted significantly (e.g. cattle by 9.6, dog by 5.5, cat by 6, fox by 7.9, horse by 5.3, lion by 9.4, motorcycle by 6.4 rabbit by 8.9, red panda by 6.3 and squirrel by 8.5 points AP). This gain is mostly for the following reason: if an object is captured in an unconventional pose, is distorted by motion blur, or appears at a small scale, the detector might fail; however, if its tube is linked to other potentially highly scoring detections of the same object, these failed detections can be recovered (even though we use a very simple re-weighting of detections across a tube). The only class that loses AP is whale (−2.6 points) and this has an obvious explanation: in most validation snippets the whales successively emerge and submerge from the water and our detection rescoring based on tubes would assign false positives when they submerge for a couple of frames.</p><p>When comparing our 79.8% mAP against the current state of the art, we make the following observations. The method in <ref type="bibr" target="#b17">[18]</ref> achieves 47.5% by using a temporal con-  <ref type="table">Table 1</ref>. Performance comparison on the ImageNet VID validation set. The average precision (in %) for each class and the mean average precision over all classes is shown. τ corresponds to the temporal sampling stride. Our D&amp;T variants use ResNet-101 <ref type="bibr" target="#b11">[12]</ref> as backbone, except for the last row which lists performance for an Inception-v4 <ref type="bibr" target="#b36">[37]</ref> backbone which excels at some challenging object categories.</p><p>volutional network on top of the still image detector. An extended work <ref type="bibr" target="#b15">[16]</ref> uses an encoder-decoder LSTM on top of a Faster R-CNN object detector which works on proposals from a tubelet proposal network, and produces 68.4% mAP. The ILSVRC 2015 winner <ref type="bibr" target="#b16">[17]</ref> combines two Faster R-CNN detectors, multi-scale training/testing, context suppression, high confidence tracking <ref type="bibr" target="#b38">[39]</ref> and optical-flowguided propagation to achieve 73.8%. And the winner from ILSVRC2016 <ref type="bibr" target="#b40">[41]</ref> uses a cascaded R-FCN detector, context inference, cascade regression and a correlation tracker <ref type="bibr" target="#b24">[25]</ref> to achieve 76.19% mAP validation performance with a single model (multi-scale testing and model ensembles boost their accuracy to 81.1%).</p><p>Online capabilities and runtime. The only component limiting online application is the tube rescoring (Sect. 4).</p><p>We have evaluated an online version which performs only causal rescoring across the tracks. The performance for this method is 78.7%mAP, compared to the noncausal method (79.8%mAP). Since the correlation layer and track regressors are operating fully convolutional (no additional per-ROI computation is added except at the ROI-tracking layer), the extra runtime cost for testing a 1000x600 pixel image is 14ms (i.e. 141ms vs 127ms without correlation and ROI-tracking layers) on a Titan X GPU. The (unoptimized) tube linking (Sect. 4) takes on average 46ms per frame on a single CPU core).</p><p>Temporally strided testing. We look at larger temporal strides τ during testing, which has recently been found useful for the related task of video action recognition <ref type="bibr" target="#b5">[6,</ref><ref type="bibr" target="#b6">7]</ref>. Our D &amp; T architecture is evaluated only at every τ th frame of an input sequence and tracklets have to link detections over larger temporal strides. The performance for a temporal stride of τ = 10 is 78.6% mAP which is 1.2% below the full-frame evaluation. We think that such a minor drop is remarkable as the duration for processing a video is now roughly reduced by a factor of 10.</p><p>A potential point of improvement is to extend the detector to operate over multiple frames of the sequence. We found that such an extension did not have a clear beneficial effect on accuracy for short temporal windows (i.e. augmenting the detection scores at time t with the detector output at the tracked proposals in the adjacent frame at time t + 1 only raises the accuracy from 79.8 to 80.0% mAP). Increasing this window to frames at t ± 1 by bidirectional detection and tracking from the t th frame did not lead to any gain. Interestingly, when testing with a temporal stride of τ = 10 and augmenting the detections from the current frame at time t with the detector output at the tracked proposals at t+10 raises the accuracy from 78.6 to 79.2% mAP.</p><p>We conjecture that the insensitivity of the accuracy for short temporal windows originates from the high redundancy of the detection scores from the centre frames with the scores at tracked locations. The accuracy gain for larger temporal strides, however, suggests that more complementary information is integrated from the tracked objects; thus, a potentially promising direction for improvement is to detect and track over multiple temporally strided inputs. Varying the base network. Finally, we compare different base networks for the Detect &amp; Track architecture. <ref type="table" target="#tab_4">Table 2</ref> shows the performance for using 50 and 101 layer ResNets <ref type="bibr" target="#b11">[12]</ref>, ResNeXt-101 <ref type="bibr" target="#b39">[40]</ref>, and Inception-v4 <ref type="bibr" target="#b36">[37]</ref> as backbones. We report performance for frame-level Detection (D), video-level Detection and Tracking (D&amp;T), as well as the variant that additionally classifies the tracked region and computes the detection confidence as the average of the scores in the current frame and the tracked region in the adjacent frame, (D&amp;T, average). We observe that D&amp;T benefits from deeper base ConvNets as well as specific design structures (ResNeXt and Inception-v4). The last row in <ref type="table">Table 1</ref> lists class-wise performance for D&amp;T with an Inception-v4 backbone that seems to greatly boost certain categories, e.g., dog (+5.7 AP), domestic cat (+9.4 AP) , lion (+11.4 AP), lizard (+4.5 AP), rabbit (+4.4 AP), in comparison to ResNet-101.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.">Conclusion</head><p>We have presented a unified framework for simultaneous object detection and tracking in video. Our fully convolutional D&amp;T architecture allows end-to-end training for detection and tracking in a joint formulation. In evaluation, our method achieves accuracy competitive with the winner of the last ImageNet challenge while being simple and efficient. We demonstrate clear mutual benefits of jointly performing the task of detection and tracking, a concept that can foster further research in video analysis.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 .</head><label>1</label><figDesc>Challenges for video object detection. Training examples for: (a) bicycle, bird, rabbit; (b) dog; (c) fox; and (d) red panda.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 2 .</head><label>2</label><figDesc>Architecture of our Detect and Track (D&amp;T) approach (see Section 3 for details). last convolutional layer for bounding box regression, again a position-sensitive RoI pooling operation is performed on this bank of D cls = 4k 2 maps for class-agnostic bounding box prediction of a box b = (b x , b y , b w , b h ).</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head></head><label></label><figDesc>(a) frame t (b) frame t + τ (c) corr. conv3 (d) corr. conv4 (e) corr. conv5 (f) frame t (g) frame t + τ (h) corr. conv3 (i) corr. conv4 (j) corr. conv5</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 4 .</head><label>4</label><figDesc>Correlation features for two frames of two validation videos. For the frames in (a) &amp; (b) , we show in (c),</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head></head><label></label><figDesc>. b * i is the ground truth regression target, and ∆ * ,t+τ i is the track regression target. The indicator function [c *</figDesc><table /><note>The ground truth class label of an RoI is defined by c *i and its predicted softmax score is p i,c*i &gt; 0] is 1 for fore- ground RoIs and 0 for background RoIs (with c *</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_4"><head>Table 2 .</head><label>2</label><figDesc>Backbone network comparison for image-based Detection, and video-based Detection &amp; Tracking architectures. mAP (in %) over all classes on ImageNet VID validation is shown.</figDesc><table><row><cell>Backbone</cell><cell>D</cell><cell cols="2">D&amp;T D&amp;T, average</cell></row><row><cell>ResNet-50</cell><cell>72.1</cell><cell>76.5</cell><cell>76.7</cell></row><row><cell>ResNet-101</cell><cell>74.1</cell><cell>79.8</cell><cell>80.0</cell></row><row><cell cols="2">ResNeXt-101-32×4 75.9</cell><cell>81.4</cell><cell>81.6</cell></row><row><cell>Inception-v4</cell><cell>77.9</cell><cell>82.0</cell><cell>82.1</cell></row></table><note></note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><p>Acknowledgments. This work was partly supported by the Austrian Science Fund (FWF P27076) and by EPSRC Programme Grant Seebibyte EP/M013774/1.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Fully-convolutional siamese networks for object tracking</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Bertinetto</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Valmadre</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">F</forename><surname>Henriques</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Vedaldi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">H S</forename><surname>Torr</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ECCV VOT Workshop</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Visual object tracking using adaptive correlation filters</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">S</forename><surname>Bolme</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">R</forename><surname>Beveridge</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">A</forename><surname>Draper</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><forename type="middle">M</forename><surname>Lui</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. CVPR</title>
+		<meeting>CVPR</meeting>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">R-FCN: Object detection via region-based fully convolutional networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Dai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Beyond correlation filters: Learning continuous convolution operators for visual tracking</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Danelljan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Robinson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><forename type="middle">S</forename><surname>Khan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Felsberg</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ECCV</title>
+		<meeting>ECCV</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Flownet: Learning optical flow with convolutional networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Dosovitskiy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Fischer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Ilg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Hausser</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Hazirbas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Golkov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Van Der Smagt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Cremers</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Brox</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ICCV</title>
+		<meeting>ICCV</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Spatiotemporal residual networks for video action recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Feichtenhofer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Pinz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Wildes</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Convolutional two-stream network fusion for video action recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Feichtenhofer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Pinz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Zisserman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. CVPR</title>
+		<meeting>CVPR</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Object detection via a multiregion and semantic segmentation-aware cnn model</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Gidaris</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Komodakis</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. CVPR</title>
+		<meeting>CVPR</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Fast R-CNN</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">B</forename><surname>Girshick</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ICCV</title>
+		<meeting>ICCV</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Rich feature hierarchies for accurate object detection and semantic segmentation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">B</forename><surname>Girshick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Donahue</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Darrell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Malik</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. CVPR</title>
+		<meeting>CVPR</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Finding action tubes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Gkioxari</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Malik</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. CVPR</title>
+		<meeting>CVPR</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Deep residual learning for image recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. CVPR</title>
+		<meeting>CVPR</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Learning to track at 100 FPS with deep regression networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Held</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Thrun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Savarese</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ECCV</title>
+		<meeting>ECCV</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Highspeed tracking with kernelized correlation filters</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">F</forename><surname>Henriques</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Caseiro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Martins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Batista</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE PAMI</title>
+		<imprint>
+			<biblScope unit="volume">37</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="583" to="596" />
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Efficient image and video co-localization with frank-wolfe algorithm</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Joulin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Tang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Fei-Fei</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ECCV</title>
+		<meeting>ECCV</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Object detection in videos with tubelet proposal networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Xiao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Ouyang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Yan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Wang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. CVPR</title>
+		<meeting>CVPR</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Yan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Zeng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Xiao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Ouyang</surname></persName>
+		</author>
+		<title level="m">T-CNN: tubelets with convolutional neural networks for object detection from videos</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Object detection from video tubelets with convolutional neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Ouyang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Wang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. CVPR</title>
+		<meeting>CVPR</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">ImageNet classification with deep convolutional neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="1106" to="1114" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Unsupervised object discovery and tracking in video collections</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Kwak</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Cho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Laptev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Ponce</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Schmid</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. CVPR</title>
+		<meeting>CVPR</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Backpropagation applied to handwritten zip code recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Boser</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">S</forename><surname>Denker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Henderson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">E</forename><surname>Howard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Hubbard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">D</forename></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural Computation</title>
+		<imprint>
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="issue">4</biblScope>
+			<biblScope unit="page" from="541" to="551" />
+			<date type="published" when="1989" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Microsoft coco: Common objects in context</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T.-Y</forename><surname>Lin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Maire</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Belongie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Hays</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Perona</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Ramanan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dollár</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">L</forename><surname>Zitnick</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ECCV</title>
+		<meeting>ECCV</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Ssd: Single shot multibox detector</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Anguelov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Erhan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Szegedy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Reed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C.-Y</forename><surname>Fu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">C</forename><surname>Berg</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ECCV</title>
+		<meeting>ECCV</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Fully convolutional networks for semantic segmentation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Long</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Shelhamer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Darrell</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. CVPR</title>
+		<meeting>CVPR</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">Hierarchical convolutional features for visual tracking</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Ma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J.-B</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M.-H</forename><surname>Yang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ICCV</title>
+		<meeting>ICCV</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Learning multi-domain convolutional neural networks for visual tracking</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Nam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Han</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. CVPR</title>
+		<meeting>CVPR</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Multi-region two-stream R-CNN for action detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Peng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Schmid</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ECCV</title>
+		<meeting>ECCV</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Learning object class detectors from weakly annotated video</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Prest</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Leistner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Civera</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Schmid</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Ferrari</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. CVPR</title>
+		<meeting>CVPR</meeting>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<monogr>
+		<title level="m" type="main">YouTube-BoundingBoxes: A Large High-Precision Human-Annotated Data Set for Object Detection in Video</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Real</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Shlens</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mazzocchi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Pan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Vanhoucke</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note>ArXiv e-prints</note>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">You only look once: Unified, real-time object detection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Redmon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Divvala</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Girshick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Farhadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. CVPR</title>
+		<meeting>CVPR</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Faster R-CNN: Towards real-time object detection with region proposal networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Girshick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE PAMI</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Russakovsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Deng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Su</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Krause</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Satheesh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Karpathy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Khosla</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Bernstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">C</forename><surname>Berg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Fei-Fei</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ImageNet Large Scale Visual Recognition Challenge. IJCV</title>
+		<imprint>
+			<biblScope unit="volume">115</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="211" to="252" />
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Deep learning for detecting multiple space-time action tubes in videos</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Saha</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Singh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Sapienza</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">H</forename><surname>Torr</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Cuzzolin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. BMVC</title>
+		<meeting>BMVC</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<analytic>
+		<title level="a" type="main">Training regionbased object detectors with online hard example mining</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Shrivastava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Gupta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Girshick</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. CVPR</title>
+		<meeting>CVPR</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">Two-stream convolutional networks for action recognition in videos</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Simonyan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Zisserman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<analytic>
+		<title level="a" type="main">Very deep convolutional networks for large-scale image recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Simonyan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Zisserman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ICLR</title>
+		<meeting>ICLR</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<monogr>
+		<title level="m" type="main">Inception-v4, Inception-ResNet and the impact of residual connections on learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Szegedy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ioffe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Vanhoucke</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">A</forename></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">Going deeper with convolutions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Szegedy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Jia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Sermanet</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Reed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Anguelov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Erhan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Vanhoucke</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Rabinovich</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. CVPR</title>
+		<meeting>CVPR</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<analytic>
+		<title level="a" type="main">Visual tracking with fully convolutional networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Ouyang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Lu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. ICCV</title>
+		<meeting>ICCV</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<monogr>
+		<title level="m" type="main">Aggregated residual transformations for deep neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Xie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Girshick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dollár</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Tu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>He</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1611.05431</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Shuai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Yu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Fan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Ma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Deng</surname></persName>
+		</author>
+		<ptr target="http://image-net.org/challenges/talks/2016/Imagenet%202016%20VID.pptx" />
+		<title level="m">ILSVRC2016 object detection from video: Team NUIST</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<analytic>
+		<title level="a" type="main">Deep feature flow for video recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Zhu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Xiong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Dai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Yuan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Wei</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. CVPR</title>
+		<meeting>CVPR</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

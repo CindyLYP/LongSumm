@@ -1,0 +1,1719 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Snuba: Automating Weak Supervision to Label Training Data</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author role="corresp">
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Paroma</forename><surname>Varma</surname></persName>
+							<email>paroma@stanford.edu</email>
+							<affiliation key="aff0">
+								<orgName type="institution">Stanford University</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Christopher</forename><surname>Ré</surname></persName>
+							<affiliation key="aff1">
+								<orgName type="institution">Stanford University</orgName>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Snuba: Automating Weak Supervision to Label Training Data</title>
+					</analytic>
+					<monogr>
+						<idno type="ISSN">2150-8097</idno>
+					</monogr>
+					<idno type="DOI">10.14778/3291264.3291268</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:41+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<textClass>
+				<keywords>
+					<term>Label Aggregator Terminate? Training Labels benign</term>
+					<term>malignant ?</term>
+					<term>?</term>
+					<term>?</term>
+					<term>? 25% benign</term>
+					<term>75%benign</term>
+					<term></term>
+				</keywords>
+			</textClass>
+			<abstract>
+				<p>As deep learning models are applied to increasingly diverse problems, a key bottleneck is gathering enough high-quality training labels tailored to each task. Users therefore turn to weak supervision, relying on imperfect sources of labels like pattern matching and user-defined heuristics. Unfortunately, users have to design these sources for each task. This process can be time consuming and expensive: domain experts often perform repetitive steps like guessing optimal numerical thresholds and developing informative text patterns. To address these challenges, we present Snuba, a system to automatically generate heuristics using a small labeled dataset to assign training labels to a large, unlabeled dataset in the weak supervision setting. Snuba generates heuristics that each labels the subset of the data it is accurate for, and iteratively repeats this process until the heuristics together label a large portion of the unlabeled data. We develop a statistical measure that guarantees the iterative process will automatically terminate before it degrades training label quality. Snuba automatically generates heuristics in under five minutes and performs up to 9.74 F1 points better than the best known user-defined heuristics developed over many days. In collaborations with users at research labs, Stanford Hospital, and on open source datasets, Snuba outperforms other automated approaches like semisupervised learning by up to 14.35 F1 points.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.">INTRODUCTION</head><p>The success of machine learning for tasks like image recognition and natural language processing <ref type="bibr" target="#b12">[12,</ref><ref type="bibr" target="#b14">14]</ref> has ignited interest in using similar techniques for a variety of tasks. However, gathering enough training labels is a major bottleneck in applying machine learning to new tasks. In response, there has been a shift towards relying on weak su- <ref type="figure">Figure 1</ref>: Snuba uses a small labeled and a large unlabeled dataset to iteratively generate heuristics. It uses existing label aggregators to assign training labels to the large dataset.</p><p>pervision, or methods that can assign noisy training labels to unlabeled data, like crowdsourcing <ref type="bibr" target="#b9">[9,</ref><ref type="bibr" target="#b22">22,</ref><ref type="bibr" target="#b60">60]</ref>, distant supervision <ref type="bibr" target="#b8">[8,</ref><ref type="bibr" target="#b32">32]</ref>, and user-defined heuristics <ref type="bibr" target="#b38">[38,</ref><ref type="bibr" target="#b39">39,</ref><ref type="bibr" target="#b50">50]</ref>. Over the past few years, we have been part of the broader effort to enhance methods based on user-defined heuristics to extend their applicability to text, image, and video data for tasks in computer vision, medical imaging, bioinformatics and knowledge base construction <ref type="bibr" target="#b3">[4,</ref><ref type="bibr" target="#b39">39,</ref><ref type="bibr" target="#b50">50]</ref>.</p><p>Through our engagements with users at large companies, we find that experts spend a significant amount of time designing these weak supervision sources. As deep learning techniques are adopted for unconventional tasks like analyzing codebases and now commodity tasks like driving marketing campaigns, the few domain experts with required knowledge to write heuristics cannot reasonably keep up with the demand for several specialized, labeled training datasets. Even machine learning experts, such as researchers at the computer vision lab at Stanford, are impeded by the need to crowdsource labels before even starting to build models for novel visual prediction tasks <ref type="bibr" target="#b23">[23,</ref><ref type="bibr" target="#b25">25]</ref>. This raises an important question: can we make weak supervision techniques easier to adopt by automating the process of generating heuristics that assign training labels to unlabeled data?</p><p>The key challenge in automating weak supervision lies in replacing the human reasoning that drives heuristic development. In our collaborations with users with varying levels of machine learning expertise, we noticed that the process to develop these weak supervision sources can be fairly repetitive. For example, radiologists at the Stanford Hospital and Clinics have to guess the correct threshold for each heuristic that uses a geometric property of a tumor to determine if it is malignant (example shown in <ref type="figure">Figure 1</ref>). We instead take advantage of a small, labeled dataset to automatically generate noisy heuristics. Though the labeled dataset is too small to train an end model, it has enough information to generate heuristics that can assign noisy labels to a large, unlabeled dataset and improve end model performance by up to 12.12 F1 points. To aggregate labels from these heuristics, we improve over majority vote by relying on existing factor graph-based statistical techniques in weak supervision that can model the noise in and correlation among these heuristics <ref type="bibr" target="#b1">[2,</ref><ref type="bibr" target="#b3">4,</ref><ref type="bibr" target="#b39">39,</ref><ref type="bibr" target="#b41">41,</ref><ref type="bibr" target="#b48">48,</ref><ref type="bibr" target="#b50">50]</ref>. However, these techniques were intended to work with user-designed labeling sources and therefore have limits on how robust they are. Automatically generated heuristics can be noisier than what these models can account for and introduce the following challenges:</p><p>Accuracy. Users tend to develop heuristics that assign accurate labels to a subset of the unlabeled data. An automated method has to properly model this trade-off between accuracy and coverage for each heuristic based only on the small, labeled dataset. Empirically, we find that generating heuristics that each labels all the datapoints can degrade end model performance by up to 20.69 F1 points.</p><p>Diversity. Since each heuristic has limited coverage, users develop multiple heuristics that each labels a different subset to ensure a large portion of the unlabeled data receives a label. In an automated approach, we could mimic this by maximizing the number of unlabeled datapoints the heuristics label as a set. However, this approach can select heuristics that cover a large portion of the data but have poor performance. There is a need to account for both the diversity and performance of the heuristics as a set. Empirically, balancing both aspects improves end model performance by up to 18.20 F1 points compared to selecting the heuristic set that labels the most datapoints.</p><p>Termination Condition. Users stop generating heuristics when they have exhausted their domain knowledge. An automated method, however, can continue to generate heuristics that deteriorate the overall quality of the training labels assigned to the unlabeled data, such as heuristics that are worse than random for the unlabeled data. Not accounting for performance on the unlabeled dataset can affect end model performance by up to 7.09 F1 points.</p><p>Our Approach. To address the challenges above, we introduce Snuba, an automated system that takes as input a small labeled and a large unlabeled dataset and outputs probabilistic training labels for the unlabeled data, as shown in <ref type="figure">Figure 1</ref>. These labels can be used to train a downstream machine learning model of choice, which can operate over the raw data and generalize beyond the heuristics Snuba generates to label any datapoint. Users from research labs, hospitals and industry helped us design Snuba such that it outperforms user-defined heuristics and crowdsourced labels by up to 9.74 F1 points and 13.80 F1 points in terms of end model performance. Snuba maintains a set of heuristics that is used to assign labels to the unlabeled dataset. At each iteration, Snuba appends a new heuristic to this set after going through the following components:</p><p>Synthesizer for Accuracy. To address the trade-off between the accuracy and coverage of each heuristic, the synthesizer (Section 3.1) generates heuristics based on the labeled set and adjusts its labeling pattern to abstain if the heuristic has low confidence. The synthesizer relies on a small number of primitives, or features of the data, to generate multiple, simple models like decision trees, which improves over fitting a single model over primitives by 12.12 F1 points. These primitives are user-defined and part of open source libraries <ref type="bibr" target="#b35">[35,</ref><ref type="bibr" target="#b49">49]</ref> and data models in existing weak supervision frameworks <ref type="bibr" target="#b38">[38,</ref><ref type="bibr" target="#b58">58]</ref>. Primitives examples in our evaluation include bag-of-words for text and bounding box attributes for images.</p><p>Pruner for Diversity. To ensure that the set of heuristics is diverse and assigns high-quality labels to a large portion of the unlabeled data, the pruner (Section 3.2) ranks the heuristics the synthesizer generates by the weighted average of their performance on the labeled set and coverage on the unlabeled set. It selects the best heuristic at each iteration and adds it to the collection of existing heuristics. This method performs up to 6.57 F1 points better than ranking heuristics by performance only.</p><p>Verifier to Determine Termination Condition. The verifier uses existing statistical techniques to aggregate labels from the heuristics into probabilistic labels for the unlabeled datapoints <ref type="bibr" target="#b3">[4,</ref><ref type="bibr" target="#b39">39,</ref><ref type="bibr" target="#b50">50]</ref>. However, the automated heuristic generation process can surpass the noise levels to which these techniques are robust to and degrade end model performance by up to 7.09 F1 points. We develop a statistical measure that uses the small, labeled set to determine whether the noise in the generated heuristics is below the threshold these techniques can handle (Section 4).</p><p>Contribution Summary. We describe Snuba, a system to automatically generate heuristics using a small labeled dataset to assign training labels to a large, unlabeled dataset in the weak supervision setting. A summary of our contributions are as follows:</p><p>• We describe the system architecture, the iterative process of generating heuristics, and the optimizers used in the three components (Section 3). We also show that our automated optimizers can affect end model performance by up to 20.69 F1 points (Section 5).</p><p>• We present a theoretical guarantee that Snuba will terminate the iterative process before the noise in heuristics surpasses the threshold to which statistical techniques are robust (Section 4). This theoretical result translates to improving end model performance by up to 7.09 F1 points compared to generating as many heuristics as possible (Section 5).</p><p>• We evaluate our system in Section 5 by using Snuba labels to train downstream models, which generalize beyond the heuristics Snuba generates. We report on collaborations with Stanford Hospital and Stanford Computer Vision Lab, analyzing text, image, and multimodal data. We show that heuristics from Snuba can improve over hand-crafted heuristics developed over several days by up to 9.74 F1 points. We compare to automated methods like semi-supervised learning, which Snuba outperforms by up to 14.35 F1 points.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">SYSTEM OVERVIEW</head><p>We describe the input and output for Snuba, introduce notation used in the rest of paper, and summarize statistical techniques Snuba relies on to learn heuristic accuracies.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1">Input and Output Data</head><p>Input Data. The input to Snuba is a labeled dataset OL with NL datapoints and an unlabeled dataset OU with NU <ref type="figure">Figure 2</ref>: An overview of the Snuba system. (1) The synthesizer generates a candidate set of heuristics based on the labeled dataset. <ref type="formula">2</ref>The pruner selects the heuristic from the candidate set to add to the committed set. <ref type="formula">3</ref>The verifier learns heuristic accuracies and passes appropriate feedback to the synthesizer to continue the iterative process.</p><p>datapoints. Each datapoint is defined by its associated primitives, or characteristics of the data, and a label. The inputs to the system can be represented as</p><formula xml:id="formula_0">{xi, y * i } N L i=1</formula><p>, (for the labeled set OL), and</p><formula xml:id="formula_1">{xi} N U i=1</formula><p>, (for the unlabeled set OU ) where xi ∈ R D , y * represent the primitives for a particular object and the true label, respectively. For convenience, we focus on the binary classification setting, in which y * ∈ {−1, 1} and discuss the multi-class setting in Section 3.4.</p><p>The primitives for each datapoint xi ∈ R D can be viewed as features of the data -examples include numerical features such as area or perimeter of a tumor for image data. or one-hot vectors for the bag of words representation for text data. For our collaborators using Snuba, these primitives are usually part of data models in existing weak supervision systems and open source libraries <ref type="bibr" target="#b35">[35,</ref><ref type="bibr" target="#b38">38,</ref><ref type="bibr" target="#b49">49,</ref><ref type="bibr" target="#b58">58]</ref>. For example, Scikit-image includes functions to extract geometric properties from segmented images <ref type="bibr" target="#b49">[49]</ref>. In our evaluation, we do not allow users to extend the set of primitives beyond those present in these data models and libraries, though they could be extended in principle. Output Data. Snuba outputs a probabilistic training label y = P [y * = 1] ∈ [0, 1] for each datapoint in the unlabeled set, a weighted combination of labels from different heuristics. Since Snuba only relies on information about the data encoded in the primitives and does not take advantage of a complete representation of the data, it is advantageous to train a downstream model that has access to the entire input data space using probabilistic labels from Snuba as training labels. These downstream models, such as a convolutional neural network (CNN) <ref type="bibr" target="#b26">[26]</ref> for image classification or a long-short term memory (LSTM) architecture <ref type="bibr" target="#b19">[19]</ref> for natural language processing tasks, can operate over the raw data (e.g., the radiology image of a tumor from <ref type="figure">Figure 1</ref> or complete sentences). We discuss specific end models and show that the end model generalizes beyond the heuristics by improving recall by up to 61.54 points in Section 5.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">Learning Heuristic Accuracies</head><p>Each heuristic Snuba generates relies on one or more primitives and outputs a binary label or abstains for each datapoint in the unlabeled dataset (Section 3.1). A single bad (but prolific) voter can compromise majority vote, which weights all heuristics equally <ref type="bibr" target="#b39">[39]</ref>. Snuba instead relies on existing statistical techniques (Section 4) that can learn the accuracies of these heuristics without using ground truth labels and assign probabilistic labels to the unlabeled dataset accordingly <ref type="bibr" target="#b1">[2,</ref><ref type="bibr" target="#b3">4,</ref><ref type="bibr" target="#b39">39,</ref><ref type="bibr" target="#b41">41,</ref><ref type="bibr" target="#b48">48,</ref><ref type="bibr" target="#b50">50]</ref>. We treat these statistical techniques as black-box methods that learns heuristic accuracies and refer to them as label aggregators since they combine the labels the heuristics assign to generate a single probabilistic label per datapoint. However, since Snuba can generate heuristics that are much noisier than the label aggregator can handle, it has to determine the conditions under which the aggregator operates successfully (Section 4).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">THE SNUBA ARCHITECTURE</head><p>The Snuba process is iterative and generates a new heuristic specialized to the subset of the data that did not receive high confidence labels from the existing set of heuristics at each iteration. As shown in <ref type="figure">Figure 2</ref>, the three components of Snuba are the synthesizer (Section 3.1) that generates a candidate set of heuristics, a pruner (Section 3.2) that selects a heuristic to add to an existing committed set of heuristics, and a verifier (Section 3.3) that assigns probabilistic labels to the data and passes the subset of the labeled data that received low confidence labels to the synthesizer for the next iteration. This process is repeated until the subset the verifier passes to the synthesizer is empty, or the verifier determines that the conditions for the label aggregator to operate successfully are violated (Section 4).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">Synthesizer</head><p>The Snuba synthesizer takes as input the labeled set, or a subset of the labeled set after the first iteration, and outputs a candidate set of heuristics ( <ref type="figure">Figure 2</ref>). First, we describe how the heuristics are generated using the labeled dataset and the different models the heuristic can be based on. Then, we describe how the labeling pattern of the heuristics are adjusted to assign labels to only a subset of the unlabeled dataset. Finally, we explore the trade-offs between accuracy and coverage by comparing heuristics Snuba generated to other automated methods.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1.1">Heuristic Generation</head><p>In Snuba, users can select the model they want to base their heuristics on given the heuristic h follows the inputoutput form:  Heuristic Models. In this paper, we focus on heuristics that are based on classification models that take as input one or more primitives and assign probabilistic labels P [y * i = 1] ∈ [0, 1] to the unlabeled datapoints. We consider three different ways of generating heuristics given a subset of the labeled data and a subset of primitives ( <ref type="figure">Figure 3</ref>).</p><formula xml:id="formula_2">h(x i ) → P [y * i = 1] ∈ [0, 1] where x i ∈ R D is</formula><p>• Decision Stumps mimic the nested threshold-based heuristics that users commonly write. To maintain the simplicity of the heuristic, we limit the depth of each tree to the number of primitives the heuristic depends on. The confidence each unlabeled datapoint receives is the fraction of labeled datapoints that belong to the same leaf. • Logistic Regressor allows the heuristic to learn a single linear decision boundary. As shown in <ref type="figure">Figure 3</ref>, it does not have to be parallel to the primitive axes, unlike decision trees. The confidence for an unlabeled datapoint is determined by the sigmoid function, whose parameters are learned using the labeled datapoints. • K-Nearest Neighbor is based on a kd-tree implementation of nearest neighbor and can lead to complex decision boundaries that neither decision trees nor logistic regressors can capture. Unlike the previous heuristic models, it does not learn a parameter per primitive, but instead relies on the distribution of the labeled datapoints to decide the decision boundaries. The confidence for a unlabeled datapoint is a function of its distance from labeled datapoints.</p><p>The user can replace the heuristic model with another function of choice as long as it follows the input-output criteria described earlier in this section. For example, decision trees that rely on bag-of-words primitives represent heuristics that check whether a particular word, represented as a primitive, exists or not.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1.2">Tuning Threshold for Abstains</head><p>We can improve performance of heuristics by modeling the trade-off between heuristic accuracy and coverage. Snuba</p><formula xml:id="formula_3">Algorithm 1: Snuba Synthesis Procedure function GenerateHeuristics (f, X, y * ) Input: Heuristic model f ∈ {DT, LR, N N }, Primitive matrix X ∈ R D×N L , Labels y * ∈ {−1, 1} N L Output: Candidate set of heuristics H, Primitive combinations X comb 2 H, X comb = [ ] for D = 1...D do //generate primitive combinations of size D 4 idx comb = GenComb(X, D ) 5 for i = 1...len(idx comb ) do X = X[idx comb , :] 7 h = f (X , y * ) 8 y prob = predictProb(h,X ) 9 β = FindBeta(y prob , y * ) 10 H = H ∪ {(h, β)} 11 X comb = X comb ∪ X 12 end 13 end 14 return H, X comb 15 function FindBeta (y prob , y * ) 16 betaList = [0, 0.05, . . . 0.5] 17 for j in len(betaList) do beta = betaList[j] 19 F 1[j] = calcF1(y * , y prob , beta) 20 end 21 return betaList[argmax(F 1)] 22 function GenComb (X, D ) 23 //get all D' length subsequences from range(D)</formula><p>24 return all subsets of size D from D forces heuristics to only assign labels to datapoints they have high confidence for and abstain for the rest. To measure confidences, Snuba relies on the probabilistic label P [y * i = 1] that each heuristic model assigns to a datapoint. We define datapoints that heuristics have low confidence for as the points where</p><formula xml:id="formula_4">|P [y * i = 1] − 0.5| ≤ β, β ∈ (0, 0.5).</formula><p>For each heuristic, Snuba selects a threshold β that determines when a heuristic assigns a label,ŷ ∈ {−1, 1} and when it abstains, y = 0. The relation between β andŷ can be defined as:</p><formula xml:id="formula_5">yi =      1 if P [ŷi = 1] ≥ 0.5 + β 0 if |P [ŷi = 1] − 0.5| &lt; β −1 if P [ŷi = 1] ≤ 0.5 − β</formula><p>To choose the best threshold β, we need a metric that models the trade-offs between coverage and accuracy. We calculate the precision and recall of the heuristics on the labeled set with NL datapoints as a proxy for their performance on the unlabeled dataset. We define these metrics below:</p><p>• Precision (P) the fraction of correctly labeled points over the total points labeled,</p><formula xml:id="formula_6">N L i=1 1(ŷ i =y * i ) N L i=1 1(ŷ i =0)</formula><p>• Recall (R) the fraction of correctly labeled points over the total number of points,</p><formula xml:id="formula_7">N L i=1 1(ŷ i =y * i ) N L</formula><p>• F1 Score the harmonic mean of P and R, 2 P ×R</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>P +R</head><p>To balance precision and recall, the Snuba synthesizer selects β for each heuristic that maximizes the F1 score on the labeled dataset OL (Algorithm 1). The synthesizer iterates through (default 10) equally spaced values in β ∈ (0, 0.5), calculates the F1 score the heuristic achieves, and selects the β that maximizes F1 score. In case of ties, the synthesizer chooses the lower β value for higher coverage. We find selecting β based on F1 score outperforms a constant β by up to 5.30 F1 points (Section 5).</p><p>As an example, if the synthesizer uses a decision tree as the heuristic model, it trains a normal decision tree on the small labeled dataset and learns appropriate parameters for a specific subset of primitives (e.g., D = 2 means two primitives, or two rows of X in Algorithm 1) to decide on a label. Then, the synthesizer learns β, which adjusts these decision tree thresholds to abstain for low-confidence datapoints. This adjusted decision tree is then added as a heuristic to the candidate set, and the process is repeated for different subsets of primitives as inputs to the decision tree.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1.3">Synthesizer Tradeoffs</head><p>We explore the trade-offs that result from allowing the heuristics to abstain in terms of the effect on end model performance. We compare to automated baseline methods (more details in Section 5.1) that assign labels to the entire unlabeled dataset. We generate a synthetic experiment <ref type="figure">(Figure 4)</ref> using one of the datasets from our evaluation, the Visual Genome dataset <ref type="bibr" target="#b25">[25]</ref> (more details in Section 5.1).</p><p>To study how Snuba performs given varying amounts of unlabeled data, we set up the following simulation: given NL = 100 labeled datapoints, we varied the amount of unlabeled data available to Snuba from NU = 100 to NU = 500. Each of the methods assigned training labels to the unlabeled dataset, and this dataset was used to fine-tune the last layer of GoogLeNet <ref type="bibr" target="#b47">[47]</ref>. N L ≈ N U Case: Since Snuba only labels a portion of the unlabeled data, the end model has fewer training labels to learn from compared to the other methods that do not abstain. Since the unlabeled set is small in this situation (NL = NU = 100), the baseline methods have better end model performance. N L &lt;&lt; N U Case: Heuristics Snuba generates continue to only assign labels with high confidence, leading to a smaller labeled training set than other methods, but high quality training labels for that portion. This is promising for machine learning applications in which the bottleneck lies in gathering enough training labels, while unlabeled data is readily available. Semi-supervised learning also performs better as the amount of unlabeled data increases; however, it still performs worse than Snuba when the amount of unlabeled data is more than 3× larger than labeled data since semi-supervised methods do not abstain. Snuba also outperforms these baseline methods when the unlabeled data is between 2× to 1000× as much as labeled data (Section 5).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">Pruner</head><p>The pruner takes as input the candidate heuristics from the synthesizer and selects a heuristic to add to the committed set of heuristics ( <ref type="figure">Figure 2</ref>). We want the heuristics in the committed set to be diverse in terms of the datapoints in the unlabeled set they label, but also ensure that it performs well for the datapoints it labels in the labeled dataset.</p><p>A diverse heuristic is defined as one that labels points that have never received a label from any other heuristic. Therefore, we want to be able to maximize the dissimilarity  </p><formula xml:id="formula_8">y * ∈ {−1, 1} N L , Primitives XL ∈ R D×N L , XU ∈ R D×N U , If label assigned n ∈ {0, 1} N U , Weight for F1 w ∈ [0, 0.5] Output: Best heuristic in candidate set, h best ∈ H 2 h best = None 3 bestScore = 0 4 for hi ∈ H do 5ŷ i L = applyHeuristic(hi, XL) 6 fscore = calcF 1(ŷ i L , y * ) 7ŷ i U = applyHeuristic(hi, XU ) 8 jscore = calcJaccard(ŷ i U , n) 9</formula><p>if w(jscore + fscore) ≥ bestScore then between the set of datapoints a heuristic labels and the set of datapoints that previous heuristics in the committed set have already labeled. Let nj ∈ {0, 1} N U represent whether heuristic j from the candidate set has assigned labels to the datapoints in the unlabeled set. Let n ∈ {0, 1} N U represent whether any heuristic from the committed set has assigned a label to the datapoints in the unlabeled set. To measure the distance between these two vectors, we rely on the Jaccard distance metric <ref type="bibr" target="#b20">[20]</ref>, the complement of Jaccard similarity, as a standard measure of similarity between sets. For a particular heuristic hj in the candidate set, the generalized Jaccard distance is defined as:</p><formula xml:id="formula_9">h best = hi 11 //default</formula><formula xml:id="formula_10">Jj = 1 − nj ∩ n nj ∪ n</formula><p>To measure performance on the labeled dataset, Snuba uses the F1 score of each heuristic in the candidate set, as defined in the previous section. As the final metric to rank heuristics, the pruner uses a weighted average of the Jaccard distance and F1 score and selects the highest ranking heuristic from the candidate set and adds it to the committed set of heuristics. This process is described in Algorithm 2. For our experiments, we use both w = 0.5 for a simple average and w = 1 T n N U (percentage of unlabeled set with at least one label). The latter weights the F1 score more as coverage of the unlabeled dataset increases. We find that considering both performance on the labeled set and diversity on the unlabeled set improves over only considering diversity by up to 18.20 F1 points and over only considering performance by up to 6.57 F1 points in Section 5.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">Verifier</head><p>The verifier uses the label aggregator (Section 4) to learn accuracies of the heuristics in the committed set without any ground truth labels to produce a single, probabilistic training label for each datapoint in the unlabeled dataset. </p><formula xml:id="formula_11">] = h(X i ), Labels y * ∈ {−1, 1} N L , Primitives XL ∈ R D×N L , XU ∈ R D×N U Output: Subset of labeled set, O L , Prob. labels,ỹU 2α = learnAcc (HC , XU ) 3α = calcAcc (HC , XL, y * ) 4ỹU = calcLabels (α, XU ) 5ỹL = calcLabels (α, XL) 6 = f indEps(NU , M ) 7 ν = f indN u(M ) 8 if ||α −α||∞ ≥ then return O L = ∅,ỹU end else return oi ∈ O L if |ỹ i L − 0.5| ≤ ν,ỹU end</formula><p>These probabilistic labels also represent how confident the label aggregator is about the assigned label. Datapoints that have not received a single label from heuristics in the committed set will have a probabilistic label P [y * = 1] = 0.5, equal chance of belonging to either class. P [y * = 1] close to 0.5 represent datapoints with low confidence, which can result from scenarios with low accuracy heuristics labeling that datapoint, or multiple heuristics with similar accuracies disagreeing on the label for that datapoint. Since Snuba generates a new heuristic at each iteration, we want the new heuristic to assign labels to the subset that currently has low confidence labels. Snuba identifies datapoints in the labeled set that receive low confidence labels from the label aggregator. It passes this subset to the synthesizer with the assumption that similar datapoints in the unlabeled dataset would have also received low confidence labels (Algorithm 3).</p><p>Formally, we define low confidence labels as |ỹi − 0.5| ≤ ν whereỹ is the probabilistic label assigned by the label aggregator and ν = 1 − 1 (M +1) η where the η &gt; 1 parameter (default η = <ref type="bibr" target="#b2">3</ref> ) controls the rate at which the definition of low confidence changes with number of heuristics in the committed set (M ). As the number of heuristics increases, we expect that fewer datapoints will have confidences near 0.5 and adjust what is considered low confidence accordingly. We also compare to a weighted feedback approach in which the weights are the inverse of the label confidence (wv = 1 − |ỹ − 1 |) normalized across all datapoints. The iterative process terminates if: (1) the statistical measure discussed in Section 4 suggests the generative model in the synthesizer is not learning the accuracies of the heuristics properly, or (2) there are no low confidence datapoints, as defined by ν, in the small, labeled dataset. Empirically, we find that (1) is a more popular termination condition than (2). In both cases, it is likely for some datapoints in the large, unlabeled set to not receive a label from any heuristic in the committed set; however, since Snuba generates training labels, the downstream end model can generalize to assign labels to these datapoints.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4">Discussion</head><p>We discuss the extension of the Snuba architecture to the multi-class setting, intuition behind the greedy approach, alternative heuristic models, and limitations of the system. Multi-Class Setting. While we focus on the binary setting, Snuba can be extended to the multi-class setting without additional changes. We include an example of a threeclass classification task in <ref type="bibr" target="#b52">[52]</ref>. Statistics like F1 and Jaccard score in the synthesizer and pruner are calculated using only overall accuracy and coverage, which apply to the multi-class setting. The label aggregator in the verifier can operate over multi-class labels <ref type="bibr" target="#b38">[38,</ref><ref type="bibr" target="#b39">39]</ref> and pass feedback using the probabilistic label of the most likely class. Greedy Approach. Our intuition behind generating heuristics greedily was to mimic the the user process of manually developing heuristics. The iterative approach tries to ensure each heuristic labels a subset of the data that does not have labels from existing heuristics and ensure a large portion of the datapoints receive high confidence labels. We use a statistical method to determine the optimal stopping condition for the iterative approach (Section 4, <ref type="figure" target="#fig_4">Figure 5</ref>). Alternative Heuristic Models. While we only discuss three possible heuristic models in this paper, Snuba can handle any heuristic model that follows the input-output schema described in Section 3.1. The user can therefore design different heuristic models that are specialized for their classification task. For example, the user can use a regex heuristic model that can perform more complex operations over bag-of-words primitives than a decision tree. Limitations. First, the performance of the Snuba heuristics is bounded by the quality of the input primitives. For example, if the primitives for the tumor classification task only contained age, which was a poor signal of tumor malignancy, then the heuristics Snuba generated would not assign high quality training labels. Second, Snuba heuristics can only rely on the input primitives and no external knowledge about the task, such as knowledge bases, which is a limitation compared to user-defined heuristics (more details in Section 5.2.3). Finally, Snuba is likely to overfit and not perform well on the unlabeled dataset if the small, labeled dataset is not representative of the unlabeled dataset. For the tumor classification task, the images in the small, labeled set could be taken from one perspective while the ones in the larger, unlabeled dataset are from a different perspective. This can lead the distribution of the primitives to be significantly different across the two datasets and prevent Snuba from generating high quality heuristics.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">SNUBA SYSTEM GUARANTEES</head><p>We provide an overview of generative models <ref type="bibr" target="#b3">[4,</ref><ref type="bibr" target="#b39">39,</ref><ref type="bibr" target="#b50">50,</ref><ref type="bibr" target="#b53">53]</ref> that serve as the label aggregator for Snuba. As discussed in Section 2, these models can learn the accuracies of the noisy heuristics without using any ground truth data and can assign probabilistic labels to the unlabeled data accordingly. However, these generative models are designed to model the noise in user-defined heuristics, which are much more accurate than automatically generated heuristics. Specifically, the generative model assumes that heuristics always have accuracies better than 50%; however, Snuba-generated heuristics can easily violate this assumption as described in Section 4.2. Therefore, a key challenge in Snuba is recognizing whether the committed set includes heuristics that are worse than random for the unlabeled dataset without access to ground truth labels. We introduce a statistical measure in Section 4.3 that relies on the accuracies the generative model learns and the small labeled dataset. In Section 4.4, we formally define this statistical measure and provide a theoretical guarantee that it will recognize when the generative model is not learning heuristic accuracies successfully.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Generative Model</head><p>Generative models are a popular approach to learn and model the accuracies of different labeling sources like userdefined heuristics and knowledge bases when data is labeled by a variety of sources <ref type="bibr" target="#b11">[11,</ref><ref type="bibr" target="#b39">39]</ref>. In Snuba, we could also rely on the accuracies of the heuristics on the small, labeled dataset,α; however, this could degrade end model performance by up to 8.43 F1 points (Section 5). Formally, the goal of the generative model is to estimate the true accuracies of the heuristics, α * ∈ R M , using the labels the heuristics assign to the unlabeled data,Ŷ ∈ { − 1, 0, 1} M ×N U . It models the true class label Y * ∈ {−1, 1} N U for a datapoint as a latent variable in a probabilistic model and in the simplest case, assumes that each labeling source is independent. The generative model is expressed as a factor graph:</p><formula xml:id="formula_12">π φ (Ŷ , Y * ) = 1 Z φ exp φ TŶ Y *<label>(1)</label></formula><p>where Z φ is a partition function to ensure π is a normalized distribution. The parameter φ ∈ R M is used to calculate the learned accuraciesα = exp(φ) 1+exp(φ) ∈ R M (defined pointwise). It is estimated by maximizing the marginal likelihood of the observed heuristicsŶ , using a method similar to contrastive divergence <ref type="bibr" target="#b18">[18]</ref>, alternating between using stochastic gradient descent and Gibbs sampling <ref type="bibr" target="#b3">[4,</ref><ref type="bibr" target="#b39">39]</ref>. The generative model assigns probabilistic training labels by computing Y = π φ (Y * |Ŷ ) for each datapoint. These probabilistic training labels can be used to train any end model with noise-aware loss <ref type="bibr" target="#b38">[38,</ref><ref type="bibr" target="#b39">39]</ref> min</p><formula xml:id="formula_13">N U i=1 E y∼Ỹ [l(h θ (oi) , y)]</formula><p>where oi ∈ OU is an object in the unlabeled dataset andỸ are the probabilistic training labels. In our experiments, we adjust the loss functions of several popular machine learning models to the use the noise-aware variant.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Assumption Violation</head><p>Since the generative model requires no ground truth labels to learn heuristic accuraciesα, it has to solve an underdetermined problem where the heuristics could have accuracies α or 1 −α. The generative model assumes that the labeling sources always perform better than random (α * &gt; 0.5), which is a reasonable assumption for user-defined heuristics <ref type="bibr" target="#b3">[4,</ref><ref type="bibr" target="#b39">39,</ref><ref type="bibr" target="#b50">50]</ref>. Since Snuba generates these heuristics automatically, it is possible for the heuristics to be accurate for the labeled set but violate the generative model's assumption that α * &gt; 0.5. An example of such a situation is shown in <ref type="figure" target="#fig_4">Figure 5</ref>(a),(c) for two real datasets. The 8th and 12th heuristics, respectively, have an accuracy worse than 50% on the unlabeled dataset. However, since the generative model does not know that this assumption has been violated, it learns an accuracy much greater than 50% in both cases. If these heuristics are included in the generative model, the generated probabilistic training labels degrade end model performance by 5.15 F1 and 4.05 F1 points, respectively.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">Statistical Measure</head><p>Snuba can take advantage of the small, labeled dataset to indirectly determine whether the generated heuristics are worse than random for the unlabeled dataset. We define the empirical accuracies of the heuristics aŝ</p><formula xml:id="formula_14">αi = 1 Ni N L j=1 1(Ŷij = Y * j ),</formula><p>for i = 1 . . . M.Ŷij ∈ {−1, 0, 1} is the label heuristic i assigned to the j-th datapoint in the labeled set OL, and Ni is the number of datapoints whereŶi ∈ {1, −1}. Our goal is to use the empirical accuracies,α to estimate whether the learned accuracies,α are close to the true accuracies, α * , defined as ||α * −α||∞ &lt; γ, the maximum absolute difference between the learned and true accuracies being less than γ, a positive constant to be set. Toward this end, we define the To guarantee with high probability that the generative model learns accuracies within γ, we want to find , the largest allowed error between the learned and empirical accuracies, ||α −α||∞ ≤ at each iteration. We discuss the exact form of in Section 4.4.</p><p>We compare the measured error ||α −α||∞ to the maximum allowable value of at each iteration, as shown in <ref type="figure" target="#fig_4">Figure 5(b)</ref>,(d). If the measured error is greater than , then we stop the iterative process of generating heuristics and use the probabilistic training labels generated at the previous iteration (since the heuristic generated at the current iteration led to measured error being greater than ). As shown in <ref type="figure" target="#fig_4">Figure 5</ref>, this stopping point maps to the iteration at which the new heuristic generated has a true accuracy α * worse than 50% for the unlabeled dataset (we only calculate α * for demonstration since we would not have access to ground truth labels for real-world tasks). Intuitively, we expect that once the synthesizer generates a heuristic that is worse than random for the unlabeled dataset, it will never generate heuristics that will be helpful in labeling the data anymore. Empirically, we observe that this is indeed the case as shown for two real tasks in <ref type="figure" target="#fig_4">Figure 5(a)</ref> and (c).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.4">Theoretical Guarantees</head><p>Assuming that the objects in the labeled set OL are independent and identically distributed, we provide the following guarantee on the probability of the generative model learning the accuracies successfully:</p><p>Proposition 1: Suppose we have M heuristics with empirical accuraciesα, accuracies learned by the generative modelα, and measured error ||α −α||∞ ≤ for all M iterations. Then, if each heuristic labels a minimum of</p><formula xml:id="formula_15">N ≥ 1 2(γ − ) 2 log 2M 2 δ</formula><p>datapoints at each iteration, the generative model will succeed in learning accuracies within ||α * −α||∞ &lt; γ across all iterations with probability 1 − δ.</p><p>We provide a formal proof for this proposition in <ref type="bibr" target="#b52">[52]</ref>. We require each heuristic to assign labels to at least N datapoints to guarantee that the generative model will learn accuracies within γ of the true accuracies, given the measured error is less than for all iterations. We solve for the maximum allowed error at each iteration:</p><formula xml:id="formula_16">= γ − 1 2N log 2M δ .</formula><p>This value is plotted against the value of the measured error ||α −α||∞ in <ref type="figure" target="#fig_4">Figure 5(b,d)</ref>. Snuba stops generating new heuristics when the measured error surpasses the allowed error. The above proposition relies only on the measured error to guarantee whether the generative model is learning accuracies successfully.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.">EVALUATION</head><p>We compare the performance of end models trained on labels generated by Snuba and other baseline methods. We seek to experimentally validate the following claims:</p><p>• Training labels from Snuba outperform labels from automated baseline methods We compare Snuba to models that generate heuristics using only the labeled data, such as boosting and decision trees, and semi-supervised methods, which utilize both labeled and unlabeled datasets. Snuba outperforms these methods by up to 14.35 F1 points. We also compare to transfer learning using only the labeled dataset, which Snuba outperforms by up to 5.74 F1 points.</p><p>• Training labels from Snuba outperform those from user-developed heuristics We compare the performance of heuristics generated by Snuba to heuristics developed by users. Snuba can use the same amount of labeled data as users to generate heuristics and improve end model performance by up to 9.74 F1 points.</p><p>• Each component of Snuba boosts overall system performance We evaluate separate components of the Snuba system by changing how the β parameter is chosen in the synthesizer, how the pruner selects a heuristic to add to the committed set, and different label aggregation methods in the verifier. Compared to the complete Snuba system, we observe that performance can degrade by up to 20.69 F1 points by removing these components.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1">Experiment Setup</head><p>We describe the datasets, baseline methods, performance metrics, and implementation details for Snuba.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1.1">Datasets</head><p>We consider real-world applications and tasks over open source datasets for image, text, and multi-modal classification. For each of the tasks, previous techniques to assign training labels included using crowdsourcing, user-defined functions, and decision trees based on a small, labeled dataset.  <ref type="table" target="#tab_2">Table 1</ref> and additional details are in <ref type="bibr" target="#b52">[52]</ref>.</p><p>Image Classification. We focus on two real-world medical image classification tasks that we collaborated on with radiologists at Stanford Hospital and Clinics. The Bone Tumor and Mammogram tumor classification tasks demonstrate how Snuba-generated heuristics compare to those developed by domain experts. The first dataset uses domainspecific primitives while the second relies on simple geometric primitives. Working with graduate students in the Stanford Computer Vision lab, we identify images of "person riding bike". We use the Visual Genome database <ref type="bibr" target="#b25">[25]</ref> with bounding box characteristics as primitives and study how Snuba performs with severe class imbalance.</p><p>Text and Multi-Modal Classification. We applied Snuba to text and multi-modal datasets to study how well Snuba operated in domains where humans could easily interpret and write rules over the raw data. We generate primitives by featurizing the text using a bag-of-words representation.</p><p>The MS-COCO dataset <ref type="bibr" target="#b30">[30]</ref> had heuristics generated over captions and classification performed over associated images, and the IMDb plot summary classification <ref type="bibr" target="#b0">[1]</ref> is purely text-based. The Twitter sentiment analysis dataset relied on crowdworkers for labels <ref type="bibr" target="#b31">[31]</ref> while the chemical-disease relation extraction task (CDR) <ref type="bibr" target="#b57">[57]</ref> relies on external sources of information like knowledge bases. The Hardware relation extraction task over richly formatted data classifies part numbers and electrical characteristics from specification datasheets 1 as valid or not. We use visual, tabular, and structural primitives extracted using Fonduer <ref type="bibr" target="#b58">[58]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1.2">Baseline Methods</head><p>We compare to pruned decision tree <ref type="bibr" target="#b42">[42]</ref> and boosting <ref type="bibr" target="#b16">[16]</ref> (AdaBoost), which use the labeled dataset to generate one complex or multiple, simple decision trees, respectively. We compare to semi-supervised learning <ref type="bibr" target="#b61">[61]</ref>, which uses both the labeled and unlabeled dataset to assign training labels and represents a single 'heuristic' in the form of a black-box model. For select tasks, we perform transfer learning using pre-trained models. We use GLoVE embeddings <ref type="bibr" target="#b36">[36]</ref> for IMBd and Twitter only tune the last layer of a VGGNet <ref type="bibr" target="#b43">[43]</ref> for MS-COCO, and tune the weights of a GoogLeNet <ref type="bibr" target="#b47">[47]</ref> pre-trained on ImageNet <ref type="bibr" target="#b12">[12]</ref> for Visual Genome and Mammogram (more details in <ref type="bibr" target="#b52">[52]</ref>).</p><p>As shown in <ref type="table" target="#tab_2">Table 1</ref>, training labels for all tasks were previously generated by some user-driven labeling method, https://www.digikey.com such as user-defined heuristics, distant supervision, or crowdsourcing. These were developed by users, ranging from domain experts to machine learning practitioners and input to label aggregators we developed <ref type="bibr" target="#b38">[38,</ref><ref type="bibr" target="#b50">50,</ref><ref type="bibr" target="#b51">51]</ref>. For tasks like CDR, Bone Tumor, and Mammogram that required specific domain knowledge, the time taken for bioinformatics experts and radiologists to manually develop heuristics ranged from a few days to a few weeks. For tasks that did not require domain expertise, such as IMDb and Visual Genome, graduate students wrote a small number of heuristics over a period of a few hours. In all cases, users encoded their domain knowledge in heuristics and evaluated their performance on a small, held-out labeled set in an iterative manner. </p><formula xml:id="formula_17">D'=1 D'=2 D'=3 D'=4 Figure 6:</formula><p>We observe a maximum of D = 1 for our text and D &lt; for our image and multi-modal tasks.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1.3">Implementation Details</head><p>Primitives for Snuba. Since text-based tasks used a bagof-words representation, the primitives are sparse and number in the hundreds of thousands. We filter bag-of-words primitives by only considering primitives that are active for both the labeled and unlabeled dataset, and for at least 5% of the unlabeled dataset to ensure a minimim coverage for generated heuristics. The 5% threshold had the best performance for our text datasets but this threshold can be user-defined in practice. For our image-based tasks, we found that Snuba never generated heuristics that relied on more than 4 primitives as input, while for text-based tasks, it only generated heuristics that relied on a single primitive ( <ref type="figure">Figure 6</ref>). Heuristics rely on a small number of primitives since this limits their complexity and prevents them from overfitting to the small, labeled dataset. Moreover, relying on multiple primitives can also lower the coverage of the heuristics, and a fairly accurate heuristic that relies on several primitives being present is filtered by the pruner, which relies on both coverage and performance. The relatively small number of <ref type="table" target="#tab_1">Table 3</ref>: Precision (P), Recall (R) and F1 scores for user-defined heuristics, Snuba-generated heuristics, and end model trained on labels from Snuba-generated heuristics. Lift reported is from user to Snuba heuristics, then Snuba heuristics to end model. Snuba heuristics have lower precision than users' and end model improves recall.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Application</head><p>User End Models. While Snuba can generate training labels efficiently, they rely only on the user-defined primitives. The end model trained on these labels can use the raw data or representations of the data based on pre-trained models. For example, the end model can operate over the entire raw image, sentence or representation from a pre-trained model as opposed to measurements of the tumor, bag-of-words representation, or bounding box coordinates. For image classification tasks, we use popular deep learning models like GoogLeNet and VGGNet that take the raw image as input, while for text tasks we use a model composed of a single embedding and a single LSTM layer that take the raw text sentence(s) as input. These models take as input the probabilistic or binary training labels from Snuba or the baseline methods and minimize the noise-aware loss, as defined in Section 4. While the tasks explored in this section are all binary classification, the system can be easily generalized to the multi-class case (Section 3.4).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2">End to End System Comparison</head><p>We demonstrate that a downstream model trained on the labels from Snuba generalizes beyond the Snuba heuristics, improving recall by up to 61.54 points (Section 5.2.1), outperforms automated baseline methods by up to 12.12 F1 points (Section 5.2.2) and user-driven labeling by up to 9.74 F1 points (Section 5.2.3).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2.1">Generalization beyond Heuristics</head><p>One of the motivations for designing Snuba is to efficiently label enough training data for training powerful, downstream machine learning models like neural networks. Heuristics from Snuba are not used directly for the classification task at hand because (1) they may not label the entire dataset due to abstentions, and (2) they are based only on the userdefined primitives and fail to take advantage of the raw data representation. For datasets like MS-COCO, the end model also operates over a different modality than the heuristics. To demonstrate the advantage of training an end model, we compare the performance of Snuba heuristics to standard  <ref type="figure">Figure 7</ref>: Snuba generates fewer heuristics than users for our image tasks and usually more for text tasks.</p><p>end models trained on labels from Snuba on a test set in <ref type="table" target="#tab_1">Table 3</ref>. The end model improves over the heuristics' performance by up to 39.97 F1 points. The end model helps generalize beyond the heuristics, as a result of more powerful underlying models and access to raw data, and improves recall by up to 61.54 points. <ref type="table" target="#tab_3">Table 2</ref> shows that Snuba can outperform automated baseline methods by up to 14.35 F1 points. Snuba outperforms decision trees, which fit a single model to the labeled dataset, by 7.38 F1 points on average, the largest improvement compared to other baselines. The method that performs the closest to Snuba for most tasks is semi-supervised learning, which takes advantage of both the unlabeled and unlabeled dataset, but fails to account for diversity, performing worse than Snuba by 6.21 F1 points on average. Finally, compared to transfer learning which does not have to learn a representation of the data from scratch, Snuba performs up to 5.74 F1 points better using the same amount of labeled data. This demonstrates how for many tasks, using a larger training set with noisy labels is able to train a better end model from scratch than fine tuning a pre-trained model with a small labeled dataset.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2.2">Automated Methods</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2.3">User-Driven Labeling Methods</head><p>We compare end model performance trained on labels Snuba generates to labels from manually generated labeling sources in <ref type="table" target="#tab_3">Table 2</ref> and report the precision, recall, and F1 score of Snuba-generated and user-defined heuristics in <ref type="table" target="#tab_1">Table 3</ref>. The labels from the heuristics are combined using the Snuba label aggregator, the generative model in Section 4. Overall, Snuba generates heuristics that perform up to 25.82 F1 points better than user-defined heuristics. Note that users develop heuristics that are very high precision, up to 98.28 points. Snuba-generated heuristics, on the other hand, balance both precision and recall. This supports the design of the system since the synthesizer optimizes for F1 score, which relies on both precision and recall, and the pruner optimizes for both accuracy and coverage, which are related to both precision and recall. For image domains, Snuba generates fewer heuristics <ref type="figure">(Figure 7)</ref> that depend on more primitives than user-defined heuristics. Primitives for image domains are numerical and require guessing the correct threshold for heuristics, a process Snuba automates while users guess manually. For the Bone Tumor classification task, the user-defined heuristics were manually tuned versions of decision trees fit to the labeled set. Therefore, Snuba only improves 0.67 F1 points over this partially automated approach. For text datasets (MS-COCO and IMDb), Snuba generates almost 5× as many heuristics as users since each heuristic relies only on a single primitive and improves F1 score by up to 25.82 points (Table 3). For CDR, users relied on distant supervision through the Comparative Toxicogenomics Database <ref type="bibr" target="#b10">[10]</ref>. Snuba only relies on the primitives it has access to and cannot incorporate any external information, leading to 12.24 F1 points lower performance than user-defined heuristics using distant supervision. Finally, for Hardware, Snuba uses only 100 labeled datapoints to generate heuristics while users had access to 47, 413, which leads to Snuba performing 4.75 F1 points worse in terms of end model performance.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3">Micro-Benchmarking Results</head><p>We evaluate the individual components of the Snuba system and show how adjustments to each component can affect end model performance by up to 20.69 F1 points.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3.1">Synthesizer</head><p>First, we compare how different heuristic models perform for select tasks in <ref type="table" target="#tab_5">Table 4</ref> and show how much better the best heuristic type (marked as 0) performs compares to alternate heuristic types. For text-based tasks, decision tree and logistic regressor based heuristics perform the same since they both rely on a single primitive and learn the same threshold to make a binary decision. These heuristic models essentially check whether a word exists in a sentence.</p><p>Next, we set β = 0 to prevent heuristics from abstaining and set it to a constant β = 0.25, the midpoint of possible values β ∈ (0, 0.5) <ref type="table" target="#tab_5">(Table 4)</ref>. Allowing heuristics to abstain can improve end model performance by up to 20.69 F1 points and choosing the correct β value can improve end model performance by up to 5.30 F1 points.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3.2">Pruner</head><p>We show the performance of the pruner compared to only optimizing for either performance (with F1 score) or diversity (with Jaccard distance) in <ref type="table" target="#tab_6">Table 5</ref>. For text tasks, only optimizing for performance comes within 2.15 F1 points of the Snuba pruner since each heuristic selecting a different  word automatically accounts for diversity. On the other hand, only optimizing for diversity in text domains can affect performance by up to 18.20 F1 points since it could result in a large portion of the unlabeled dataset receiving low-quality labels. We also compare to weighting the F1 score by how much of the unlabeled dataset is covered, which performs closest to the simple average case for text-based tasks. This suggests that other domain-specific weighting schemes, like weighting coverage more than accuracy given sparse primitives can further improve performance.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3.3">Verifier</head><p>Finally, we look at how learning heuristic accuracies for label aggregation compares to majority vote in <ref type="table" target="#tab_7">Table 6</ref>. Text domains in which the number of heuristics generated is more than 15, the majority vote score comes within 1.80 F1 points of the Snuba verifier. With a large number of heuristics, each datapoint receives enough labels that learning accuracies has little effect on the assigned labels <ref type="bibr" target="#b28">[28]</ref>.</p><p>We compare to using the empirical accuracies of the heuristicsα rather than learning accuracies based on labels assigned to the unlabeled data. This method performs worse than the Snuba verifier by up to 8.43 F1 points. We also generate heuristics till there are no more datapoints in the small, labeled dataset with low confidence labels and find that this can degrade end model performance by up to 7.09 F1 points as shown in <ref type="table" target="#tab_7">Table 6</ref>.</p><p>We compare to passing a weighted version of the small, labeled dataset as feedback to the synthesizer instead of a subset and find it performs up to 4.42 F1 points worse than passing a subset. We posit that heuristics fit to a weighted set can lead to more low confidence labels and eventually a higher rate of abstentions for the unlabeled dataset.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.">RELATED WORK</head><p>We provide an overview of methods that label data automatically based on heuristics, use both labeled an unlabeled data, and aggregate noisy sources of labels.</p><p>Rule Learning. The inspiration for Snuba comes from program synthesis, where programs are generated given access to a set of input-output pairs <ref type="bibr" target="#b15">[15,</ref><ref type="bibr" target="#b44">44]</ref>, reference implementations <ref type="bibr" target="#b2">[3]</ref>, or demonstrations <ref type="bibr" target="#b21">[21]</ref>. The design is based loosely on counter-example guided inductive synthesis (CEGIS) in which a synthesizer generates programs, passes it to the verifier that decides whether the candidate program satisfies the given specifications, and passes relevant feedback to the synthesizer <ref type="bibr" target="#b15">[15,</ref><ref type="bibr" target="#b21">21,</ref><ref type="bibr" target="#b44">44,</ref><ref type="bibr" target="#b46">46]</ref>. However, unlike Snuba, such models only synthesize programs that match all the specified input-output pairs. Other works also generate heuristics to help interpret the underlying data labels <ref type="bibr" target="#b54">[54,</ref><ref type="bibr" target="#b55">55]</ref>, but neither methods use unlabeled data since the programs generated either mimic the desired program perfectly or provide interpretations for existing labels. While Snuba focuses on generating training labels for various domains, rule learning has been widely studied in the context of information extraction <ref type="bibr" target="#b33">[33,</ref><ref type="bibr" target="#b45">45]</ref>. Recent works can learn logical rules for knowledge base reasoning <ref type="bibr" target="#b59">[59]</ref>, interleave beam search with parameter learning <ref type="bibr" target="#b24">[24]</ref>, select rules from a restricted set using lasso regression <ref type="bibr" target="#b27">[27]</ref>, and use alternate gradient-based search to find parameters for probailistic logic <ref type="bibr" target="#b56">[56]</ref>. While these methods are more sophisticated than Snuba, they use a large amount of training data and rely directly on the generated rules for prediction. Incorporating these methods into the Snuba synthesizer could be interesting for future work, especially for text-based tasks.</p><p>Training Label Generation. Focusing on the problem of generating training data, Snorkel <ref type="bibr" target="#b38">[38]</ref> is a system that relies on domain experts manually developing heuristics, patterns, or distant supervision rules to label data noisily. While users in Snorkel rely on a small, labeled dataset to evaluate and refine their heuristics, Snuba automatically generates heuristics using the labeled and unlabeled data it has access to. Snorkel and Snuba both use the generative model to aggregate heuristic labels, but Snuba can generate heuristics that are noisier than the generative model can account for. Therefore, it uses a statistical measure to determine when the generative model can be used (Section 4). Other methods that rely on imperfect sources of labels that are partially user-defined include heuristic patterns <ref type="bibr" target="#b5">[6,</ref><ref type="bibr" target="#b17">17]</ref> and distant supervision <ref type="bibr" target="#b8">[8,</ref><ref type="bibr" target="#b32">32]</ref>, which relies on information present in knowledge bases.</p><p>Utilizing Labeled and Unlabeled Data. To train a deep learning model with a small, labeled dataset, a common approach is using transfer learning, or retraining models that have been trained for different tasks that have abundant training data in the same domain <ref type="bibr" target="#b34">[34]</ref>. However, this approach does not take advantage of any unlabeled data available. Semi-supervised learning leverages both labeled and unlabeled data, along with assumptions about low-dimensional structure and smoothness of the data to automatically assign labels to the unlabeled data <ref type="bibr" target="#b6">[7,</ref><ref type="bibr" target="#b61">61]</ref>. Unlike semi-supervised learning, which generates a single black-box model, Snuba generates multiple, diverse heuristics to label the unlabeled data. Moreover, as demonstrated in Section 5, Snuba performs better than a specific semi-supervised model, label spreading <ref type="bibr" target="#b61">[61]</ref>, when the amount of unlabeled data is larger than than the amount of labeled data. Co-training <ref type="bibr" target="#b4">[5]</ref> also takes advantage of both labeled and unlabeled data and trains two independent models on two separate views of the data. Snuba does not require access to separate feature sets as views and can generate more than two heuristics (classifiers) that can be correlated with each other (Section 4). Combining Noisy Labels. Combining labels from multiple sources like heuristics is well-studied problem <ref type="bibr" target="#b11">[11]</ref>, especially in the context of crowdsourcing <ref type="bibr" target="#b9">[9,</ref><ref type="bibr" target="#b22">22,</ref><ref type="bibr" target="#b60">60]</ref>. However, these methods assume the labeling sources are not generated automatically and requires a labeled dataset to learn the accuracies of the different sources. Other methods, including our previous work <ref type="bibr" target="#b39">[39,</ref><ref type="bibr" target="#b50">50,</ref><ref type="bibr" target="#b53">53]</ref>, rely on generative models to learn accuracies and dependencies among labeling sources <ref type="bibr" target="#b1">[2,</ref><ref type="bibr" target="#b41">41,</ref><ref type="bibr" target="#b48">48]</ref>. Areas like data fusion <ref type="bibr" target="#b13">[13,</ref><ref type="bibr" target="#b37">37,</ref><ref type="bibr" target="#b40">40]</ref> and truth discovery <ref type="bibr" target="#b29">[29]</ref> also look at the problem of estimating how reliable different data sources are while utilizing probabilistic graphical models like Snuba.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.">CONCLUSION</head><p>Snuba is a system to automatically generate heuristics using a small labeled dataset to assign training labels to a large, unlabeled dataset, which can be used to train a downstream model of choice. It iteratively generates heuristics that are accurate and diverse for the unlabeled dataset using the small, labeled dataset. Snuba relies on a statistical measure to determine when generated heuristics are too noisy and therefore when to terminate the iterative process. We demonstrate how training labels from Snuba outperform labels from semi-supervised learning by up to 14.35 F1 points and from user-defined heuristics by up to 9.74 F1 points in terms of end model performance for tasks across various domains. Our work suggests that there is potential to use a small amount of labeled data to make the process of generating training labels much more efficient.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head></head><label></label><figDesc>a subset of primitives, D ≤ D is the number of primitives in this subset, and P [y * i = 1] is a probabilistic label.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 3 := 2 D</head><label>32</label><figDesc>Heuristic models and associated boundaries. Choosing subsets of size D from the primitives translates to selecting D rows from X, as shown in function GenComb in Algorithm 1. For D primitives, there will be a total of D D distinct primitive subsets of size D . These subsets of primitives can be representative of a few specific words if primitives are generated using a bag-of words model while a subset of bounding box attribute primitives could represent the x,y-coordinates of the bounding box. The synthesizer generates a heuristic for each possible combination of 1 to D primitives, resulting in D D =1 D D − 1 total heuristics per iteration of Snuba. We find that D &lt; 4 for most real-world tasks, resulting in a maximum runtime of 14.45 minutes for Snuba on a single thread (Section 5).</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 4 :Algorithm 2 :</head><label>42</label><figDesc>Linear performance increase of end model trained on labels from Snuba w.r.t. unlabeled data. Snuba Pruning Procedure function SelectBestHeuristic (H, HC , y * , XL, XU , n, w) Input: Candidate (H) and committed set (HC ) of heuristics, Labels</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Figure 5 :</head><label>5</label><figDesc>(a,c)  show the learned and true accuracies of the committed set of heuristics at the last iteration. (b,d) show the allowed error and the measured error between learned and empirical accuracies across all iterations. The marked heuristic in each figure shows Snuba successfully stops generating heuristics when the new heuristic's true accuracy is worse than random.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>Algorithm 3 :</head><label>3</label><figDesc>Snuba Verifier Procedure 1 function FindFeedback (HC , y * , XL, XU ) Input: Committed set of heuristics HC , H[i</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_2"><head>Table 1 :</head><label>1</label><figDesc>Dataset Statistics and Descriptions. NL, NU are size of labeled and unlabeled datasets. N L N U : ratio of unlabeled to labeled data, D: number of primitives. Label sources are previous sources of training labels (DT: decision tree, UDF: user-defined functions, DS: distant supervision with knowledge base.)</figDesc><table><row><cell>Application</cell><cell>Domain</cell><cell>NL</cell><cell>NU</cell><cell>N U N L</cell><cell>D</cell><cell cols="2">Label Source Task</cell></row><row><cell>Bone Tumor</cell><cell>Image</cell><cell></cell><cell>400</cell><cell>2.0</cell><cell cols="2">17 DT + User</cell><cell>Aggressive vs. Non-aggressive Tumor</cell></row><row><cell>Mammogram</cell><cell>Image</cell><cell>186</cell><cell>1488</cell><cell>8.0</cell><cell cols="2">10 UDF</cell><cell>Malignant vs. Benign Tumor</cell></row><row><cell>Visual Genome</cell><cell>Image</cell><cell>429</cell><cell>903</cell><cell>2.1</cell><cell>7</cell><cell>UDF</cell><cell>Identify 'person riding bike'</cell></row><row><cell>MS-COCO</cell><cell cols="2">Multi-Modal 6693</cell><cell>26772</cell><cell>4.0</cell><cell cols="2">105 UDF</cell><cell>Identify whether person in image</cell></row><row><cell>IMDb</cell><cell>Text</cell><cell>284</cell><cell>1136</cell><cell>4.0</cell><cell cols="2">322 UDF/Crowd</cell><cell>Action vs. Romance Plot Descriptions</cell></row><row><cell>Twitter</cell><cell>Text</cell><cell>123</cell><cell>14551</cell><cell cols="3">118.3 201 Crowd</cell><cell>Positive vs. Negative Tweets</cell></row><row><cell>CDR</cell><cell>Text</cell><cell>888</cell><cell>8268</cell><cell>9.3</cell><cell cols="2">298 UDF + DS</cell><cell>Text relation extraction</cell></row><row><cell>Hardware</cell><cell cols="6">Multi-Modal 100 100,000 1000 237 UDF</cell><cell>Richly formatted data relation extraction</cell></row><row><cell cols="6">measured error between the learned and empirical accura-</cell><cell></cell><cell></cell></row><row><cell cols="2">cies as ||α −α||∞.</cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_3"><head>Table 2 :</head><label>2</label><figDesc>Improvement of end model (F1 Score) trained on labels from Snuba compared to labels from automated baselines and UDFs (+: Snuba better). *Hardware UDFs tuned on 47,413 labeled datapoints, other baselines on 100 labeled datapoints.</figDesc><table><row><cell>Snuba Improvement Over</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_5"><head>Table 4 :</head><label>4</label><figDesc>Improvement of best heuristic type over others and Snuba choosing β over never abstaining (β = 0) and midpoint value (β = 0.25). 0.00 is best heuristic type that was best for each task. DT: decision tree, LR: logistic regressor; NN: nearest neighbor.</figDesc><table><row><cell></cell><cell></cell><cell cols="3">F1 Improvement Over</cell><cell></cell></row><row><cell>Dataset</cell><cell>DT</cell><cell>LR</cell><cell>NN</cell><cell>β = 0</cell><cell>β = 0.25</cell></row><row><cell>Bone Tumor</cell><cell>+2.73</cell><cell>0.00</cell><cell>+4.62</cell><cell>+2.35</cell><cell>+3.77</cell></row><row><cell cols="3">Visual Genome +3.22 +3.38</cell><cell>0.00</cell><cell>+7.99</cell><cell>+5.30</cell></row><row><cell>MS-COCO</cell><cell>0.00</cell><cell>0.00</cell><cell>+0.24</cell><cell>+2.51</cell><cell>+2.51</cell></row><row><cell>IMDb</cell><cell>0.00</cell><cell>0.00</cell><cell cols="2">+14.32 +20.69</cell><cell>+2.13</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_6"><head>Table 5 :</head><label>5</label><figDesc>Snuba pruner optimizing for only performance (F1) and diversity (Jaccard) compared to performance and diversity individually and a weighted average.</figDesc><table><row><cell></cell><cell cols="3">F1 Improvement Over</cell></row><row><cell>Dataset</cell><cell cols="3">F1 Only Jaccard Only Weighted</cell></row><row><cell>Bone Tumor</cell><cell>+3.86</cell><cell>+8.84</cell><cell>+2.74</cell></row><row><cell>Visual Genome</cell><cell>+6.57</cell><cell>+7.33</cell><cell>+3.74</cell></row><row><cell>MS-COCO</cell><cell>+2.51</cell><cell>+18.2</cell><cell>+0.80</cell></row><row><cell>IMDb</cell><cell>+2.15</cell><cell>+14.23</cell><cell>+0.37</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_7"><head>Table 6 :</head><label>6</label><figDesc>Snuba verifier aggregation compared to usingα instead ofα, no termination condition, majority vote (MV) across labels, feedback with weighted samples.</figDesc><table><row><cell></cell><cell></cell><cell cols="3">F1 Improvement Over</cell></row><row><cell cols="2">Datasetα</cell><cell cols="2">No Term. MV</cell><cell>Weighted</cell></row><row><cell>Bone Tumor</cell><cell>+5.42</cell><cell>+5.15</cell><cell>+3.78</cell><cell>+1.76</cell></row><row><cell cols="2">Visual Genome +8.43</cell><cell>+7.09</cell><cell>+6.59</cell><cell>+4.42</cell></row><row><cell>MS-COCO</cell><cell>+7.98</cell><cell>+3.70</cell><cell>+3.00</cell><cell>+2.22</cell></row><row><cell>IMDb</cell><cell>+5.67</cell><cell>+4.05</cell><cell>+1.80</cell><cell>+1.63</cell></row></table><note></note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgments</head><p>We thank Christopher Aberger, Jared Dunnmon, Avner May, Shoumik Palkar, Theodoros Rekatsinas, Sahaana Suri, and Sandeep Tata for their valuable feedback, and Sen Wu for help with the Hardware dataset. We gratefully acknowledge the support of DARPA under Nos. </p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Imdb</forename><surname>Dataset</surname></persName>
+		</author>
+		<ptr target="https://www.imdb.com/interfaces/" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Pattern learning for relation extraction with a hierarchical topic model</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Alfonseca</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Filippova</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J.-Y</forename><surname>Delort</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Garrido</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 50th Annual Meeting of the Association for Computational Linguistics</title>
+		<meeting>the 50th Annual Meeting of the Association for Computational Linguistics</meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2012" />
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page" from="54" to="59" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Syntax-guided synthesis</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Alur</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Bodik</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Juniwal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">M</forename><surname>Martin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Raghothaman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">A</forename><surname>Seshia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Singh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Solar-Lezama</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Torlak</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Udupa</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">In Formal Methods in Computer-Aided Design (FMCAD)</title>
+		<imprint>
+			<biblScope unit="page" from="1" to="8" />
+			<date type="published" when="2013" />
+			<publisher>IEEE</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Learning the structure of generative models without labeled data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">H</forename><surname>Bach</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Ratner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Ré</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="273" to="282" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Combining labeled and unlabeled data with co-training</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Blum</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mitchell</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the eleventh annual conference on Computational learning theory</title>
+		<meeting>the eleventh annual conference on Computational learning theory</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="1998" />
+			<biblScope unit="page" from="92" to="100" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Learning to extract relations from the web using minimal supervision</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Bunescu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Mooney</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 45th Annual Meeting of the Association of Computational Linguistics</title>
+		<meeting>the 45th Annual Meeting of the Association of Computational Linguistics</meeting>
+		<imprint>
+			<date type="published" when="2007" />
+			<biblScope unit="page" from="576" to="583" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<monogr>
+		<title level="m" type="main">Semi-supervised learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Chapelle</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Scholkopf</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Zien</surname></persName>
+		</author>
+		<editor>Chapelle, O. et al.</editor>
+		<imprint>
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+	<note>book reviews</note>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title/>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Neural Networks</title>
+		<imprint>
+			<biblScope unit="volume">20</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="542" to="542" />
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Constructing biological knowledge bases by extracting information from text sources</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Craven</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Kumlien</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ISMB</title>
+		<imprint>
+			<date type="published" when="1999" />
+			<biblScope unit="volume">1999</biblScope>
+			<biblScope unit="page" from="77" to="86" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Aggregating crowdsourced binary ratings</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Dalvi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Dasgupta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Kumar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Rastogi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 22nd international conference on World Wide Web</title>
+		<meeting>the 22nd international conference on World Wide Web</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="285" to="294" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">The comparative toxicogenomics database: update</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">P</forename><surname>Davis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">J</forename><surname>Grondin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">J</forename><surname>Johnson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Sciaky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">L</forename><surname>King</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Mcmorran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Wiegers</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">C</forename><surname>Wiegers</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">J</forename><surname>Mattingly</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Nucleic acids research</title>
+		<imprint>
+			<biblScope unit="volume">45</biblScope>
+			<biblScope unit="issue">D1</biblScope>
+			<biblScope unit="page" from="972" to="978" />
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Maximum likelihood estimation of observer error-rates using the EM algorithm</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">P</forename><surname>Dawid</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">M</forename><surname>Skene</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Applied statistics</title>
+		<imprint>
+			<biblScope unit="page" from="20" to="28" />
+			<date type="published" when="1979" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">ImageNet: A large-scale hierarchical image database</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Deng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Dong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Socher</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L.-J</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Fei-Fei</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Computer Vision and Pattern Recognition</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2009" />
+			<biblScope unit="page" from="248" to="255" />
+		</imprint>
+	</monogr>
+	<note>CVPR 2009. IEEE Conference on</note>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Big data integration</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><forename type="middle">L</forename><surname>Dong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Srivastava</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Synthesis Lectures on Data Management</title>
+		<imprint>
+			<biblScope unit="volume">7</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="1" to="198" />
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Framewise phoneme classification with bidirectional LSTM and other neural network architectures</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Graves</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schmidhuber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural Networks</title>
+		<imprint>
+			<biblScope unit="volume">18</biblScope>
+			<biblScope unit="issue">5-6</biblScope>
+			<biblScope unit="page" from="602" to="610" />
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Synthesis from examples: Interaction models and algorithms</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Gulwani</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Symbolic and Numeric Algorithms for Scientific Computing (SYNASC)</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="8" to="14" />
+		</imprint>
+	</monogr>
+	<note>14th International Symposium on</note>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Multi-class AdaBoost</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Hastie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Rosset</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Zhu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Zou</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Statistics and its Interface</title>
+		<imprint>
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="349" to="360" />
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Automatic acquisition of hyponyms from large text corpora</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">A</forename><surname>Hearst</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 14th conference on Computational linguistics</title>
+		<meeting>the 14th conference on Computational linguistics</meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="1992" />
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page" from="539" to="545" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Training products of experts by minimizing contrastive divergence</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural computation</title>
+		<imprint>
+			<biblScope unit="volume">14</biblScope>
+			<biblScope unit="issue">8</biblScope>
+			<biblScope unit="page" from="1771" to="1800" />
+			<date type="published" when="2002" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Long short-term memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Hochreiter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schmidhuber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural computation</title>
+		<imprint>
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="issue">8</biblScope>
+			<biblScope unit="page" from="1735" to="1780" />
+			<date type="published" when="1997" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Lois de distribution florale dans la zone alpine</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Jaccard</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Bull Soc Vaudoise Sci Nat</title>
+		<imprint>
+			<biblScope unit="volume">38</biblScope>
+			<biblScope unit="page" from="69" to="130" />
+			<date type="published" when="1902" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Oracle-guided component-based program synthesis</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Jha</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Gulwani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">A</forename><surname>Seshia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Tiwari</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 32nd ACM/IEEE International Conference on Software Engineering</title>
+		<meeting>the 32nd ACM/IEEE International Conference on Software Engineering</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2010" />
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="page" from="215" to="224" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Comprehensive and reliable crowd assessment algorithms</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Joglekar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Garcia-Molina</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Parameswaran</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE 31st International Conference on</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="195" to="206" />
+		</imprint>
+	</monogr>
+	<note>Data Engineering (ICDE)</note>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Clevr: A diagnostic dataset for compositional language and elementary visual reasoning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Johnson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Hariharan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Van Der Maaten</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Fei-Fei</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">L</forename><surname>Zitnick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Girshick</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Computer Vision and Pattern Recognition (CVPR), 2017 IEEE Conference on</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="1988" to="1997" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">Statistical predicate invention</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Kok</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Domingos</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 24th international conference on Machine learning</title>
+		<meeting>the 24th international conference on Machine learning</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2007" />
+			<biblScope unit="page" from="433" to="440" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Visual Genome: Connecting language and vision using crowdsourced dense image annotations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Krishna</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Zhu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Groth</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Johnson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Hata</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Kravitz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Kalantidis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L.-J</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">A</forename><surname>Shamma</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">International Journal of Computer Vision</title>
+		<imprint>
+			<biblScope unit="volume">123</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="32" to="73" />
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">ImageNet classification with deep convolutional neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krizhevsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="1097" to="1105" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Relational retrieval using a combination of path-constrained random walks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Lao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><forename type="middle">W</forename><surname>Cohen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Machine learning</title>
+		<imprint>
+			<biblScope unit="volume">81</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="53" to="67" />
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">Error rate analysis of labeling by crowdsourcing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Yu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Zhou</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML Workshop: Machine Learning Meets Crowdsourcing</title>
+		<meeting><address><addrLine>Atalanta, Georgia, USA. Citeseer</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">A survey on truth discovery</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Gao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Meng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Su</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Zhao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Fan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Han</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Sigkdd Explorations Newsletter</title>
+		<imprint>
+			<biblScope unit="volume">17</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="1" to="16" />
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Microsoft COCO: Common objects in context</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T.-Y</forename><surname>Lin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Maire</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Belongie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Hays</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Perona</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Ramanan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dollár</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">L</forename><surname>Zitnick</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">European conference on computer vision</title>
+		<imprint>
+			<publisher>Springer</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="740" to="755" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<monogr>
+		<title level="m" type="main">Crowdflower dataset: Airline Twitter sentiment</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Metz</surname></persName>
+		</author>
+		<ptr target="https://www.crowdflower.com/data/airline-twitter-sentiment/" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Distant supervision for relation extraction without labeled data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Mintz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Bills</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Snow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Jurafsky</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Joint Conference of the 47th Annual Meeting of the ACL and the 4th International Joint Conference on Natural Language Processing of the AFNLP</title>
+		<meeting>the Joint Conference of the 47th Annual Meeting of the ACL and the 4th International Joint Conference on Natural Language Processing of the AFNLP</meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2009" />
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page" from="1003" to="1011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<analytic>
+		<title level="a" type="main">Relational learning of pattern-match rules for information extraction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Mooney</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Sixteenth National Conference on Artificial Intelligence</title>
+		<meeting>the Sixteenth National Conference on Artificial Intelligence</meeting>
+		<imprint>
+			<date type="published" when="1999" />
+			<biblScope unit="volume">334</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">A survey on transfer learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">J</forename><surname>Pan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Yang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on knowledge and data engineering</title>
+		<imprint>
+			<biblScope unit="volume">22</biblScope>
+			<biblScope unit="issue">10</biblScope>
+			<biblScope unit="page" from="1345" to="1359" />
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<analytic>
+		<title level="a" type="main">Scikit-learn: Machine learning in Python</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Pedregosa</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Varoquaux</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Gramfort</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Michel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Thirion</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Grisel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Blondel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Prettenhofer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Weiss</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Dubourg</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of machine learning research</title>
+		<imprint>
+			<biblScope unit="volume">12</biblScope>
+			<biblScope unit="page" from="2825" to="2830" />
+			<date type="published" when="2011-10" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<analytic>
+		<title level="a" type="main">GloVe: Global vectors for word representation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Pennington</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Socher</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Manning</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2014 conference on empirical methods in natural language processing (EMNLP)</title>
+		<meeting>the 2014 conference on empirical methods in natural language processing (EMNLP)</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="1532" to="1543" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">Fusing data with correlations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Pochampally</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Sarma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><forename type="middle">L</forename><surname>Dong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Meliou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Srivastava</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2014 ACM SIGMOD international conference on Management of data</title>
+		<meeting>the 2014 ACM SIGMOD international conference on Management of data</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="433" to="444" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<analytic>
+		<title level="a" type="main">Snorkel: Rapid training data creation with weak supervision</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Ratner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">H</forename><surname>Bach</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Ehrenberg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Fries</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Ré</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">PVLDB</title>
+		<imprint>
+			<biblScope unit="volume">11</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="269" to="282" />
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">Data programming: Creating large training sets, quickly</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">J</forename><surname>Ratner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">M</forename><surname>De Sa</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Selsam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Ré</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="3567" to="3575" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<analytic>
+		<title level="a" type="main">SLiMFast: Guaranteed results for data fusion and source reliability</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Rekatsinas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Joglekar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Garcia-Molina</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Parameswaran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Ré</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2017 ACM International Conference on Management of Data</title>
+		<meeting>the 2017 ACM International Conference on Management of Data</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="1399" to="1414" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<analytic>
+		<title level="a" type="main">Combining generative and discriminative model scores for distant supervision</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Roth</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Klakow</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2013 Conference on Empirical Methods in Natural Language Processing</title>
+		<meeting>the 2013 Conference on Empirical Methods in Natural Language Processing</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="24" to="29" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<analytic>
+		<title level="a" type="main">A survey of decision tree classifier methodology</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">R</forename><surname>Safavian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Landgrebe</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE transactions on systems, man, and cybernetics</title>
+		<imprint>
+			<date type="published" when="1991" />
+			<biblScope unit="volume">21</biblScope>
+			<biblScope unit="page" from="660" to="674" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Simonyan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Zisserman</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1409.1556</idno>
+		<title level="m">Very deep convolutional networks for large-scale image recognition</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<analytic>
+		<title level="a" type="main">Synthesizing number transformations from input-output examples</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Singh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Gulwani</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Computer Aided Verification</title>
+		<imprint>
+			<publisher>Springer</publisher>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="634" to="651" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<analytic>
+		<title level="a" type="main">Learning information extraction rules for semi-structured and free text</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Soderland</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Machine learning</title>
+		<imprint>
+			<biblScope unit="volume">34</biblScope>
+			<biblScope unit="issue">1-3</biblScope>
+			<biblScope unit="page" from="233" to="272" />
+			<date type="published" when="1999" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b46">
+	<analytic>
+		<title level="a" type="main">Combinatorial sketching for finite programs</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Solar-Lezama</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Tancau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Bodik</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Seshia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Saraswat</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Sigplan Notices</title>
+		<imprint>
+			<biblScope unit="volume">41</biblScope>
+			<biblScope unit="issue">11</biblScope>
+			<biblScope unit="page" from="404" to="415" />
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b47">
+	<monogr>
+		<title level="m" type="main">Going deeper with convolutions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Szegedy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Jia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Sermanet</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Reed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Anguelov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Erhan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Vanhoucke</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Rabinovich</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015" />
+			<publisher>Cvpr</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b48">
+	<analytic>
+		<title level="a" type="main">Reducing wrong labels in distant supervision for relation extraction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Takamatsu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sato</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Nakagawa</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 50th Annual Meeting of the Association for Computational Linguistics: Long Papers</title>
+		<meeting>the 50th Annual Meeting of the Association for Computational Linguistics: Long Papers</meeting>
+		<imprint>
+			<publisher>Association for Computational Linguistics</publisher>
+			<date type="published" when="2012" />
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="page" from="721" to="729" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b49">
+	<analytic>
+		<title level="a" type="main">scikit-image: image processing in Python</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Van Der Walt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">L</forename><surname>Schönberger</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Nunez-Iglesias</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Boulogne</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">D</forename><surname>Warner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Yager</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Gouillart</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Yu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">PeerJ</title>
+		<imprint>
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page">453</biblScope>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b50">
+	<analytic>
+		<title level="a" type="main">Inferring generative model structure with static analysis</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Varma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">D</forename><surname>He</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Bajaj</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Khandwala</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Banerjee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Rubin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Ré</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="239" to="249" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b51">
+	<analytic>
+		<title level="a" type="main">Flipper: A systematic approach to debugging training sets</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Varma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Iter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">De</forename><surname>Sa</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Ré</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2nd Workshop on Human-In-the-Loop Data Analytics</title>
+		<meeting>the 2nd Workshop on Human-In-the-Loop Data Analytics</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b52">
+	<monogr>
+		<title level="m" type="main">Snuba: Automating weak supervision to label training data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Varma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Ré</surname></persName>
+		</author>
+		<ptr target="https://paroma.github.io/tech_report_snuba.pdf" />
+		<imprint>
+			<date type="published" when="2018" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b53">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Varma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Yu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Iter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">De</forename><surname>Sa</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Ré</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1610.08123</idno>
+		<title level="m">Socratic learning: Correcting misspecified generative models using discriminative models</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b54">
+	<analytic>
+		<title level="a" type="main">Falling rule lists</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Rudin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Artificial Intelligence and Statistics</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="1013" to="1022" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b55">
+	<monogr>
+		<title level="m" type="main">Or&apos;s of and&apos;s for interpretable classification, with application to context-aware recommender systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Rudin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Doshi-Velez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Klampfl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Macneille</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1504.07614</idno>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b56">
+	<analytic>
+		<title level="a" type="main">Structure learning via parameter learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><forename type="middle">Y</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Mazaitis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><forename type="middle">W</forename><surname>Cohen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 23rd ACM International Conference on Conference on Information and Knowledge Management</title>
+		<meeting>the 23rd ACM International Conference on Conference on Information and Knowledge Management</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="1199" to="1208" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b57">
+	<analytic>
+		<title level="a" type="main">Overview of the biocreative v chemical disease relation (CDR) task</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C.-H</forename><surname>Wei</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Peng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Leaman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">P</forename><surname>Davis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">J</forename><surname>Mattingly</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">C</forename><surname>Wiegers</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Lu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the fifth BioCreative challenge evaluation workshop</title>
+		<meeting>the fifth BioCreative challenge evaluation workshop<address><addrLine>Sevilla Spain</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="154" to="166" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b58">
+	<analytic>
+		<title level="a" type="main">Fonduer: Knowledge base construction from richly formatted data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Hsiao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Cheng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Hancock</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Rekatsinas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Levis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Ré</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2018 International Conference on Management of Data</title>
+		<meeting>the 2018 International Conference on Management of Data</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2018" />
+			<biblScope unit="page" from="1301" to="1316" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b59">
+	<analytic>
+		<title level="a" type="main">Differentiable learning of logical rules for knowledge base reasoning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><forename type="middle">W</forename><surname>Cohen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="2319" to="2328" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b60">
+	<analytic>
+		<title level="a" type="main">Spectral methods meet EM: A provably optimal algorithm for crowdsourcing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Zhou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">I</forename><surname>Jordan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="1260" to="1268" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b61">
+	<analytic>
+		<title level="a" type="main">Learning with local and global consistency</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Zhou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Bousquet</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">N</forename><surname>Lal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Schölkopf</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2004" />
+			<biblScope unit="page" from="321" to="328" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

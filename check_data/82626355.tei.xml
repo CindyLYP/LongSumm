@@ -1,0 +1,2511 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">SLOG: Serializable, Low-latency, Geo-replicated Transactions</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kun</forename><surname>Ren</surname></persName>
+							<email>kuren@ebay.com</email>
+							<affiliation key="aff0">
+								<orgName type="institution">eBay Inc</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dennis</forename><surname>Li</surname></persName>
+							<affiliation key="aff1">
+								<orgName type="institution">UMD</orgName>
+								<address>
+									<settlement>College Park</settlement>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Daniel</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+							<email>abadi@cs.umd.edu</email>
+							<affiliation key="aff2">
+								<orgName type="institution">UMD</orgName>
+								<address>
+									<settlement>College Park</settlement>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">SLOG: Serializable, Low-latency, Geo-replicated Transactions</title>
+					</analytic>
+					<monogr>
+						<idno type="ISSN">2150-8097</idno>
+					</monogr>
+					<idno type="DOI">10.14778/3342263.3342647</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:41+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>For decades, applications deployed on a worldwide scale have been forced to give up at least one of (1) strict serializability (2) low latency writes (3) high transactional throughput. In this paper we discuss SLOG: a system that avoids this tradeoff for workloads which contain physical region locality in data access. SLOG achieves high-throughput, strictly serializable ACID transactions at geo-replicated distance and scale for all transactions submitted across the world, all the while achieving low latency for transactions that initiate from a location close to the home region for data they access. Experiments find that SLOG can reduce latency by more than an order of magnitude relative to state-of-the-art strictly serializable geo-replicated database systems such as Spanner and Calvin, while maintaining high throughput under contention.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.">INTRODUCTION</head><p>Many modern applications replicate data across geographic regions in order to (a) achieve high availability in the event of region failure and (b) serve low-latency reads to clients spread across the world. Existing database systems that support geographic replication force the user to give up one at least one of the following essential features: (1) strict serializability (2) low-latency writes (3) high throughput multi-region transactions -even under contention.</p><p>(1) Strict serializability <ref type="bibr" target="#b13">[16,</ref><ref type="bibr" target="#b14">17,</ref><ref type="bibr" target="#b38">41,</ref><ref type="bibr" target="#b61">64]</ref>, in the context of distributed database systems, implies both strong isolation (one-copy serializable <ref type="bibr" target="#b7">[10]</ref>) and real-time ordering guarantees. More precisely, concurrent transaction processing must be equivalent to executing transactions in a one-copy serial order, S, such that for every pair of transactions X and Y, if X starts after Y completes, then X follows Y in S. This implies that all reads within a transaction must see the value of any writes that committed before the transaction began, no matter where that write was performed world-wide. Furthermore, if a transaction, A, begins after (in real time) transaction B completes, no client can see the effect of A without the effect of B. Strict serializability reduces application code complexity and bugs, since it behaves like a system that is running on a single machine processing transactions sequentially <ref type="bibr" target="#b1">[4,</ref><ref type="bibr" target="#b2">5]</ref>.</p><p>By giving up strict serializability, it is straightforward to achieve the other two properties mentioned above (low-latency writes and high multi-region transactional throughput). If reads are allowed to access stale data, then reads can be served by any replica (which improves read latency) and replication can be entirely asynchronous (which improves write latency) . Furthermore, avoiding the multiregion coordination necessary to enforce strict serializability facilitates throughput scalability of distributed database systems <ref type="bibr" target="#b8">[11]</ref>.</p><p>Much research effort has been spent in designing systems that reduce the consistency level below strict serializability, while still providing useful guarantees to the application. For example, Dynamo <ref type="bibr" target="#b23">[26]</ref>, Cassandra <ref type="bibr" target="#b44">[47]</ref>, and Riak <ref type="bibr" target="#b0">[3]</ref> use eventual consistency; PNUTs <ref type="bibr" target="#b17">[20]</ref> supports timeline consistency; COPS <ref type="bibr" target="#b48">[51]</ref>, Eiger <ref type="bibr" target="#b49">[52]</ref>, and Contrarian <ref type="bibr" target="#b24">[27]</ref> support a variation of causal consistency; Lynx (Transaction Chains) <ref type="bibr" target="#b92">[95]</ref> supports non-strict serializability with read-your-writes consistency <ref type="bibr" target="#b78">[81]</ref>; Walter <ref type="bibr" target="#b74">[77]</ref>, Jessy <ref type="bibr" target="#b5">[8]</ref>, and Blotter <ref type="bibr" target="#b53">[56]</ref> support variations of snapshot consistency.</p><p>(2) Low latency writes. Despite the suitability of these weaker consistency models for numerous classes of applications, they often expose applications to potential race condition bugs, and typically require skilled application programmers. Thus, the demand for systems that support strict serializability has only increased. Many recent geo-replicated data stores, including from two of the three major cloud vendors (Google with several systems <ref type="bibr" target="#b9">[12,</ref><ref type="bibr" target="#b19">22,</ref><ref type="bibr" target="#b73">76]</ref> and Microsoft with Cosmos DB) support strong consistency models at least under some configurations. Spanner <ref type="bibr" target="#b19">[22]</ref> is widely used throughout Google, and is now available in the Google Cloud for anybody to use. Other examples in industry include TiDB, comdb2, FaunaDB, and (with a few caveats) CockroachDB and YugaByte. Examples from the research community include Helios <ref type="bibr" target="#b56">[59]</ref>, MDCC <ref type="bibr" target="#b43">[46]</ref>, Calvin <ref type="bibr" target="#b84">[87]</ref>, Carousel <ref type="bibr" target="#b90">[93]</ref>, and TAPIR <ref type="bibr" target="#b91">[94]</ref>.</p><p>Every single one of these above cited strictly serializable systems pays at least one cross-region round trip (coordination) message to commit a write transaction. This type of coordination enables strict serializability, but increases the latency of every write. The farther apart the regions, the longer it takes to complete a write.</p><p>(3) High transaction throughput Cross-region coordination on every write is not necessary to guarantee strict serializability. If every read of a data item is served from the location of the most recent write to that data item, then there is no need to synchronously replicate writes across regions. For example, if one region is declared as the master region for a data item ( <ref type="bibr" target="#b17">[20,</ref><ref type="bibr" target="#b20">23,</ref><ref type="bibr" target="#b35">38,</ref><ref type="bibr" target="#b58">61,</ref><ref type="bibr" target="#b63">66,</ref><ref type="bibr" target="#b64">67]</ref>), and all writes and consistent reads of that data item are directed to this region, such as done by NuoDB <ref type="bibr" target="#b63">[66,</ref><ref type="bibr" target="#b64">67]</ref> and G-Store <ref type="bibr" target="#b20">[23]</ref>, then it is possible to achieve strict serializability along with low latency reads and writes -as long as those reads and writes initiate from a region near the master region for the data being accessed. Many workloads have a locality in their access patterns. For example, for applications that revolve around users, the data associated with a user is heavily skewed to being accessed from the physical location of that user. Thus, for these workloads, it is possible to achieve strict serializability and low latency writes. However, arbitrary transactions may access multiple data items, where each data item is mastered at a different region. For such transactions, achieving strict serializability requires coordination across regions. Existing approaches prevent conflicting transactions from running during this coordination. Cross-region coordination is time consuming since messages must be sent over a WAN. Thus, the time window that conflicting transactions cannot run is large, which reduces system throughput. For example, we implemented a version of NuoDB 1 , and ran some benchmarks (see Section 4) where we varied the contention level and percentage of multi-region transactions. As shown in <ref type="figure" target="#fig_0">Figure 1</ref>, under high contention, the throughput of the system dropped dramatically at even low percentages of multi-region transactions, and also fell (although less dramatically) at low contention. For this reason, many systems that allow different data to be controlled by different regions do not support multi-region transactions, such as PNUTS <ref type="bibr" target="#b17">[20]</ref> and DPaxos <ref type="bibr" target="#b55">[58]</ref>.</p><p>In this paper, we present the design of a system, SLOG, that is the first (to the best of our knowledge) to achieve all three: (1) strict serializability (2) low-latency reads and writes (on at least some transactions) and (3) high throughput. SLOG uses locality in access patterns to assign a home region to each data granule. Reads and writes to nearby data occur rapidly, without cross-region communication. However, reads and writes to remote data, along with transactions that access data from multiple regions, must pay crossregion communication costs. Nonetheless, SLOG uses a deterministic architecture to move most of this communication outside of conflict boundaries, thereby enabling these transactions to be processed at high throughput, even for high contention workloads.</p><p>SLOG supports two availability levels: one in which the only synchronous replication is internally within a home region (which is susceptible to unavailability in the event of an entire region failure), and one in which data is synchronously replicated to one or more nearby regions (or availability zones) to achieve an availabil-NuoDB declined to give us their software, so we implemented our own version. NuoDB uses a MVCC protocol that is susceptible to write skew anomalies. Our version used locking instead in order to guarantee strict serializability. ity similar to Amazon Aurora <ref type="bibr" target="#b86">[89,</ref><ref type="bibr" target="#b87">90]</ref> where the system remains available even in the event of a failure of an entire region. Unlike Spanner, Cosmos DB, Aurora, or the other previously cited systems that support synchronous cross-region replication, SLOG's deterministic architecture ensures that its throughput is unaffected by the presence of synchronous cross-region replication.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">BACKGROUND</head><p>SLOG supports strictly serializable transactions that access data mastered in multiple regions. Unlike systems such as L-Store <ref type="bibr" target="#b46">[49]</ref> and G-Store <ref type="bibr" target="#b20">[23]</ref>, which remaster data on the fly so that all data accessed by a transaction becomes mastered at the same physical location, SLOG does not remaster data as part of executing a transaction. Instead, it utilizes a coordination protocol across regions to avoid data remastership. One important technique used by SLOG to overcome the scalability and throughput limitations caused by coordination across partitions is to leverage a deterministic execution framework. Our technique is inspired by the work on Lazy Transactions <ref type="bibr" target="#b27">[30]</ref>, Calvin <ref type="bibr" target="#b84">[87,</ref><ref type="bibr" target="#b85">88]</ref>, T-Part <ref type="bibr" target="#b89">[92]</ref>, PWV <ref type="bibr" target="#b28">[31]</ref>, and Fau-naDB [1] which use determinism to move coordination outside of transactional boundaries, thereby enabling conflicting transactions to run during this coordination process.</p><p>In the above-cited deterministic systems, all nodes involved in processing a transaction -all replicas and all partitions within a replica -run an agreement protocol prior to processing a batch of transactions that plans out how to process the batch. This plan is deterministic in the sense that all replicas that see the same plan must have only one possible final state after processing transactions according to this plan. Once all parties agree to the plan, processing occurs (mostly) independently on each node, with the system relying on the plan's determinism in order to avoid replica divergence. This approach prevents the dramatic reductions in throughput under data contention that are observed in systems such as NuoDB <ref type="bibr" target="#b63">[66,</ref><ref type="bibr" target="#b64">67]</ref> and the strictly serializable transaction implementation on top of FuzzyLog <ref type="bibr" target="#b50">[53]</ref> that perform coordination inside transactional boundaries, and G-Store and L-Store which prevent contended data access during the remastering operations.</p><p>Determinism also reduces latency and improves throughput by eliminating any possibility of distributed and local deadlock <ref type="bibr" target="#b4">[7,</ref><ref type="bibr" target="#b67">70,</ref><ref type="bibr" target="#b75">78,</ref><ref type="bibr" target="#b76">79,</ref><ref type="bibr" target="#b84">87]</ref>, and reducing (or eliminating) distributed commit protocols such as two-phase commit <ref type="bibr" target="#b4">[7,</ref><ref type="bibr" target="#b80">83,</ref><ref type="bibr" target="#b81">84,</ref><ref type="bibr" target="#b83">86,</ref><ref type="bibr" target="#b84">87]</ref>.</p><p>Unfortunately, in order to create a deterministic plan of execution, more knowledge about the transaction is needed prior to processing it relative to traditional nondeterministic systems. Most importantly, the entire transaction must be present during this planning process. This makes deterministic database systems a poor fit for ORM tools and other applications that submit transactions to the database in pieces.</p><p>Second, advanced planning usually requires knowledge regarding which data will be accessed by a transaction <ref type="bibr" target="#b30">[33,</ref><ref type="bibr" target="#b31">34,</ref><ref type="bibr" target="#b80">83,</ref><ref type="bibr" target="#b84">87]</ref>. Most deterministic systems do not require the client to specify this information when the transaction is submitted. Instead they attempt to statically derive this knowledge from inspecting the transaction code <ref type="bibr" target="#b84">[87]</ref>, make conservative estimates <ref type="bibr" target="#b28">[31]</ref>, and/or speculatively execute parts of the transaction, such as the OLLP protocol in Calvin or the multi-stage execution process in FaunaDB.</p><p>SLOG's use of determinism causes it to inherit both of these requirements. As we will describe in Section 4, we implement SLOG inside the open source version of Calvin's codebase. Since Calvin uses a combination of static analysis and OLLP to determine read and write sets prior to transaction execution, our implementation also uses these techniques.</p><p>One important challenge in the design of SLOG is the lack of information about all transactions running in the system during the planning process. In Calvin, every transaction, no matter where it originates from, is sequenced by a global Paxos process. This enables Calvin to have complete knowledge of the input to the system while planning how a batch of transactions will be executed. However, this comes at the cost of requiring every transaction to pay the cross-region latency to run Paxos across regions. SLOG removes the global Paxos process in order to reduce latency, but this causes unawareness of transactions submitted to replicas located in different regions during the planning of transaction processing.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">SLOG</head><p>In order to achieve low latency writes, replication across geographic regions must be performed either entirely asynchronously, or synchronously only to nearby regions; otherwise every write must pay a round trip network cost across the geographic diameter of the system <ref type="bibr" target="#b3">[6]</ref>. In order to maintain strong consistency in the face of asynchronous replication, SLOG uses a master-oriented architecture, where every data item is mastered at a single "home" replica. Writes and linearizable reads of a data item must be directed to its home replica.</p><p>A region in SLOG is a set of servers that are connected via a low-latency network, usually within the same data center. Transactions are classified into two categories: if all data that will be accessed have their master replica in the same region, it is singlehome. Otherwise, it is multi-home. Single-home transactions are sent to its home and are confirmed as completed either (a) after the region completes the transaction (SLOG-B) or (b) after the region completes the transaction AND it has been replicated to a configurable number of nearby regions (SLOG-HA). Either way, transactions that initiate near the home region of the data being accessed will complete without global coordination. In contrast, multi-home transactions, and even single-home transactions that initiate physically far from that home, will experience larger latency. SLOG does not require any remastering of data to process multi-home transactions, but does perform dynamic data remastering as access frequency from particular locations changes over time (Section 3.4).</p><p>The most technically challenging problem in the design of SLOG is the execution of multi-home transactions. The goal is to maintain strict serializability guarantees and high throughput in the presence of potentially large numbers of multi-home transactions, even though they may access contended data, and even though they require coordination across physically distant regions.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">High-level overview</head><p>Each SLOG region contains a number of servers over which data stored at that region is partitioned (and replicated). Some of this data is mastered by that region (it is the home region for that data) and the rest is a replica of data from a different home region. The partitioning of the data across servers within a region is independent of the home status of data -each partition will generally have a mix of locally-mastered and remotely-mastered data.</p><p>Each region maintains a local input log which is implemented via Paxos across its servers. This local log only contains transactions that are expected to modify data mastered at that region. This input log is sent to all other regions in batches. Each batch is labeled with a sequence number, and the other regions use this sequence number to ensure that they have not missed any batches from that region. Thus, each region is eventually able to reconstruct the complete local log from every other region, potentially with some delay in the event of a network partition. Regions use deterministic transaction processing (see Section 2) to replay the local log from other regions in parallel (at the same speed as the original processing), while ensuring that their copy of the data ends up in the same final state as the original region that sent this log.</p><p>Data replication across regions is not strictly necessary in SLOG since the master region for a data item must oversee all writes and linearizable reads to it. However, by continuously replaying local logs from other regions, the system is able to support local snapshot reads of data mastered at other regions at any desired point in the versioned history. Furthermore, by keeping the replicas close to up to date, the process of dynamically remastering a data item is cheaper (see Section 3.4).</p><p>If there are n regions in the system, each region must process its own input log, in addition to the (n − 1) input logs of the other regions 2 . If all transactions are single-home, then it is impossible for transactions in different logs to conflict with each other, and the processing of these input logs can be interleaved arbitrarily without risking violations of strict serializability or replica non-divergence guarantees. However, achieving strict serializability in the presence of multi-home transactions is not straightforward, since coordination is required across regions.</p><p>In Sections 3.2 and 3.3, we explain how SLOG processes transactions in more detail. We start by discussing single-home transactions, and then discuss multi-home transactions.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">(Assumed) Single-home transactions</head><p>Data is assigned home regions in granules which can either be individual records, or a sorted range of records. SLOG associates two pieces of metadata with each granule: the identifier of its master region at the time it was written, and a count of the total number of times its master has (recently) changed. This metadata is stored in the granule header and replicated with the data granule. The counter is used to ensure correctness of remastering (Section 3.4) and never needs to exceed the number of regions in the deployment. The counter cycles back to 0 after it reaches a max count, and an extra bit is used to detect wrap-around, so the number of bits needed for the counter is always one more than the number of bits needed for the region identifier. Thus, these two pieces of metadata can be combined into a single 8 bit integer for deployments across 8 regions or fewer. Each region contains a distributed index called the "Lookup Master" which maintains a mapping of granule ids to this 8-bit value in the granule header. This index is asynchronously updated after a metadata change and thus may return stale metadata.</p><p>Clients can send transactions to the nearest region whether or not it is the home for the data accessed by the transaction. As described in Section 2, we assume that a region can determine the precise set of granules that will be accessed by a transaction, before processing it, either directly or through the advanced techniques we cited.</p><p>When a region receives a transaction to process, it sends a message to its Lookup Master to obtain its cached value for the home of each granule accessed by the transaction. The returned locations are stored inside the transaction code. If every granule is currently mapped to the same home region, the transaction becomes initially assumed to be a single-home transaction, and is shipped to that region. Otherwise, it is assumed to be multi-home, and handled according to the algorithm described in Section 3.3. This functionality is shown in the ReceiveNewTxn pseudocode in <ref type="figure" target="#fig_1">Figure 2</ref>.</p><p>Once the (assumed) single-home transaction reaches its home region, it is appended into an in-memory batch of transactional input on the server at which it arrives, and this server appends this batch to that region's input log via Paxos. This corresponds to the  </p><formula xml:id="formula_0">A B C A B C A B C Region 0 Region 1 Region 2 T1 T2 T3 T4 T1: A T2: A T3: B T4: B T1 T2 T3 T4 Batch 0-1 Batch 1-1 Batch 1-2 T1 T2 T3 T4 Batch 1-1 Batch 0-1 Batch 1-2 T1 T2 T3 T4 Batch 1-1 Batch 1-2 Batch 0-1 global log: Region 0： Region 1： T1 T2 T3 T4</formula><p>Region 2：</p><p>local log: such as Calvin: data is partitioned across servers, and each server reads transactions from the same global log and requests locks on any data present in its local partition in the order that the transactions making those requests appear in the log <ref type="bibr" target="#b66">[69,</ref><ref type="bibr" target="#b68">71,</ref><ref type="bibr" target="#b84">87]</ref> (see the lock manager code in <ref type="figure" target="#fig_1">Figure 2</ref>). Locks are granted in the order they are requested, which, when also ordering lock requests by the order in which transactions appear in the global log, makes deadlock impossible <ref type="bibr" target="#b65">[68]</ref>. The only difference relative to traditional deterministic database systems is that prior to reading or writing a data granule, the metadata associated with that granule must be checked for the current home and counter values. If the counter that is found is different than the counter that was returned from the Lookup Master when the transaction was originally submitted to the system, then the transaction is aborted and restarted. Deterministic systems ensure that all data progress through the same sequence of updates at every replica, without runtime coordination. Since home metadata is part of the data granule, the metadata is updated at the same point within the sequence of updates of that granule at every region. Therefore, any assumed single-home transaction that is not actually single-home will be exposed as nonsingle-home independently at each region (i.e., each region will independently, without coordination, observe that it is not singlehome, and will all agree to abort the transaction without any crossregion communication). The transaction is then restarted as a multihome transaction. Similarly, if an assumed single-home transaction is indeed single-home, but the assumed home is incorrect, all regions will see the incorrect home and counter annotation and independently agree to abort the transaction.</p><p>In SLOG-B, the client is notified that a transaction has committed as soon as the first region commits it. For SLOG-HA, the client cannot be notified of the commit until the batch of the input log that contains this transaction has been replicated to a configurable number of nearby regions. Since only the input is replicated, replication latency can be overlapped with transaction processing. <ref type="figure" target="#fig_2">Figure 3</ref> shows an example of this process. Each region contains a complete copy of the database, with its "home" granule shown</p><formula xml:id="formula_1">A B C A B C A B C Region 0 Region 1 Region 2 T1 T3 T2</formula><p>T1: A T2: A, B T3: B T4: B</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>T1-T20-T3-T21-T4</head><p>Region 0:</p><p>Region 1:</p><formula xml:id="formula_2">Region 2: T3-T21-T4-T1-T20 T3-T1-T20-T21-T4</formula><p>Global serializable Order:</p><formula xml:id="formula_3">T1 T3 T2 T4</formula><p>global log:</p><formula xml:id="formula_4">T1-T20 T3-T21-T4 local log: T2 T4 T2 ........ ..</formula><p>Global multi-home log <ref type="figure">Figure 4</ref>: Multi-home transactions in SLOG.</p><p>in red and underlined. T1 and T2 update granule A and therefore are sent to region 0 (batch 0-1 is created that contains T1 and T2); T3 and T4 update granule B and are sent to region 1 (which places them in separate batches -T3 is in batch 1-1, and T4 in batch 1-2). Region 0 sends batch 0-1 to the other two regions, and region 1 sends batch 1-1 and batch 1-2 to the other two regions. Thus all three batches appear in the global log of all three regions. However, the order in which these batches appear in the three respective global logs is different. The only guarantee is that 1-2 will appear after 1-1, since they originated from the same region. If all transactions are single-home, then it is guaranteed that each region's local log will access a disjoint set of database system granules (i.e., transactions across local logs do not conflict with each other). Therefore, the limited degree to which the global logs are ordered differently across different regions will not cause replica divergence. However, if there exist multi-home transactions in the workload, these differences may result in replica divergence. For example, if T2 accessed both A and B (instead of just A in our example above), the order of processing T2 and T3 now makes a difference since they both access B. Since T2 and T3 may appear in different orders in the global logs, there is a risk of region divergence. We will now discuss how SLOG deals with this problem.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">Multi-home transactions</head><p>All multi-home transactions, no matter where they originate, must be ordered with respect to each other. A variety of global ordering algorithms could be used, such as (1) Using a single ordering server <ref type="bibr" target="#b16">[19]</ref>, (2) Running Paxos across all regions <ref type="bibr" target="#b84">[87]</ref>, or (3) Sending all multi-home transactions to the same region to be ordered by the local log there. Our current implementation uses the third option for simplicity; however, the second option is more robust to failure or unavailability of an entire region. The last line of Re-ceiveNewTxn in <ref type="figure" target="#fig_1">Figure 2</ref> is vague enough to allow for either option. Either way, all regions receive the complete set of multi-home transactions in their proper order via calls to InsertIntoLocalLog.</p><p>Recall that the assumed home information for each granule is stored inside the transaction by ReceiveNewTxn. InsertIntoLocal-Log checks to see if the region at which the code is running is the assumed home for any of the granules that will be accessed. If so, it generates a special kind of transaction, called a LockOnlyTxn, that consists only 3 of locking the local reads and local writes of the multi-home transaction.</p><p>A LockOnlyTxn is similar to a single-home transaction -it only involves local granules, and it is placed in the local log of its home region (alongside regular single-home transactions) which is replicated (eventually) into the global log of every other region. The only difference is that they do not have to include executable code. The code for the multi-home transaction can arrive separatelyas part of the local log from the multi-home transaction ordering module, which eventually gets integrated into the global log at every region. LockOnlyTxns exist to specify how the multi-home transaction should be ordered relative to single-home transactions at that region. Depending on where the LockOnlyTxn gets placed in the local log of that region, it will ensure that the multi-home transaction will observe the writes of all transactions earlier than it in the local log, and none of the writes from transactions after it.</p><p>This leads to a difference in execution of single-home vs. multihome transactions. Single-home transactions appear once in a region's global log. The lock manager thread reads the single-home transaction from the global log and acquires all necessary locks before handing over the transaction to an execution thread for processing. In contrast, a multi-home transaction exists in several different locations in a region's global log. There could be an entry containing the code for that transaction, and then separately (usually later in the log), several LockOnlyTxns -one from each region that houses data expected to be accessed by that transaction. The code can start to be processed as soon as it is reached in the global log. However, the code will block whenever it tries to access data for which the corresponding LockOnlyTxn has yet to complete. The bottom half of <ref type="figure" target="#fig_1">Figure 2</ref> shows the pseudocode for this process. <ref type="figure">Figure 4</ref> shows an example of multi-home transaction processing. The home information and set of transactions submitted to the system are the same as in <ref type="figure" target="#fig_2">Figure 3</ref>. The only difference is that T2 now accesses A and B and is thus multi-home. Whichever region receives T2 from the client annotates it with the assumed home information (which, in this example, is correct) and sends it to the multi-home ordering module. At Region 0, InsertIntoLocal-Log(T2) is called after it has placed single-home T1 into its local log. It therefore places its generated LockOnlyTxn for T2 after T1. LockOnlyTxns for a given multi-home transaction are shown in the figure with the subscript of the region that generated it 4 . In-sertIntoLocalLog(T2) is called at Region 1 between placing single home transactions T3 and T4 into its local log and thus places the LockOnlyTxn for T2 it generates there. InsertIntoLocalLog(T2) is also called at Region 2 but no LockOnlyTxn is generated since it was not listed as the home for any data accessed by that transaction. The local logs are replicated to every other region and are interleaved differently, which results in T2's LockOnlyTxns being ordered differently at each region. This is not problematic since LockOnlyTxns always access disjoint data and thus commute.</p><p>Regions do not diverge since (1) the global log at each region maintains the original order of the local logs that it interleaves, (2) local logs from different regions access disjoint data (unless the In some cases, a LockOnlyTxn may include a limited amount of code, such as non-dependent reads/writes of the locked data.</p><p>home for a data granule has moved -see Section 3.4), and (3) the deterministic processing engine ensures that transactions are processed such that the final result is equivalent to the result of processing them in the serial order present in that region's global log.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3.1">Proof of strict serializability</head><p>Serializability theory analyzes the order in which reads and writes occur to data in a database. This order is usually called a schedule <ref type="bibr" target="#b26">[29]</ref>, history <ref type="bibr" target="#b60">[63]</ref>, or log <ref type="bibr" target="#b13">[16]</ref>. Serializability proofs take the form of proving that a given schedule, in which read and writes from different transactions may be interleaved with each other, is equivalent to a serial schedule. In replicated systems, the equivalence must be to a 1-copy serial schedule <ref type="bibr" target="#b7">[10]</ref>.</p><p>Define the relationship Ti reads-x-from Tj as done by Bernstein and Goodman <ref type="bibr" target="#b11">[14]</ref>: Ti reads-x-from Tj holds if transaction Tj writes to x, and no other transaction writes to it before Ti reads from it. Two schedules are equivalent if they have the same set of reads-from relationships -for all i, j, and x, Ti reads-x-from Tj in one schedule iff this relationship holds in the other <ref type="bibr" target="#b11">[14]</ref>.</p><p>A serial schedule is one-copy equivalent (1-serial) if for all i, j, and x, if Ti reads-x-from Tj then Tj is the last transaction prior to Ti that writes to any copy of x <ref type="bibr" target="#b7">[10,</ref><ref type="bibr" target="#b11">14]</ref>.</p><p>SLOG has one global log per region. Even though each global log contains the same set of transactions, each region may process its global log according to a different schedule.</p><p>LEMMA 3.1. All region schedules are equivalent A SLOG region requests and acquires locks in the order that transactions appear in its global log. Therefore, when a transaction Ti reads x, the Tj for which Ti reads-x-from Tj will hold is the closest previous transaction to Ti in the global log that writes x. Since there is only one master region for a given x, and all reads and writes to x are found in the local log for its master region, this Tj will come from the same local log as Ti. Thus, the Tj for which Ti reads-x-from Tj will hold will be the same in all global logs, since each global log orders batches from any given local log identically. LEMMA 3.2. All serializable schedules in SLOG are 1-copy serializable. We already explained in Lemma 3.1 that if Ti readsx-from Tj holds, then Ti and Tj are in the same local log and Tj is the closest previous transaction to Ti in that local log that writes x. It is impossible for any other local log to contain a transaction that writes to x since only the master region for a data item can include transactions that write to x in its local log.</p><p>Less formally: a 1-serial schedule represents a serial execution of transactions in which the replicated copies of each data item behave like a single logical copy of that data item <ref type="bibr" target="#b7">[10]</ref>. In SLOG, this is enabled by ensuring that all writes and reads (excluding read-only snapshot transactions running at a reduced consistency level) to a data item (granule) are managed by its master.</p><p>Since all region schedules are equivalent and all serializable schedules in SLOG are 1-copy serializable, all we have to prove is that the schedule from any region is strictly serializable. This is straightforward since any schedule produced by a 2PL implementation, if locks are held until after the transaction commits, and all reads read the value of the most recent write to that data item, then the resulting schedule is strictly serializable <ref type="bibr" target="#b13">[16,</ref><ref type="bibr" target="#b61">64]</ref>. SLOG's deterministic locking scheme acquires all locks prior to processing a transaction and releases all locks after commit. Thus it is a form of 2PL.</p><p>SLOG actually guarantees external consistency <ref type="bibr" target="#b34">[37]</ref> which is slightly stronger than strict serializability. External consistency enforces an ordering of all transactions -even concurrent onessuch that the execution is equivalent to executing the transactions serially in commit time order. SLOG commits conflicting transactions in the order they appear in each local log (but does not order commit times across local logs). Since all conflicting transactions appear in the same local log, the order in the log specifies their equivalent serial order.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4">Dynamic remastering</head><p>As access patterns change, it may become desirable to move the home of a data granule, which we refer to as a "remaster" operation. Previous work has shown that simple algorithms are sufficient for deciding when to remaster data. For example, PNUTS changes a data item's master region if the last 3 accesses to it were from a region other than its master <ref type="bibr" target="#b17">[20]</ref>. Tuba similarly uses a simple cost model based on recent accesses to decide when to remaster <ref type="bibr" target="#b6">[9]</ref>. The challenge in SLOG is not when to remaster (SLOG uses the PNUTS heuristic). Rather the challenge is how to remaster data without bringing the system offline, while maintaining strict serializability and region non-divergence guarantees and high throughput.</p><p>As specified in Section 3.2, SLOG stores two metadata values with each data granule: the identifier of its master region at the time it was written, and a count of the number of times its master has changed. A remaster request modifies both parts of this metadata, and can, for the most part, be treated similarly to any other write request. The request is sent to the home region for that granule, which will insert the request in its local log, which will eventually cause the request to appear in the global logs of all regions. When each region processes this request in its global log, it updates the granule metadata. The Lookup Master of that region is also asynchronously updated to reflect the new mastership information.</p><p>A remaster request writes to a single data granule and is thus a single-home transaction. It is sent to its current home region potentially concurrently with other requests to access data within the granule. The order that these requests are placed in the local log of this home region determines which ones will be successful. Transactions that are placed in the local log after the remaster request will see the new granule metadata when they access it, and will abort and resubmit to the new master.</p><p>Remastering causes a particular danger to the non-divergence guarantees of SLOG. As mentioned in Section 3.2, the first SLOG region to receive a transaction annotates it with the (home,counter) metadata that was returned from its LookupMaster cache for every granule that it accesses, and stores this cached metadata inside the transaction code. Regions use this cached information to decide whether they are responsible for handling it entirely (if it is singlehome) or creating a LockOnlyTxn for it (multi-home). Once the LookupMaster at a region is updated after the region has processed the remaster request, it will start annotating transactions with the new master information, even though other regions may not have processed the remaster request yet. These (up-to-date) annotations will cause the transaction to be placed into the local log of the new home region for that granule. However, the remaster request itself is processed by the local log of the old home region. This leads to a potential race condition across the local logs. For example, assume a transaction, T, accesses the remastered granule and is sent to the new master region. Some regions may place the log batch that contains T before the log batch that contains the remaster request, while other regions may place it afterwards. This is possible because the local logs from different regions can be interleaved differently in the global log at different regions. As long as T and the remaster request are in different local logs, no assumptions can be made about their relative order in each region's global log. It is true that the remaster request was submitted to SLOG first, and must be completed by at least one region before T can possibly come into existence, so most of the time T will appear after the remaster request in every global log. However, this cannot be guaranteed. If the commit or abort decision of T is dependent on how a region interleaves local logs, replica divergence may occur.</p><p>An example of this divergence danger is shown in <ref type="figure" target="#fig_3">Figure 5</ref>. In this example, replica 0 receives transaction T1, and annotates the transaction with the current home for the accessed granule B -region 1 -and sends it there. After replica 1 executes T1, the threshold necessary to remaster granule B to replica 0 is reached, and a remaster transaction Tremaster is generated and sent to replica 1. Tremaster is thus inserted into replica 1's local log. Meanwhile, replica 1 receives two other transactions that also access B: T2 and T3. The relative location of the Tremaster transaction in replica 1's local log is after T2 but before T3. After execution of Tremaster, the home for B will have changed, and T3 is now in the wrong local log. Since all regions see transactions from the same local log in the same order, all regions will see T3 after Tremaster and independently decide to abort it. The end result is that T3 gets aborted and resubmitted to SLOG as T 3new, which gets placed into the local log of B's new home: region 0. The problem is: local logs from different regions may be interleaved differently. Regions 0 and 1 place the local log from region 0 that contains T 3new after the local log entry from region 1 that contains T2. Thus, they see the serial order: T1, T2, and then T3. However, region 2 places the local log from region 0 that contains T 3new before the local log entry from region 1 that contains T2. Thus, it sees a different serial order: T1, T3, T2. This leads to potential replica divergence.</p><p>The counter part of the metadata is used to circumvent this danger. Prior to requesting a lock on a granule, SLOG compares the counter that was written into the transaction metadata by the Lookup-Master at the region the transaction was submitted to with the current counter in storage at that region. If the counter is too low, it can be certain that the LookupMaster that annotated the transaction had out of date mastership information, and the transaction is immediately aborted (every region will independently come to this same conclusion). If the counter is too high, the transaction blocks until the region has processed a number of remaster requests for that data granule equal to the difference between the counters.</p><p>Performing counter comparisons prior to lock acquisition instead of afterwards ensures that the lock is available for the remaster request, which needs the lock to update the header. However, the  <ref type="figure">Figure 6</ref>: Pseudocode for dynamic remastering checks must be repeated after lock acquisition. The pseudocode presented in <ref type="figure">Figure 6</ref> outlines how counter checks are performed prior to requesting locks, and the end of the pseudocode in <ref type="figure" target="#fig_1">Figure  2</ref> shows how these checks are performed again during execution.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">EXPERIMENTAL RESULTS</head><p>Since SLOG relies on deterministic processing to avoid two phase commit and achieve high throughput even when there are many multi-home transactions in a workload, we implemented SLOG via starting with the open source Calvin codebase [2], adding the two Paxos logs per region and the Lookup Master index, and processing transactions according to the specification outlined in Section 3.</p><p>As described in Section 1, SLOG is the first system to achieve (1) strict serializability (2) low latency writes (on at least some transactions and (3) high throughput transactions even under high conflict workloads. Throughput and latency are performance measures, which we investigate in this section. We only compare SLOG to other systems that achieve strict serializability. Our two primary comparison points are architectures that achieve low latency writes or high throughput, but not both. More specifically, we built a nondeterministic system that is based on the design of NuoDB: different data is mastered in different regions (NuoDB calls this "chairmanship") and all writes and reads to data are controlled by the chairman. Transactions that access data chaired by different machines require coordination across these machines. NuoDB uses an MVCC algorithm that is susceptible to write skew anomalies (and thus is not serializable). In order to guarantee strict serializability, we use instead a traditional distributed 2PL algorithm where the lock manager for a granule is located in its home partition. We will call this implementation 2PL-coord. We expect 2PL-coord to achieve low-latency writes (reads and writes to data that are mastered nearby can complete without coordination), but poor throughput (as explained in Section 1).</p><p>Since we started with the original Calvin codebase, we use Calvin as our second comparison point. By moving almost all commit and replication coordination outside of transactional boundaries, Calvin achieves high throughput even for high conflict workloads <ref type="bibr" target="#b67">[70,</ref><ref type="bibr" target="#b84">87]</ref>. However, the latency of every transaction is at least equal to the latency of multi-region Paxos that is run prior to every transaction processed by the system. We do not expect SLOG to achieve the same throughput as Calvin for two reasons: (1) Multi-home transactions cause the conflicting intermediate transactions between two of its LockOnlyTxns to potentially block. (2) The ability of the system to remaster granules dynamically causes more checks and potential aborts for each transaction. On the other hand, SLOG is expected to yield much better latency than Calvin for workloads containing many single-home transactions. We thus ran some experiments to more precisely explore these differences in throughput and latency between Calvin and SLOG.</p><p>As a third comparison point, we use Cloud Spanner. Cloud Spanner is an entirely separate code base than Calvin, and is far more production-ready and feature-complete. Thus, this is not an applesto-apples comparison, and raw magnitude performance differences mean little. Nonetheless, information can be gleaned from the performance trends of each system relative to itself as experimental variables are varied, which shed light on the performance consequences of the architectural differences between the systems.</p><p>For these experiments, we used system deployments that replicated all data three ways across data-centers. All experiments (except for the Cloud Spanner experiments which we will discuss later) were run on EC2 x1e.2xlarge instances (each instance contains 244 GB of memory, and 8 CPU cores) across six geographical regions: US-East (Virginia), US-East (Ohio), US-West (Oregon), US-West (California), EU (Ireland) and EU (London). The database system was partitioned across 4 machines within each region. For SLOG-HA (the HA mode from Section 3 that is tolerant to failure of an entire region), the US-East(Virginia) region is synchronously replicated to US-East (Ohio); US-West (Oregon) to US-West (California); and EU (Ireland) to EU (London).</p><p>We use a version of the Yahoo Cloud Serving Benchmark (YCSB) <ref type="bibr" target="#b18">[21]</ref> adapted for transactions, and also the TPC-C New Order transaction to benchmark these systems. In both cases, each record (tuple) is stored in a separate SLOG granule, and we therefore use the terms "record" and "granule" interchangeably in this section. We vary the important parameters that can affect system performance relative to each other: likelihood of transactions to lock the same records (i.e., conflict ratio between transactions), percentage of transactions that are multi-partition within a region, and the ratio of single-home to multi-home transactions.</p><p>For YCSB, we use a table of 8.8 billion records, each 100 bytes. Since we have 4 EC2 instances per region, each instance contains a partition consisting of 2.2 billion records. Each region contains a complete replica of the data. Each transaction reads and updates 10 records. In order to carefully vary the contention of the workload, we divide the data set into "hot records" and "cold records". Each transaction reads and writes at (uniformly) random two hot records, and all remaining reads and writes are to cold records. Cold record accesses have negligible contention, so the contention of an experiment can be finely tuned by varying the size of the hot record set.</p><p>For the TPC-C dataset, each of the 4 EC2 instances per region contain 240 warehouses (960 warehouses in total), and each warehouse contains 10 districts. In addition to serving as a natural partitioning attribute, warehouses also make for a natural "housing" attribute -the home for a record associated with a particular warehouse should be at the region closest to the physical location of that warehouse (we spread the TPC-C warehouses evenly across the regions in our deployment). Thus, unlike our YCSB experiments, for TPC-C, only multi-partition transactions can be multi-home.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Throughput experiments</head><p>Throughout this section we use the abbreviations sp and mp to refer to single-and multi-partition transactions, and sh and mh for single-home and multi-home. For YCSB data, it is possible for a single partition to contain records that are mastered at different regions. Therefore, it is possible for a transaction to be both singlepartition (sp) and multi-home (mh).</p><p>We compare SLOG to our primary comparison points: 2PLcoord and Calvin in this section, and to Spanner in Section 4.3. Our first experiment, shown in <ref type="figure" target="#fig_4">Figure 7</ref>, varies the % mp and % mh parameters. Calvin is unaffected by % mh since it has no concept of a "home" for data. The performance of 2PL-coord is only presented at 0% mp (which is its best case scenario). <ref type="figure" target="#fig_4">Figure 7</ref>(a) shows the results of our YCSB experiment under low contention (each partition has 10,000 hot records). When running SLOG with 0% mh, the overhead of multi-home transactions is not present in the workload, and, as expected, all systems perform the same. As more multi-home transactions are added to the workload, the throughput of SLOG and 2PL-coord deteriorates relative to Calvin. In SLOG, the reason is two-fold: first, extra computational resources are consumed by generating the LockOnlyTxns and processing their associated log entries. Second, whenever a LockOnlyTxn appears in the global log of a region prior to a differ- ent LockOnlyTxn from the same original multi-home transaction, that LockOnlyTxn and all transactions that conflict with it (including single-home transactions) must block until the later LockOn-lyTxn is processed. Under low contention, the percentage of transactions that are blocked is low; however, under high contention <ref type="figure" target="#fig_4">(Figure 7(b)</ref>), the contention and reduction of throughput caused by multi-home transactions is higher.</p><p>The throughput drop for multi-home transactions is much larger for 2PL-coord than for SLOG. This is because 2PL-coord has a longer window during which contending transactions cannot run. Once a transaction acquires a lock on a remote master, this lock is held for the entire duration of transaction processing, including the time to acquire other locks, execute transaction logic, and perform the commit protocol. In contrast, SLOG only prevents conflicting transactions from running during the window between placing the first and last LockOnlyTxn into its global log. The difference between 2PL-coord and SLOG is more extreme at high contention <ref type="figure" target="#fig_4">(Figure 7(b)</ref>) where 2PL-coord's throughput is so low at 50% and 100% multi-home that the bars are not visible on the graph. [See <ref type="figure" target="#fig_0">Figure 1</ref> for a line graph version of 2PL-coord for this experiment.]</p><p>Multi-partition transactions require coordination across the partitions in any ACID-compliant distributed database system. Traditional database systems use 2PC to ensure that all partitions commit. In contrast, deterministic database systems like Calvin reduce this to a single phase that can be overlapped with transaction processing. Nonetheless, this coordination is not zero-cost in Calvin, and throughput decreases with more multi-partition transactions. In SLOG, part of the blocking that is imposed by the multi-home transaction processing code of SLOG is overlapped with the waiting that is necessary anyway because of multi-partition coordination. Therefore, the relative cost of multi-home transactions in SLOG is reduced as the % mp parameter increases.</p><p>This also explains why the throughput drop from Calvin to SLOG is more significant when the entire workload is single-partition. However, when there are multi-partition transactions in the workload, the difference between Calvin and SLOG is much smaller, since Calvin also must pay the extra coordination cost for multipartition transactions. In general, we have found that in practice, when every transaction is multi-partition, then no matter the contention level, and no matter the % multi-home level, the performance of Calvin and SLOG is similar.</p><p>Under high contention <ref type="figure" target="#fig_4">(Figure 7(b)</ref>), SLOG increases in throughput from 50% mh to 100% mh as a result of how the high contention workload is generated. We have 6 regions in this experiment, and each region is the master of 1/6 of all database records, which includes 1/6 of the hot records, and 1/6 of the cold records. For a single-home transaction, both hot records in the transaction come from the same pool of one sixth of all the hot records in the table. However, for a multi-home transaction, the two hot records from the transaction come from different pools -5/6 of all the hot records. By expanding the pool of hot records that the transaction can draw from, this actually reduces the contention. The throughput of SLOG-HA is similar to SLOG since deterministic database systems do not need to hold locks during replication, so the synchronous replication to a different region does not cause additional contention, and there is no reduction in concurrency. Furthermore, the computing overhead of managing the replication itself on a per batch basis is negligible. <ref type="figure" target="#fig_5">Figure 8</ref> shows the results of the same experiment as <ref type="figure" target="#fig_4">Figure 7</ref>(a) at the worst case scenario of SLOG relative to Calvin: 100% multihome and 0% multi-partition transactions. Each client continuously sends 200 transactions per second to the system. 2PL-coord saturates much earlier than the other systems.</p><p>The results of the experiment on New Order transactions on the TPC-C dataset is shown in <ref type="figure" target="#fig_6">Figure 9</ref>. In TPC-C, warehouse and district records are "hot records", and each New Order transaction needs to read one or two warehouse records, and update one district record. TPC-C specification requires that 10% of New Order transactions need to access two separate warehouses, which may become multi-partition and/or multi-home transactions if those two warehouses are located in separate partitions (which is greater than 75% probability in our 4-partition set-up) or have different home regions. We ran this experiment using both this default TPC-C requirement, and also with 100% of transactions touching multiple warehouses (in order to increase the number of multi-partition and multi-home transactions in the workload). Since only transactions that touch multiple warehouses can be multi-home for this dataset, we have less flexibility in our ability to experiment with multi-home transactions. Thus, for the default TPC-C specification of 10% multi-warehouse transactions, the lines in the figure labeled as "0%/50%/100% of mw are mh" correspond to 0%, 5%, and 10% of all total transactions that are multi-home. However, when we make 100% of transactions multi-warehouse, 0%, 50%, and 100% mh correspond to 0%, 50%, and 100% of all total transactions.</p><p>For the 10% multi-warehouse experiment (TPC-C's required configuration), the performance of Calvin and SLOG are similar. These results resemble the YCSB experiment: when there are small numbers of multi-home transactions (a maximum of 10% in this case), the extra overhead in SLOG to process multi-home transactions is less noticeable. At 100% multi-warehouse transactions, Calvin performs slightly better than SLOG when there were 50% or 100% multi-home transactions. These results again resemble the YCSB experiment when there are large numbers of multi-partition and multi-home transactions. Once again, the reason why the difference between Calvin and SLOG is not larger is because SLOG is able to overlap the coordination required for multi-partition transactions with the coordination required for multi-home transactions.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.1">Dynamic Remastering</head><p>We now investigate the overhead of dynamic remastering of data in SLOG. We first ran an experiment where there are guaranteed to be no actual remastering operations in the workload, so SLOG does not have to perform the checks to see if mastership annotations at transaction submit time remain correct at runtime. As shown in <ref type="figure" target="#fig_0">Figure 10</ref>, we found that the savings achieved by avoiding these checks is negligible. This is because the home and counter information are stored inside the granule header. Since the granule has to be brought into cache anyway in order to be accessed, the extra CPU overhead of the two extra if-statements is not noticeable.</p><p>We also ran an experiment to investigate the actual overhead of record remastering. In this experiment, we measured the temporary throughput reduction during the remastering process of a single record. In order to isolate the throughput effects of just the remastering operation itself, and ignore the throughput benefits that arise from the reduction of multi-home transactions as a result of this remastering, the access-set of each transaction was reduced from 10 to 1. In this experiment, each region has one machine, and we vary the HOT set size as 10, 50 and 1000 records. The remaster operation is initiated approximately five seconds into the experiment.</p><p>The experimental results are in <ref type="figure" target="#fig_0">Figure 11</ref>. Once the remaster transaction is reached and processed in the local log of the region at which it was appended, throughput begins to drop because all subsequent transactions that access the same data are annotated with the old master information and will be aborted and resubmitted. At lower contention, this drop is small because there are fewer transactions that update the same record and must be aborted. Only at very high levels of contention is the drop noticeable. We magnified the size of the drop in the figure by having the y-axis labels not start at 0, but the actual percentage drop is no more than 3% even when </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.2">Throughput Experiments Conclusions</head><p>Of the two expected sources of throughput reduction of SLOG relative to Calvin, we found that only one is significant: the presence of multi-home transactions in the workload. However, the throughput reduction caused by multi-home transactions is softened by the presence of multi-partition transactions in a workload.</p><p>There are two categories of workloads: those that are easy to partition by data access and those that are hard to partition. Workloads that are easy to partition also tend to have location locality using the same partitioning function (as we found in our TPC-C experiment). For example, a partitioning scheme based on a group of users, group of products, or group of accounts usually have associated locations with each of these groups. Thus, different partitions will be mastered at different regions based on the access affinity of that partition to a location. Therefore, we expect most workloads to be in one of two categories: either it is mostly single-partition and mostly-single-home, or otherwise both multi-partition and multihome transactions are common. For both these categories, our experiments resulted in Calvin and SLOG achieving similar throughput even though Calvin has access to all transactions submitted to the system during pre-planning, while SLOG does not. Meanwhile, under high contention, SLOG's throughput is an order of magnitude higher than nondeterministic systems such as 2PL-coord (and, as will be discussed in Section 4.3, also Spanner). <ref type="figure" target="#fig_0">Figure 12</ref> shows the cumulative distribution function (CDF) of transaction latency for SLOG-B, SLOG-HA, and Calvin with 0%, 1%, 10% and 100% multi-home transactions for the same experimental setup as <ref type="figure" target="#fig_4">Figure 7</ref>(a). <ref type="figure" target="#fig_0">Figure 13</ref> looks deeper at the 10% multi-home case, showing 50%, 90%, and 99% latency as the number of clients sending 200 transactions per second to the system is varied. In these experiments, single-home transactions originate from a location near their home. As described above, Calvin places every strictly serializable transaction into a multi-region Paxos log, and thus its latency is dominated by the WAN round-trip times necessary for insertion into this log <ref type="bibr" target="#b29">[32,</ref><ref type="bibr" target="#b84">87]</ref>. To reduce the size of this log, Calvin only stores the batch identifiers in the log. The contents of each batch are replicated separately. Thus, Calvin generally incurs more than 200 ms latency for each transaction.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Latency experiments</head><p>As expected, SLOG's ability to commit single-home transactions as soon as they are processed at their home region allows SLOG to dramatically reduce its latency relative to Calvin. When the entire workload consists of such transactions (0% mh), almost every transaction achieves less than 10 ms latency -more than an order of magnitude faster than Calvin. The latency of SLOG is dominated by the batch delay prior to transaction processing, as each SLOG machine batches received transactions for 5ms prior to inserting the batch into the Paxos-maintained intra-region local log. In addition, communication with the distributed Lookup Master of a region usually requires network communication, and adds several milliseconds to the transaction latency.</p><p>A multi-home transaction being processed at a region cannot complete until all the component LockOnlyTxns arrive from the relevant regions. The farther away the relevant regions, the longer the latency. This delay is potentially longer than the global Paxos delay of Calvin, since Paxos only requires a majority of messages to be received, whereas multi-home transactions require messages from specific (potentially remote) regions. If any region runs behind in its log processing module, this delay gets magnified in the latency of other regions that wait for specific LockOnlyTxn log records from it. This effect is best observed in the 99% latency lines in <ref type="figure" target="#fig_0">Figure 13</ref>. In addition to the message delay, multi-home transactions also experience log queuing delay at both the remote and local regions, which further increases their latency.</p><p>SLOG-HA has a higher latency than SLOG-B since a region's input log is synchronously replicated to another region prior to commit. However, this additional latency is less noticeable for higher % mh since replication of log records in deterministic systems can begin prior to transaction execution (since only the input is replicated) and thus the replication latency is overlapped with the other latency caused by multi-home transactions discussed above.</p><p>Section 3.1 mentioned that SLOG also supports snapshot readonly transactions (which run at serializable isolation instead of strict serializable). The latency of such queries are similar to the 0% mh line in <ref type="figure" target="#fig_0">Figure 12</ref> since they are processed at a single region.   </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">Comparison to Spanner</head><p>Spanner is similar to SLOG in that it also supports strictly serializable transactions on top of geo-replicated storage. However, the performance profile of Spanner is substantially different. To investigate these differences, we ran the same YCSB benchmark on Cloud Spanner. As mentioned above, Spanner is a different (and more production-ready) codebase relative to SLOG, and runs on a different cloud platform than our SLOG codebase, so comparing the absolute performance numbers has little meaning. However, the differences in performance trends can yield insight into the consequences of the architectural differences between the systems.</p><p>Since Google's cloud does not have equivalent regions as AWS, we experimented with two different region-sets for Spanner: (1) nam3 where replicas are in Northern Virginia and South Carolina (and thus closer together than our Amazon regions) and (2) nameur-asia1 where replicas are more globally distributed (US, Belgium, and Taiwan). However, Cloud Spanner currently refuses to allow remote regions to be able to accept writes and participate in the Paxos protocol (due to the latency increase and throughput reduction this entails). Thus, the regions in Europe and Asia in nam-eur-asia1 are read-only and stale, and writes require communication only within a 1000 mile radius in the US. Therefore, we found nam3 and nam-eur-asia1 to have similar performance, and we report only nam3 in the figures (they are slightly more favorable to Spanner). We generated the workload for Spanner from 6 n1-standard-8 machines in Northern Virginia, each machine with 8 vCPUs and 30GB of RAM. We deployed SLOG on the most similar type of instance available on EC2: c4.2xlarge instances with 15GB RAM and 8 CPU cores. Spanner performed poorly on the large YCSB dataset from the previous experiments in a 4-node configuration, so we reduced the size of the YCSB dataset for both Spanner and SLOG to 40,000,000 records.</p><p>Cloud Spanner did not allow us to control how data was partitioned across the four nodes in each region. However, since our workload accessed 10 random tuples from the dataset, it must be assumed that virtually all transactions are multi-partition (since the chance that all 10 tuples come from the same 1 out of 4 partitions is very low). Thus, we compare Spanner against the 100% mp versions of SLOG. <ref type="figure" target="#fig_0">Figure 14</ref> presents normalized results where the throughput of SLOG and Spanner at different contention levels is displayed as a fraction of their throughput at the lowest contention. <ref type="figure" target="#fig_0">Figure 14</ref> shows that Spanner's throughput decreases rapidly as contention increases. At the highest contention, Spanner's through- SLOG-B 100% mp 0% mh SLOG-B 100% mp 100% mh Spanner <ref type="figure" target="#fig_0">Figure 14</ref>: SLOG/Spanner normalized throughput put decreased by a factor of 37 relative to its throughput at low contention. This is because Spanner does not allow conflicting transactions to run during two phase commit and Paxos-implemented georeplication. As contention increases, the number of transactions that can run concurrently decreases. If Cloud Spanner allowed synchronous replication over a larger diameter than their current 1000 mile limit, Paxos would take much longer, and Spanner's throughput reduction would be even more severe. In contrast, SLOG maintains strict serializability despite doing replication asynchronously, and does not require two phase commit. Thus, SLOG blocks contending transactions for a much shorter period relative to Spanner <ref type="bibr" target="#b2">5</ref> . It still experiences decreasing throughput as contention increases, but this decrease is less than a factor of 5 at the highest contention, as opposed to Spanner's factor of 37. Spanner's latency was similar to Calvin's for the same experiment from <ref type="figure" target="#fig_0">Figure 12</ref>. This is because write transactions in both Calvin and Spanner run Paxos over the geographic diameter of the deployment. Thus, SLOG has a significant latency advantage over Spanner for write transactions. However, read-only transactions do not require Paxos in Spanner and, if they originate near the Paxos leader, can complete in the same order of magnitude as single-home transactions in SLOG.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.">RELATED WORK</head><p>Asynchronous replication is widely used in geo-replicated distributed systems <ref type="bibr" target="#b0">[3,</ref><ref type="bibr" target="#b17">20,</ref><ref type="bibr" target="#b23">26,</ref><ref type="bibr" target="#b44">47,</ref><ref type="bibr" target="#b45">48,</ref><ref type="bibr" target="#b48">51,</ref><ref type="bibr" target="#b49">52,</ref><ref type="bibr" target="#b62">65,</ref><ref type="bibr" target="#b79">82]</ref>, and singlemaster replication <ref type="bibr" target="#b22">[25,</ref><ref type="bibr" target="#b57">60]</ref> is a popular implementation of asynchronous replication. Most of these systems use weak consistency models which are able to achieve low latency and high throughput, but do not support strictly serializable transactions. In order to support strict serializability, reads and writes must only be processed by the master copy in such "active-passive" architectures. We discussed examples of systems that do this in Section 1 and Section 4. Existing work (prior to SLOG) either do not support transactions that access data at multiple masters <ref type="bibr" target="#b15">[18,</ref><ref type="bibr" target="#b17">20,</ref><ref type="bibr" target="#b35">38,</ref><ref type="bibr" target="#b55">58,</ref><ref type="bibr" target="#b58">61,</ref><ref type="bibr" target="#b69">72]</ref>, rely on physical clock synchronization <ref type="bibr" target="#b59">[62]</ref>, or otherwise yield poor latency for such transactions (see <ref type="bibr">Section 4)</ref>.</p><p>The challenges of supporting general serializable ACID transactions over a globally-replicated and distributed system has been discussed in detail in prior work <ref type="bibr" target="#b35">[38,</ref><ref type="bibr" target="#b37">40,</ref><ref type="bibr" target="#b39">42,</ref><ref type="bibr" target="#b88">91]</ref>. The MDCC <ref type="bibr" target="#b43">[46]</ref>, Spanner's absolute throughput numbers are also significantly lower than SLOG's.</p><p>TAPIR <ref type="bibr" target="#b91">[94]</ref>, Replicated Commit <ref type="bibr" target="#b51">[54]</ref>, and Carousel <ref type="bibr" target="#b90">[93]</ref> protocols reduce WAN round-trips; however, they still all incur cross-region latency to commit transactions. SLOG supports online data remastering which is related to a large body of work in this area <ref type="bibr" target="#b6">[9,</ref><ref type="bibr" target="#b25">28,</ref><ref type="bibr" target="#b52">55,</ref><ref type="bibr" target="#b70">73,</ref><ref type="bibr" target="#b77">80]</ref>. Unlike G-Store <ref type="bibr" target="#b20">[23]</ref> and L-Store <ref type="bibr" target="#b46">[49]</ref>, SLOG's core protocol does not require remastering. Rather, it is an optimization that handles situations where data locality access patterns change. Nonetheless, it is an important feature that is inspired by previous work. SLOG applies these ideas within the particular deterministic system environment in which SLOG is built.</p><p>SLOG decomposes transactions into multiple LockOnlyTxns in order to handle multi-region transactions. This approach is related to other research on transaction decomposition <ref type="bibr" target="#b10">[13,</ref><ref type="bibr" target="#b14">17,</ref><ref type="bibr" target="#b28">31,</ref><ref type="bibr" target="#b32">35,</ref><ref type="bibr" target="#b33">36,</ref><ref type="bibr" target="#b36">39,</ref><ref type="bibr" target="#b54">57,</ref><ref type="bibr" target="#b71">74,</ref><ref type="bibr" target="#b72">75]</ref>. However, LockOnlyTxns in SLOG do not necessarily include transaction code. Rather, their primary purpose is to order deterministic processing of a particular transaction relative to other transactions that may access overlapping datasets. LockOn-lyTxns in SLOG only include code when it is straightforward to automatically generate this code from the original transaction. Unlike other transaction decomposition approaches, the LockOnlyTxn approach does not result in SLOG placing any kind of restrictions on the transactions that are being decomposed, and SLOG fully supports ad-hoc transactions.</p><p>Transaction Chains <ref type="bibr" target="#b92">[95]</ref> achieves low latency geo-replication by chopping transactions into pieces, and using static analysis to determine if each hop can execute separately. In contrast, SLOG does not require any static analysis or independence requirements of transactions. Furthermore, SLOG supports strict serializability, whereas Transaction Chains supports only serializability with readyour-writes consistency.</p><p>Previous work explores merging or synchronizing multiple logs to generate a global serialization order for partitioned systems <ref type="bibr" target="#b12">[15,</ref><ref type="bibr" target="#b21">24,</ref><ref type="bibr" target="#b47">50]</ref>; however, this work does not support geo-replicated configurations. ConfluxDB <ref type="bibr" target="#b15">[18]</ref> uses log merging to implement a multireplica scheme, but does not support multi-master transactions, and only supports snapshot isolation.</p><p>There have been several proposals for deterministic database system designs <ref type="bibr" target="#b40">[43,</ref><ref type="bibr" target="#b41">44,</ref><ref type="bibr" target="#b42">45,</ref><ref type="bibr" target="#b66">69,</ref><ref type="bibr" target="#b75">78,</ref><ref type="bibr" target="#b76">79,</ref><ref type="bibr" target="#b80">83,</ref><ref type="bibr" target="#b81">84,</ref><ref type="bibr" target="#b82">85,</ref><ref type="bibr" target="#b84">87]</ref>. These papers also make the observation that deterministic database systems facilitate replication since the same input can be independently sent to two different replicas without concern for replica divergence. However, none of those deterministic database systems are able to achieve low-latency geo-replicated transactions.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.">CONCLUSION</head><p>Current state-of-the-art geo-replicated systems force their users to give up one of: (1) strict serializability (2) low latency writes (3) high transactional throughput. Some widely-used systems force their users to give up two of them. For example, Spanner experiences poor throughput under data contention, while also paying high-latency cross-region Paxos for each write. SLOG leverages physical region locality in an application workload in order to achieve all three, while also supporting online consistent dynamic "re-mastering" of data as application patterns change over time.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.">ACKNOWLEDGMENTS</head></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 :</head><label>1</label><figDesc>Single-master throughput under contention.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 2 :</head><label>2</label><figDesc>Pseudocode for core SLOG functionality beginning and end of InsertIntoLocalLog inFigure 2. A separate Paxos process interleaves batches from the local log with batches from the local logs that are received from other regions in order to create that region's view of the global log. This is shown in the Re-ceiveBatch function. The pseudocode for InsertIntoLocalLog and ReceiveBatch inFigure 2are written as if they are being called on the region as a whole. The details of how these functions are mapped to individual machines at a region are not shown, to make the pseudocode easier to read.Processing of transactions by the different servers within that region works similarly to distributed deterministic database systems</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 3 :</head><label>3</label><figDesc>Single-home transactions in SLOG.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 5 :</head><label>5</label><figDesc>Data remastering in SLOG.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Figure 7 :</head><label>7</label><figDesc>YCSB throughput experiments.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>Figure 8 :</head><label>8</label><figDesc>Throughput while varying client count</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_6"><head>Figure 9 :</head><label>9</label><figDesc>n 10 % m w S LO G -B 10 % m w S LO G -H A 10 % m w C al vi n 10 0% m w S LO G -B 10 0% m w S LO G -H A 10 0% m w throughput (txns/sec) 0% of mw are mh 50% of mw are mh 100% of mw are mh TPC-C New Order throughput experiments</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_7"><head>Figure 10 :</head><label>10</label><figDesc>Overhead of dynamic remastering checks</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_8"><head>Figure 11 :</head><label>11</label><figDesc>Throughput reduction during remastering the HOT set size is 10. The reason why the overhead is small is because transactions are aborted and resubmitted prior to their execution, so the amount of resources wasted on aborted transactions is small. Throughput returns to normal once the Lookup Master cache at each region has been updated to reflect the correct new master, and no new transactions submitted to the system have incorrect annotations and have to be aborted.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_9"><head>Figure 12 :</head><label>12</label><figDesc>mh SLOG-B 1% mh SLOG-B 10% mh SLOG-B 100% mh SLOG-HA 0% mh SLOG-HA 1% mh SLOG-HA 10% mh SLOG-HA 100% mh SL O G -B 0&amp; 1% m h SL O G -B 10 % m h SL O G -B &amp; SL O G -H A 10 0% m h SL O G -H A 0&amp; 1% m h SL O G -H A 10 % m h Calvin CDF of transaction latency</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_11"><head>Figure 13 :</head><label>13</label><figDesc>Latency (10% mh) while varying client count</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head></head><label></label><figDesc>function ReceiveNewTxn(txn): masterInfo = ∅ foreach granule in txn.readSet txn.writeSet masterInfo = masterInfo LookupMaster.Lookup(granule) txn.masterInfo = masterInfo if (num of unique regions in txn.masterInfo == 1) txn.singleHome = true send txn to InsertIntoLocalLog(txn) of that home region else txn.singleHome = false send txn to the multi-home txn ordering module //ordering module orders all multi-home txns and calls //InsertIntoLocalLog(txn) at every region in this order function InsertIntoLocalLog(txn): if (txn.singleHome == true) append txn at end of localLogBatch else accessSet = ∅ foreach &lt;granule,granule.homeRegionID&gt; in txn.masterInfo if (granule.homeRegionID == this.regionID) accessSet = accessSet granule if (accessSet = ∅)</figDesc><table /><note>t = new LockOnlyTxn(txn.ID,accessSet) append t at end of localLogBatch if (isComplete(localLogBatch)) batchID = insert localLogBatch into Paxos-managed local log call ReceiveBatch(localLogBatch, batchID) at each region init new localLogBatch function ReceiveBatch(batch, batchID): localLogs[batch.regionID][batchID] = batch prevID = largest batch ID in global log from batch.regionID while (localLogs[batch.regionID][prevID+1] = null) append localLogs[batch.regionID][prevID+1] into global log prevID = prevID + 1 Lock manager thread code that continuously runs: txn = getNextTxnFromGlobalLog() //block until exists if (txn.isSingleHome == false and txn.lockOnlyTxn == false) ExecutionEngine.process(txn) //don't request locks yet else Call RequestLocks(txn) //pseudocode in Figure 6 Code called after all locks for single-home txn acquired: ExecutionEngine.process(txn) Execution engine code called prior to read/write of granule: if (don't have lock on granule) //can happen if txn is multi-home Block until have lock //wait for needed lockOnlyTxn //will always eventually get lock since SLOG is deadlock-free if (txn.masterInfo[granule] = granule.header.masterInfo) RELEASE LOCKS AND ABORT TRANSACTION Execution engine code run at end of every transaction: ReleaseLocks(txn)</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head></head><label></label><figDesc>Lock manager thread: RequestLocks(txn): bool can execute now = true; foreach granule in txn.readSet txn.writeSet if (inLocalPartition(granule)) //a region may have &gt;1 partition if (granule.counter &gt; storage.getCounter(granule)) can execute now = false; else if (granule.counter &lt; storage.getCounter(granule)) RELEASE LOCKS AND ABORT TRANSACTION else //counters are the same can execute now = can execute now &amp; Lock(granule) //Lock(granule) returns true if lock acquired if (can execute now == true) Send txn to execution thread else Queue txn until locks are acquired and counters are correct</figDesc><table><row><cell>Lock manager thread: after releasing locks for txn:</cell></row><row><cell>if (txn was a remaster request)</cell></row><row><cell>Wake up txns that are waiting for this remaster request;</cell></row><row><cell>else</cell></row><row><cell>Wake up txns that are waiting on locks that were released;</cell></row></table><note></note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="2">For ease of exposition, we will assume that each region contains a complete copy of all data stored across the system. SLOG can also work correctly with incomplete replication.</note>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="4">The global log entries that contain T2's code are not shown in the figure, since the code blocks anyway until the LockOnlyTxns are reached. Furthermore, in some cases, code can be included in LockOnlyTxns, which makes the separate shipping of transaction code unnecessary.</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><p>We are grateful to Cuong Nguyen, Tasnim Kabir, Jianjun Chen, Sanket Purandare, Jose Faleiro, Tarikul Papon, and the anonymous reviewers for their feedback on this paper. We also thank the paper's shepherd: Phil Bernstein. This work was sponsored by the NSF under grants IIS-1718581 and IIS-1763797.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<ptr target="http://wiki.basho.com/riak.html" />
+		<title level="m">Riak</title>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Abadi</surname></persName>
+		</author>
+		<ptr target="http://dbmsmusings.blogspot.com/2019/06/correctness-anomalies-under.html" />
+	</analytic>
+	<monogr>
+		<title level="j">Correctness Anomalies Under Serializable Isolation</title>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<title level="m" type="main">Serializability vs Strict Serializability: The Dirty Secret of Database Isolation Levels</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Abadi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Freels</surname></persName>
+		</author>
+		<ptr target="https://fauna.com/blog/serializability-vs-strict-serializability-the-dirty-secret-of-database-isolation-levels" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Consistency Tradeoffs in Modern Distributed Database System Design: CAP is Only Part of the Story</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Computer</title>
+		<imprint>
+			<biblScope unit="volume">45</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">An Overview of Deterministic Database Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">M</forename><surname>Faleiro</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Communications of the ACM (CACM)</title>
+		<imprint>
+			<biblScope unit="volume">61</biblScope>
+			<biblScope unit="issue">9</biblScope>
+			<biblScope unit="page" from="78" to="88" />
+			<date type="published" when="2018-09" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Non-monotonic Snapshot Isolation: Scalable and Strong Consistency for Geo-replicated Transactional Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">S</forename><surname>Ardekani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Sutra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Shapiro</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2013 IEEE 32nd International Symposium on Reliable Distributed Systems, SRDS &apos;13</title>
+		<meeting>the 2013 IEEE 32nd International Symposium on Reliable Distributed Systems, SRDS &apos;13</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="163" to="172" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">A Self-Configurable Geo-Replicated Cloud Storage System</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">S</forename><surname>Ardekani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">B</forename><surname>Terry</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Symposium on Operating Systems Design and Implementation (OSDI)</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="367" to="381" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Site Initialization, Recovery, and Backup in a Distributed Database System</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Attar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">A</forename><surname>Bernstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Goodman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Software Engineering</title>
+		<imprint>
+			<biblScope unit="volume">10</biblScope>
+			<biblScope unit="issue">6</biblScope>
+			<biblScope unit="page" from="645" to="650" />
+			<date type="published" when="1984-11" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Coordination Avoidance in Database Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Bailis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Fekete</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">J</forename><surname>Franklin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Ghodsi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">M</forename><surname>Hellerstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Stoica</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">PVLDB</title>
+		<imprint>
+			<biblScope unit="volume">8</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="185" to="196" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Megastore: Providing Scalable, Highly Available Storage for Interactive Services</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Baker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Bond</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">C</forename><surname>Corbett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Furman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Khorlin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Larson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J.-M</forename><surname>Leon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lloyd</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Yushprakh</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Conference on Innovative Data system Research (CIDR)</title>
+		<meeting>the Conference on Innovative Data system Research (CIDR)</meeting>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="223" to="234" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Concurrency Control for Step-decomposed Transactions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">J</forename><surname>Bernstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">S</forename><surname>Gerstl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">M</forename><surname>Lewis</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Information Systems</title>
+		<imprint>
+			<biblScope unit="volume">24</biblScope>
+			<biblScope unit="issue">9</biblScope>
+			<biblScope unit="page" from="673" to="698" />
+			<date type="published" when="1999-12" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">A Proof Technique for Concurrency Control and Recovery Algorithms for Replicated Databases</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Bernstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Goodman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Distributed Computing</title>
+		<imprint>
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="32" to="44" />
+			<date type="published" when="1987-03" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Scaling Optimistic Concurrency Control by Approximately Partitioning the Certifier and Log</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">A</forename><surname>Bernstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Das</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Data Engineering Bulletin</title>
+		<imprint>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="32" to="49" />
+			<date type="published" when="2015-03" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Formal Aspects of Serializability in Database Concurrency Control</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">A</forename><surname>Bernstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">W</forename><surname>Shipman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><forename type="middle">S</forename><surname>Wong</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Software Engineering</title>
+		<imprint>
+			<biblScope unit="volume">5</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="203" to="216" />
+			<date type="published" when="1979-05" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Overview of Multidatabase Transaction Management</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Breitbart</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Garcia-Molina</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Silberschatz</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">The VLDB Journal</title>
+		<imprint>
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="181" to="240" />
+			<date type="published" when="1992-10" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<monogr>
+		<title level="m" type="main">ConfluxDB: Multi-Master Replication for Partitioned Snapshot Isolation Databases</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Chairunnanda</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Daudjee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">T</forename><surname>Ozsu</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2014" />
+			<publisher>PVLDB</publisher>
+			<biblScope unit="volume">7</biblScope>
+			<biblScope unit="page" from="947" to="958" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Data Management at Huawei: Recent Accomplishments and Future Challenges</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Ghazal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Ou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Sun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Zhou</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE International Conference on Data Engineering (ICDE)</title>
+		<imprint>
+			<date type="published" when="2019" />
+			<biblScope unit="page" from="13" to="24" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">PNUTS: Yahoo!&apos;s Hosted Data Serving Platform</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">F</forename><surname>Cooper</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Ramakrishnan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">U</forename><surname>Srivastava</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Silberstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Bohannon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H.-A</forename><surname>Jacobsen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Puz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Weaver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Yerneni</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">PVLDB</title>
+		<imprint>
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="1277" to="1288" />
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Benchmarking Cloud Serving Systems with YCSB</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">F</forename><surname>Cooper</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Silberstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Tam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Ramakrishnan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Sears</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 1st ACM Symposium on Cloud Computing, SoCC &apos;10</title>
+		<meeting>the 1st ACM Symposium on Cloud Computing, SoCC &apos;10</meeting>
+		<imprint>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="143" to="154" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Spanner: Google&apos;s Globally Distributed Database</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">C</forename><surname>Corbett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Dean</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Epstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Fikes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Frost</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">J</forename><surname>Furman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ghemawat</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Gubarev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Heiser</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Hochschild</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Hsieh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Kanthak</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Kogan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lloyd</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Melnik</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Mwaura</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Nagle</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Quinlan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Rao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Rolig</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Saito</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Szymaniak</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Taylor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Woodford</surname></persName>
+		</author>
+		<idno>8:1-8:22</idno>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Transactions on Computer Systems (TOCS)</title>
+		<imprint>
+			<biblScope unit="volume">31</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<date type="published" when="2013-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">G-Store: A Scalable Data Store for Transactional Multi Key Access in the Cloud</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Das</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">El</forename><surname>Abbadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 1st ACM Symposium on Cloud Computing, SoCC &apos;10</title>
+		<meeting>the 1st ACM Symposium on Cloud Computing, SoCC &apos;10</meeting>
+		<imprint>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="163" to="174" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Inferring a Serialization Order for Distributed Transactions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Daudjee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Salem</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE International Conference on Data Engineering (ICDE)</title>
+		<imprint>
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Lazy Database Replication with Snapshot Isolation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Daudjee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Salem</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the International Conference on Very Large Data Bases (VLDB)</title>
+		<meeting>the International Conference on Very Large Data Bases (VLDB)</meeting>
+		<imprint>
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Dynamo: Amazon&apos;s Highly Available Key-value Store</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Decandia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Hastorun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Jampani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Kakulapati</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lakshman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Pilchin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Sivasubramanian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Vosshall</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Vogels</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of Twenty-first ACM SIGOPS Symposium on Operating Systems Principles, SOSP &apos;07</title>
+		<meeting>Twenty-first ACM SIGOPS Symposium on Operating Systems Principles, SOSP &apos;07</meeting>
+		<imprint>
+			<date type="published" when="2007" />
+			<biblScope unit="page" from="205" to="220" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<monogr>
+		<title level="m" type="main">Causal Consistency and Latency Optimality: Friend or Foe?</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Didona</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Guerraoui</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Zwaenepoel</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2018" />
+			<publisher>PVLDB</publisher>
+			<biblScope unit="volume">11</biblScope>
+			<biblScope unit="page" from="1618" to="1632" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Squall: Fine-grained live reconfiguration for partitioned main memory databases</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">J</forename><surname>Elmore</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Arora</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Taft</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Pavlo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">El</forename><surname>Abbadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2015 ACM SIGMOD International Conference on Management of Data, SIGMOD &apos;15</title>
+		<meeting>the 2015 ACM SIGMOD International Conference on Management of Data, SIGMOD &apos;15</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="299" to="313" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">The Notions of Consistency and Predicate Locks in a Database System</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">P</forename><surname>Eswaran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">N</forename><surname>Gray</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">A</forename><surname>Lorie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><forename type="middle">L</forename><surname>Traiger</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Communications of the ACM (CACM)</title>
+		<imprint>
+			<biblScope unit="volume">19</biblScope>
+			<biblScope unit="issue">11</biblScope>
+			<biblScope unit="page" from="624" to="633" />
+			<date type="published" when="1976-11" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Lazy Evaluation of Transactions in Database Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Faleiro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Thomson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2014 International Conference on Management of Data, SIGMOD &apos;14</title>
+		<meeting>the 2014 International Conference on Management of Data, SIGMOD &apos;14</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<monogr>
+		<title level="m" type="main">High Performance Transactions via Early Write Visibility</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">M</forename><surname>Faleiro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Abadi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">M</forename><surname>Hellerstein</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2017" />
+			<publisher>PVLDB</publisher>
+			<biblScope unit="volume">10</biblScope>
+			<biblScope unit="page" from="613" to="624" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">FIT: A Distributed Database Performance Tradeoff</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">M</forename><surname>Faleiro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Data Engineering Bulletin</title>
+		<imprint>
+			<biblScope unit="volume">38</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="10" to="17" />
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<monogr>
+		<title level="m" type="main">Rethinking Serializable Multiversion Concurrency Control</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">M</forename><surname>Faleiro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015" />
+			<publisher>PVLDB</publisher>
+			<biblScope unit="volume">8</biblScope>
+			<biblScope unit="page" from="1190" to="1201" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">Latch-free Synchronization in Database Systems: Silver Bullet or Fool&apos;s Gold?</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">M</forename><surname>Faleiro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Conference on Innovative Data system Research (CIDR)</title>
+		<meeting>the Conference on Innovative Data system Research (CIDR)</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Using Semantic Knowledge for Transaction Processing in a Distributed Database</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Garcia-Molina</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Transactions on Database Systems (TODS)</title>
+		<imprint>
+			<biblScope unit="volume">8</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="186" to="213" />
+			<date type="published" when="1983-06" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Garcia-Molina</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Salem</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Sagas</surname></persName>
+		</author>
+		<title level="m">Proceedings of the 1987 ACM SIGMOD International Conference on Management of Data, SIGMOD &apos;87</title>
+		<meeting>the 1987 ACM SIGMOD International Conference on Management of Data, SIGMOD &apos;87</meeting>
+		<imprint>
+			<date type="published" when="1987" />
+			<biblScope unit="page" from="249" to="259" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<monogr>
+		<title level="m" type="main">Information Storage in a Decentralized Computer System</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">K</forename><surname>Gifford</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1981" />
+			<pubPlace>Stanford, CA, USA</pubPlace>
+		</imprint>
+	</monogr>
+	<note type="report_type">PhD thesis</note>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<analytic>
+		<title level="a" type="main">The Dangers of Replication and a Solution</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Gray</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Helland</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>O'neil</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Shasha</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 1996 International Conference on Management of Data, SIGMOD &apos;96</title>
+		<meeting>the 1996 International Conference on Management of Data, SIGMOD &apos;96</meeting>
+		<imprint>
+			<date type="published" when="1996" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<monogr>
+		<title level="m" type="main">Transaction Processing: Concepts and Techniques</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Gray</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Reuter</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1993" />
+			<publisher>Morgan Kaufmann Publishers Inc</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">Life Beyond Distributed Transactions: An Apostate&apos;s Opinion</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Helland</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Conference on Innovative Data system Research (CIDR)</title>
+		<meeting>the Conference on Innovative Data system Research (CIDR)</meeting>
+		<imprint>
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<analytic>
+		<title level="a" type="main">Linearizability: A Correctness Condition for Concurrent Objects</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">P</forename><surname>Herlihy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">M</forename><surname>Wing</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Transactions on Programming Languages and Systems (TOPLAS)</title>
+		<imprint>
+			<biblScope unit="volume">12</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="463" to="492" />
+			<date type="published" when="1990-07" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<monogr>
+		<title level="m" type="main">Trading consistency for scalability in distributed architectures</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Humble</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Marinescu</surname></persName>
+		</author>
+		<ptr target="http://www.infoq.com/news/2008/03/ebaybase" />
+		<imprint>
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<analytic>
+		<title level="a" type="main">Deterministic scheduling for transactional multithreaded replicas</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Jimenez-Peris</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Patino-Martinez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Arevalo</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE SRDS</title>
+		<imprint>
+			<date type="published" when="2000" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<analytic>
+		<title level="a" type="main">Concurrency control for partitioned databases</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">P C</forename><surname>Jones</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">R</forename><surname>Madden</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2010 International Conference on Management of Data, SIGMOD &apos;10</title>
+		<meeting>the 2010 International Conference on Management of Data, SIGMOD &apos;10</meeting>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<analytic>
+		<title level="a" type="main">Don&apos;t Be Lazy, Be Consistent: Postgres-R, A New Way to Implement Database Replication</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Kemme</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Alonso</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the International Conference on Very Large Data Bases (VLDB)</title>
+		<meeting>the International Conference on Very Large Data Bases (VLDB)</meeting>
+		<imprint>
+			<date type="published" when="2000" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<analytic>
+		<title level="a" type="main">MDCC: Multi-data center consistency</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Kraska</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Pang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Franklin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Madden</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Fekete</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">European Conference on Computer Systems</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<analytic>
+		<title level="a" type="main">Cassandra: A Decentralized Structured Storage System</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lakshman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Malik</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">SIGOPS Operating Systems Review</title>
+		<imprint>
+			<biblScope unit="volume">44</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="35" to="40" />
+			<date type="published" when="2010-04" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<analytic>
+		<title level="a" type="main">Making Geo-Replicated Systems Fast as Possible, Consistent when Necessary</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Porto</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Clement</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Gehrke</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Preguica</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Rodrigues</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Operating Systems Design and Implementation (OSDI)</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b46">
+	<analytic>
+		<title level="a" type="main">Towards a Non-2PC Transaction Management in Distributed Database Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Lin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Chang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">C</forename><surname>Ooi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K.-L</forename><surname>Tan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Wang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2016 International Conference on Management of Data, SIGMOD &apos;16</title>
+		<meeting>the 2016 International Conference on Management of Data, SIGMOD &apos;16</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="1659" to="1674" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b47">
+	<analytic>
+		<title level="a" type="main">Capturing Global Transactions from Multiple Recovery Log Files in a Partitioned Database System</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">G</forename><surname>Lindsay</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Bourbonnais</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Hamel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">C</forename><surname>Truong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Stankiewitz</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the International Conference on Very Large Data Bases (VLDB)</title>
+		<meeting>the International Conference on Very Large Data Bases (VLDB)</meeting>
+		<imprint>
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b48">
+	<analytic>
+		<title level="a" type="main">Don&apos;t Settle for Eventual: Scalable Causal Consistency for Wide-Area Storage with COPS</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Lloyd</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">J</forename><surname>Freedman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Kaminsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">G</forename><surname>Andersen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Symposium on Operating Systems Principles, SOSP &apos;11</title>
+		<meeting>the Symposium on Operating Systems Principles, SOSP &apos;11</meeting>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b49">
+	<analytic>
+		<title level="a" type="main">Stronger Semantics for Low-Latency Geo-Replicated Storage</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Lloyd</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">J</forename><surname>Freedman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Kaminsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">G</forename><surname>Andersen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 10th USENIX Conference on Networked Systems Design and Implementation, NSDI&apos;13</title>
+		<meeting>the 10th USENIX Conference on Networked Systems Design and Implementation, NSDI&apos;13</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="313" to="328" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b50">
+	<analytic>
+		<title level="a" type="main">The FuzzyLog: A Partially Ordered Shared Log</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Lockerman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">M</forename><surname>Faleiro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Kim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Sankaram</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Aspnes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Siddhartha</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Balakrishnan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">13th USENIX Symposium on Operating Systems Design and Implementation</title>
+		<imprint>
+			<date type="published" when="2018-10" />
+			<biblScope unit="page" from="357" to="372" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b51">
+	<analytic>
+		<title level="a" type="main">Low-latency Multi-datacenter Databases using Replicated Commit</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Mahmoud</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Nawab</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Pucher</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">E</forename><surname>Abbadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">PVLDB</title>
+		<imprint>
+			<biblScope unit="volume">6</biblScope>
+			<biblScope unit="issue">9</biblScope>
+			<biblScope unit="page" from="661" to="672" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b52">
+	<analytic>
+		<title level="a" type="main">Elastic Scale-Out for Partition-Based Database Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">U</forename><forename type="middle">F</forename><surname>Minhas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Aboulnaga</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Salem</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Ng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Robertson</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE International Conference on Data Engineering Workshops, ICDEW &apos;12</title>
+		<imprint>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="281" to="288" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b53">
+	<analytic>
+		<title level="a" type="main">Blotter: Low Latency Transactions for Geo-Replicated Storage</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Moniz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">A</forename><surname>Leitão</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">J</forename><surname>Dias</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Gehrke</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Preguiça</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Rodrigues</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 26th International Conference on World Wide Web, WWW &apos;17</title>
+		<meeting>the 26th International Conference on World Wide Web, WWW &apos;17</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="263" to="272" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b54">
+	<analytic>
+		<title level="a" type="main">Extracting More Concurrency from Distributed Transactions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Cui</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Lloyd</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Li</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Symposium on Operating Systems Design and Implementation (OSDI)</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b55">
+	<analytic>
+		<title level="a" type="main">DPaxos: Managing Data Closer to Users for Low-Latency and Mobile Applications</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Nawab</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">El</forename><surname>Abbadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2018 International Conference on Management of Data, SIGMOD &apos;18</title>
+		<meeting>the 2018 International Conference on Management of Data, SIGMOD &apos;18</meeting>
+		<imprint>
+			<date type="published" when="2018" />
+			<biblScope unit="page" from="1221" to="1236" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b56">
+	<analytic>
+		<title level="a" type="main">Minimizing Commit Latency of Transactions in Geo-Replicated Data Stores</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Nawab</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Arora</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">E</forename><surname>Abbadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2015 International Conference on Management of Data, SIGMOD &apos;15</title>
+		<meeting>the 2015 International Conference on Management of Data, SIGMOD &apos;15</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b57">
+	<analytic>
+		<title level="a" type="main">Fast Algorithms for Maintaining Replica Consistency in Lazy Master Replicated Databases</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Pacitti</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Minet</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Simon</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the International Conference on Very Large Data Bases (VLDB)</title>
+		<meeting>the International Conference on Very Large Data Bases (VLDB)</meeting>
+		<imprint>
+			<date type="published" when="1999" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b58">
+	<analytic>
+		<title level="a" type="main">Replica Consistency in Lazy Master Replicated Databases</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Pacitti</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Minet</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Simon</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">In Kluwer Academic</title>
+		<imprint>
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<date type="published" when="2001-05" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b59">
+	<analytic>
+		<title level="a" type="main">Preventive Multi-Master Replication in a Cluster of Autonomous Databases</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Pacitti</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">T</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Coulon</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of Euro-Par</title>
+		<meeting>Euro-Par</meeting>
+		<imprint>
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b60">
+	<analytic>
+		<title level="a" type="main">Some Computational Problems Related to Database Concurrency Control</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Papadimitriou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Bernstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Ronthie</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Conference on Theoretical Computer Science</title>
+		<meeting>the Conference on Theoretical Computer Science</meeting>
+		<imprint>
+			<date type="published" when="1977" />
+			<biblScope unit="page" from="275" to="282" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b61">
+	<analytic>
+		<title level="a" type="main">The Serializability of Concurrent Database Updates</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">H</forename><surname>Papadimitriou</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of the ACM</title>
+		<imprint>
+			<biblScope unit="volume">26</biblScope>
+			<biblScope unit="issue">4</biblScope>
+			<biblScope unit="page" from="631" to="653" />
+			<date type="published" when="1979-10" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b62">
+	<analytic>
+		<title level="a" type="main">Flexible Update Propagation for Weakly Consistent Replication</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Petersen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">J</forename><surname>Spreitzer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">B</forename><surname>Terry</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">M</forename><surname>Theimer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">J</forename><surname>Demers</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Symposium on Operating Systems Principles, SOSP &apos;97</title>
+		<meeting>the Symposium on Operating Systems Principles, SOSP &apos;97</meeting>
+		<imprint>
+			<date type="published" when="1997" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b63">
+	<monogr>
+		<title level="m" type="main">Exploring the Architecture of the NuoDB Database</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Proctor</surname></persName>
+		</author>
+		<ptr target="https://www.infoq.com/articles/nuodb-architecture-1" />
+		<imprint/>
+	</monogr>
+	<note>Part 1. Blog Post</note>
+</biblStruct>
+
+<biblStruct xml:id="b64">
+	<monogr>
+		<title level="m" type="main">Exploring the Architecture of the NuoDB Database, Part 2</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Proctor</surname></persName>
+		</author>
+		<ptr target="https://www.infoq.com/articles/nuodb-architecture-2" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b65">
+	<analytic>
+		<title level="a" type="main">Design Principles for Scaling Multi-core OLTP Under High Contention</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Faleiro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2016 International Conference on Management of Data, SIGMOD &apos;16</title>
+		<meeting>the 2016 International Conference on Management of Data, SIGMOD &apos;16</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="1583" to="1598" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b66">
+	<analytic>
+		<title level="a" type="main">Lightweight Locking for Main Memory Database Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Thomson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">PVLDB</title>
+		<imprint>
+			<biblScope unit="volume">6</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="145" to="156" />
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b67">
+	<monogr>
+		<title level="m" type="main">An Evaluation of the Advantages and Disadvantages of Deterministic Database Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Thomson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2014" />
+			<publisher>PVLDB</publisher>
+			<biblScope unit="volume">7</biblScope>
+			<biblScope unit="page" from="821" to="832" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b68">
+	<analytic>
+		<title level="a" type="main">VLL: A Lock Manager Redesign for Main Memory Database Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Thomson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">VLDB Journal</title>
+		<imprint>
+			<biblScope unit="volume">24</biblScope>
+			<biblScope unit="issue">5</biblScope>
+			<biblScope unit="page" from="681" to="705" />
+			<date type="published" when="2015-10" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b69">
+	<monogr>
+		<title level="m" type="main">Active-Active Application Architectures with MongoDB</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Runkel</surname></persName>
+		</author>
+		<ptr target="https://www.mongodb.com/blog/post/active-active-application-architectures-with-mongodb" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b70">
+	<analytic>
+		<title level="a" type="main">Accordion: Elastic Scalability for Database Systems Supporting Distributed Transactions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Serafini</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Mansour</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Aboulnaga</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Salem</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Rafiq</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">U</forename><forename type="middle">F</forename><surname>Minhas</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">PVLDB</title>
+		<imprint>
+			<biblScope unit="volume">7</biblScope>
+			<biblScope unit="issue">12</biblScope>
+			<biblScope unit="page" from="1035" to="1046" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b71">
+	<analytic>
+		<title level="a" type="main">Transaction Chopping: Algorithms and Performance Studies</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Shasha</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Llirbat</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Simon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Valduriez</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Transactions on Database Systems (TODS)</title>
+		<imprint>
+			<biblScope unit="volume">20</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="325" to="363" />
+			<date type="published" when="1995-09" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b72">
+	<analytic>
+		<title level="a" type="main">Simple Rational Guidance for Chopping up Transactions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Shasha</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Simon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Valduriez</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 1992 ACM SIGMOD International Conference on Management of Data</title>
+		<meeting>the 1992 ACM SIGMOD International Conference on Management of Data</meeting>
+		<imprint>
+			<date type="published" when="1992" />
+			<biblScope unit="page" from="298" to="307" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b73">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Shute</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Vingralek</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Samwel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Handy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Whipkey</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Rollins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Oancea</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Littlefield</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Menestrina</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ellner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Cieslewicz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Rae</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Stancescu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Apte</surname></persName>
+		</author>
+		<title level="m">F1: A Distributed SQL Database That Scales. PVLDB</title>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="volume">6</biblScope>
+			<biblScope unit="page" from="1068" to="1079" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b74">
+	<analytic>
+		<title level="a" type="main">Transactional Storage for Geo-replicated Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Sovran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Power</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">K</forename><surname>Aguilera</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Li</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Symposium on Operating Systems Principles, SOSP &apos;11</title>
+		<meeting>the Symposium on Operating Systems Principles, SOSP &apos;11</meeting>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="385" to="400" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b75">
+	<analytic>
+		<title level="a" type="main">The End of an Architectural Era (It&apos;s Time for a Complete Rewrite)</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Stonebraker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">R</forename><surname>Madden</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Harizopoulos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Hachem</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Helland</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the International Conference on Very Large Data Bases (VLDB)</title>
+		<meeting>the International Conference on Very Large Data Bases (VLDB)</meeting>
+		<imprint>
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b76">
+	<analytic>
+		<title level="a" type="main">The VoltDB Main Memory DBMS</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Stonebraker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Weisberg</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Data Engineering Bulletin</title>
+		<imprint>
+			<biblScope unit="volume">36</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="21" to="27" />
+			<date type="published" when="2013-06" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b77">
+	<monogr>
+		<title level="m" type="main">E-store: Fine-grained Elastic Partitioning for Distributed Transaction Processing Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Taft</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Mansour</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Serafini</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Duggan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">J</forename><surname>Elmore</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Aboulnaga</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Pavlo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Stonebraker</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2014" />
+			<publisher>PVLDB</publisher>
+			<biblScope unit="volume">8</biblScope>
+			<biblScope unit="page" from="245" to="256" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b78">
+	<analytic>
+		<title level="a" type="main">Session Guarantees for Weakly Consistent Replicated Data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">B</forename><surname>Terry</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">J</forename><surname>Demers</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Petersen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Spreitzer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Theimer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">W</forename><surname>Welch</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Third International Conference on Parallel and Distributed Information Systems, PDIS &apos;94</title>
+		<meeting>the Third International Conference on Parallel and Distributed Information Systems, PDIS &apos;94</meeting>
+		<imprint>
+			<date type="published" when="1994" />
+			<biblScope unit="page" from="140" to="149" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b79">
+	<analytic>
+		<title level="a" type="main">Managing update conflicts in Bayou, a weakly connected replicated storage system</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">B</forename><surname>Terry</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">M</forename><surname>Theimer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Petersen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">J</forename><surname>Demers</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">J</forename><surname>Spreitzer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">H</forename><surname>Hauser</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Symposium on Operating Systems Principles, SOSP &apos;95</title>
+		<meeting>the Symposium on Operating Systems Principles, SOSP &apos;95</meeting>
+		<imprint>
+			<date type="published" when="1995" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b80">
+	<analytic>
+		<title level="a" type="main">The case for determinism in database systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Thomson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">PVLDB</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="70" to="80" />
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b81">
+	<analytic>
+		<title level="a" type="main">Modularity and Scalability in Calvin</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Thomson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Data Engineering Bulletin</title>
+		<imprint>
+			<biblScope unit="volume">36</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="48" to="55" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b82">
+	<analytic>
+		<title level="a" type="main">Deterministic database systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Thomson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">US Patent</title>
+		<imprint>
+			<biblScope unit="volume">8700563</biblScope>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b83">
+	<analytic>
+		<title level="a" type="main">CalvinFS: Consistent WAN Replication and Scalable Metadata Management for Distributed File Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Thomson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">FAST</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="1" to="14" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b84">
+	<analytic>
+		<title level="a" type="main">Calvin: Fast distributed transactions for partitioned database systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Thomson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Diamond</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Shao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S.-C</forename><surname>Weng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2012 International Conference on Management of Data, SIGMOD &apos;12</title>
+		<meeting>the 2012 International Conference on Management of Data, SIGMOD &apos;12</meeting>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b85">
+	<analytic>
+		<title level="a" type="main">Fast Distributed Transactions and Strongly Consistent Replication for OLTP Database Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Thomson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Diamond</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S.-C</forename><surname>Weng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Shao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+		<idno>11:1-11:39</idno>
+	</analytic>
+	<monogr>
+		<title level="m">ACM Transactions on Database Systems (TODS)</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="volume">39</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b86">
+	<analytic>
+		<title level="a" type="main">Amazon aurora: Design considerations for high throughput cloud-native relational databases</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Verbitski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Gupta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Saha</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Brahmadesam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Gupta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Mittal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Krishnamurthy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Maurice</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Kharatishvili</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Bao</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2017 ACM International Conference on Management of Data, SIGMOD &apos;17</title>
+		<meeting>the 2017 ACM International Conference on Management of Data, SIGMOD &apos;17</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="1041" to="1052" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b87">
+	<analytic>
+		<title level="a" type="main">Amazon aurora: On avoiding distributed consensus for i/os, commits, and membership changes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Verbitski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Gupta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Saha</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Corey</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Gupta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Brahmadesam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Mittal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Krishnamurthy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Maurice</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Kharatishvilli</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Bao</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2018 International Conference on Management of Data, SIGMOD &apos;18</title>
+		<meeting>the 2018 International Conference on Management of Data, SIGMOD &apos;18</meeting>
+		<imprint>
+			<date type="published" when="2018" />
+			<biblScope unit="page" from="789" to="796" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b88">
+	<monogr>
+		<title level="m" type="main">Eventually Consistent. Queue</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Vogels</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2008-10" />
+			<biblScope unit="volume">6</biblScope>
+			<biblScope unit="page" from="14" to="19" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b89">
+	<analytic>
+		<title level="a" type="main">T-Part: Partitioning of Transactions for Forward-Pushing in Deterministic Database Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S.-H</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T.-Y</forename><surname>Feng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M.-K</forename><surname>Liao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S.-K</forename><surname>Pi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y.-S</forename><surname>Lin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2016 International Conference on Management of Data, SIGMOD &apos;16</title>
+		<meeting>the 2016 International Conference on Management of Data, SIGMOD &apos;16</meeting>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="1553" to="1565" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b90">
+	<analytic>
+		<title level="a" type="main">Carousel: Low-latency transaction processing for globally-distributed data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Yan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><forename type="middle">C</forename><surname>Lin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Wong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Salem</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Brecht</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2018 International Conference on Management of Data, SIGMOD &apos;18</title>
+		<meeting>the 2018 International Conference on Management of Data, SIGMOD &apos;18</meeting>
+		<imprint>
+			<date type="published" when="2018" />
+			<biblScope unit="page" from="231" to="243" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b91">
+	<analytic>
+		<title level="a" type="main">Building consistent transactions with inconsistent replication</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><forename type="middle">K</forename><surname>Sharma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Szekeres</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krishnamurthy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">R K</forename><surname>Ports</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Transactions on Computer Systems (TOCS)</title>
+		<imprint>
+			<biblScope unit="volume">35</biblScope>
+			<biblScope unit="issue">4</biblScope>
+			<date type="published" when="2018-12" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b92">
+	<analytic>
+		<title level="a" type="main">Transaction chains: achieving serializability with low latency in geo-distributed storage systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Power</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Zhou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Sovran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">K</forename><surname>Aguilera</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Li</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Symposium on Operating Systems Principles, SOSP &apos;13</title>
+		<meeting>the Symposium on Operating Systems Principles, SOSP &apos;13</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

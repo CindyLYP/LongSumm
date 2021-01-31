@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Stochastic Backpropagation through Mixture Density Distributions</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2016-07-19">19 Jul 2016</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author role="corresp">
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Graves</surname></persName>
+							<email>gravesa@google.com</email>
+							<affiliation key="aff0">
+								<orgName type="institution">Google DeepMind</orgName>
+								<address>
+									<settlement>London</settlement>
+									<country key="GB">UK</country>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Stochastic Backpropagation through Mixture Density Distributions</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2016-07-19">19 Jul 2016</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1607.05690v1[cs.NE]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:42+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>The ability to backpropagate stochastic gradients through continuous latent distributions has been crucial to the emergence of variational autoencoders [4, 6, 7, 3] and stochastic gradient variational Bayes [2, 5, 1]. The key ingredient is an unbiased and low-variance way of estimating gradients with respect to distribution parameters from gradients evaluated at distribution samples. The &quot;reparameterization trick&quot; [6] provides a class of transforms yielding such estimators for many continuous distributions, including the Gaussian and other members of the location-scale family. However the trick does not readily extend to mixture density models, due to the difficulty of reparameterizing the discrete distribution over mixture weights. This report describes an alternative transform, applicable to any continuous multivariate distribution with a differentiable density function from which samples can be drawn, and uses it to derive an unbiased estimator for mixture density weight derivatives. Combined with the reparameterization trick applied to the individual mixture components, this estimator makes it straightforward to train variational autoencoders with mixture-distributed latent variables, or to perform stochastic variational inference with a mixture density variational posterior.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>General Result</head><p>Let f (x) be a probability density function (PDF) over x ∈ R D and cumulative density function (CDF) F (x). f can be rewritten as</p><formula xml:id="formula_0">f (x) = D d=1 f d (x d |x &lt;d )<label>(1)</label></formula><p>where x &lt;d = x 1 , . . . , x d−1 , f 1 (x 1 |x &lt;1 ) = f 1 (x 1 ) and f d is the marginal PDF of x d conditioned on x &lt;d . A samplex can be drawn from f using the multivariate quantile transform: first draw a vector of D independent samples u = (u 1 , . . . , u D ) from U (0, 1), then recursively definex aŝ</p><formula xml:id="formula_1">x 1 = F −1 1 (u 1 )<label>(2)</label></formula><p>x</p><formula xml:id="formula_2">d = F −1 d (u d |x &lt;d )<label>(3)</label></formula><p>where</p><formula xml:id="formula_3">F −1 d</formula><p>is the quantile function (inverse CDF) corresponding to the PDF f d . Inverting Eq. 3 and applying the definition of a univariate CDF yields</p><formula xml:id="formula_4">F d (x d |x &lt;d ) = x d t=−∞ f d (t|x &lt;d )dt = u d<label>(4)</label></formula><p>Assume that f depends on some parameter θ. The general form of Leibniz integral rule tells us that</p><formula xml:id="formula_5">∂F d (x d |x &lt;d ) ∂θ = f d (x d |x &lt;d ) ∂x d ∂θ + x d t=−∞ ∂f d (t|x &lt;d ) ∂θ dt = ∂u d ∂θ = 0<label>(5)</label></formula><p>and therefore</p><formula xml:id="formula_6">∂x d ∂θ = − 1 f d (x d |x &lt;d ) x d t=−∞ ∂f d (t|x &lt;d ) ∂θ dt<label>(6)</label></formula><p>If the above integral is intractable it can be estimated with Monte-Carlo sampling, as long as f d (t|x &lt;d ) can be sampled and</p><formula xml:id="formula_7">F d (x d |x &lt;d ) is tractable: x d t=−∞ ∂f d (t|x &lt;d ) ∂θ dt = x d t=−∞ f d (t|x &lt;d ) ∂ log f d (t|x &lt;d ) ∂θ dt (7) = F d (x d |x &lt;d ) ∞ t=−∞ f d (t ≤x d |x &lt;d ) ∂ log f d (t|x &lt;d ) ∂θ dt (8) ≈ F d (x d |x &lt;d ) N N n=1 ∂ log f d (t n |x &lt;d ) ∂θ ; t n ∼ f d (t ≤x d |x &lt;d )<label>(9)</label></formula><p>where</p><formula xml:id="formula_8">f d (t ≤x d |x &lt;d ) = f d (t|x &lt;d ) F d (x d |x &lt;d ) if t ≤x d 0 otherwise (10)</formula><p>which can be sampled by drawing from f d (t|x &lt;d ) and rejecting the result if it is greater thanx d . Let h be the expectation over f of an arbitrary differentiable function g of x (e.g. a loss function) and denote by Q(u) the sample from f returned by the quantile transform applied to u. Then</p><formula xml:id="formula_9">h = u∈[0,1] D g(Q(u))du<label>(11)</label></formula><p>and hence ∂h ∂θ =</p><formula xml:id="formula_10">u∈[0,1] D ∂g(Q(u)) ∂θ du (12) = u∈[0,1] D D d=1 ∂g(Q(u)) ∂Q d (u) ∂Q d (u) ∂θ du<label>(13)</label></formula><p>which can be estimated with Monte-Carlo sampling:</p><formula xml:id="formula_11">∂h ∂θ ≈ 1 N N n=1 D d=1 ∂g(x n ) ∂x n d ∂x n d ∂θ (14)</formula><p>where x n ∼ f (x). Note that the above estimator does not require Q to be known, as long as f can be sampled.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Application to Mixture Density Weights</head><p>If f is a mixture density distribution with K components then</p><formula xml:id="formula_12">f (x) = K k=1 π k f k (x)<label>(15)</label></formula><p>and</p><formula xml:id="formula_13">f d (x d |x &lt;d ) = K k=1 Pr(k|x &lt;d )f k d (x d |x &lt;d )<label>(16)</label></formula><p>where Pr(k|x &lt;d ) is the posterior responsibility of the component k, given the prior mixture density weight π k and the observation sequence</p><formula xml:id="formula_14">x &lt;d .</formula><p>In what follows we will assume that the mixture components have diagonal covariance, so that f k</p><formula xml:id="formula_15">d (x d |x &lt;d ) = f k d (x d )</formula><p>. It should be possible to extend the analysis to non-diagonal components, but that is left for future work. Abbreviating Pr(k|x &lt;d ) to p k d and applying the diagonal covariance of the components, Eq. 16 becomes</p><formula xml:id="formula_16">f d (x d |x &lt;d ) = k p k d f k d (x d )<label>(17)</label></formula><p>where p k d is defined by the following recurrence relation:</p><formula xml:id="formula_17">p k 1 = π k (18) p k d = p k d−1 f k d−1 (x d−1 ) f d−1 (x d−1 |x &lt;d−1 )<label>(19)</label></formula><p>We seek the derivatives of h with respect to the mixture weights π j , after the weights have been normalised (e.g. by a softmax function). Setting x d = t and differentiating Eq. 17 gives</p><formula xml:id="formula_18">∂f d (t|x &lt;d ) ∂π j = k ∂p k d ∂π j f k d (t) + ∂f k d (t) ∂t ∂t ∂π j p k d<label>(20)</label></formula><p>Setting x =x wherex is a sample drawn from f , and observing that ∂t ∂πj = 0 if t does not depend on f , we can substitute the above into Eq. 6 to get</p><formula xml:id="formula_19">∂x d ∂π j = − 1 f d (x d |x &lt;d ) k ∂p k d ∂π j x d t=−∞ f k d (t)dt (21) = − 1 f d (x d |x &lt;d ) k ∂ log p k d ∂π j p k d F k d (x d )<label>(22)</label></formula><p>Differentiating Eq. 19 yields (after some rearrangement)</p><formula xml:id="formula_20">∂ log p k d ∂π j = ∂ log p k d−1 ∂π j − l p l d ∂ log p l d−1 ∂π j (23) + ∂ log f k d−1 (x d−1 ) ∂x d−1 − l p l d ∂ log f l d−1 (x d−1 ) ∂x d−1 ∂x d−1 ∂π j (24) ∂ log p k d ∂πj</formula><p>and ∂x d ∂πj can then be obtained with a joint recursion, starting from the initial conditions</p><formula xml:id="formula_21">∂ log p k 1 ∂π j = δ jk π j (25) ∂x 1 ∂π j = − F j 1 (x 1 ) f 1 (x 1 )<label>(26)</label></formula><p>We are now ready to approximate ∂h ∂πj by substituting into Eq. 14:</p><formula xml:id="formula_22">∂h ∂π j ≈ 1 N N n=1 D d=1 ∂g(x n ) ∂x n d ∂x n d ∂π j ; x n ∼ f (x)<label>(27)</label></formula><p>Pseudocode for the complete computation is provided in Algorithm 1. </p><formula xml:id="formula_23">initialise ∂h ∂πj ← 0 for n = 1 to N do draw x ∼ f (x) p k 1 ← π k ∂ log p k 1 ∂πj ← δ jk πj ∂x1 ∂πj ← − F j 1 (x1) f1(x1) f 1 (x 1 ) ← k π k f k 1 (x 1 ) for d = 2 to D do f d (x d |x &lt;d ) ← k p k d f k d (x d ) p k d ← p k d−1 f k d−1 (x d−1 ) f d−1 (x d−1 |x &lt;d−1 ) ∂ log p k d ∂πj ← ∂ log p k d−1 ∂πj − l p l d ∂ log p l d−1 ∂πj + ∂x d−1 ∂πj ∂ log f k d−1 (x d−1 ) ∂x d−1 − l p l d ∂ log f l d−1 (x d−1 ) ∂x d−1 ∂x d ∂πj ← − 1 f d (x d |x &lt;d ) k ∂ log p k d ∂πj p k d F k d (x d )</formula></div>		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgements</head><p>Useful discussions and comments were provided by Ivo Danihelka, Danilo Rezende, Remi Munos, Diederik Kingma, Charles Blundell, Mevlana Gemici, Nando de Freitas, and Andriy Mnih.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Blundell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Cornebise</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wierstra</surname></persName>
+		</author>
+		<title level="m">Weight Uncertainty in Neural Networks. ArXiv e-prints</title>
+		<imprint>
+			<date type="published" when="2015-05" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Practical variational inference for neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Graves</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="volume">24</biblScope>
+			<biblScope unit="page" from="2348" to="2356" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<title level="m" type="main">DRAW: A recurrent neural network for image generation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Gregor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Danihelka</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Graves</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wierstra</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015-03" />
+		</imprint>
+	</monogr>
+	<note>ArXiv e-prints</note>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Deep autoregressive networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Gregor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Danihelka</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Mnih</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Blundell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wierstra</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 31st International Conference on Machine Learning</title>
+		<meeting>the 31st International Conference on Machine Learning</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<monogr>
+		<title level="m" type="main">Variational dropout and the local reparameterization trick</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Salimans</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Welling</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015-06" />
+		</imprint>
+	</monogr>
+	<note>ArXiv e-prints</note>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Auto-encoding variational bayes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Welling</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the International Conference on Learning Representations</title>
+		<meeting>the International Conference on Learning Representations</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Stochastic backpropagation and approximate inference in deep generative models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Rezende</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mohamed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wierstra</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 31st International Conference on Machine Learning</title>
+		<meeting>the 31st International Conference on Machine Learning</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="1278" to="1286" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

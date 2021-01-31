@@ -1,0 +1,497 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Bayesian Dark Knowledge</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Anoop</forename><surname>Korattikara</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">University of Amsterdam</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Vivek</forename><surname>Rathod</surname></persName>
+							<email>rathodv@google.com</email>
+							<affiliation key="aff0">
+								<orgName type="institution">University of Amsterdam</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kevin</forename><surname>Murphy</surname></persName>
+							<email>kpmurphy@google.com</email>
+							<affiliation key="aff0">
+								<orgName type="institution">University of Amsterdam</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Max</forename><surname>Welling</surname></persName>
+							<email>m.welling@uva.nl</email>
+							<affiliation key="aff0">
+								<orgName type="institution">University of Amsterdam</orgName>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Bayesian Dark Knowledge</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:42+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>We consider the problem of Bayesian parameter estimation for deep neural networks, which is important in problem settings where we may have little data, and/ or where we need accurate posterior predictive densities p(y|x, D), e.g., for applications involving bandits or active learning. One simple approach to this is to use online Monte Carlo methods, such as SGLD (stochastic gradient Langevin dynamics). Unfortunately, such a method needs to store many copies of the parameters (which wastes memory), and needs to make predictions using many versions of the model (which wastes time). We describe a method for &quot;distilling&quot; a Monte Carlo approximation to the posterior predictive density into a more compact form, namely a single deep neural network. We compare to two very recent approaches to Bayesian neural networks, namely an approach based on expectation propagation [HLA15] and an approach based on variational Bayes [BCKW15]. Our method performs better than both of these, is much simpler to implement, and uses less computation at test time.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>Deep neural networks (DNNs) have recently been achieving state of the art results in many fields. However, their predictions are often over confident, which is a problem in applications such as active learning, reinforcement learning (including bandits), and classifier fusion, which all rely on good estimates of uncertainty.</p><p>A principled way to tackle this problem is to use Bayesian inference. Specifically, we first compute the posterior distribution over the model parameters</p><formula xml:id="formula_0">, p(θ|D N ) ∝ p(θ) N i=1 p(y i |x i , θ), where D N = {(x i , y i )} N i=1</formula><p>, x i ∈ X D is the i'th input (where D is the number of features), and y i ∈ Y is the i'th output. Then we compute the posterior predictive distribution, p(y|x, D N ) = p(y|x, θ)p(θ|D N )dθ, for each test point x.</p><p>For reasons of computational speed, it is common to approximate the posterior distribution by a point estimate such as the MAP estimate,θ = argmax p(θ|D N ). When N is large, we often use stochastic gradient descent (SGD) to computeθ. Finally, we make a plug-in approximation to the predictive distribution: p(y|x, D N ) ≈ p(y|x,θ). Unfortunately, this loses most of the benefits of the Bayesian approach, since uncertainty in the parameters (which induces uncertainty in the predictions) is ignored.</p><p>Various ways of more accurately approximating p(θ|D N ) (and hence p(y|x, D N )) have been developed. Recently, <ref type="bibr" target="#b9">[HLA15]</ref> proposed a method called "probabilistic backpropagation" (PBP) based on an online version of expectation propagation (EP), (i.e., using repeated assumed density filtering (ADF)), where the posterior is approximated as a product of univariate Gaussians, one per parameter:</p><formula xml:id="formula_1">p(θ|D N ) ≈ q(θ) i N (θ i |m i , v i )</formula><p>. An alternative to EP is variational Bayes (VB) where we optimize a lower bound on the marginal likelihood. <ref type="bibr" target="#b8">[Gra11]</ref> presented a (biased) Monte Carlo estimate of this lower bound and applies his method, called "variational inference" (VI), to infer the neural network weights. More recently, <ref type="bibr" target="#b2">[BCKW15]</ref> proposed an approach called "Bayes by Backprop" (BBB), which extends the VI method with an unbiased MC estimate of the lower bound based on the "reparameterization trick" of <ref type="bibr" target="#b11">[KW14,</ref><ref type="bibr" target="#b15">RMW14]</ref>. In both <ref type="bibr" target="#b8">[Gra11]</ref> and <ref type="bibr" target="#b2">[BCKW15]</ref>, the posterior is approximated by a product of univariate Gaussians.</p><p>Although EP and VB scale well with data size (since they use online learning), there are several problems with these methods: (1) they can give poor approximations when the posterior p(θ|D N ) does not factorize, or if it has multi-modality or skew; (2) at test time, computing the predictive density p(y|x, D N ) can be much slower than using the plug-in approximation, because of the need to integrate out the parameters; (3) they need to use double the memory of a standard plug-in method (to store the mean and variance of each parameter), which can be problematic in memory-limited settings such as mobile phones; (4) they can be quite complicated to derive and implement.</p><p>A common alternative to EP and VB is to use MCMC methods to approximate p(θ|D N ). Traditional MCMC methods are batch algorithms, that scale poorly with dataset size. However, recently a method called stochastic gradient Langevin dynamics (SGLD) <ref type="bibr" target="#b18">[WT11]</ref> has been devised that can draw samples approximately from the posterior in an online fashion, just as SGD updates a point estimate of the parameters online. Furthermore, various extensions of SGLD have been proposed, including stochastic gradient hybrid Monte Carlo (SGHMC) <ref type="bibr" target="#b5">[CFG14]</ref>, stochastic gradient Nosé-Hoover Thermostat (SG-NHT) [DFB + 14] (which improves upon SGHMC), stochastic gradient Fisher scoring (SGFS) <ref type="bibr" target="#b0">[AKW12]</ref> (which uses second order information), stochastic gradient Riemannian Langevin Dynamics <ref type="bibr" target="#b13">[PT13]</ref>, distributed SGLD <ref type="bibr" target="#b1">[ASW14]</ref>, etc. However, in this paper, we will just use "vanilla" SGLD <ref type="bibr" target="#b18">[WT11]</ref>. <ref type="bibr">1</ref> All these MCMC methods (whether batch or online) produce a Monte Carlo approximation to the posterior,</p><formula xml:id="formula_2">q(θ) = 1 S S s=1 δ(θ − θ s ),</formula><p>where S is the number of samples. Such an approximation can be more accurate than that produced by EP or VB, and the method is much easier to implement (for SGLD, you essentially just add Gaussian noise to your SGD updates). However, at test time, things are S times slower than using a plug-in estimate, since we need to compute q(y|x) = 1 S S s=1 p(y|x, θ s ), and the memory requirements are S times bigger, since we need to store the θ s . (For our largest experiment, our DNN has 500k parameters, so we can only afford to store a single sample.)</p><p>In this paper, we propose to train a parametric model S(y|x, w) to approximate the Monte Carlo posterior predictive distribution q(y|x) in order to gain the benefits of the Bayesian approach while only using the same run time cost as the plugin method. Following <ref type="bibr" target="#b10">[HVD14]</ref>, we call q(y|x) the "teacher" and S(y|x, w) the "student". We use SGLD 2 to estimate q(θ) and hence q(y|x) online; we simultaneously train the student online to minimize KL(q(y|x)||S(y|x, w)). We give the details in Section 2.</p><p>Similar ideas have been proposed in the past. In particular, <ref type="bibr" target="#b16">[SG05]</ref> also trained a parametric student model to approximate a Monte Carlo teacher. However, they used batch training and they used mixture models for the student. By contrast, we use online training (and can thus handle larger datasets), and use deep neural networks for the student.</p><p>[HVD14] also trained a student neural network to emulate the predictions of a (larger) teacher network (a process they call "distillation"), extending earlier work of <ref type="bibr" target="#b3">[BCNM06]</ref> which approximated an ensemble of classifiers by a single one. The key difference from our work is that our teacher is generated using MCMC, and our goal is not just to improve classification accuracy, but also to get reliable probabilistic predictions, especially away from the training data. <ref type="bibr" target="#b10">[HVD14]</ref> coined the term "dark knowledge" to represent the information which is "hidden" inside the teacher network, and which can then be distilled into the student. We therefore call our approach "Bayesian dark knowledge".</p><p>We did some preliminary experiments with SG-NHT for fitting an MLP to MNIST data, but the results were not much better than SGLD.</p><p>2 Note that SGLD is an approximate sampling algorithm and introduces a slight bias in the predictions of the teacher and student network. If required, we can replace SGLD with an exact MCMC method (e.g. HMC) to get more accurate results at the expense of more training time.</p><p>In summary, our contributions are as follows. First, we show how to combine online MCMC methods with model distillation in order to get a simple, scalable approach to Bayesian inference of the parameters of neural networks (and other kinds of models). Second, we show that our probabilistic predictions lead to improved log likelihood scores on the test set compared to SGD and the recently proposed EP and VB approaches.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Methods</head><p>Our goal is to train a student neural network (SNN) to approximate the Bayesian predictive distribution of the teacher, which is a Monte Carlo ensemble of teacher neural networks (TNN).</p><p>If we denote the predictions of the teacher by p(y|x, D N ) and the parameters of the student network by w, our objective becomes</p><formula xml:id="formula_3">L(w|x) = KL(p(y|x, D N )||S(y|x, w)) = −E p(y|x,D N ) log S(y|x, w) + const = − p(y|x, θ)p(θ|D N )dθ log S(y|x, w)dy = − p(θ|D N ) p(y|x, θ) log S(y|x, w)dy dθ = − p(θ|D N ) E p(y|x,θ) log S(y|x, w) dθ (1)</formula><p>Unfortunately, computing this integral is not analytically tractable. However, we can approximate this by Monte Carlo:L</p><formula xml:id="formula_4">(w|x) = − 1 |Θ| θ s ∈Θ E p(y|x,θ s ) log S(y|x, w) (2)</formula><p>where Θ is a set of samples from p(θ|D N ).</p><p>To make this a function just of w, we need to integrate out x. For this, we need a dataset to train the student network on, which we will denote by D . Note that points in this dataset do not need ground truth labels; instead the labels (which will be probability distributions) will be provided by the teacher. The choice of student data controls the domain over which the student will make accurate predictions. For low dimensional problems (such as in Section 3.1), we can uniformly sample the input domain. For higher dimensional problems, we can sample "near" the training data, for example by perturbing the inputs slightly. In any case, we will compute a Monte Carlo approximation to the loss as follows:</p><formula xml:id="formula_5">L(w) = p(x)L(w|x)dx ≈ 1 |D | x ∈D L(w|x ) ≈ − 1 |Θ| 1 |D | θ s ∈Θ x ∈D E p(y|x ,θ s ) log S(y|x , w)<label>(3)</label></formula><p>It can take a lot of memory to pre-compute and store the set of parameter samples Θ and the set of data samples D , so in practice we use the stochastic algorithm shown in Algorithm 1, which uses a single posterior sample θ s and a minibatch of x at each step.</p><p>The hyper-parameters λ and γ from Algorithm 1 control the strength of the priors for the teacher and student networks. We use simple spherical Gaussian priors (equivalent to L 2 regularization); we set the precision (strength) of these Gaussian priors by cross-validation. Typically λ γ, since the student gets to "see" more data than the teacher. This is true for two reasons: first, the teacher is trained to predict a single label per input, whereas the student is trained to predict a distribution, which contains more information (as argued in <ref type="bibr" target="#b10">[HVD14]</ref>); second, the teacher makes multiple passes over the same training data, whereas the student sees "fresh" randomly generated data D at each step.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1">Classification</head><p>For classification problems, each teacher network θ s models the observations using a standard softmax model, p(y = k|x, θ s ). We want to approximate this using a student network, which also has a Algorithm 1: Distilled SGLD Input:</p><formula xml:id="formula_6">D N = {(x i , y i )} N i=1</formula><p>, minibatch size M , number of iterations T , teacher learning schedule η t , student learning schedule ρ t , teacher prior λ, student prior γ for t = 1 : T do // Train teacher (SGLD step)</p><formula xml:id="formula_7">Sample minibatch indices S ⊂ [1, N ] of size M Sample z t ∼ N (0, η t I) Update θ t+1 := θ t + ηt ∇ θ log p(θ|λ) + N M i∈S ∇ θ log p(y i |x i , θ) + z t // Train student (SGD step) Sample D of size M from student data generator w t+1 := w t − ρ t 1 M</formula><p>x ∈D ∇ wL (w, θ t+1 |x ) + γw t softmax output, S(y = k|x, w). Hence from Eqn. 2, our loss function estimate is the standard cross entropy loss:L</p><formula xml:id="formula_8">(w|θ s , x) = − K k=1 p(y = k|x, θ s ) log S(y = k|x, w)<label>(4)</label></formula><p>The student network outputs β k (x, w) = log S(y = k|x, w). To estimate the gradient w.r.t. w, we just have to compute the gradients w.r.t. β and back-propagate through the network. These gradients are given by ∂L(w,θ s |x) ∂β k (x,w) = −p(y = k|x, θ s ).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">Regression</head><p>In regression, the observations are modeled as p(</p><formula xml:id="formula_9">y i |x i , θ) = N (y i |f (x i |θ), λ −1 n ) where f (x|θ)</formula><p>is the prediction of the TNN and λ n is the noise precision. We want to approximate the predictive distribution as p(y|x, D N ) ≈ S(y|x, w) = N (y|µ(x, w), e α(x,w) ). We will train a student network to output the parameters of the approximating distribution µ(x, w) and α(x, w); note that this is twice the number of outputs of the teacher network, since we want to capture the (data dependent) variance. <ref type="bibr">3</ref> We use e α(x,w) instead of directly predicting the variance σ 2 (x|w) to avoid dealing with positivity constraints during training.</p><p>To train the SNN, we will minimize the objective defined in Eqn. 2:</p><formula xml:id="formula_10">L(w|θ s , x) = −E p(y|x,θ s ) log N (y|µ(x, w), e α(x,w) ) = 1 E p(y|x,θ s ) α(x, w) + e −α(x,w) (y − µ(x, w) 2 ) = 1 α(x, w) + e −α(x,w) (f (x|θ s ) − µ(x, w)) 2 + 1 λ n</formula><p>Now, to estimate ∇ wL (w, θ s |x), we just have to compute ∂L ∂µ(x,w) and ∂L ∂α(x,w) , and back propagate through the network. These gradients are:</p><formula xml:id="formula_11">∂L(w, θ s |x) ∂µ(x, w) = e −α(x,w) {µ(x, w) − f (x|θ s )} (5) ∂L(w, θ s |x ∂α(x, w) = 1 1 − e −α(x,w) (f (x|θ s ) − µ(x, w)) 2 + 1 λ n<label>(6)</label></formula><p>3 Experimental results</p><p>In this section, we compare SGLD and distilled SGLD with other approximate inference methods, including the plugin approximation using SGD, the PBP approach of <ref type="bibr" target="#b9">[HLA15]</ref>  [BCKW15], and Hamiltonian Monte Carlo (HMC) <ref type="bibr" target="#b12">[Nea11]</ref>, which is considered the "gold standard" for MCMC for neural nets. We implemented SGD and SGLD using the Torch library (torch.ch). For HMC, we used Stan (mc-stan.org). We perform this comparison for various classification and regression problems, as summarized in <ref type="table">Table 1</ref>. 4</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">Toy 2d classification problem</head><p>We start with a toy 2d binary classification problem, in order to visually illustrate the performance of different methods. We generate a synthetic dataset in 2 dimensions with 2 classes, 10 points per class. We then fit a multi layer perceptron (MLP) with one hidden layer of 10 ReLu units and 2 softmax outputs (denoted 2-10-2) using SGD. The resulting predictions are shown in <ref type="figure" target="#fig_0">Figure 1(a)</ref>. We see the expected sigmoidal probability ramp orthogonal to the linear decision boundary. Unfortunately, this method predicts a label of 0 or 1 with very high confidence, even for points that are far from the training data (e.g., in the top left and bottom right corners).</p><p>In <ref type="figure" target="#fig_0">Figure 1(b)</ref>, we show the result of HMC using 20k samples. This is the "true" posterior predictive density which we wish to approximate. In <ref type="figure" target="#fig_0">Figure 1(c)</ref>, we show the result of SGLD using about 1000 samples. Specifically, we generate 100k samples, discard the first 2k for burnin, and then keep every 100'th sample. We see that this is a good approximation to the HMC distribution.</p><p>In <ref type="figure" target="#fig_0">Figures 1(d-f)</ref>, we show the results of approximating the SGLD Monte Carlo predictive distribution with a single student MLP of various sizes. To train this student network, we sampled points at random from the domain of the input, [−10, 10] × [−10, 10]; this encourages the student to predict accurately at all locations, including those far from the training data. In (d), the student has the same Ideally, we would apply all methods to all datasets, to enable a proper comparison. Unfortunately, this was not possible, for various reasons. First, the open source code for the EP approach only supports regression, so we could not evaluate this on classification problems. Second, we were not able to run the BBB code, so we just quote performance numbers from their paper <ref type="bibr" target="#b2">[BCKW15]</ref>. Third, HMC is too slow to run on large problems, so we just applied it to the small "toy" problems. Nevertheless, our experiments show that our methods compare favorably to these other methods.    <ref type="bibr" target="#b2">[BCKW15]</ref>. For our implmentation of SGD (fourth column), SGLD and distilled SGLD, we report the mean misclassification rate over 10 runs and its standard error. size as the teacher (2-10-2), but this is too simple a model to capture the complexity of the predictive distribution (which is an average over models). In (e), the student has a larger hidden layer (2-100-2); this works better. However, we get best results using a two hidden layer model (2-10-10-2), as shown in (f).</p><p>In <ref type="table" target="#tab_1">Table 2</ref>, we show the KL divergence between the HMC distribution (which we consider as ground truth) and the various approximations mentioned above. We computed this by comparing the probability distributions pointwise on a 2d grid. The numbers match the qualitative results shown in <ref type="figure" target="#fig_0">Figure 1</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">MNIST classification</head><p>Now we consider the MNIST digit classification problem, which has N = 60k examples, 10 classes, and D = 784 features. The only preprocessing we do is divide the pixel values by 126 (as in <ref type="bibr" target="#b2">[BCKW15]</ref>). We train only on 50K datapoints and use the remaining 10K for tuning hyperparameters. This means our results are not strictly comparable to a lot of published work, which uses the whole dataset for training; however, the difference is likely to be small.</p><p>Following <ref type="bibr" target="#b2">[BCKW15]</ref>, we use an MLP with 2 hidden layers with 400 hidden units per layer, ReLU activations, and softmax outputs; we denote this by 784-400-400-10. This model has 500k parameters.</p><p>We first fit this model by SGD, using these hyper parameters: fixed learning rate of η t = 5 × 10 −6 , prior precision λ = 1, minibatch size M = 100, number of iterations T = 1M . As shown in <ref type="table" target="#tab_2">Table 3</ref>, our final error rate on the test set is 1.536%, which is a bit lower than the SGD number reported in <ref type="bibr" target="#b2">[BCKW15]</ref>, perhaps due to the slightly different training/ validation configuration.</p><p>Next we fit this model by SGLD, using these hyper parameters: fixed learning rate of η t = 4×10 −6 , thinning interval τ = 100, burn in iterations B = 1000, prior precision λ = 1, minibatch size M = 100. As shown in <ref type="table" target="#tab_2">Table 3</ref>, our final error rate on the test set is about 1.271%, which is better than the SGD, dropout and BBB results from <ref type="bibr" target="#b2">[BCKW15]</ref>. <ref type="bibr">5</ref> Finally, we consider using distillation, where the teacher is an SGLD MC approximation of the posterior predictive. We use the same 784-400-400-10 architecture for the student as well as the teacher. We generate data for the student by adding Gaussian noise (with standard deviation of 0.001) to randomly sampled training points <ref type="bibr">6</ref> We use a constant learning rate of ρ = 0.005, a batch size of M = 100, a prior precision of 0.001 (for the student) and train for T = 1M iterations. We obtain a test error of 1.307% which is very close to that obtained with SGLD (see <ref type="table">Table 4</ref>).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>SGD SGLD</head><p>Distilled SGLD -0.0613 ± 0.0002 -0.0419 ± 0.0002 -0.0502 ± 0.0007 <ref type="table">Table 4</ref>: Log likelihood per test example on MNIST. We report the mean over 10 trials ± one standard error.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Method</head><p>Avg. test log likelihood PBP (as reported in <ref type="bibr" target="#b9">[HLA15]</ref>  <ref type="table">Table 5</ref>: Log likelihood per test example on the Boston housing dataset. We report the mean over 20 trials ± one standard error.</p><p>We also report the average test log-likelihood of SGD, SGLD and distilled SGLD in <ref type="table">Table 4</ref>. The log-likelihood is equivalent to the logarithmic scoring rule <ref type="bibr" target="#b4">[Bic07]</ref> used in assessing the calibration of probabilistic models. The logarithmic rule is a strictly proper scoring rule, meaning that the score is uniquely maximized by predicting the true probabilities. From <ref type="table">Table 4</ref>, we see that both SGLD and distilled SGLD acheive higher scores than SGD, and therefore produce better calibrated predictions.</p><p>Note that the SGLD results were obtained by averaging predictions from ≈ 10,000 models sampled from the posterior, whereas distillation produces a single neural network that approximates the average prediction of these models, i.e. distillation reduces both storage and test time costs of SGLD by a factor of 10,000, without sacrificing much accuracy. In terms of training time, SGD took 1.3 ms, SGLD took 1.6 ms and distilled SGLD took 3.2 ms per iteration. In terms of memory, distilled SGLD requires only twice as much as SGD or SGLD during training, and the same as SGD during testing.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">Toy 1d regression</head><p>We start with a toy 1d regression problem, in order to visually illustrate the performance of different methods. We use the same data and model as <ref type="bibr" target="#b9">[HLA15]</ref>. In particular, we use N = 20 points in D = 1 dimensions, sampled from the function y = x 3 + n , where n ∼ N (0, 9). We fit this data with an MLP with 10 hidden units and ReLU activations. For SGLD, we use S = 2000 samples. For distillation, the teacher uses the same architecture as the student.</p><p>The results are shown in <ref type="figure" target="#fig_2">Figure 2</ref>. We see that SGLD is a better approximation to the "true" (HMC) posterior predictive density than the plugin SGD approximation (which has no predictive uncertainty), and the VI approximation of <ref type="bibr" target="#b8">[Gra11]</ref>. Finally, we see that distilling SGLD incurs little loss in accuracy, but saves a lot computationally.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4">Boston housing</head><p>Finally, we consider a larger regression problem, namely the Boston housing dataset, which was also used in <ref type="bibr" target="#b9">[HLA15]</ref>. This has N = 506 data points (456 training, 50 testing), with D = 13 dimensions. Since this data set is so small, we repeated all experiments 20 times, using different train/ test splits.</p><p>Following <ref type="bibr" target="#b9">[HLA15]</ref>, we use an MLP with 1 layer of 50 hidden units and ReLU activations. First we use SGD, with these hyper parameters 7 : Minibatch size M = 1, noise precision λ n = 1.25, prior precision λ = 1, number of trials 20, constant learning rate η t = 1e − 6, number of iterations T = 170K. As shown in <ref type="table">Table 5</ref>, we get an average log likelihood of −2.7639.</p><p>Next we fit the model using SGLD. We use an initial learning rate of η 0 = 1e − 5, which we reduce by a factor of 0.5 every 80K iterations; we use 500K iterations, a burnin of 10K, and a thinning</p><p>We choose all hyper-parameters using cross-validation whereas <ref type="bibr" target="#b9">[HLA15]</ref> performs posterior inference on the noise and prior precisions, and uses Bayesian optimization to choose the remaining hyper-parameters.  <ref type="figure">(Figures a-d</ref> kindly provided by the authors of <ref type="bibr" target="#b9">[HLA15]</ref>. We replace their term "BP" (backprop) with "SGD" to avoid confusion.) interval of 10. As shown in <ref type="table">Table 5</ref>, we get an average log likelihood of −2.306, which is better than SGD.</p><p>Finally, we distill our SGLD model. The student architecture is the same as the teacher. We use the following teacher hyper parameters: prior precision λ = 2.5; initial learning rate of η 0 = 1e − 5, which we reduce by a factor of 0.5 every 80K iterations. For the student, we use generated training data with Gaussian noise with standard deviation 0.05, we use a prior precision of γ = 0.001, an initial learning rate of ρ 0 = 1e − 2, which we reduce by 0.8 after every 5e3 iterations. As shown in <ref type="table">Table 5</ref>, we get an average log likelihood of −2.350, which is only slightly worse than SGLD, and much better than SGD. Furthermore, both SGLD and distilled SGLD are better than the PBP method of <ref type="bibr" target="#b9">[HLA15]</ref> and the VI method of <ref type="bibr" target="#b8">[Gra11]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Conclusions and future work</head><p>We have shown a very simple method for "being Bayesian" about neural networks (and other kinds of models), that seems to work better than recently proposed alternatives based on EP <ref type="bibr" target="#b9">[HLA15]</ref> and VB <ref type="bibr" target="#b8">[Gra11,</ref><ref type="bibr" target="#b2">BCKW15]</ref>.</p><p>There are various things we would like to do in the future: (1) Show the utility of our model in an end-to-end task, where predictive uncertainty is useful (such as with contextual bandits or active learning). (2) Consider ways to reduce the variance of the algorithm, perhaps by keeping a running minibatch of parameters uniformly sampled from the posterior, which can be done online using reservoir sampling. (3) Exploring more intelligent data generation methods for training the student. (4) Investigating if our method is able to reduce the prevalence of confident false predictions on adversarially generated examples, such as those discussed in [SZS + 14].</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 :</head><label>1</label><figDesc>Posterior predictive density for various methods on the toy 2d dataset. (a) SGD (plugin) using the 2-10-2 network. (b) HMC using 20k samples. (c) SGLD using 1k samples. (d-f) Distilled SGLD using a student network with the following architectures: 2-10-2, 2-100-2 and 2-10-10-2.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 2 :</head><label>2</label><figDesc>Predictive distribution for different methods on a toy 1d regression problem. (a) PBP of [HLA15]. (b) HMC. (c) VI method of [Gra11]. (d) SGD. (e) SGLD. (f) Distilled SGLD. Error bars denote 3 standard deviations.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>Table 2 :</head><label>2</label><figDesc>KL divergence on the 2d classification dataset.</figDesc><table><row><cell cols="3">SGD [BCKW15] Dropout BBB SGD (our impl.)</cell><cell>SGLD</cell><cell>Dist. SGLD</cell></row><row><cell>1.83</cell><cell>1.51</cell><cell cols="2">1.82 1.536 ± 0.0120 1.271 ± 0.0126 1.307 ± 0.0169</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_2"><head>Table 3 :</head><label>3</label><figDesc>Test set misclassification rate on MNIST for different methods using a 784-400-400-10 MLP. SGD (first column), Dropout and BBB numbers are quoted from</figDesc><table /><note></note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="3">This is not necessary in the classification case, since the softmax distribution already captures uncertainty.</note>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="5">We only show the BBB results with the same Gaussian prior that we use. Performance of BBB can be improved using other priors, such as a scale mixture of Gaussians, as shown in<ref type="bibr" target="#b2">[BCKW15]</ref>. Our approach could probably also benefit from such a prior, but we did not try this.In the future, we would like to consider more sophisticated data perturbations, such as elastic distortions.</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgements</head><p>We thank José Miguel Hernández-Lobato, Julien Cornebise, Jonathan Huang, George Papandreou, Sergio Guadarrama and Nick Johnston.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Bayesian Posterior Sampling via Stochastic Gradient Fisher Scoring</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ahn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Korattikara</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Welling</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Distributed stochastic gradient MCMC</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Babak</forename><surname>Sungjin Ahn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Max</forename><surname>Shahbaba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Welling</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Weight uncertainty in neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Blundell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Cornebise</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wierstra</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Model compression</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Cristian</forename><surname>Bucila</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rich</forename><surname>Caruana</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alexandru</forename><surname>Niculescu-Mizil</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">KDD</title>
+		<imprint>
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Some comparisons among quadratic, spherical, and logarithmic scoring rules. Decision</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Eric</forename><surname>Bickel</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Analysis</title>
+		<imprint>
+			<biblScope unit="volume">4</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="49" to="65" />
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Stochastic Gradient Hamiltonian Monte Carlo</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Tianqi</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Emily</forename><forename type="middle">B</forename><surname>Fox</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Carlos</forename><surname>Guestrin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Bayesian sampling using stochastic gradient thermostats</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Dfb + 14] N Ding</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Fang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Babbush</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Skeel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Neven</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<title level="m" type="main">Dropout as a bayesian approximation: Representing model uncertainty in deep learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yarin</forename><surname>Gal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zoubin</forename><surname>Ghahramani</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015-06" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Practical variational inference for neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alex</forename><surname>Graves</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Probabilistic backpropagation for scalable learning of bayesian neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Hernández-Lobato</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Adams</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Distilling the knowledge in a neural network</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geoffrey</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Oriol</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jeff</forename><surname>Dean</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS Deep Learning Workshop</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Stochastic gradient VB and the variational auto-encoder</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Diederik</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Max</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Welling</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICLR</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<title level="m" type="main">MCMC using hamiltonian dynamics. In Handbook of Markov chain Monte Carlo</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Radford</forename><surname>Neal</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2011" />
+			<publisher>Chapman and Hall</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Stochastic gradient riemannian langevin dynamics on the probability simplex</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Sam</forename><surname>Patterson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yee Whye</forename><surname>Teh</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">FitNets: Hints for thin deep nets</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nicolas</forename><surname>Rbk + 14] Adriana Romero</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Samira</forename><forename type="middle">Ebrahimi</forename><surname>Ballas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Antoine</forename><surname>Kahou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Carlo</forename><surname>Chassang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yoshua</forename><surname>Gatta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Arxiv</title>
+		<imprint>
+			<biblScope unit="volume">19</biblScope>
+			<biblScope unit="page">2014</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Stochastic backpropagation and approximate inference in deep generative models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Rezende</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mohamed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wierstra</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Compact approximations to bayesian predictive distributions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Edward</forename><surname>Snelson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zoubin</forename><surname>Ghahramani</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Ian Goodfellow, and Rob Fergus. Intriguing properties of neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Szs + 14] Christian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Wojciech</forename><surname>Szegedy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ilya</forename><surname>Zaremba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Joan</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dumitru</forename><surname>Bruna</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Erhan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">In ICLR</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Bayesian learning via stochastic gradient Langevin dynamics</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Max</forename><surname>Welling</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yee</forename><forename type="middle">W</forename><surname>Teh</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

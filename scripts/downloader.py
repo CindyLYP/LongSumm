@@ -5,7 +5,7 @@ from multiprocessing import Pool
 from tqdm import tqdm
 import csv
 import json
-from utils.del_pdf import DelBrokenPDF
+from utils.check_file import DelBrokenPDF
 OUTPUT_DIR = '../abstractive_papers/'
 
 
@@ -62,10 +62,10 @@ if __name__ == '__main__':
         description='Given URL of a paper, this script download the PDFs of the paper'
     )
 
-    parser.add_argument('--clusters_dir', default='C:\\Users\\yingsenci\\gitlib\\LongSumm\\abstractive_summaries\\'
+    parser.add_argument('--clusters_dir', default='../abstractive_summaries/'
                                                   'by_clusters', help='link to the folder that contains the summaries')
     parser.add_argument('--out_folder',default=OUTPUT_DIR, help='output folder')
-    parser.add_argument('--num_processes', default=1, help='number of processes to use')
+    parser.add_argument('--num_processes', default=20, help='number of processes to use')
 
     args = parser.parse_args()
     main(args)

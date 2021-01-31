@@ -1,4 +1,4 @@
-from utils.gen_train_data import *
+from utils.build_data import *
 from nltk.tokenize import sent_tokenize
 import nltk
 import numpy as np

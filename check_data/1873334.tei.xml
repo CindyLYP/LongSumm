@@ -1,0 +1,677 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Generalized Isolation Level Definitions</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Atul</forename><surname>Adya</surname></persName>
+							<email>adya@microsoft.com</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Barbara</forename><surname>Liskov</surname></persName>
+							<email>liskov@lcs.mit.edu</email>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Patrick</forename><surname>O'neil</surname></persName>
+							<email>poneil@cs.umb.edu</email>
+						</author>
+						<author>
+							<affiliation key="aff0">
+								<orgName type="institution">Microsoft Research</orgName>
+								<address>
+									<addrLine>1 Microsoft Way</addrLine>
+									<postCode>98007</postCode>
+									<settlement>Redmond</settlement>
+									<region>WA</region>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff1">
+								<orgName type="department" key="dep1">Laboratory for Computer Science</orgName>
+								<orgName type="department" key="dep2">Massachusetts Inst. of Technology</orgName>
+								<address>
+									<postCode>02139</postCode>
+									<settlement>Cambridge</settlement>
+									<region>MA</region>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff2">
+								<orgName type="institution">Univ. of Massachusetts</orgName>
+								<address>
+									<postCode>02125-3393</postCode>
+									<settlement>Boston</settlement>
+									<region>MA</region>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Generalized Isolation Level Definitions</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:42+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Commercial databases support different isolation levels to allow programmers to trade off consistency for a potential gain in performance. The isolation levels are defined in the current ANSI standard, but the definitions are ambiguous and revised definitions proposed to correct the problem are too constrained since they allow only pessimistic (locking) implementations. This paper presents new specifications for the ANSI levels. Our specifications are portable; they apply not only to locking implementations, but also to optimistic and multi-version concurrency control schemes. Furthermore, unlike earlier definitions, our new specifications handle predicates in a correct and flexible manner at all levels.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.">Introduction</head><p>This paper gives new, precise definitions of the ANSI-SQL isolation levels <ref type="bibr" target="#b5">[6]</ref>. Unlike previous proposals <ref type="bibr" target="#b12">[13,</ref><ref type="bibr" target="#b5">6,</ref><ref type="bibr" target="#b7">8]</ref>, the new definitions are both correct (they rule out all bad histories) and implementation-independent. Our specifications allow a wide range of concurrency control techniques, including locking, optimistic techniques <ref type="bibr" target="#b19">[20,</ref><ref type="bibr" target="#b1">2,</ref><ref type="bibr" target="#b4">5]</ref>, and multi-version mechanisms <ref type="bibr" target="#b8">[9,</ref><ref type="bibr" target="#b23">24]</ref>. Thus, they meet the goals of ANSI-SQL and could be used as an isolation standard.</p><p>The concept of isolation levels was first introduced in <ref type="bibr" target="#b12">[13]</ref> under the name Degrees of Consistency. The goal of this work was to provide improved concurrency for workloads by sacrificing the guarantees of perfect isolation. The work in <ref type="bibr" target="#b12">[13]</ref> and some refinements suggested by <ref type="bibr" target="#b10">[11]</ref> set the stage for the ANSI/ISO SQL-92 definitions for isolation levels <ref type="bibr" target="#b5">[6]</ref>, where the goal was to develop a standard that was implementation-independent. However, a subsequent paper <ref type="bibr" target="#b7">[8]</ref> showed that the definitions provided in <ref type="bibr" target="#b5">[6]</ref> were ambiguous. That paper proposed different definitions that avoided the ambiguity problems, but, as stated in <ref type="bibr" target="#b7">[8]</ref>, these definitions were simply "disguised versions of locking" and therefore disallow optimistic and multi-version mechanisms. Thus, these definitions fail to meet the goals of ANSI-SQL with respect to implementation-independence.</p><p>Thus, we have a problem: the standard is intended to be implementation-independent, but lacks a precise definition that meets this goal. Implementation-independence is important since it provides flexibility to implementors, which can lead to better performance. Optimism can outperform locking in some environments, such as large scale, widearea distributed systems <ref type="bibr" target="#b1">[2,</ref><ref type="bibr" target="#b14">15]</ref>; optimistic mechanisms are the schemes of choice for mobile environments; and Gemstone <ref type="bibr" target="#b21">[22]</ref> and Oracle <ref type="bibr" target="#b23">[24]</ref> provide serializability and Snapshot Isolation, respectively, using multi-version optimistic implementations. It is undesirable for the ANSI standard to rule out these implementations. For example, Gemstone provides serializability even though it does not meet the locking-based rules given in <ref type="bibr" target="#b7">[8]</ref>.</p><p>This paper presents new implementation-independent specifications that correct the problems with the existing definitions. Our definitions cover the weaker isolation levels that are in everyday use: Most database vendors and database programmers take advantage of levels below serializability levels to achieve better performance; in fact, READ COMMITTED is the default for some database products and database vendors recommend using this level instead of serializability if high performance is desired. Our definitions also enable database vendors to develop innovative implementations of the different levels using a wide variety of concurrency control mechanisms including locking, optimistic and multi-version mechanisms. Furthermore, our specifications handle predicate-based operations correctly at all isolation levels.</p><p>Thus, the paper makes the following contributions:</p><p>It specifies the existing ANSI isolation levels in an implementation-independent manner. The definitions are correct (they rule out all bad histories). They are also complete (they allow all good histories) for serializability; in particular, they provide conflictserializability <ref type="bibr" target="#b8">[9]</ref>. It is difficult to prove completeness for lower isolation levels, but we can easily show that our definitions are more permissive than those given in <ref type="bibr" target="#b7">[8]</ref>.</p><p>Our specifications also handle predicates correctly in a flexible manner; earlier definitions were either lockbased or incomplete <ref type="bibr" target="#b7">[8]</ref>.</p><p>Our approach can be used to define additional levels as well, including commercial levels such as Cursor Stability <ref type="bibr" target="#b10">[11]</ref>, and Oracle's Snapshot Isolation and Read Consistency <ref type="bibr" target="#b23">[24]</ref>, and new levels; for example, we have developed an additional isolation level called PL-2+, which is the weakest level that guarantees consistent reads and causal consistency with respect to transactions. Details can be found in <ref type="bibr" target="#b0">[1]</ref>. Our definitions are given using a combination of constraints on transaction histories and graphs; we proscribe different types of cycles in a serialization graph at each isolation level. Our graphs are similar to those that have been used before for specifying serializability <ref type="bibr" target="#b8">[9,</ref><ref type="bibr" target="#b18">19,</ref><ref type="bibr" target="#b13">14]</ref>, semantics-based correctness criterion <ref type="bibr" target="#b3">[4]</ref>, and for defining extended transaction models <ref type="bibr" target="#b9">[10]</ref>. Our approach is the first that applies these techniques to defining ANSI and commercial isolation levels. Our specifications are different from the multi-version theory presented in <ref type="bibr" target="#b8">[9]</ref> since that work only describes conditions for serializability whereas we specify all ANSI/SQL-92 and other commercial isolation levels for multi-version systems. Furthermore, unlike our specifications, their definitions do not take predicates into account. Our work is also substantially different from the definitions presented in <ref type="bibr" target="#b7">[8]</ref> since our specifications handle multi-version systems, optimistic systems and also deal with predicates in a correct and flexible manner at all isolation levels.</p><p>Relaxed correctness conditions based on semantics and extended transaction models have been suggested in the past <ref type="bibr" target="#b9">[10,</ref><ref type="bibr" target="#b3">4,</ref><ref type="bibr" target="#b16">17,</ref><ref type="bibr" target="#b6">7]</ref>. By contrast, our work focuses on specifying existing ANSI and commercial isolation levels that are being used by large numbers of application programmers.</p><p>The rest of this paper is organized as follows. Section 2 discusses prior work in more detail. Section 3 shows that the current definitions are inadequate and motivates the need for our work. Section 4 describes our database model. Section 5 provides our definitions for the existing ANSI isolation levels. We close in Section 6 with a discussion of what we have accomplished.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">Previous Work</head><p>The original proposal for isolation levels <ref type="bibr" target="#b12">[13]</ref> introduced four degrees of consistency, degrees 0, 1, 2 and 3, where degree 3 was the same as serializability. That paper, however, was concerned with locking schemes, and as a consequence the definitions were not implementation-independent.</p><p>However, that work, together with the refinement of the levels provided by Date <ref type="bibr" target="#b10">[11]</ref>, formed the basis for the ANSI/ISO SQL-92 isolation level definitions <ref type="bibr" target="#b5">[6]</ref>. The ANSI standard had implementation-independence as a goal and the definitions were supposed to be less constraining than earlier ones. The approach taken was to proscribe certain types of bad behavior called phenomena; more restrictive consistency levels disallow more phenomena and serializability does not permit any phenomenon. The isolation levels were named READ UNCOMMITTED, READ COMMITTED, REPEAT-ABLE READ, and SERIALIZABLE; some of these levels were intended to correspond to the degrees of <ref type="bibr" target="#b12">[13]</ref>.</p><p>The work in <ref type="bibr" target="#b7">[8]</ref> analyzed the ANSI-SQL standard and demonstrated several problems in its isolation level definitions: some phenomena were ambiguous, while others were missing entirely. It then provided new definitions. As with the ANSI-SQL standard, various isolation levels are defined by having them disallow various phenomena. The phenomena proposed by <ref type="bibr" target="#b7">[8]</ref>  Proscribing P0 (which was missing in the ANSI-SQL definitions) requires that a transaction T cannot write an object x if an uncommitted transaction T has already modified x. This is simply a disguised locking definition, requiring T 1 and T 2 to acquire long write-locks. (Long-term locks are held until the transaction taking them commits; shortterm locks are released immediately after the transaction completes the read or write that triggered the lock attempt.) Similarly, proscribing P1 requires T to acquire a long writelock and T 2 to acquire (at least) a short-term read-lock, and proscribing P2 requires the use of long read and write locks.</p><p>Phenomenon P3 deals with the queries based on predicates. Proscribing P3 requires that a transaction T cannot modify a predicate P by inserting, updating, or deleting a row such that its modification changes the result of a query executed by an uncommitted transaction T based on predicate P; to avoid this situation, T acquires a long phantom read-lock <ref type="bibr" target="#b13">[14]</ref> on predicate P.</p><p>Thus, these definitions only allow histories that would occur in a system using long/short read/write item/predicate locks. Since locking serializes transactions by preventing certain situations (e.g., two concurrent transactions both  modifying the same object), we refer to this approach as the preventative approach. <ref type="figure" target="#fig_1">Figure 1</ref> summarizes the isolation levels as defined in <ref type="bibr" target="#b7">[8]</ref> and relates them to a lock-based implementation. Thus the READ UNCOMMITTED level proscribes P0; READ COM-MITTED proscribes P0 and P1; the REPEATABLE READ level proscribes P0 -P2; and SERIALIZABLE proscribes P0 -P3.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">Restrictiveness of Preventative Approach</head><p>We now show that the preventative approach is overly restrictive since it rules out optimistic and multi-version implementations. As mentioned, this approach disallows all histories that would not occur in a locking scheme and prevents conflicting operations from executing concurrently.</p><p>The authors in <ref type="bibr" target="#b7">[8]</ref> wanted to ensure that multi-object constraints (e.g., constraints like x + y = 10) are not observed as violated by transactions that request an isolation level such as serializability. They showed that histories such as H 1 and H 2 are allowed by one interpretation of the ANSI standard (at the SERIALIZABLE isolation level) even though they are non-serializable:</p><formula xml:id="formula_0">H1: r1(x, 5) w1(x, 1) r2(x, 1) r2(y, 5) c2 r1(y, 5) w1(y, 9) c1 H2: r2(x, 5) r1(x, 5) w1(x, 1) r1(y, 5) w1(y, 9) c1 r2(y, 9) c2</formula><p>In both cases, T observes an inconsistent state (it observes invariant x + y = 10 to be violated). These histories are not allowed by the preventative approach; H is ruled out by P1 and H 2 is ruled out by P2.</p><p>Optimistic and multi-version mechanisms <ref type="bibr" target="#b1">[2,</ref><ref type="bibr" target="#b4">5,</ref><ref type="bibr" target="#b8">9,</ref><ref type="bibr" target="#b19">20,</ref><ref type="bibr" target="#b21">22</ref>] that provide serializability also disallow non-serializable histories such as H 1 and H 2 . However, they allow many legal histories that are not permitted by P0, P1, P2, and P3. Thus, the preventative approach disallows such implementations. Furthermore, it rules out histories that really occur in practical implementations.</p><p>Phenomenon P0 can occur in optimistic implementations since there can be many uncommitted transactions modifying local copies of the same object concurrently; if necessary, some of them will be forced to abort so that serializability can be provided. Thus, disallowing P0 can rule out optimistic implementations.</p><p>Condition P1 precludes transactions from reading updates by uncommitted transactions. Such reads are disallowed by many optimistic schemes, but they are desirable in mobile environments, where commits may take a long time if clients are disconnected from the servers <ref type="bibr" target="#b11">[12,</ref><ref type="bibr" target="#b15">16]</ref>; furthermore, reads from uncommitted transactions may be desirable in high traffic hotspots <ref type="bibr" target="#b22">[23]</ref>. For example, in history H 1 , if T 2 reads T 1 's values for both x and y, it can be serialized after T 1 :</p><formula xml:id="formula_1">H 1 0 : r1(x, 5) w1(x, 1) r1(y, 5) w1(y, 9) r2(x, 1) r2(y, 9) c1 c2</formula><p>The above history can occur in a mobile system, but P1 disallows it. In such a system, commits can be assumed to have happened "tentatively" at client machines <ref type="bibr" target="#b11">[12,</ref><ref type="bibr" target="#b15">16]</ref>; later transactions may observe modifications of those tentative transactions. When the client reconnects with the servers, its work is checked to determine if consistency has been violated and the relevant transactions are aborted. Of course, if dirty reads are allowed, cascading aborts can occur, e.g., in history H 1 0 , T 2 must abort if T aborts; this problem can be alleviated by using compensating actions <ref type="bibr" target="#b17">[18,</ref><ref type="bibr" target="#b25">26,</ref><ref type="bibr" target="#b18">19]</ref>.</p><p>Proscribing phenomenon P2 disallows a modification to an object that has been read by an uncommitted transaction (P3 rules out a similar situation with respect to predicates). As with P0, uncommitted transactions may read/write the same object concurrently in an optimistic implementation. There is no harm in allowing phenomenon P2 if transactions commit in the right order. For example, in history H given above, if T reads the old values of x and y, the transactions can be serialized in the order T 2 ; T 1 :</p><formula xml:id="formula_2">H 2 0 : r2(x, 5) r1(x, 5) w1(x, 1) r1(y, 5) r2(y, 5) w1(y, 9) c2 c1</formula><p>The real problem with the preventative approach is that the phenomena are expressed in terms of single-object histories. However, the properties of interest are often multiobject constraints. To avoid problems with such constraints, the phenomena need to restrict what can be done with individual objects more than is necessary. Our approach avoids this difficulty by using specifications that capture constraints on multiple objects directly. Furthermore, the definitions in the preventative approach are not applicable to multi-version systems since they are described in terms of objects rather than in terms of versions. On the other hand, our specifications deal with multi-version and single-version histories.</p><p>The approach in <ref type="bibr" target="#b7">[8]</ref> only allows schemes that provide the same guarantees for running and committed transactions (a lock-based implementation does indeed have this property). However, many optimistic mechanisms provide weak guarantees to transactions as they run while providing strong guarantees such as serializability for committed transactions. Our definitions allow different isolation guarantees for committed and running transactions; in this paper, we only present guarantees for committed transactions.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">Database Model and Transaction Histories</head><p>We now describe our database model, transaction histories, and serialization graphs. We use a multi-version model similar to the one presented in <ref type="bibr" target="#b8">[9]</ref>. However, unlike <ref type="bibr" target="#b8">[9]</ref>, our model incorporates predicates also. Furthermore, we allow predicate behavior that is possible in non-locking based systems.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.">Database Model</head><p>The database consists of objects that can be read or written by transactions; in a relational database system, each row or tuple is an object. Each transaction reads and writes objects and indicates a total order in which these operations occur.</p><p>An object has one or more versions. However, transactions interact with the database only in terms of objects; the system maps each operation on an object to a specific version of that object. A transaction may read versions created by committed, uncommitted, or even aborted transactions; constraints imposed by some isolation levels will prevent certain types of reads, e.g., reading versions created by aborted transactions.</p><p>When a transaction writes an object x, it creates a new version of x. A transaction T i can modify an object multiple times; its first modification of object x is denoted by x i:1 , the second by x i:2 , and so on. Version x i denotes the final modification of x performed by T i before it commits or aborts. A transaction's last operation, commit or abort, indicates whether its execution was successful or not; there is at most one commit or abort operation for each transaction. The committed state reflects the modifications of committed transactions. When transaction T i commits, each version x i created by T i becomes a part of the committed state and we say that T i installs x i ; the system determines the ordering of x i relative to other committed versions of x.</p><p>If T i aborts, x i does not become part of the committed state.</p><p>Conceptually, the initial committed state comes into existence as a result of running a special initialization transaction, T init . Transaction T init creates all objects that will ever exist in the database; at this point, each object x has an initial version, x init , called the unborn version. When an application transaction creates an object x (e.g., by inserting a tuple in a relation), we model it as the creation of a visible version for x. Thus, a transaction that loads the database creates the initial visible versions of the objects being inserted. When a transaction T i deletes an object x (e.g., by deleting a tuple from some relation), we model it as the creation of a special dead version, i.e., in this case,</p><p>x i is a dead version. Thus, object versions can be of three kinds -unborn, visible, and dead; the ordering relationship between these versions is discussed in Section 4.2.</p><p>If an object x is deleted from the committed database state and inserted later, we consider the two incarnations of</p><p>x to be distinct objects. When a transaction T i performs an insert operation, the system selects a unique object x that has never been selected for insertion before and T i creates a visible version of x if it commits.</p><p>We assume object versions exist forever in the committed state to simplify the handling of inserts and deletes, i.e., we simply treat inserts/deletes as write (update) operations. An implementation only needs to maintain visible versions of objects, and a single-version implementation can maintain just one visible version at a time. Furthermore, application transactions in a real system access only visible versions.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.">Transaction Histories</head><p>We capture what happens in an execution of a database system by a history. A history H over a set of transactions consists of two parts -a partial order of events E that reflects the operations (e.g., read, write, abort, commit) of those transactions, and a version order, , that is a total order on committed versions of each object.</p><p>Each event in a history corresponds to an operation of some transaction, i.e., read, write, commit, or abort. A write operation on object x by transaction T i is denoted by w i (x i ) (or w i (x i:m )); if it is useful to indicate the value v being written into x i , we use the notation, w i (x i , v). When a transaction T j reads a version of x that was created by T i , we denote this as r j (x i ) (or r j (x i:a )). If it is useful to indicate the value v being read, we use the notation r j (x i , v).</p><p>The partial order of events E in a history obeys the following constraints:</p><p>It preserves the order of all events within a transaction including the commit and abort events.</p><p>If an event r j (x i:m ) exists in E, it is preceded by w i (x i:m ) in E, i.e., a transaction T j cannot read version x i:m of object x before it has been produced by T i . Note that the version read by T j is not necessarily the most recently installed version in the committed database state; also, T i may be uncommitted when r j (x i:m ) occurs.</p><p>If an event w i (x i:m ) is followed by r i (x j ) without an intervening event w i (x i:n ) in E, x j must be x i:m . This condition ensures that if a transaction modifies object x and later reads x, it will observe its last update to x.</p><p>The history must be complete: if E contains a read or write event that mentions a transaction T i , E must contains a commit or abort event for T i .</p><p>A history that is not complete can be completed by appending abort events for uncommitted transactions in E. Adding these events is intuitively correct since any implementation that allows a commit of a transaction that reads from an uncommitted transaction T i can do so only if it is legal for T i to abort later.</p><p>For convenience, we will present event histories in examples as a total order (from left to right) that is consistent with the partial order.</p><p>The second part of a history H is the version order, , that specifies a total order on versions of each object created by committed transactions in H; there is no ordering of versions due to uncommitted or aborted transactions. We also refer to versions due to committed transactions in H as committed versions. We impose two constraints on a history's version order for different kinds of committed versions: the version order of each object x contains exactly one initial version, x init , and at most one committed dead version, x dead .</p><p>x init is x's first version in its version order and x dead is its last version (if it exists); all committed visible versions are placed between x init and x dead .</p><p>We additionally constrain the system to allow reads only of visible versions: if r j (x i ) occurs in a history, then x i is a visible version.</p><p>For convenience, we will only show the version order for visible versions in our example histories; in cases where unborn or dead versions help in illustrating an issue, we will show some of these versions as well.</p><p>The version order in a history H can be different from the order of write or commit events in H. This flexibility is needed to allow certain optimistic and multi-version implementations where it is possible that a version x i is placed before version x j in the version order (x i x j ) even though x i is installed in the committed state after version x j was installed. For example, in history H write;order , H write;order : w1(x1) w2(x2) w2(y2) c1 c2</p><formula xml:id="formula_3">r3(x1) w3(x3) w4(y4) a4 [x2 x1]</formula><p>the database system has chosen the version order x x 1 even though T 1 commits before T 2 . Note that there are no constraints on x 3 (yet) or y 4 since these versions correspond to uncommitted and aborted transactions, respectively. Note also that the naming of transactions does not indicate their commit order, e.g., in history H write;order , T 2 is serialized before T 1 .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3.">Predicates</head><p>We now discuss how predicates are handled in our model. We assume that predicates are used with relations in a relational database system. There are three types of modification operations on relations: updates, inserts and deletes; inserts and deletes change the number of tuples in a relation.</p><p>In our model, the database is divided into relations and each tuple (and all its versions) exists in some relation. As before, unborn and dead versions exist for a tuple before the tuple's insertion and after its deletion. An important point to note here is that a tuple's relation is known in our model when the database is initialized by T init , i.e., before the tuple is inserted by an application transaction. Of course, this assumption is needed only at a conceptual level. In an implementation, the system need not know the relation of all tuples that will be created in the system; it just needs to know a tuple x's relation when x is inserted in the database.</p><p>A predicate P identifies a Boolean condition (e.g., as in the WHERE clause of a SQL statement) and the relations on which the condition has to be applied; one or more relations can be specified in P. All tuples that match this condition are read or modified depending on whether a predicate-based read or write is being considered.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Definition 1 : Version set of a predicate-based operation.</head><p>When a transaction executes a read or write based on a predicate P, the system selects a version for each tuple in P's relations. The set of selected versions is called the Version set of this predicate-based operation and is denoted by Vset(P).</p><p>The version set defines the state that is observed to evaluate a predicate P; as discussed later, P's Boolean condition is applied on the versions in Vset(P) to determine which tuples satisfy P. Since we select a version for all possible tuples in P's relations, this set will be very large (it includes unborn and possibly dead versions of some tuples). For convenience, in our examples we will only show visible versions in a version set; to better explain some examples, we will sometimes also show some unborn and dead versions.</p><p>Our approach of observing some version of each tuple allows us to handle the phantom problem <ref type="bibr" target="#b13">[14]</ref> in a simple manner. Of course, this does not constrain implementations to perform these observations; e.g., an implementation could use an index.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3.1">Predicate-based Reads</head><p>If a transaction T i performs reads based on a predicate P (e.g., in a SQL statement), the system (conceptually) accesses all versions in Vset(P). Then, the system determines which tuples match predicate P by evaluating P's Boolean condition on the versions in Vset(P); tuples whose unborn and dead versions were selected in the previous step do not match. If the system reads the matched versions as part of the query, these reads show up as separate events in the history. Thus, a query based on a predicate P by T i is represented in a history as r i (P: Vset(P)) r i (x j ) r i (y k ) : : : , where x j , y k are the versions in Vset(P) that match P, and T i reads these versions. If T i does not read the matched objects, the events r i (x j ) and r i (y k ) do not show up in the history, e.g., T i could simply use the count of tuples that matched P.</p><p>For example, suppose transaction T i executes the following SQL query:</p><p>SELECT * FROM EMPLOYEE WHERE DEPT = SALES;</p><p>This query (conceptually) accesses a version of every visible tuple in the Employee relation (e.g., x and y 2 ) and the unborn/dead versions of other tuples in this relation (e.g., z init ). Suppose that version x matches the predicate and y 2 does not match; recall that unborn versions such as z init cannot match the predicate. This predicate-based read could be shown in a history as r i (Dept=Sales: x 1 ; y 2 ) r i (x 1 ); here, we do not show unborn or dead versions in the version set.</p><p>Note that the read of x 1 shows up as a separate event in the history; if T i had just determined the number of tuples matching the predicate (using SELECT COUNT), the event r i (x 1 ) would not have been included.Thus, the history only shows reads of versions that were actually observed by T i .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3.2">Predicate-based Modifications</head><p>A modification based on a predicate P is modeled as a predicate-based read followed by write operations on tuples that match P. (Although this approach is weaker than the one used in <ref type="bibr" target="#b0">[1]</ref>, it models the behavior of commercial databases.)</p><p>For example, suppose transaction T i executes the following code for the employee database discussed above:</p><p>UPDATE EMPLOYEE SAL = SAL + $10 WHERE DEPT=SALES;</p><p>Suppose that the system selects versions, x , y 2 , and z init for this operation. If x matches the predicate but y and z init do not, the following events are added to the history: r i (Dept=Sales:</p><formula xml:id="formula_4">x 1 ; y 2 ) w i (x i ).</formula><p>If the predicate-based write deletes objects, dead versions are installed for all the matching tuples (i.e., these tuples are deleted). Thus, if a transaction T i deletes all employees from the Sales department in the above scenario, the following events are added to the history: r i (Dept=Sales: x 1 ; y ) w i (x i , dead). Note that the events for deletes and updates are similar. However, there is a difference: in the deletion example, x i is a dead version (for illustrative purposes, we have shown the value "dead" being put in x i ) and cannot be used further whereas in the update case, x i can be used later.</p><p>Inserts are handled in a similar manner. For example, consider the following statement that copies employees whose commission exceeds 25% of their salary into the BONUS table (this statement is executed by transaction T ):</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>T1: INSERT INTO BONUS SELECT NAME, SAL, COMM</head><p>FROM EMP WHERE COMM &gt; 0.25 * SAL;</p><p>Here is a possible history for T 's execution in our model:</p><formula xml:id="formula_5">Hinsert: r1(comm &gt; 0.25 * sal: x0, z0) r1(x0) w1(y1) c1</formula><p>In this history, x matches the predicate-based query; therefore it is read by T 1 to generate tuple y 1 that is inserted into the Bonus table.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.4.">Conflicts and Serialization Graphs</head><p>We first define the different types of read/write conflicts that can occur in a database system and then use them to specify serialization graphs. We define three kinds of direct conflicts that capture conflicts of two different committed transactions on the same object or intersecting predicates. For convenience, we have separated the definitions of predicate-based conflicts and regular conflicts.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.4.1">Read Dependencies</head><p>Read dependencies occur when one transaction reads a relevant version produced by some other transaction. We use the following definition for specifying read-dependencies:</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Definition 2 : Change the Matches of a Predicate-Based</head><p>Read. We say that a transaction T i changes the matches of a predicate-based read r j (P: Vset(P)) if T i installs x i , x h immediately precedes x i in the version order,and x h matches P whereas x i does not or vice-versa. In this case, we also say that x i changes the matches of the predicate-based read.</p><p>The above definition identifies T i to be a transaction where a change occurs for the matched set of r j (P: Vset(P)).</p><p>Definition 3 : Directly Read-Depends. We say that T j directly read-depends on transaction T i if it directly itemread-depends or directly predicate-read-depends on T i .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Directly item-read-depends:</head><p>We say that T j directly itemread-depends on T i if T i installs some object version x i and T j reads x i . Directly predicate-read-depends: Transaction T j directly predicate-read-depends on T i if T j performs an operation r j (P: Vset(P)), x k 2 Vset(P), i = k or x i x k , and x i changes the matches of r j (P: Vset(P)).</p><p>If T j performs a predicate-based read r j (P: Vset(P)), it read depends on T i if T i performs a write that is "relevant" to T j 's read, i.e., T i is a transaction before T j that changed the matches of T j 's read. Note that all tuples in the version set of a predicate-based read are considered to be accessed, including tuples that do not match the predicate. The versions that are actually read by transaction T j show up as normal read events. Other versions in the version set are essentially ghost reads, i.e., their values are not observed by the predicate-based read but read-dependencies are established for them as well.</p><p>The rule for predicate-read-dependencies captures the idea that what matters for a predicate is the set of tuples that match or do not match and not their values. Furthermore, of all the transactions that have caused the tuples to match (or not match) for r j (P: Vset(P)), we use the latest transaction where a change to Vset(P) occurs rather than using the latest transaction that installed the versions in Vset(P). This rule ensures that we capture the minimum possible conflicts for predicate-based reads. For example, consider the history:</p><formula xml:id="formula_6">H pred;read : w0(x0) c0 w1(x1) c1 w2(x2) r3(Dept=Sales: x2, y0) w2(y2) c2 c3 [x0 x1 x2, y0 y2]</formula><p>Here, transaction T 0 inserts object x in the Sales department, T 1 changes x's department to Legal, and T 2 changes the phone number of x but not its department. Transaction T 3 selects all employees in the Sales department. In this case, even though T 's version set contains x 2 , we add a predicateread-dependency from T 1 to T 3 because T 2 's update of x is irrelevant for T 's read. Note that this history is serializable in the order T 0 , T 1 , T 3 , T 2 .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.4.2">Anti-Dependencies</head><p>An anti-dependency occurs when a transaction overwrites a version observed by some other transaction.</p><p>To define anti-dependencies, it is useful to define what it means to overwrite a predicate-based operation.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Definition 4 : Overwriting a predicate-based read.</head><p>We say that a transaction T j overwrites an operation r i (P: Vset(P)) if T j installs x j such that x k 2 Vset(P),</p><p>x k x j , and x j changes the matches of r i (P: Vset(P)). Now we can define anti-dependencies.</p><p>Definition 5 : Directly Anti-Depends. Transaction T j directly anti-depends on transaction T i if it directly item-antidepends or directly predicate-anti-depends on T i .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Directly item-anti-depends:</head><p>We say that T j directly itemanti-depends on transaction T i if T i reads some object version x k and T j installs x's next version (after x k )</p><p>in the version order. Note that the transaction that wrote the later version directly item-anti-depends on the transaction that read the earlier version.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Directly predicate-anti-depends:</head><p>We say that T j directly predicate-anti-depends on T i if T j overwrites an operation r i (P: Vset(P)), i.e., T j installs a later version of some object that changes the matches of a predicatebased read performed by T i .</p><p>Read-dependencies and anti-dependencies are treated similarly for predicates, i.e., we add an edge whenever a predicate's matched set is changed. The difference between item-anti-depends and predicate-anti-depends is also similar. For item-anti-depends, the overwriting transaction must produce the very next version of the read object, while for predicate-anti-depends it simply produces a later version that changes the matched tuples of the predicate.</p><p>The definition for predicate-anti-depends handles inserts and deletes. For example, consider the employee database scenario described in Section 4.3 that contains visible versions of two tuples x and y. Suppose T i executes a query that selects all Employees in the Sales department, and the query's version set contains versions x and y 2 (along with unborn/dead versions of other tuples), and x is in Sales and y 2 is not. A later transaction T j will directly predicateanti-depend on T i if T j adds a new employee to the Sales department, moves y to Sales, removes x from Sales, or deletes x from the database.</p><p>In a two-phase locking implementation (for providing serializability), if a transaction T performs a read based on predicate P and T 2 tries to insert an object x covered by P's predicate lock, T 2 is delayed till T 1 finishes. In our model, T 1 reads x init and T 2 creates a later version x . If T 2 changes the matches by T 's read, T predicate-anti-depends on T . Note that T 's predicate read-locks delay T even if T does not change the objects matched by P. Our definitions are more flexible and permit implementations that allow T 2 to proceed in such cases, e.g., precision locks and granular locks <ref type="bibr" target="#b13">[14]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.4.3">Write Dependencies</head><p>Write dependencies occur when one transaction overwrites a version written by another transaction.</p><p>Definition 6 : Directly Write-Depends. A transaction T j directly write-depends on T i if T i installs a version x i and T j installs x's next version (after x i ) in the version order.</p><p>Note that there is no notion of predicate-write-depends since predicate-based modifications are modeled as queries followed by writes on individual tuples.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.4.4">Serialization Graphs</head><p>Now we can define the Direct Serialization Graph or DSG. This graph is called "direct" since it is based on the direct conflicts discussed above. In the graph we will denote direct read-dependencies by wr T i ;! T j , direct write-dependencies by ww T i ;! T j , and direct anti-dependencies by rw T i ;! T j .   <ref type="figure" target="#fig_2">Figure 2</ref>. Definitions of direct conflicts between transactions.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Definition 7 : Direct Serialization Graph.</head><p>We define the direct serialization graph arising from a history H, denoted by DSG(H), as follows. Each node in the graph corresponds to a committed transaction and directed edges correspond to different types of direct conflicts. There is a read/write/anti-dependency edge from transaction T i to transaction T j if T j directly read/write/anti-depends on T i .</p><p>A DSG does not capture all information in a history and hence it does not replace the history, e.g., a DSG only records information about committed transactions. The history is still available if needed, and in fact, we use the history instead of the DSG for some conditions.</p><p>As an example, consider the following history: <ref type="figure" target="#fig_3">Figure 3</ref> shows the DSG for this history. As we can see, these transactions are serializable in the order T 1 ; T 2 ; T 3 . It is also useful to have additional dependency relations:</p><formula xml:id="formula_7">H serial : w1(z1) w1(x1) w1(y1) w3(x3) c1 r2(x1) w2(y2) c2 r3(y2) w3(z3) c3 [x1 x3, y1 y2, z1 z3]</formula><p>Definition 8 : Depends. A transaction T j directly depends on T i if T j directly write-depends or directly read-depends on T i . We say that T j depends on T i in H if there is a path from T i to T j in DSG(H) consisting of one or more dependency edges.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.">New Generalized Isolation Specifications</head><p>We now present our specifications for the existing ANSI isolation levels. We developed our conditions by studying the motivation of the original definitions <ref type="bibr" target="#b12">[13]</ref> and the problems that were addressed by the phenomena in <ref type="bibr" target="#b7">[8]</ref>. This enabled us to develop implementation-independent specifications that capture the essence of the ANSI definitions, i.e., we disallow undesirable situations while allowing histories that are permitted by a variety of implementations.</p><p>Like the previous approaches, we will define each isolation level in terms of phenomena that must be avoided at each level. Our phenomena are prefixed by "G" to denote the fact that they are general enough to allow locking and optimistic implementations; these phenomena are named G0, G1, and so on (by analogy with P0, P1, etc of <ref type="bibr" target="#b5">[6]</ref>). We will refer to the new levels as PL levels (where PL stands for "portable level") to avoid the possible confusion with the degrees of isolation given in <ref type="bibr" target="#b7">[8,</ref><ref type="bibr" target="#b12">13]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1.">Isolation Level PL-1</head><p>Disallowing phenomenon P0 ensures that writes performed by T 1 are not overwritten by T while T 1 is still uncommitted. There seem to be two reasons why this proscription might be desirable:</p><p>1. It simplifies recovery from aborts. In the absence of this proscription, a system that allows writes to happen in place cannot recover the pre-states of aborted transactions using a simple undo log approach. For example, suppose T 1 updates x (i.e., w 1 (x 1 )), T 2 overwrites x, and then T 1 aborts. The system must not restore x to T 1 's pre-state. However, if T aborts later, x must be restored to T 1 's pre-state and not to x .</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">It serializes transactions based on their writes alone. For example, if T updates an object x and T 1 overwrites</head><p>x, there should not be another object y in which the reverse occurs, i.e., all writes of T must be ordered before or after all writes of T .</p><p>The first reason does not seem relevant to all systems. Instead, it is based on a particular implementation of recovery, and other implementations are possible. For example, the Thor system <ref type="bibr" target="#b20">[21]</ref> maintains temporary versions of objects for an uncommitted transaction T i and discards these versions if T i aborts.</p><p>Serializing transactions based on writes is a useful property since it ensures that updates of conflicting transactions are not interleaved. This property is captured by phenomenon G0 and we define PL-1 as the level in which G0 is disallowed: G0: Write Cycles. A history H exhibits phenomenon G0 if DSG(H) contains a directed cycle consisting entirely of write-dependency edges.</p><p>For example, history H wcycle H wcycle : w1(x1, 2) w2(x2, 5) w2(y2, 5) c2 w1(y1, 8) c1</p><formula xml:id="formula_8">[x1 x2, y2 y1]</formula><p>is disallowed by PL-1 because the updates on x and y occur in opposite orders, causing a cycle in the graph. <ref type="figure">Figure 4</ref> shows the DSG for this history. Our PL-1 specification is more permissive than Degree 1 of <ref type="bibr" target="#b7">[8]</ref> since G0 allows concurrent transactions to modify the same object whereas P0 does not. Thus, non-serializable interleaving of write operations is possible among uncommitted transactions as long as such interleavings are disallowed among committed transactions (e.g., by aborting some transactions).</p><p>The lock-based implementation of PL-1 (long writelocks) disallows G0 since two concurrent transactions, T i and T j , cannot modify the same object; therefore, all writes of T j either precede or follow all writes of T i .</p><p>Note that since predicate-based modifications are modeled as queries followed by normal writes, PL-1 provides weak guarantees for such updates. For example, consider the following history in which transaction T increments the salaries of all employees for which "Dept = Sales", and T adds two employees, x and y, to the Sales department. H pred;update : w1(x1) r2(Dept=Sales: x1; yinit) w1(y1)</p><formula xml:id="formula_9">w2(x2) c1 c2 [xinit x1 x2, yinit y1]</formula><p>The updates of transactions T and T 2 are interleaved in this history (x's salary is updated but y's salary is not). This interleaving is allowed at PL-1 since there is no write-dependency cycle in the DSG (there is a write-dependency edge from T to T 2 since x 1 x 2 ).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2.">Isolation Level PL-2</head><p>If a system disallows only G0, it places no constraints on reads: a transaction is allowed to read modifications made by committed, uncommitted, or even aborted transactions. Proscribing phenomenon P1 in <ref type="bibr" target="#b5">[6]</ref> was meant to ensure that T 1 updates could not be read by T 2 while T 1 was still uncommitted. There seem to be three reasons why disallowing P1 (in addition to P0) might be useful:</p><p>1. It prevents a transaction T from committing if T 2 has read the updates of a transaction that might later abort.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">It prevents transactions from reading intermediate mod-</head><p>ifications of other transactions.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">It serializes committed transactions based on</head><p>their read/write-dependencies (but not their antidependencies). That is, if transaction T 2 depends on T 1 , T 1 cannot depend on T .</p><p>Disallowing P1 (together with P0) captures all three of these issues, but does so by preventing transactions from reading or writing objects written by transactions that are still uncommitted. Instead, we address these three issues by the following three phenomena, G1a, G1b, and G1c.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>G1a: Aborted Reads.</head><p>A history H shows phenomenon G1a if it contains an aborted transaction T 1 and a committed transaction T such that T 2 has read some object (maybe via a predicate) modified by T 1 . Phenomenon G1a can be represented using the following history fragments: Proscribing G1a ensures that if T 2 reads from T 1 and T 1 aborts, T 2 must also abort; these aborts are also called cascaded aborts <ref type="bibr" target="#b8">[9]</ref>. In a real implementation, the condition also implies that if T reads from an uncommitted transaction T 1 , T 2 's commit must be delayed until T 's commit has succeeded <ref type="bibr" target="#b8">[9,</ref><ref type="bibr" target="#b13">14]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>G1b: Intermediate Reads.</head><p>A history H shows phenomenon G1b if it contains a committed transaction T 2 that has read a version of object x (maybe via a predicate) written by transaction T that was not T 1 's final modification of x. The following history fragments represent this phenomenon: Proscribing G1b ensures that transactions are allowed to commit only if they have read final versions of objects created by other transactions. Note that disallowing G1a and G1b ensures that a committed transaction has read only object states that existed (or will exist) at some instant in the committed state.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>G1c: Circular Information Flow.</head><p>A history H exhibits phenomenon G1c if DSG(H) contains a directed cycle consisting entirely of dependency edges.</p><p>Intuitively, disallowing G1c ensures that if transaction T is affected by transaction T , it does not affect T , i.e., there is a unidirectional flow of information from T to T 2 . Note that G1c includes G0. We could have defined a weaker version of G1c that only concerned cycles with at least one read-dependency edge, but it seemed simpler not to do this.</p><p>Phenomenon G1 captures the essence of no-dirty-reads and is comprised of G1a, G1b and G1c. We define isolation level PL-2 as one in which phenomenon G1 is disallowed. Proscribing G1 is clearly weaker than proscribing P1 since G1 allows reads from uncommitted transactions. The lockbased implementation of PL-2 disallows G1 because the combination of long write-locks and short read-locks ensures that if T i reads a version produced by T j , T j must have committed already (i.e., G1a, G1b not possible) and therefore T j cannot read a version produced by T i (i.e., G1c not possible).</p><p>Our PL-2 definition treats predicate-based reads like normal reads and provides no extra guarantees for them; we believe this approach is the most useful and flexible. Other approaches, such as requiring that each predicate-based operation is atomic with respect to other predicate-based operations, are discussed in <ref type="bibr" target="#b0">[1]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3.">Isolation Level PL-3</head><p>In a system that proscribes only G1, it is possible for a transaction to read inconsistent data and therefore to make inconsistent updates. Although disallowing phenomenon P2 prevents such situations (e.g., H presented in Section 3), it also prevents legal histories such as H 0 (which is also discussed in Section 3) and hence, disallows many optimistic and multi-version concurrency control schemes. What we need is to prevent transactions that perform inconsistent reads or writes from committing. This is accomplished by the following condition: G2: Anti-dependency Cycles. A history H exhibits phenomenon G2 if DSG(H) contains a directed cycle with one or more anti-dependency edges.</p><p>We define PL-3 as an isolation level that proscribes G1 and G2. Thus, all cycles are precluded at this level. Of course, the lock-based implementation of PL-3 (long read/writelocks) disallows phenomenon G2 also since two-phase locking is known to provide complete serializability.</p><p>Proscribing G2 is weaker than proscribing P2, since we allow a transaction T j to modify object x even after another uncommitted transaction T i has read x. Our PL-3 definition allows histories such as H 1 0 and H 2 0 (presented in Section 3) that were disallowed by the preventative definitions. The conditions given in <ref type="bibr" target="#b8">[9]</ref> provides view-serializability whereas our specification for PL-3 provides conflictserializability (this can be shown using theorems presented in <ref type="bibr" target="#b8">[9]</ref>). All realistic implementations provide conflictserializability; thus, our PL-3 conditions provide what is normally considered as serializability. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.4.">Isolation Level PL-2.99</head><p>The level called REPEATABLE READ or Degree 2.99 in <ref type="bibr" target="#b5">[6]</ref> provides less than full serializability with respect to predicates. In particular, it uses long locks for all operations except predicate reads for which it used short locks, i.e., it ensures serializability with respect to regular reads and provides guarantees similar to degree 2 for predicate reads. Thus, anti-dependency cycles due to predicates can occur at this level.</p><p>We define level PL-2.99 as one that proscribes G1 and G2-item: G2-item: Item Anti-dependency Cycles. A history H exhibits phenomenon G2-item if DSG(H) contains a directed cycle having one or more item-antidependency edges.</p><p>For example, consider the following history:</p><p>H phantom : r1(Dept=Sales: x0, 10; y0, 10) r1(x0, 10) r2(y0, <ref type="bibr" target="#b9">10)</ref> r2(Sum0, 20) w2(z2, 10) w2(Sum2, 30) c2 r1(Sum2, 30) c1</p><p>[Sum0 Sum2, zinit z2]</p><p>When T 1 performs its query, there are exactly two employees, x and y, both in Sales (we show only visible versions in the history). T sums up the salaries of these employees and compares it with the sum-of-salaries maintained for this department. However, before it performs the final check, T inserts a new employee, z 2 , in the Sales department, updates the sum-of-salaries, and commits. Thus, when T 1 reads the new sum-of-salaries value it finds an inconsistency.</p><p>The DSG for H phantom is shown in <ref type="figure" target="#fig_7">Figure 5</ref>. This history is ruled out by PL-3 but permitted by PL-2.99 because the DSG contains a cycle only if predicate anti-dependency edges are considered.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.5.">Mixing of Isolation Levels</head><p>So far, we have only discussed systems in which all transactions are provided the same guarantees. However, in general, applications may run transactions at different levels and we would like to understand how these transactions interact with each other. This section discusses how we model such mixed systems.</p><p>In real database systems, each SQL statement in a transaction T i may be executed atomically even though T i is  <ref type="figure">Figure 6</ref>. Summary of portable ANSI isolation levels executed at a lower isolation level. Mixed systems in which individual SQL statements are executed atomically are discussed in <ref type="bibr" target="#b0">[1]</ref>. In a mixed system, each transaction specifies its level when it starts and this information is maintained as part of the history and used to construct a mixed serialization graph or MSG. Like a DSG, the MSG contains nodes corresponding to committed transactions and edges corresponding to dependencies, but only dependencies relevant to a transaction's level or obligatory dependencies show up as edges in the graph. Transaction T i has an obligatory conflict with transaction T j if T j is running at a higher level than T i , T i conflicts with T j , and the conflict is relevant at T j 's level. For example, an anti-dependency edge from a PL-3 transaction to a PL-1 transaction is an obligatory edge since overwriting of reads matters at level PL-3.</p><p>Edges are added as follows: Since write-dependencies are relevant at all levels, we retain all such edges. For a PL-2 or PL-3 node T i , since reads are important, readdependencies coming into T i are added. Similarly, we add all outgoing anti-dependency edges from PL-3 transactions to other nodes. Now we can define correctness for a mixed history:</p><p>Definition 9 : Mixing-Correct. A history H is mixingcorrect if MSG(H) is acyclic and phenomena G1a and G1b do not occur for PL-2 and PL-3 transactions.</p><p>It is possible to restate the above definition as an analog of the Isolation Theorem <ref type="bibr" target="#b13">[14]</ref>:</p><p>Mixing Theorem: If a history is mixing-correct, each transaction is provided the guarantees that pertain to its level.</p><p>The above theorem holds at the level of a history and is independent of how synchronization is implemented <ref type="bibr" target="#b0">1</ref> . Note that the guarantees provided to each level are with respect <ref type="bibr" target="#b0">1</ref> As stated in <ref type="bibr" target="#b13">[14]</ref>, this does not imply that a PL-3 transaction observes a consistent state since lower level transactions may have modified the database inconsistently; if we want a PL-3 transaction to observe a consistent state, lower level transactions must update the database consistently even if they observe an inconsistent state.</p><p>to the MSG. The reason is that an MSG considers the presence of transactions at other levels whereas a DSG is simply constructed with all edges. An MSG is useful for determining correctness if PL-1 and PL-2 transactions "know" what they are doing whereas a DSG ensures correctness without making any assumptions about the operations of lower level transactions.</p><p>A mixed system can be implemented using locking (with the standard combination of short and long read/write locks). But it can also be implemented using other techniques. For example an optimistic implementation would attempt to fit each committing transaction into the serial order based on its own requirements (for its level) and its obligations to transactions running at higher levels, and would abort the transaction if this is not possible. An optimistic implementation that is mixing-correct is presented in <ref type="bibr" target="#b0">[1]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.6.">Discussion</head><p>We summarize the isolation levels discussed in this section in <ref type="figure">Figure 6</ref>.</p><p>These levels are defined to impose constraints only when transactions commit; they do not constrain transactions as they run, although if something bad happens (e.g., a PL-3 transactions observes an inconsistency), they do force aborts. Analogs of the levels that constrain executing transactions are given in <ref type="bibr" target="#b0">[1]</ref>; these definitions use slightly different graphs, containing nodes for committed transactions plus a node for the executing transaction.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.">Conclusions</head><p>This paper has presented new, precise specifications of the ANSI-SQL isolation levels. Unlike previous proposals, the new definitions are implementation-independent and allow a wide range of concurrency control techniques, including locking and optimism. Furthermore, our definitions handle predicates in a correct and flexible manner at all isolation levels. Thus, they meet the goals of the ANSI-SQL standard.</p><p>The paper also specified the behavior of systems that allow mixing of levels: users are allowed to choose the level for each transaction they run, and the system guarantees that each transaction is provided with the constraints of its own level, even when some transactions are running at lower levels.</p><p>Our approach is applicable to other levels in addition to the ones discussed in the paper. We have developed implementation-independent specifications of commercial isolation levels such as Snapshot Isolation and Cursor Stability, and we have defined a new level called PL-2+; the details can be found in <ref type="bibr" target="#b0">[1]</ref>. PL-2+ is the the weakest level that guarantees consistent reads and causal consistency; it is useful in client-server systems <ref type="bibr" target="#b2">[3,</ref><ref type="bibr" target="#b0">1]</ref> and broadcast environments <ref type="bibr" target="#b24">[25]</ref>.</p><p>All of our definitions are implementation independent. This makes them suitable for use as an industry standard, since they do not preclude clever but unconventional implementations that either exist today or may be developed in the future. Instead they provide implementors with the opportunity to choose the best performing concurrency control mechanism for their environment.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head></head><label></label><figDesc>are: P0: w1[x] ... w2[x] ... (c1 or a1) P1: w1[x] ... r2[x] ... (c1 or a1) P2: r1[x] ... w2[x] ... (c1 or a1) P3: r1[P] ... w2[y in P] ... (c1 or a1)</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 1 .</head><label>1</label><figDesc>Consistency Levels and Locking ANSI-92 Isolation Levels</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 2</head><label>2</label><figDesc>summarizes this notation and reviews the definitions for direct dependencies.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 3 .</head><label>3</label><figDesc>DSG for history H serial</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>2 wwFigure 4 .</head><label>24</label><figDesc>DSG for history H wcycle</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head></head><label></label><figDesc>w1(x1:i) : : : r2(x1:i) : : : (a1 and c2 in any order) w1(x1:i) : : : r2(P: x1:i, ...) : : : (a1 and c2 in any order)</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_6"><head></head><label></label><figDesc>w1(x1:i) : : : r2(x1:i) : : : w1(x1:j ) : : : c2 w1(x1:i) : : : r2(P: x1:i :::) : : : w1(x1:j) : : : c2</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_7"><head>Figure 5 .</head><label>5</label><figDesc>Direct serialization graph for history H phantom (T 0 is not shown)</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head></head><label></label><figDesc>Tj reads xi or Tj performs a predicate-based read, xi changes the matches of Tj's read, and xi is the same or an earlier version of x in Tj 's read</figDesc><table><row><cell>Conflicts Name</cell><cell>Description (Tj conflicts on Ti)</cell><cell>Notation in DSG</cell></row><row><cell>Directly write-depends Directly read-depends</cell><cell cols="2">Ti installs xi and Tj installs x's next version Ti installs xi, wr ww Ti ! Tj Ti ! Tj</cell></row><row><cell>Directly anti-depends</cell><cell>Ti reads x h and Tj installs x's next version or Ti performs a</cell><cell>rw Ti ; ; ! Tj</cell></row><row><cell></cell><cell>predicate-based read and Tj overwrites this read</cell><cell></cell></row></table><note></note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgements</head><p>We would like to thank Chandra Boyapati, Miguel Castro, Andrew Myers, and other members of the Programming Methodology Group for their comments. We are grateful to Dimitris Liarokapis and Elizabeth O'Neil for carefully reading the paper and helping us improve the specifications. We would also like to thank Phil Bernstein, Jim Gray, and David Lomet, for their helpful comments.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<title level="m" type="main">Weak Consistency: A Generalized Theory and Optimistic Implementations for Distributed Transactions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Adya</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1999-03" />
+			<pubPlace>MIT, Cambridge, MA</pubPlace>
+		</imprint>
+	</monogr>
+	<note type="report_type">PhD thesis</note>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Efficient Optimistic Concurrency Control using Loosely Synchronized Clocks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Adya</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Gruber</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Liskov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">U</forename><surname>Maheshwari</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">SIGMOD</title>
+		<meeting><address><addrLine>San Jose, CA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="1995-05" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Lazy Consistency Using Loosely Synchronized Clocks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Adya</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Liskov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of ACM Principles of Dist. Computing</title>
+		<meeting>of ACM Principles of Dist. Computing<address><addrLine>Santa Barbara, CA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="1997-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Consistency and Orderability: Semantics-Based Correctness Criteria for Databases</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Agrawal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">E</forename><surname>Abbadi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">K</forename><surname>Singh</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM TODS</title>
+		<imprint>
+			<biblScope unit="volume">18</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<date type="published" when="1993-09" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Distributed Multi-version Optimistic Concurrency Control with Reduced Rollback</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Agrawal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">J</forename><surname>Bernstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Gupta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Sengupta</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Distributed Computing</title>
+		<imprint>
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<date type="published" when="1987" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<monogr>
+		<title level="m" type="main">American National Standard for Information Systems -Database Language -SQL</title>
+		<idno>ANSI X3.135-1992</idno>
+		<imprint>
+			<date type="published" when="1992-11" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<monogr>
+		<title level="m" type="main">Semantics-Based Concurrency Control: Beyond Commutativity</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">R</forename><surname>Badrinath</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Ramamritham</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1992-03" />
+			<publisher>ACM TODS</publisher>
+			<biblScope unit="volume">17</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">A Critique of ANSI SQL Isolation Levels</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Berenson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Bernstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Gray</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Melton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>O'neil</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>O'neil</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of SIGMOD</title>
+		<meeting>of SIGMOD<address><addrLine>San Jose, CA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="1995-05" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<monogr>
+		<title level="m" type="main">Concurrency Control and Recovery in Database Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">A</forename><surname>Bernstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Hadzilacos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Goodman</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1987" />
+			<publisher>Addison Wesley</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Synthesis of Extended Transaction Models using ACTA</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Chrysanthis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Ramamritham</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM TODS</title>
+		<imprint>
+			<biblScope unit="volume">19</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<date type="published" when="1994-09" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<monogr>
+		<title level="m" type="main">An Introduction to Database Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">J</forename><surname>Date</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1990" />
+			<publisher>Addison-Wesley</publisher>
+		</imprint>
+	</monogr>
+	<note>Fifth edition</note>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">The Dangers of Replication and a Solution</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Gray</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Helland</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>O'neil</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Shasha</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of SIGMOD</title>
+		<meeting>of SIGMOD<address><addrLine>Montreal, Canada</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="1996-06" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Granularity of Locks and Degrees of Consistency in a Shared Database</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Gray</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Lorie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Putzolu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Traiger</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Modeling in Data Base Management Systems</title>
+		<meeting><address><addrLine>Amsterdam</addrLine></address></meeting>
+		<imprint>
+			<publisher>Elsevier North-Holland</publisher>
+			<date type="published" when="1976" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<monogr>
+		<title level="m" type="main">Transaction Processing: Concepts and Techniques</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">N</forename><surname>Gray</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Reuter</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1993" />
+			<publisher>Morgan Kaufmann Publishers Inc</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Locking: A Study of Concurrency Control for Client-Server Object-Oriented Databases</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Gruber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">M.I.T</title>
+		<imprint>
+			<date type="published" when="1997" />
+		</imprint>
+	</monogr>
+	<note type="report_type">PhD thesis</note>
+	<note>Optimism vs</note>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Disconnected Operation in the Thor Object-Oriented Database System</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Gruber</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Kaashoek</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Liskov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Shrira</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE Workshop on Mobile Comp. Systems</title>
+		<imprint>
+			<date type="published" when="1994" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<monogr>
+		<title level="m" type="main">Apologizing Versus Asking Permission: Optimistic Concurrency Control for Abstract Data Types</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">P</forename><surname>Herlihy</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1990-03" />
+			<publisher>ACM TODS</publisher>
+			<biblScope unit="volume">15</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Disconnected Operation in the Coda File System</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">J</forename><surname>Kistler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Satyanarayanan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc of the ACM Symp. on Operating Sys. Principles</title>
+		<meeting>of the ACM Symp. on Operating Sys. Principles<address><addrLine>Pacific Grove, CA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="1991-10" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<monogr>
+		<title level="m" type="main">Database System Concepts</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Korth</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Silberschatz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Sudarshan</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1997" />
+			<publisher>McGraw Hill</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">On Optimistic Methods for Concurrency Control</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><forename type="middle">T</forename><surname>Kung</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">T</forename><surname>Robinson</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM TODS</title>
+		<imprint>
+			<biblScope unit="volume">6</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<date type="published" when="1981-06" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Safe and Efficient Sharing of Persistent Objects in Thor</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Liskov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Adya</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Castro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Day</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ghemawat</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Gruber</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">U</forename><surname>Maheshwari</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Myers</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Shrira</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of SIGMOD</title>
+		<meeting>of SIGMOD<address><addrLine>Montreal, Canada</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="1996-06" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Development of an Object-Oriented dDBMS</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Maier</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Stein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Otis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Purdy</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of OOPSLA</title>
+		<meeting>of OOPSLA</meeting>
+		<imprint>
+			<date type="published" when="1986-09" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">The Escrow Transactional Method. ACM TODS</title>
+		<imprint>
+			<biblScope unit="volume">11</biblScope>
+			<biblScope unit="issue">4</biblScope>
+			<date type="published" when="1986-12" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<monogr>
+		<title level="m" type="main">Oracle Corporation. Concurrency Control, Transaction Isolation and Serializability in SQL92 and Oracle7</title>
+		<imprint>
+			<date type="published" when="1995-07" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">Efficient Concurrency Control for Broadcast Environments</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Shanmugasundaram</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Nithrakashyap</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Sivasankaran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Ramamritham</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">SIGMOD</title>
+		<meeting><address><addrLine>Philadelphia, PA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="1999-06" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Managing Update Conflicts in Bayou, a Weakly Connected Replicated Storage System</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Terry</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of SOSP</title>
+		<meeting>of SOSP<address><addrLine>Copper Mountain Resort, CO</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="1995-12" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

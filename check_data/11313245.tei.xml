@@ -1,0 +1,1727 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Fast In-memory Transaction Processing using RDMA and HTM</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Xingda</forename><surname>Wei</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="department">Shanghai Key Laboratory of Scalable Computing and Systems Institute of Parallel and Distributed Systems</orgName>
+								<orgName type="institution">Shanghai Jiao Tong University</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Jiaxin</forename><surname>Shi</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="department">Shanghai Key Laboratory of Scalable Computing and Systems Institute of Parallel and Distributed Systems</orgName>
+								<orgName type="institution">Shanghai Jiao Tong University</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Yanzhe</forename><surname>Chen</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="department">Shanghai Key Laboratory of Scalable Computing and Systems Institute of Parallel and Distributed Systems</orgName>
+								<orgName type="institution">Shanghai Jiao Tong University</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Rong</forename><surname>Chen</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="department">Shanghai Key Laboratory of Scalable Computing and Systems Institute of Parallel and Distributed Systems</orgName>
+								<orgName type="institution">Shanghai Jiao Tong University</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Haibo</forename><surname>Chen</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="department">Shanghai Key Laboratory of Scalable Computing and Systems Institute of Parallel and Distributed Systems</orgName>
+								<orgName type="institution">Shanghai Jiao Tong University</orgName>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Fast In-memory Transaction Processing using RDMA and HTM</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+					<idno type="DOI">10.1145/2815400.2815419</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:42+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>We present DrTM, a fast in-memory transaction processing system that exploits advanced hardware features (i.e., RDMA and HTM) to improve latency and throughput by over one order of magnitude compared to state-of-the-art distributed transaction systems. The high performance of DrTM are enabled by mostly offloading concurrency control within a local machine into HTM and leveraging the strong consistency between RDMA and HTM to ensure serializability among concurrent transactions across machines. We further build an efficient hash table for DrTM by leveraging HTM and RDMA to simplify the design and notably improve the performance. We describe how DrTM supports common database features like read-only transactions and logging for durability. Evaluation using typical OLTP workloads including TPC-C and SmallBank show that DrTM scales well on a 6-node cluster and achieves over 5.52 and 138 million transactions per second for TPC-C and Small-Bank respectively. This number outperforms a state-of-theart distributed transaction system (namely Calvin) by at least 17.9X for TPC-C. 1. Introduction Fast in-memory transaction processing is a key pillar for many systems like Web service, stock exchange and ecommerce. A common way to support transaction processing over a large volume of data is through partitioning data into many shards and spreading the shards over multiple machines. However, this usually necessitates distributed transactions, which are notoriously slow due to the cost of coordination among multiple nodes.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><p>build a transaction processing system that is at least one order of magnitude faster than the state-of-the-art systems without using such features. To answer this question, this paper presents the design and implementation of DrTM, a fast in-memory transaction processing system that exploits HTM and RDMA to run distributed transactions on a modern cluster.</p><p>Hardware transactional memory (HTM) has recently come to the mass market in the form of Intel's restricted transactional memory (RTM). The features like atomicity, consistency and isolation (ACI) make it very promising for database transactions <ref type="bibr" target="#b30">[31,</ref><ref type="bibr" target="#b43">44,</ref><ref type="bibr" target="#b56">57]</ref>. Meanwhile, RDMA, which provides direct memory access (DMA) to the memory of a remote machine, has recently gained considerable interests in the systems community <ref type="bibr" target="#b20">[21,</ref><ref type="bibr" target="#b27">28,</ref><ref type="bibr" target="#b36">37]</ref>.</p><p>DrTM mainly leverages HTM to do most parts of concurrency control like tracking read/write sets and detecting conflicting accesses in a local machine. For transactions with large working set, DrTM may leverage transaction chopping <ref type="bibr" target="#b43">[44,</ref><ref type="bibr" target="#b44">45,</ref><ref type="bibr" target="#b58">59</ref>] to fit the read/write set of each chopped transaction piece into the working set of an HTM transaction <ref type="bibr" target="#b0">1</ref> . To preserve serializability among concurrent transactions across multiple machines, DrTM provides the first design and implementation of distributed transactions using HTM, by leveraging the strong consistency feature of RDMA (where an RDMA operation will abort an HTM transaction that accesses the same memory location) to glue multiple HTM transactions together while preserving serializability.</p><p>One main challenge of supporting distributed transactions is the fact that no I/O operations including RDMA are allowed within an HTM region. DrTM addresses this with a concurrency control protocol that combines HTM and two-phase locking (2PL) <ref type="bibr" target="#b6">[7]</ref> to preserve serializability. Specifically, DrTM uses RDMA-based compare-and-swap (CAS) to lock and fetch the corresponding database records from remote machines before starting an HTM transaction. Thanks to the strong consistency of RDMA and the strong This paper uses HTM/RTM transaction or HTM/RTM region to describe the transaction code executed under HTM/RTM's protection, and uses transaction to denote the original user-written transaction. atomicity of HTM <ref type="bibr" target="#b1">2</ref> , any concurrent conflicting transactions on a remote machine will be aborted. DrTM leverages this property to preserve serializability among distributed transactions. To guarantee forward progress, DrTM further provides contention management by leveraging the fallback handler of HTM to prevent possible deadlock and livelock.</p><p>As there is no effective way to detect local writes and remote reads, a simple approach is using RDMA to lock a remote record even if a transaction only needs to read that record. This, however, significantly limits the parallelism. DrTM addresses this issue by using a lease-based scheme <ref type="bibr" target="#b22">[23]</ref> to unleash parallelism. To allow read-read sharing of database records among transactions across machines, DrTM uses RDMA to atomically acquire a lease of a database record from a remote machine instead of simply locking it, such that other readers can still read-share this record.</p><p>While RDMA-friendly hash tables have been intensively studied recently <ref type="bibr" target="#b20">[21,</ref><ref type="bibr" target="#b27">28,</ref><ref type="bibr" target="#b36">37]</ref>, we find that the combination of HTM and RDMA opens new opportunities for a more efficient design that fits the distributed transaction processing in DrTM. Specifically, our RDMA-friendly hash table leverages HTM to simplify race detection among local and remote read, to reduce the overhead of local operations, and to save spaces for hash entries. Besides, based on the observation that structural changes of indexes are usually rare, DrTM provides a host-transparent cache that only caches the addresses of database records as well as an incarnation checking <ref type="bibr" target="#b20">[21]</ref> mechanism to detect invalidation. The cache is very space-efficient (caching locations instead of values) and significantly reduces RDMA operations for searching a key-value pair.</p><p>We have implemented DrTM, which also supports readonly transactions and uses logging for durability <ref type="bibr" target="#b53">[54,</ref><ref type="bibr" target="#b56">57,</ref><ref type="bibr" target="#b59">60]</ref>. To demonstrate the efficiency of DrTM, we have conducted a set of evaluations of DrTM's performance using a 6-node cluster connected by InfiniBand NIC with RDMA. Each machine of the cluster has two 10-core RTM-enabled Intel Xeon processors. Using two popular OLTP workloads including TPC-C <ref type="bibr" target="#b50">[51]</ref> and SmallBank <ref type="bibr" target="#b48">[49]</ref>, we show that DrTM can perform over 5.52 and 138 million transactions per second for TPC-C and SmallBank respectively. A simulation of running multiple logical nodes over each machine shows that DrTM may be able to scale out to a larger-scale cluster with tens of nodes. A comparison with a state-of-theart distributed transaction system (i.e., Calvin) shows that DrTM is at least 17.9X faster for TPC-C.</p><p>In summary, the contributions of this paper are:</p><p>• The first design and implementation of exploiting the combination of HTM and RDMA to boost distributed transaction processing systems ( §3).</p><p>• A concurrency control scheme using HTM and 2PL that glues together multiple concurrent transactions across machines and a lease-based scheme that enables readread sharing across machines ( §4).</p><p>• An HTM/RDMA-friendly hash table that exploits HTM and RDMA to simplify the design and improve performance as well as a location-based cache to further reduce RDMA operations ( §5).</p><p>• A set of evaluations that confirm the extremely high performance of DrTM ( §7).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">Background</head><p>HTM. To mitigate the challenge of writing efficient multithreaded code with fine-grained locking, hardware transactional memory (HTM) was proposed as an alternative with the goal of providing comparable performance with less complexity. Intel's Restricted Transactional Memory (RTM) provides strong atomicity <ref type="bibr" target="#b9">[10]</ref> within a single machine, where a non-transactional code will unconditionally abort a transaction when their accesses conflict. RTM uses the first-level cache to track the write set and an implementationspecific structure to track the read set, and relies on the cache coherence protocol to detect conflicts. Upon a conflict, at least one transaction will be aborted. RTM provides a set of interfaces including XBEGIN, XEND and XABORT, which will begin, end and abort a transaction accordingly. As a practical hardware mechanism, the usage of RTM has several restrictions <ref type="bibr" target="#b55">[56,</ref><ref type="bibr" target="#b56">57]</ref>. First, the read/write set of an RTM transaction must be limited in size. It is because the underlying CPU uses private caches and various buffers to track the conflicts of reads and writes. The abort rate of an RTM transaction will increase significantly with the increase of working set. Beyond the hardware capacity, the transaction will be always aborted. Second, some instructions and system events such as network I/O may abort the RTM transaction as well. Third, RTM provides no progress guarantees about transactional execution, which implies a non-transactional fallback path is required when the number of RTM transaction aborts exceeds some threshold. Last but not least, RTM is only a compelling hardware feature for single machine platform, which limits a distributed transaction system from getting profit from it. Note that, though this paper mainly uses Intel's RTM as an example to implement DrTM, we believe it should work similarly for other HTM systems. Specifically, HTM implementations with a large working set would perform extremely well under DrTM.</p><p>RDMA. Remote Direct Memory Access (RDMA) is a networking feature to provide cross-machine accesses with high speed, low latency and low CPU overhead. Much prior work has demonstrated the benefit of using RDMA for inmemory stores <ref type="bibr" target="#b27">[28,</ref><ref type="bibr" target="#b36">37]</ref> and computing platforms <ref type="bibr" target="#b20">[21,</ref><ref type="bibr" target="#b39">40]</ref>. RDMA provides three communication options with different interfaces and performance. First, IPoIB emulates IP over InfiniBand, which can be directly used by exist- ing socket-based code without modification. Yet, its performance is poor due to the intensive OS involvement. Second, SEND/RECV Verbs provide a message-passing interface and implement message exchanges in user space through bypassing kernel. The communication between machines is two-sided, since each SEND operation requires a RECV operation as a response. Third, the one-sided RDMA allows one machine to directly access the memory of another machine without involving the host CPU, which provides very good performance <ref type="bibr" target="#b20">[21,</ref><ref type="bibr" target="#b27">28,</ref><ref type="bibr" target="#b36">37]</ref> but much limited interfaces: read, write and two atomic operations (fetch-and-add and compare-and-swap).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">Overview</head><p>Setting. DrTM is an in-memory transaction processing system, which targets OLTP workloads over a large volume of data. It aims at leveraging emerging processor (HTM) and network (RDMA) features to efficiently run transactions on a modern cluster. DrTM scales by partitioning data into many shards spreading across multiple machines connected by high-performance networking with RDMA support. For each machine with n cores, DrTM employs n worker threads, each of which executes and commits a single transaction at a time, synchronizing with other threads using the HTM transactions.</p><p>Approach Overview. We build DrTM out of two independent components: transaction layer and memory store. <ref type="figure" target="#fig_0">Figure 1</ref> illustrates the execution of local and distributed transactions in DrTM. Like other systems <ref type="bibr" target="#b20">[21]</ref>, DrTM exposes a partitioned global address space <ref type="bibr" target="#b14">[15,</ref><ref type="bibr" target="#b15">16]</ref>, where all memory in a cluster is exposed as a shared address space, but a process needs to explicitly distinguish between local and remote accesses. A remote access in DrTM is mainly done using one-sided RDMA operations for efficiency.</p><p>On each machine, DrTM utilizes HTM to provide transaction support. When a transaction's size is too large to fit into the working set of HTM or to lead to large abort rate, DrTM leverages transaction chopping with optimizations <ref type="bibr" target="#b43">[44,</ref><ref type="bibr" target="#b44">45,</ref><ref type="bibr" target="#b58">59</ref>] to decompose larger transactions into smaller pieces. In this case, there is a restriction such that only the first piece may contain a user-initiated abort, as in prior work <ref type="bibr" target="#b58">[59]</ref>.</p><p>DrTM is further designed with a concurrency control scheme to glue all transactions together while preserving strict serializability. Typical systems mostly either use twophase locking (2PL) <ref type="bibr" target="#b6">[7]</ref> or optimistic concurrency control (OCC) <ref type="bibr" target="#b29">[30]</ref>. Since HTM relies on hardware (CPU) to do concurrency control for local transactions, which is hard to be aborted and rolled back by software. Therefore, to preserve serializability among conflicting transactions on multiple nodes, we design a 2PL-like protocol to coordinate accesses to the same database records from local and remote worker threads. To bridge HTM (which essentially uses OCC) and 2PL, DrTM implements the exclusive and shared locks using one-sided RDMA operations, which are cachecoherent with local accesses and thus provide strong consistency with HTM.</p><p>The memory store provides a general key-value store interface to the transaction layer. We design and implement an HTM/RDMA-friendly hash table, which uses one-sided RDMA operations to perform both read and write to remote key-value pairs and provides a RDMA-friendly, locationbased and host-transparent cache.</p><p>Limitation. DrTM currently has three main limitations. First, similar to some prior work <ref type="bibr" target="#b1">[2,</ref><ref type="bibr" target="#b51">52]</ref>, DrTM requires advance knowledge of read/write sets of transactions for proper locking to implement the 2PL-like protocol. Second, DrTM only provides an HTM/RDMA-friendly key-value store for the unordered store using hash table and still requires SEND/RECV Verbs for remote accesses of the ordered stores. Finally, DrTM currently preserves durability rather than availability in case of machine failures, as done in recent in-memory databases <ref type="bibr" target="#b53">[54,</ref><ref type="bibr" target="#b56">57,</ref><ref type="bibr" target="#b59">60]</ref>. We plan to address these issues in our future work.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">Supporting Distributed Transactions</head><p>DrTM uses HTM to provide transaction support within a single machine, and further adopts the two-phase locking (2PL) protocol to coordinate accesses to remote records for distributed transactions.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Coordinating Local and Distributed Transactions</head><p>Since an HTM transaction provides strong atomicity and one-sided RDMA operations are cache-coherent, DrTM uses them to bridge the HTM and 2PL protocol. The one-sided RDMA operation presents as a non-transactional access for remote records in distributed transactions, which can directly abort the conflicting HTM transactions running on the target machine.</p><p>However, any RDMA operation inside an HTM transaction will unconditionally cause an HTM abort and thus we cannot directly access remote records through RDMA within HTM transactions. To this end, DrTM uses 2PL to safely accumulate all remote records into a local cache prior to the actual execution in an HTM transaction, and write back the committed updates to other machines until the local commit of the HTM transaction or discard temporal updates after an HTM abort. DrTM provides strictly serializable transactions, which are organized into three phases: Start, LocalTX and Commit (see <ref type="figure" target="#fig_1">Figure 2</ref>(a)). In the Start phase, a transaction locks and prefetches required remote records in advance, and then runs XBEGIN to launch an HTM transaction. In the LocalTX phase, the HTM transaction provides transactional read and write for all local records. In the Commit phase, the distributed transaction first commits the HTM transaction using XEND, and then updates and unlocks all remote records. <ref type="figure" target="#fig_2">Figure 3</ref> shows the pseudo-code of the main transaction interfaces provided by DrTM. The confirmation of all leases in the Commit phase will be further explained in §4.3.</p><p>Similar with prior work <ref type="bibr" target="#b1">[2,</ref><ref type="bibr" target="#b51">52]</ref>, DrTM requires advanced knowledge of read/write sets of transactions for locking and prefetching in the Start phase. Fortunately, this is the case for typical OLTP transactions like TPC-C 3 , SmallBank <ref type="bibr" target="#b2">[3,</ref><ref type="bibr" target="#b48">49]</ref>, Article <ref type="bibr" target="#b46">[47]</ref> and SEATS <ref type="bibr" target="#b47">[48]</ref>. For workloads that do not satisfy this requirement, we can add a read-only reconnaissance query to discover the read/write set of a particular transaction and check again if the set has been changed during the transaction <ref type="bibr" target="#b51">[52]</ref>.</p><p>Since we use different mechanisms to protect local transactions by HTM and distributed transactions by 2PL, the same type of transactions can correctly cooperate with each other. For example, as shown in <ref type="figure" target="#fig_1">Figure 2</ref>(e), a distributed transaction will lock the remote records to prevent another distributed transaction from accessing the same record. However, the distributed transactions protected by a software mechanism (2PL) cannot directly work with the local transaction protected by a hardware mechanism (HTM). Since the RDMA operations on remote records in distributed transactions are presented as non-transactional accesses, they can directly abort local transactions which also access the same records earlier within an HTM region (see <ref type="figure" target="#fig_1">Figure 2</ref>(b)). Unfortunately, if the local accesses happen later than the remote ones, the conflicting local transaction will incorrectly commit (see <ref type="figure" target="#fig_1">Figure 2</ref>(c) and (d)). To this end, DrTM further checks the state of records inside local read and write oper- <ref type="bibr" target="#b2">3</ref> There are two dependent transactions in TPC-C: order-status and payment. Since the order-status transaction is read-only, DrTM will run it using a separate scheme without advanced knowledge of its read set ( §4.5). For the payment transaction, transaction chopping will transform dependent results of secondary index lookup into inputs of subsequent transaction pieces.  ations of an HTM transaction and explicitly aborts the HTM transaction if a conflict is detected. Further details will be presented in §4.3.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>67$57UHPRWHBZULWHVHW</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Exclusive and Shared Lock</head><p>The implementation of the 2PL protocol relies on read/write locks to provide exclusive and shared accesses. The lack of expressiveness of one-sided RDMA operations (e.g., only READ/WRITE/CAS) becomes a major challenge. RDMA provides one-sided atomic compare-and-swap (CAS), which is easy to implement the exclusive lock. The semantic of RDMA CAS is equal to the normal CAS instruction (i.e., local CAS), which atomically swaps the current value with a new value if it is equal to the expected value. However, there is an atomicity issue between local CAS and RDMA CAS operations. The atomicity of RDMA CAS is hardware-specific <ref type="bibr" target="#b35">[36]</ref>, which can implement each of the three levels: IBV ATOMIC NONE, IBV ATOMIC HCA and IBV ATOMIC GLOB. The RDMA CAS can only correctly work with local CAS under IBV ATOMIC GLOB level, while our InfiniBand NIC 4 only provides the IBV ATOMIC HCA level of atomicity. This means that only RDMA CASs can correctly lock each other. Fortunately, the lock will only be acquired and released by remote accesses using RDMA CAS. The local access will only check the state of locks, which can correctly work with RDMA CAS due to the cache coherence of RDMA memory.  Compared to the exclusive lock, the shared lock requires extremely complicated operations to handle both sharing and exclusive semantics, which exceeds the expressiveness of one-sided RDMA operations. DrTM uses a variant of lease <ref type="bibr" target="#b22">[23]</ref> to implement the shared lock. The lease is a contract that grants some rights to the lock holder in a time period, which is a good alternative to implement shared locking using RDMA due to no requirement of explicit releasing or invalidation.</p><p>The lease-based shared lock is only acquired by distributed transactions to safely read the remote records in a time period, while the local transactional read can directly overlook the shared lock due to the protection from HTM. All local and remote transactional write will actively check the state of the shared lock and abort itself when the lease is not expired. Further, to ensure the validation of leases up to the commit point, an additional confirmation is inserted into the Commit phase before the commitment of local HTM transaction (i.e., XEND). <ref type="figure" target="#fig_3">Figure 4</ref> illustrates the data structure of the state, which combines exclusive (write) and shared (read) lock into a 64byte word. The first (least) bit is used to present whether the record is exclusively locked or not, the 8-bit owner id is reserved to store the owner machine ID of each exclusive lock for durability (see §4.6), and the rest of 55-bit read lease is used to store the end time of a lease for sharing the record. We used the end time instead of the duration of the lease since it will be easy to make all leases of a distributed transaction expire in the same time, which can simplify the confirmation of leases (see COMMIT in <ref type="figure">Figure</ref> 3). The duration of read lease may impact on parallelism and abort rate in DrTM. Finding the best duration of a lease is beyond the scope of this paper and is part of our future work. Currently, DrTM simply fixes the lease duration as  <ref type="figure">Figure 5</ref>. the pseudo-code of remote read and write in DrTM.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">Transactional Read and Write</head><p>1.0 ms for read-only transactions and 0.4 ms for the rest of transactions according to our cluster setting. The initial state is INIT (i.e., 0x0), and the state will be set to W LOCKED, which is piggybacked with a machine ID for exclusively locking the record. The record is validly shared among readers, only if the first bit is zero and the current time (i.e., now) is earlier than the end time of its lease. The DELTA is used to tolerate the time bias among machines, which depends on the accuracy of synchronized time (see §6.1). <ref type="figure">Figure 5</ref> shows the pseudo-code of remote read and write. The one-sided RDMA CAS is used to lock remote records. For remote read (i.e., REMOTE READ), if the state is INIT or shared locked with unexpired lease, the record will be successfully locked in shared mode with expected or original end time. An additional RDMA READ will fetch the value of record into a local cache, and the end time is returned. If the state is locked with an expired lease, the remote read will retry RDMA CAS to lock the record with the correct current state by RDMA CAS. If the record has been locked in the exclusive mode, the remote read will abort. Similarly, the beginning of remote write (i.e., REMOTE WRITE) will also use RDMA CAS to lock the remote record but with the state LOCKED. Another difference is that the remote write will abort if the state is locked in shared mode and the lease is not expired. The ending of a remote write (i.e.,  REMOTE WRITE BACK) will write back the update to remote record and release the lock. Note that the abort (i.e., ABORT) needs to explicitly release all owned exclusive locks and the transaction needs to retry. To simplify the exposition, we skip such details in the example code.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>/2&amp;$/B5($'NH\</head><p>As shown in <ref type="figure" target="#fig_4">Figure 6</ref>, before actual accesses to the record, the local read (i.e., LOCAL READ) needs to ensure that the state is not locked in the exclusive mode. For the local write (i.e., LOCAL WRITE), it must further consider that the state is also not locked with an unexpired lease. In addition, the expired lease will be actively cleared in local write to avoid an additional RDMA CAS in remote read and write. Since this optimization has a side effect that adds the state of record into the write set of HTM transaction, it will not be used in local read, avoiding the false abort due to concurrent local reads.  <ref type="table" target="#tab_4">Table 1</ref> lists the impact of local and remote operations to the state and the value of the record. Despite read or write, local access will only read the state, while remote access will write the state. The false write to the state by remote read may result in false conflict with local read (see <ref type="table" target="#tab_5">Table 2</ref>). Furthermore, even though HTM tracks the read/write set at the cache-line granularity, we still contiguously store the state and the value to reduce the working set. Because there is no false sharing between them; they will always be accessed together. <ref type="table" target="#tab_5">Table 2</ref> further summarizes the conflict between local and distributed transactions due to different types and interleavings of accesses to the same record. The conflict involved in the remote write back (R WB) is ignored, since it always holds the exclusive lock. There is only one false conflict un-  der the interleaving as shown in <ref type="figure" target="#fig_1">Figure 2</ref>(b). The remote read (R RD) will incorrectly abort the transactions which only locally read (L RD) the same record earlier, since the state in the read set of the transaction is written by the remote read for locking. Fortunately, we observe that such a case is rare and have little impact on performance.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>L RD L WR R RD R WR R WB</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.4">Strict Serializability</head><p>This section gives an informal argument on the strict serializability of our hybrid concurrency control protocol. We argue it by reduction that our protocol equals to the strict two-phase locking (S2PL) <ref type="bibr" target="#b23">[24]</ref>. S2PL complies with 1) all locks are acquired and no locks are released in the expanding phase, 2) all shared (read) locks are released and no lock is acquired in the shrinking phase, and 3) all exclusive (write) locks are released only after the transaction has committed or aborted. First, we show that the behavior of HTM region for local records to be written and read is equivalent to the exclusive and shared lock respectively. If both the two conflicting accesses are local and at least one is write, HTM ensures that at least one of the transactions will abort. If one of the conflicting accesses is remote, HTM with the help of the state of record can still correctly check the conflict and abort the local transaction, as shown in <ref type="table" target="#tab_5">Table 2</ref>. The false conflict between local and remote reads only affects the performance, not the correctness.</p><p>Second, we also show that our lease-based shared lock is equivalent to a normal shared lock. Suppose that one record is locked in shared mode with a lease by a transaction before reading it. After that, other reads are able to share this lease, while any write to the record will be rejected until the lease is expired. On the other hand, the transaction will confirm the validation of lease before commitment, and pessimistically abort itself if the lease has expired.</p><p>Finally, we argue that all locks will be released at a right time. The "lock" for local records will be released after the HTM transaction commits or aborts. The confirmation after all execution of the transaction means that all shared locks are released in the shrinking phase that no lock will be acquired. After the HTM transaction commits, the updates to local records have been committed, and the updates to remote records will also eventually be committed. All exclusive locks will be released after that time.   </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>67$57B52UHDGVHW</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.5">Read-only Transactions</head><p>Read-only transaction is a special case which usually has a very large read set involving up to hundreds or even thousands of records. Thus, it will likely abort an HTM transaction. To remedy this, DrTM provides a separate scheme to execute read-only transactions without HTM. <ref type="figure" target="#fig_7">Figure 8</ref> shows the pseudo-code of the interface for readonly transactions. The transaction first locks all records in shared mode with the same end time and prefetches the values into a local cache. After that, the transaction needs to confirm the validation of all shared locks using the end time. As the use of lease equals to a read lock, this simple scheme ensures that a read-only transaction can always read a consistent state.</p><p>This simple solution provides two key benefits. First, acquiring and holding shared locks until all records are read can ensure that there are no inflight conflicting transactions on any machine. This preserves the strict serializability of DrTM. Second, prior work <ref type="bibr" target="#b38">[39]</ref> uses two-round execution to confirm the two rounds return the same results, which may be lengthy and result in new conflicts. DrTM provides an efficient and lightweight approach by directly checking the end time of shared locks.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.6">Durability</head><p>DrTM currently preserves durability rather than availability in case of machine failures, as done in recent in-memory databases <ref type="bibr" target="#b53">[54,</ref><ref type="bibr" target="#b56">57,</ref><ref type="bibr" target="#b59">60]</ref>. How to provide availability, e.g., through efficiently replicated logging <ref type="bibr" target="#b20">[21,</ref><ref type="bibr" target="#b21">22]</ref>, will be our future work.</p><p>DrTM uses similar failure models as other work <ref type="bibr" target="#b21">[22,</ref><ref type="bibr" target="#b40">41]</ref>, where each machine has an uninterruptible power supply (UPS) that provides power during an outage. It assumes the flush-on-failure policy <ref type="bibr" target="#b40">[41]</ref> and uses the power from the UPS to flush any transient state in processor registers and cache lines to non-volatile DRAM (NVRAM, like NVDIMM <ref type="bibr" target="#b49">[50]</ref>) and finally to a persistent storage (e.g., SSD) upon a failure. A machine in a cluster may crash at any time, but only in a fail-stop manner instead of arbitrary failures like Byzantine failures <ref type="bibr" target="#b12">[13,</ref><ref type="bibr" target="#b28">29]</ref>. DrTM uses an external highly reliable coordination service, Zookeeper <ref type="bibr" target="#b26">[27]</ref>, to detect machine failures through a heartbeat mechanism and to notify surviving machines to assist the recovery of crashed machines. Zookeeper connects DrTM over a separate10GbE network to avoid rewriting it for RDMA.</p><p>Using HTM and RDMA to implement distributed transactions raises two new challenges for durability by logging. First, as all machines can immediately observe the local updates after the commitment of a local HTM transaction (i.e., XEND), DrTM needs to eventually commit the database transaction enclosing this HTM transaction, even if this machine failed. Second, due to all records in each machine are available to one-sided RDMA accesses without the involvement of this machine, a machine can no longer log all accesses to its owned records.</p><p>DrTM uses cooperative logging and recovery for durability. In each machine, besides logging local updates within an HTM transaction, DrTM also logs remote updates through RDMA operations, including locking (RDMA CAS) and updates (RDMA WRITE) to remote records. The left part of <ref type="figure" target="#fig_6">Figure 7</ref> shows that each transaction issues logging operations both before and within the HTM region. Before the HTM region, a transaction first logs chopping information (e.g., the remaining transaction pieces) if it is part of a larger parent transaction when transaction chopping is applied. Such chopping information is used to instruct DrTM on which transaction piece to execute after recovery from a crash. The transaction also logs its remote write set ahead of any exclusive locking (lock-ahead log) so that DrTM knows which records need to be unlocked during recovery. Before committing an HTM region, a transaction logs all updates of both local and remote records (write-ahead log) to NVRAM. These can be used for recovery by writing such records on the target machines. Note that each record piggybacks a version to decide the order of updates from different transactions, which is initially zero by record insertion and is increased by each local and remote write.</p><p>DrTM checks the persisted logs to determine how to do recovery, as shown in the right part of <ref type="figure" target="#fig_6">Figure 7</ref>. If the machine crashed before the HTM commit (i.e., XEND), it implies that the transaction is not committed and thus the writeahead log will not appear in NVRAM due to the all-ornothing property of HTM. The lock-ahead log will be used to unlock remote records during recovery when necessary (see <ref type="figure" target="#fig_6">Figure 7</ref>(a)). Note that several bits (e.g., 8) of the state structure (see <ref type="figure" target="#fig_3">Figure 4</ref>) are reserved to store the owner machine of each exclusive lock, which can be used to identify the machine that locks the record at last. If the machine crashed after the HTM transaction commits, it implies that the transaction should be eventually committed and the write-ahead log in NVRAM can be used to write back and unlock local and remote records when recovery (see <ref type="figure" target="#fig_6">Figure 7(b)</ref>).</p><p>From the perspective of surviving machines, their worker threads suspended their transactions involving the remote records in the crashed machine and wait for the notification from Zookeeper to assist the recovery. Currently, DrTM does not switch the worker thread to the next transaction for simplicity and for beginning the recovery as soon as possible. <ref type="figure" target="#fig_6">Figure 7</ref>(c), (d) and (e) show three cases of related transactions in a surviving machine to assist the recovery of a crashed machine, which correspond to locking in REMOTE WRITE, unlocking in ABORT and updating in WRITE BACK respectively.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.">Memory Store Layer</head><p>The memory store layer of DrTM provides a general keyvalue store interface to the upper transaction layer. The most common usage of this interface is to read or write records by given keys. To optimize for different access patterns <ref type="bibr" target="#b4">[5,</ref><ref type="bibr" target="#b31">32,</ref><ref type="bibr" target="#b32">33]</ref>, DrTM provides both an ordered store in the form of a B+ tree and an unordered store in the form of a hash table. For the ordered store, we use the B+ tree in DBX <ref type="bibr" target="#b56">[57]</ref>, which uses HTM to protect the major B+ tree operations and was shown to have comparable performance with state-ofthe-art concurrent B+ tree <ref type="bibr" target="#b34">[35]</ref>. For the unordered store, we further design and implement a highly optimized hash table based on RDMA and HTM. For ordered store, as there is no inevitable remote access to such database tables in our workloads (i.e., TPC-C and SmallBank), we currently do not provide RDMA-based optimization for such tables. Actually, how to implement a highly-efficient RDMA-friendly B+ tree is still a challenge.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1">Design Spaces and Overview</head><p>There have been several designs that leverage RDMA to optimize hash tables, as shown in <ref type="table" target="#tab_8">Table 3</ref>. For example, Pilaf <ref type="bibr" target="#b36">[37]</ref> uses one-sided RDMA READs to perform GETs (i.e., READ), but requires two-sided RDMA SEND/RECV Verbs to ship update requests to the host for PUTs (i.e., INSERT/WRITE/DELETE). It uses two checksums to detect races among concurrent reads and writes and provides   <ref type="bibr" target="#b27">[28]</ref>, which focuses on reducing network round trips. HERD uses a mix of RDMA WRITE and SEND/RECV Verbs to deliver all requests to the host for both GETs and PUTs, which requires non-trivial host CPU involvement. DrTM demands a symmetry memory store layer to support transaction processing on a cluster, in which all machines are busy processing transactions and accessing both local and remote memory stores. Therefore, we do not consider the design of HERD.</p><p>While prior designs have successfully demonstrated the benefit of RDMA for memory stores, there are still rooms for improvement and the combination of HTM and RDMA provides a new design space. First, prior RDMA-friendly keyvalue stores adopt a tightly coupled design, where the design of data accesses is restricted by the race detection mechanism. For example, to avoid complex and expensive race detection mechanisms, both Pilaf and FaRM-KV only use onesided RDMA READ. This choice sacrifices the throughput and latency of updates to remote key-value pairs, which are also common operations in remote accesses for distributed transactions in typical OLTP workloads (e.g., TPC-C).</p><p>Second, prior designs have a bias towards RDMA-based remote operations, which increases the cost of local accesses as well. The race detection mechanisms (e.g., checksums <ref type="bibr" target="#b36">[37]</ref> and versioning <ref type="bibr" target="#b20">[21]</ref>) increase the pressure on the system resources (CPU and memory). For example, Pilaf uses two 64-bit CRCs to encode and decode hash table entries and key-value pairs accordingly for write and read operations. FaRM-KV adds a version field per cache line of the value for write operations, and checks the consistency of versions when reading the value. Further, all local operations, which commonly dominates the accesses, also have  to follow the same mechanism as the remote ones with additional overhead.</p><p>Finally, even using one-sided RDMA operations, accessing local memory is still an order-of-magnitude faster than accessing remote memory. However, there is no efficient RDMA-friendly caching scheme in prior work for both read and write operations, since traditional content-based cache has to perform strongly-consistent read locally. A write operation must synchronously invalidate every caches scattered across the entire cluster to avoid stale reads, resulting in high write latency. The cache invalidation will also incur new data race issues that require complex mechanisms to avoid, such as lease <ref type="bibr" target="#b54">[55]</ref>.</p><p>Overview. DrTM leverages the strong atomicity of HTM and strong consistency of RDMA to design an HTM/RDMAfriendly hash table. First, DrTM decouples the race detection from the hash table by leveraging the strong atomicity of HTM, where all local operations (e.g., READ/WRITE/ INSERT/DELETE) on key-value pairs are protected by HTM transactions and thus any conflicting accesses will abort the HTM transaction. This significantly simplifies the data structures and operations for race detection. Second, DrTM uses one-sided RDMA operations to perform both READ and WRITE to remote key-value pairs without involving the host machine <ref type="bibr" target="#b4">5</ref> . Finally, DrTM separates keys and values as well as its metadata into decoupled memory region, resulting in two-level lookups like Pilaf <ref type="bibr" target="#b36">[37]</ref>. This makes it efficient to leverage one-sided RDMA READ for lookups, as one RDMA READ can fetch a cluster of keys. Further, the separated key-value pair makes it possible to implement RDMA-friendly, location-based and host-transparent caching ( §5.3).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2">Cluster Hashing</head><p>DrTM uses Cluster chaining instead of Cuckoo <ref type="bibr" target="#b36">[37]</ref> or Hopscotch <ref type="bibr" target="#b20">[21]</ref> due to good locality and simple INSERT without moving header slots. It is because the INSERT operation is implemented as an HTM transaction and thus excessively moving header slots may exceed the HTM working set, resulting in HTM aborts. The Cluster hashing is similar to tra-ditional chaining hashing with associativity, but uses decoupled memory region and shares indirect headers to achieve high space efficiency and fewer RDMA READs for lookups. <ref type="figure" target="#fig_8">Figure 9</ref> shows the design of the key-value store, which consists of three regions: main header, indirect header and entry. The main header and indirect header share the same structure of buckets, each of which contains multiple header slots. The header slot is fixed as 128 bits (16 bytes), consisting of 2-bit type, 14-bit lossy incarnation, 48-bit offset and 64-bit key. The lossy incarnation uses the 14 least significant bits of the full-size incarnation, which is used to detect the liveness of entry <ref type="bibr" target="#b52">[53]</ref>. Incarnation is initially zero and is monotonously increased by INSERT and DELETE within an HTM region, which guarantees the consistency of lossy and full-size incarnations. The offset can be located to an indirect header or entry according to the type. If the main header is full of key-value pairs, the last header slot will link to a free indirect header and change its type from Entry (T=10) to Header (T=01). The original resident and new key-value pair will be added to the indirect header. To achieve good space efficiency, even for a skewed key distribution, all indirect headers are shared by main headers and can further link each other.</p><p>Besides the key and value fields, the entry contains 32-bit full-size incarnation, 32-bit version and 64-bit state. The version of a key-value pair is initially zero and is monotonously increased by each WRITE, which is used to decide the order of updates by applications. For example, DrTM uses it during recovery (see §4.6). The state provides locking to ensure the strong consistency of remote writes for the key-value pair. DrTM implements an exclusive and shared locks on it using RDMA CAS (see §4.2).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3">Caching</head><p>The traditional content-based caching (e.g., replication) is hard to perform strong-consistent read and write locally, especially for RDMA. DrTM takes this fact into account by building location-based caching for RDMA-friendly keyvalue stores, which focuses on minimizing the lookup cost and retaining the full transparency to the host.</p><p>Compared to caching the content of a key-value pair, caching the location (i.e., offset) of the key-value pair (i.e., entry) has several advantages. First, there is no need for invalidation or synchronization on cache as long as the keyvalue pair is not deleted, which is extremely rare compared to the read and write operations. Even if there is a deletion, DrTM implements it logically by increasing its incarnation within an HTM transaction. Consequently, it can be easily detected (e.g., incarnation checking <ref type="bibr" target="#b20">[21]</ref>) when reading the key-value pair via caching and treated as a cache miss without worrying about stale reads. All of them are fully transparent to the host. Second, the cached location of entry can be directly shared by multiple client threads on the same machine, since all metadata (i.e., incarnation, version and state) used by the concurrency control mechanisms are encoded in the key-value entry. Finally, the size of cached data for the location-based mechanism (e.g., 16 Bytes) is independent to workload and usually much smaller than that of the key-value pair. For example, a 16MB memory is enough to cache one million key-value pairs. The lower-right corner of <ref type="figure" target="#fig_8">Figure 9</ref> shows the design of RDMA-friendly caching, which maps to the key-value store on a single remote machine and is shared by all client threads. The location cache adopts the same data structure as the header bucket and stores almost the same content of main and indirect headers, which can be seen as a partially stale snapshot.</p><p>The entire header bucket will be fetched when a certain slot of the bucket is read. The Offset field in the header slot with Entry type (T=01) can be used to access the keyvalue entry through RDMA operations. The cached header slot with Header type (T=10) can help fetch the indirect header bucket, skipping the lookup of main header bucket on the host. After caching the indirect header bucket, the original Offset field will be refilled by the local virtual address of the cached bucket and the Type field will also be changed to Cached (T=11). The following accesses to this indirect header bucket will do the lookup in local.</p><p>The buckets for indirect headers are assigned from a preallocated bucket pool. The traditional cache replacement policy (e.g., LRU or Reuse Distance) can be used to limit the size of the cache below a budget. Before reclaiming the evicted bucket, we first recursively reclaim all buckets on the chain starting from the evict bucket, and then reset the header slot pointed to the evicted bucket with the recorded Offset field and the Header type.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.4">Performance Comparison</head><p>We compare our Cluster chaining hash table (DrTM-KV) against simplified implementations of two state-of-the-art RDMA-friendly hash tables in Pilaf <ref type="bibr" target="#b36">[37]</ref> and FaRM <ref type="bibr" target="#b20">[21]</ref> respectively <ref type="bibr" target="#b5">6</ref> . Cuckoo hashing in Pilaf uses 3 orthogonal hash functions and each bucket contains 1 slot. The bucket size is fixed to 32 bytes for the self-verifying data structure. Hopscotch hashing in FaRM-KV configures the neighborhood with 8 and stores value (FaRM-KV/I) or its offset (FaRM-KV/O) in the bucket. The Cluster hashing in DrTM-KV con-figures the associativity with 8, and the bucket size is fixed to Bytes.</p><p>All experiments were conducted on a 6-node cluster connected by Mellanox ConnectX-3 56Gbps InfiniBand, with each machine having two 10-core Intel Xeon processors and 64GB of DRAM 7 . The machines run Ubuntu 14.04 with Mellanox OFED v3.0-2.0.1 stack. To avoid significant performance degradation of RDMA due to excessively fetching page table entries <ref type="bibr" target="#b20">[21]</ref>, we enable 1GB hugepage to allocate physically-contiguous memory registered for remote accesses via RDMA. A single machine runs 8 server threads on distinct physical cores of the same socket, and the rest five machines run up to 8 client threads each. We generate 20 million key-value pairs with fixed 8-Byte keys, occupying up to 40GB memory. Two types of workloads, uniform and skewed, are used. Keys were chosen randomly with a uniform distribution or a skewed Zipf distribution prescribed by YCSB <ref type="bibr" target="#b16">[17]</ref> with θ =0.99.</p><p>Since only DrTM-KV implements writes using one-sided RDMA, our experiment focuses on comparing the average number of RDMA READs for lookups, as well as the throughput and latency of read operations. Finally, we study the impact of cache size on the throughput of DrTM-KV. <ref type="table" target="#tab_10">Table 4</ref> lists the average number of RDMA READs for lookups at different occupancies without caching. The result of Hopscotch hashing in FaRM-KV and Cluster hashing in DrTM-KV is close and notably better than that of Cuckoo hashing in Pilaf for both uniform and skewed workload, since each RDMA READ in Hopscotch and Cluster hashing can acquire up to 8 candidates, while only one candidate is acquired in Cuckoo hashing. The small advantage of Hopscotch hashing at high occupancy is due to gradually refining the location of keys and fine-grained space sharing between different keys. Yet, it makes the insertion operation much complicated and hard to be cached. However, location-based caching can significantly reduce the lookup cost of Cluster hashing. For example, Cluster hashing with only 20MB cache can eliminate about 75% RDMA READs under a skewed workload for 20 million key-value pairs, even the cache starts from empty.</p><p>We further compare the throughput and latency of read operations on different key-value systems. DrTM-KV disables cache and DrTM-KV/$ starts from a 320MB cold cache per machine shared by all client threads. FaRM-KV/I and FaRM-KV/O put the key-value pairs inside and outside their header slots respectively. <ref type="figure" target="#fig_0">Figure 10(b)</ref> shows the throughput with different value sizes for a uniform workload. Since all of Pilaf, FaRM-KV/O and DrTM-KV need an additional RDMA READ to read the key-value pair after lookup, their throughput shows a similar trend. The difference of their throughput for small value is mainly due to the difference of lookups cost (see <ref type="table" target="#tab_10">Table 4</ref>). Nevertheless, with the increase of value size, the difference decreases since the Detailed machine configurations can be found in §7.1. cost for reading key-value pairs dominates the performance (see <ref type="figure" target="#fig_0">Figure 10(a)</ref>). FaRM-KV/I has a quite good throughput for a relatively small value due to avoiding an additional RDMA READ, but the performance significantly degrades with the increase of value size, due to fetching 8 times values and poor performance of RDMA READ for a large payload (see <ref type="figure" target="#fig_0">Figure 10(a)</ref>). DrTM-KV/$ has the best performance even compared with FaRM-KV/I for small value size due to two reasons. First, DrTM-KV/$ fetches the entire bucket (8 slots) at a time which increases the hit rate of location-based cache and decreases the average number of RDMA READs for lookups to 0.178 even from cold cache. Second, sharing the cache among client threads further accelerates the prefetching and decreases the average cost for lookups to 0.024 for 8 client threads per machine. For up to 128-byte value, DrTM-KV/$ can achieve over 23 Mops/sec, which outperforms FaRM-KV/O and Pilaf by up to 2.09X and 2.74X respectively. <ref type="figure" target="#fig_0">Figure 10</ref>(c) shows the average latencies of three systems with 64-byte value for a uniform workload. We varied the load on server by first increasing the number of client threads per machine from 1 to 8 and then increasing the client machine from 1 to 5, until the throughout saturated. DrTM-KV is able to achieve 11.6 Mops/sec with approximately 6.3 μs average latency, which is almost the same to FaRM-KV/O and notably better than that of Pilaf (8.4 Mops/sec and 8.2 μs). FaRM-KV/I provides relatively lower average latency (4.5 μs) but poor throughput (5.6 Mops/sec) due to its design choice that saves one round trip but amplifies the read size. DrTM-KV/$ can achieve both lowest latency (3.4 μs) and highest throughput (23.4 Mops/sec) due to its RDMAfriendly cache.</p><p>To study the impact of cache size, we evaluate DrTM-KV/$ with different cache sizes using both uniform and skewed workloads. The location-based cache starts from empty (/Cold) or after a 10-second warm-up (/Warm). For 20 million key-value pairs, a 320MB cache is enough to store the entire location information to thoroughly avoid lookup via RDMA. Therefore, as shown in <ref type="figure" target="#fig_0">Figure 10</ref> throughput of one-sided RDMA READ in <ref type="figure" target="#fig_0">Figure 10</ref>(a) (26.3 Mops). Since skewed workload is more friendly to cache, the throughput with only 20MB cache still achieves 19.1 Mops. However, the throughput for uniform workload rapidly drops from 24.9 Mops to 11.2 Mops when reducing the cache size from 320MB to 80MB, since it is the worst case and we only use a simple directly mapping. How to improve the cache through heuristic structure (e.g., associativity) and replacement mechanisms (e.g., LRU) will be our future work. The performance of DrTM-KV with cold or warmed-up cache is close, due to fetching the entire bucket at a time (8 slots) and sharing the cache among clients (8 threads).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.">Implementation Issues</head><p>We have implemented DrTM based on Intel's Restricted Transactional Memory (RTM) and Mellanox ConnectX-3 56Gbps InfiniBand. This section describes some specific implementation issues.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.1">Synchronized Time</head><p>Implementing lease requires synchronized time. Ideally, one could use the TrueTime protocol in Spanner <ref type="bibr" target="#b17">[18]</ref> to get synchronized time, which is, however, not available in our cluster. Instead, we use the precision time protocol (PTP) <ref type="bibr" target="#b0">[1]</ref>, whose precision can reach 50μs under high-performance networking. Unfortunately, accessing such services inside an RTM region will unconditionally abort RTM transactions. Instead, DrTM uses a timer thread to periodically update a global software time (i.e., softtime). This provides an approximately synchronized time to all transactions.</p><p>The softtime will be read in the remote read and write in the Start phase, the local read and write in the LocalTX phase and the lease reconfirmation in the Commit phase. The later three cases locate inside an RTM region. They will not directly abort the transaction, but may result in frequent false conflicts with the timer thread due to the strong atomicity of RTM (see <ref type="figure" target="#fig_0">Figure 11(b)</ref>). On the contrary, as shown in <ref type="figure" target="#fig_0">Figure 11(a)</ref>, a long update interval of softtime can reduce false aborts due to the timer thread. However, it also increases the time skew and then increases the DELTA, resulting in failures when lease confirmation and thus transaction aborts.</p><p>To remedy this, DrTM reuses the softtime acquired in the Start phase (outside the RTM region) for all local read and write operations first, and then only acquires softtime for lease confirmation <ref type="figure" target="#fig_0">(Figure 11(c)</ref>). It will significantly narrow the conflict range of an RTM transaction to the timer thread, since the confirmation is close to the commitment of an RTM transaction. Further, the local transactions will never be aborted by timer threads. Note that reusing stale softtime to conservatively check the expiration of a lease acquired by other transactions will not hurt the correctness but only incur some false positives.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.2">Fallback Handler and Contention Management</head><p>As a best-effort mechanism, an RTM transaction does not have guaranteed forward progress even in the absence of conflicts. A fallback handler will be executed after the number of RTM aborts exceeds a threshold. In traditional implementation, the fallback handler first acquires a coarsegrained exclusive lock, and then directly updates all records. To cooperate with the fallback handler, the RTM transaction needs to check this lock before entering its RTM region.</p><p>In DrTM, however, if the local record will also be remotely accessed by other transactions, the fallback handler may inconsistently update the record out of an RTM region. Therefore, we use remote read and write to access the local records in the fallback handler. The fallback handler follows the 2PL protocol to access all records as well. Further, to avoid deadlock, the fallback handler should release all owned remote locks first, and then acquires appropriate locks for all records in a global order (e.g., using &lt;table id, key&gt;). After that, the fallback handler should confirm the validation of leases before any update to the records since they cannot be rolled back by RTM again. Since all shared locks are still released in the shrinking phase that no lock will be acquired, the modification to fallback handler still preserves the strict serializability of DrTM. Finally, since the fallback handler will lock all of records and update them out of the HTM region, DrTM will perform logs ahead of updates for them as in normal systems for durability.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.3">Atomicity Issues</head><p>As mentioned in §4.2, even if RDMA CAS on our Infini-Band NIC cannot preserve the atomicity with local CAS, it will not incur consistency issues in the normal execution of transactions. However, in RTM's fallback handler and readonly transactions, DrTM has to lock both local and remote records. A simple solution is to uniformly use the RDMA CAS for local records. However, the current performance of RDMA CAS is two orders of magnitude slower than the local counterpart (14.5 μs vs. 0.08 μs). Using RDMA CAS for all records in the RTM fallback handler results in about 15% slowdown of throughput for DrTM. It leaves much room for performance improvement by simply upgrading the NIC with GLOB-level atomicity (e.g., QLogic QLE series).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.4">Horizontal Scaling Across Socket</head><p>Currently, our B+ tree for ordered store is not NUMAfriendly and thus has limited scalability across sockets. Our evaluation using micro-benchmark shows that it stop scaling after 10 cores (with 3.89X speedup compared to 1 core) and only reaches 2.19X speedup over 1 core using 12 cores (cross sockets); the performance after 12 cores steadily drops. This is mainly due to excessive cross-socket memory accesses, which not only incur higher latency, but also cause contention on a single socket. Currently, we exploit our NUMA machines by placing a memory store of TPC-C on each NUMA node. It will be our future work to design and implement a NUMA-friendly B+ tree.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.5">Remote Range Query</head><p>DrTM only provides an HTM/RDMA-friendly hash table for unordered stores while still requires SEND/RECV Verbs for ordered stores. Fortunately, we found that in TPC-C, the only transaction (i.e., payment) occasionally requiring remote accesses to an ordered store (for range query) only requires local accesses to unordered stores. We optimize this case by sending this transaction to the remote machine hosting the ordered store. In this way, we convert this transaction to have local accesses to an ordered store and remote accesses to unordered stores, which can enjoy the full benefit of RDMA.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.">Evaluation</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.1">Experimental Setup</head><p>All experiments were conducted on a small-scale cluster with 6 machines. Each machine has two 10-core RTMenabled <ref type="bibr" target="#b7">8</ref> Intel Xeon E5-2650 v3 processors and 64GB of DRAM. Each core has a private 32KB L1 cache and a private 256KB L2 cache, and all 10 cores on a single processor share a 24MB L3 cache. We disabled hyperthreading on all machines. Each machine is equipped with a ConnectX-3 MCX353A 56Gbps InfiniBand NIC via PCIe 3.0 x8 connected to a Mellanox IS5025 40Gbps InfiniBand Switch, and an Intel X520 10GbE NIC connected to a Force10 S4810P  <ref type="table">Table 5</ref>. The transaction mix ratio in TPC-C and SmallBank. d</p><p>and l stand for distributed and local. rw and ro stand for readwrite and read-only. The default probability of cross-warehouse accesses for NEW and PAY in TPC-C is 1% and 15% respectively.</p><p>10/40GbE Switch. All machines run Ubuntu 14.04 with Mellanox OFED v3.0-2.0.1 stack.</p><p>We evaluate DrTM using TPC-C <ref type="bibr" target="#b50">[51]</ref> and SmallBank <ref type="bibr" target="#b2">[3]</ref>. TPC-C simulates a warehouse-centric order processing application. It scales by partitioning a database into multiple warehouses spreading across multiple machines. Small-Bank models a simple banking application where transactions perform simple read and write operations on user accounts. The access patterns of transactions are skewed such that a few accounts receive most of the requests. TPC-C is a mix of five types of transactions for new-order (NEW), payment (PAY), order-status (OS), delivery (DLY) and stocklevel (SL) procedures. SmallBank is a mix of six type of transactions for send-payment (SP), balance (BAL), depositchecking (DC), withdraw-from-checking (WC), transfer-tosavings (TS) and amalgamate (AMG) procedures. Table shows the percentage of each transaction type and its access pattern in TPC-C and SmallBank. We chopped TPC-C to reduce working set while leaving all transactions in SmallBank unchopped as their working set are already small enough to fit into RTM with small abort rates.</p><p>Cross-system comparison between distributed systems is often hard due to various setup requirements and configurations even for the same benchmark. We use the latest Calvin <ref type="bibr" target="#b51">[52]</ref> (released in Mar. 2015) in a part of experiments on TPC-C. As Calvin is hard-coded to use 8 worker threads per machine, we have to skip it from the experiment with varying numbers of threads. We run Calvin on our Infini-Band network using IPoIB as it was not designed to use RDMA.</p><p>In all experiments, we dedicate one processor to run up to 8 worker threads. We use the same machine to generate requests to avoid the impact of networking between clients and servers as done in prior work <ref type="bibr" target="#b51">[52,</ref><ref type="bibr" target="#b53">54,</ref><ref type="bibr" target="#b56">57]</ref>. All experimental results are the average of five runs. Unless mentioned, logging is turned off for all systems and experiments. We separately evaluate the performance overhead for logging in section 7.5.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.2">Performance and Scalability</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>TPC-C:</head><p>We first run TPC-C with the increase of machines to compare the performance with Calvin. To align with the  setting of Calvin, each machine runs 8 worker threads and each of them hosts 1 warehouse with 10 districts. All warehouses in a single machine shares a memory store. <ref type="figure" target="#fig_0">Figure 12</ref> shows the throughput of the new-order transaction and the TPC-C's standard-mix workload. Note that, in TPC-C, throughput is defined as how many new-order transactions per second a system processed while the system is executing four other transactions types; Calvin only reported TPC-C's standard-mix throughput. As shown in <ref type="figure" target="#fig_0">Figure 12</ref>, DrTM outperforms Calvin by up to 21.9X (from 17.9X), due to exploiting advanced processor features (RTM) and fast interconnects (RDMA). Even without sophisticated techniques to reduce the contention associated with distributed transactions, DrTM can still scale well in term of the number of machines by using our RDMA-friendly 2PL protocol. DrTM can process more than 1.65 million new-order and 3.67 million standard-mix transactions per second (txns/sec) on 6 machines, which is much faster than the result of Calvin on 100 machines reported in <ref type="bibr" target="#b51">[52]</ref> (less than 500,000 standard-mix txns/sec). Horizontal Scaling: To fully exploit the hardware resources, we run a separate logical node with 8 worker threads on each socket of a single machine (DrTM(S)). The interaction between two logical nodes sharing the same machine still uses our 2PL protocol via one-sided RDMA operations. DrTM(S) achieves more than 2.48 million new-order and 5.52 million standard-mix transactions per second on 6 machines (46,000 txns/sec per core).</p><p>We further study the scalability of DrTM with the increase of worker threads using 6 machines. As shown in <ref type="figure">Figure</ref> 13, DrTM provides good scalability up to 8 threads. The speedup of throughput using 8 threads reaches 5.56X. However, as our B+ tree is currently not NUMA-friendly and has poor performance cross sockets, its performance starts to de-  grade after 8 cores. When using two separate logical nodes, DrTM(S) can further improve the speedup to 8.29X using 16 threads. Note that there is only one data point for Calvin using 8 threads as it cannot run with other number of threads.</p><p>To overcome the restriction of existing cluster size, we scale separate logical nodes on single machine to emulate the scalability experiment, each of which has fixed 4 worker threads. As shown in <ref type="figure" target="#fig_0">Figure 14</ref>, DrTM can scale out to 24 nodes, reaching 2.42 million new-order and 5.38 million standard-mix transactions per second.</p><p>SmallBank: We further study the performance and scalability of SmallBank with varying probability of distributed transactions. <ref type="figure" target="#fig_0">Figure 15</ref> shows the throughput of SmallBank on DrTM with the increase of machines and threads. For a low probability of distributed transactions (1%), DrTM provides high performance and can scale well in two dimensions. It achieves over 138 million transactions per second using 6 machines and the speedup of throughput reaches 4.52X for 6 machines and 10.85X for 16 threads respectively. With the growing of distributed transactions, DrTM still performs stable throughput increase from 2 machines and scale-well within a single socket.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.3">Impact from Distributed Transactions</head><p>To investigate the performance of DrTM for distributed transactions, we adjust the probability of cross-warehouse accesses for new-order transactions from 1% to 100%. According to the TPC-C specification, the default setting is that there is 1% of accesses to a remote warehouse. Since the average number of items accessed in the new-order transaction is 10, 10% of cross-warehouse accesses will result in approximate 57.2% of distributed transactions.  <ref type="figure" target="#fig_0">Figure 16</ref> shows the throughput of new-order transaction on DrTM with increasing cross-warehouse accesses. The 100% cross-warehouse accesses results in about 85% slowdown, because all transactions are distributed and any accesses are remote ones. Hence, DrTM cannot benefit from RTM in this case. However, the performance slowdown for 5% cross-warehouse accesses (close to 35% distributed transaction) is moderate (15.0%).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.4">Read Lease</head><p>To study the benefit of read lease, we implement two microbenchmarks, which share most characteristics with the neworder transaction but are easier to adjust the execution behavior. The probability of cross-warehouse accesses is 10%.</p><p>The first simplified transaction, namely read-write, accesses 10 records and does the original tasks, except that parts of them will not write back the results, becoming a read access to that record. We evaluate the throughput of this read-write transaction on DrTM, as shown in <ref type="figure" target="#fig_0">Figure 17</ref>. Without read lease, all remote accesses need to acquire the exclusive lock of record, regardless of whether the transaction writes the record or not. Thus, the ratio of read operations has less impact on per-node throughput without read lease. With the increase of read accesses, read lease exposes more concurrency and notably improves the throughput.</p><p>In the second micro-benchmark, the hotspot transaction also accesses 10 records and do the original tasks, except that one of 10 records is chosen from a much small set of "hot" records and do read. <ref type="figure" target="#fig_0">Figure 17</ref> shows the per-node throughput for this transaction enabling read lease or not. The 120 hot records are evenly assigned to all machines. With the increase of machines, the improvement from read lease increases steadily, reaching up to 29% for 6 machines.  <ref type="table">Table 6</ref>. The impact of durability on throughput and latency for TPC-C on 6 machines with 8 threads.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.5">Durability</head><p>To investigate the performance cost for durability, we evaluate TPC-C with durability enabled. Currently, we directly use a dedicated region of DRAM to emulate battery-backed NVRAM. <ref type="table">Table 6</ref> shows the performance difference on 6 machines with 8 threads. Due to additional writes to NVRAM, the throughput of the new-order transaction on DrTM degrades by 11.6% and the rate of capacity aborts and executing fallback handler increase by 4.42% and 4.78% respectively. Since DrTM does not use multiple versioning <ref type="bibr" target="#b56">[57]</ref> or durability epoch <ref type="bibr" target="#b59">[60]</ref>, as well as only writes logs to NVRAM in critical path, the increase of latency for 50%, 90% and 99% transactions is lower than 10μs for logging or not respectively, which is still two orders of magnitude better than that of Calvin even without logging (6.04, 15.84 and 60.54 ms).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="8.">Related Work</head><p>Distributed transactions: DrTM continues the line of research of providing fast transactions for multicore and clusters <ref type="bibr">[18-20, 42, 52, 54, 58-60]</ref>, but explores an additional design dimension by demonstrating that advanced hardware features like HTM and RDMA may be used together to provide notably fast ACID transactions with a local cluster. FaRM <ref type="bibr" target="#b20">[21]</ref> also leverages RDMA (but no HTM) to provide limited transactions support using OCC and 2PC, but lacks evaluation of general transactions. DrTM steps further to combine HTM and strict 2PL with a set of optimizations to provide fast transactions and was shown to orders of magnitude faster than prior work for OLTP workloads like TPC-C and SmallBank. Distributed transactional memory: Researchers have started to investigate the use of transactional memory abstraction for distributed systems. Herlihy and Sun <ref type="bibr" target="#b25">[26]</ref> described a hierarchical cache coherence protocol that takes distance and locality into account to support transactional memory in a cluster but has no actual implementation and evaluation. The hardware limitation forces researchers to switch to software transactional memory <ref type="bibr" target="#b45">[46]</ref> and investigate how to scale it out in a cluster environment <ref type="bibr" target="#b10">[11,</ref><ref type="bibr" target="#b11">12,</ref><ref type="bibr" target="#b33">34]</ref>. DrTM instead leverages the strong consistency of RDMA and strong atomicity of HTM to support fast database trans-actions, by offloading main transaction operations inside a hardware transaction.</p><p>Leveraging HTM for database transactions: The commercial availability of HTM has stimulated several recent efforts of leveraging HTM to provide database transactions on multicore <ref type="bibr" target="#b30">[31,</ref><ref type="bibr" target="#b43">44,</ref><ref type="bibr" target="#b56">57]</ref>. While Wang et al. <ref type="bibr" target="#b56">[57]</ref> and Leis et al. <ref type="bibr" target="#b30">[31]</ref> only leverage RTM to implement traditional concurrency control protocols (e.g., OCC <ref type="bibr" target="#b29">[30]</ref> and TSO <ref type="bibr" target="#b7">[8]</ref>), DBX-TC <ref type="bibr" target="#b43">[44]</ref> uses RTM to directly protect the entire transactional execution. It leverages static analysis and transaction chopping <ref type="bibr" target="#b5">[6,</ref><ref type="bibr" target="#b8">9,</ref><ref type="bibr" target="#b38">39,</ref><ref type="bibr" target="#b44">45,</ref><ref type="bibr" target="#b58">59</ref>] to decompose a large transaction into smaller pieces with a set of optimizations, which exposes notably more opportunities for decomposition. DrTM extends it by leveraging RDMA and strict 2PL to support fast crossmachine transactions.</p><p>Lease: Lease <ref type="bibr" target="#b22">[23]</ref> is widely used to improve the read performance, which is also used in DrTM to unleash concurrency among local and remote readers, as well as to simply conflict checking for read-only transactions. Megastore <ref type="bibr" target="#b3">[4]</ref> grants a read lease to all nodes. All reads can be handled locally, while the involved writes invalidate all other replicas synchronously or just wait for the timeout of the lease before committing a write. Spanner <ref type="bibr" target="#b17">[18]</ref> uses the leader lease <ref type="bibr" target="#b13">[14]</ref> and snapshot reads to save the performance of write by relaxed consistency. Quorum leases <ref type="bibr" target="#b37">[38]</ref> allow a majority of replicas to perform strongly consistent local reads, which substantially reduces read latency at those replicas.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="9.">Conclusion</head><p>The emergence of advanced hardware features like HTM and RDMA exposed new opportunities to rethink the design of transaction processing systems. This paper described DrTM, an in-memory transaction processing system that exploits the strong atomicity of HTM and strong consistency of RDMA to provide orders of magnitude higher throughput and lower latency of in-memory transaction processing than prior general designs. DrTM was built with a set of optimizations like leases and HTM/RDMA-friendly hash table that expose more parallelism and reduced RDMA operations. Evaluations using typical OLTP workloads like TPC-C and SmallBank confirmed the benefit of designs in DrTM. The source code of DrTM will be available at http://ipads. se.sjtu.edu.cn/drtm.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 .</head><label>1</label><figDesc>The architecture overview of DrTM.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 2 .</head><label>2</label><figDesc>The various cases of conflicts between local and distributed transactions.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 3 .</head><label>3</label><figDesc>The pseudo-code of transaction interface in DrTM.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 4 .</head><label>4</label><figDesc>The pseudo-code of lease in DrTM.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Figure 6 .</head><label>6</label><figDesc>The pseudo-code of local read and write in DrTM.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>Fig. 2</head><label>2</label><figDesc>Fig.2(b) Fig.2(c) Fig.2(d) L RD L WR L RD L WR L RD L WR R RD C C S C S C R WR C C C C C C</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_6"><head>Figure 7 .</head><label>7</label><figDesc>The design of logging and recovery in DrTM.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_7"><head>Figure 8 .</head><label>8</label><figDesc>The pseudo-code of read-only transaction interface in DrTM.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_8"><head>Figure 9 .</head><label>9</label><figDesc>The detail design of Cluster chaining hash table.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_9"><head>Figure 10 .</head><label>10</label><figDesc>(a) The throughput of random reads using one-sided RDMA READ with different sizes of payload. (b) The throughput comparison of read on uniform workloads with different value sizes. (c) The latency comparison of read on uniform workload with 64byte value. (d) The impact of cache size on the throughput with 64-byte value for uniform and skewed (Zipf θ =0.99) workloads. Note that the size is in the logarithmic scale.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_10"><head>Figure 11 .</head><label>11</label><figDesc>(d), the throughput of DrTM-KV with warmed-up cache can achieve 25.1 Mops for skewed workload, which is much close to the The false abort in transactions due to the softtime.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_11"><head>Figure 12 . 6 Throughput</head><label>126</label><figDesc>The throughput of new-order transaction and standard-mix in TPC-C with the increase of machines.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_12"><head>Figure 13 .</head><label>13</label><figDesc>The throughput of new-order transaction and standard-mix in TPC-C with the increase of threads.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_13"><head>Figure 14 .</head><label>14</label><figDesc>The throughput of new-order transaction and standard-mix in TPC-C with the increase of separate logical machines using fixed 4 threads.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_14"><head>Figure 15 .</head><label>15</label><figDesc>The throughput of standard-mix in SmallBank with the increase of machines and threads using different probability of cross-machine accesses for SP and AMP.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_15"><head>Figure 16 .Figure 17 .</head><label>1617</label><figDesc>The throughput of new-order transaction in TPC-C with increasing cross-warehouse accesses on 6-node cluster using fixed 8 threads. The per-node throughput of micro-benchmarks (readwrite and hotspot transactions) for DrTM w/ or w/o read lease.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>/2&amp;.(' [ GHILQH 5B/($6('HQGBWLPH HQGBWLPH GHILQH (1'B7,0(VWDWH VWDWHUHDGBOHDVH /2&amp;.('RZQHUBLG</head><label></label><figDesc></figDesc><table><row><cell>VWUXFW VWDWH</cell><cell></cell></row><row><cell cols="2">ZULWH ORFN /2&amp;.(' 81/2&amp;.('</cell></row><row><cell>X ZULWHBORFN</cell><cell></cell></row><row><cell cols="2">RZQHU PDFKLQH PDFKLQH ,'</cell></row><row><cell>X RZQHUBLG</cell><cell></cell></row><row><cell cols="2">UHDG OHDVH HQG WLPH</cell></row><row><cell>X UHDGBOHDVH</cell><cell></cell></row><row><cell>GHILQH ,1,7 [</cell><cell></cell></row><row><cell>GHILQH :BUHWXUQ RZQHUBLG</cell><cell>[)) _ :B/2&amp;.('</cell></row><row><cell>(;3,5('HQGBWLPH</cell><cell></cell></row><row><cell cols="2">UHWXUQ QRZ ! HQGBWLPH '(/7$</cell></row><row><cell>9$/,'HQGBWLPH</cell><cell></cell></row><row><cell cols="2">UHWXUQ QRZ HQGBWLPH ± '(/7$</cell></row><row><cell></cell><cell>Mellanox ConnectX-3 MCX353A 56Gbps InfiniBand NIC.</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_4"><head>Table 1</head><label>1</label><figDesc></figDesc><table><row><cell>State</cell><cell>RS</cell><cell>RS</cell><cell>WR</cell><cell>WR</cell><cell>WR</cell></row><row><cell>Value</cell><cell>RS</cell><cell>WS</cell><cell>RD</cell><cell>RD</cell><cell>WR</cell></row></table><note>. The impact of local and remote operations to the state and the value of record. L and R stand for Local and Remote. RD, WR and WB stand for Read, Write and Write Back. RS and WS stand for Read Set and Write Set.</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_5"><head>Table 2 .</head><label>2</label><figDesc>The conflict state between local and distributed transactions due to different types and interleaves of accesses to the same record. L and R stand for Local and Remote. RD and WR stand for Read and Write. S and C stand for Share and Conflict.</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_8"><head>Table 3 .</head><label>3</label><figDesc>A summary of various RDMA-friendly hashtable-based key-value stores. ( †) FaRM can put the small fixed-size value inside the header slot with the key to save one RDMA READ but increase the size of RDMA READs.</figDesc><table /><note>no transaction support. Cuckoo hashing [43] is used to re- duce the number of RDMA operations required to perform GETs. Similarly, the key-value store on top of FaRM [21] (FaRM-KV) also uses one-sided RDMA READs to perform GETs, while a circular buffer and receive-side polling instead of SEND/RECV Verbs are used to support bi-directional accesses for PUTs. Multiple versions, lock and incarnation fields are piggybacked to the key-value pair for race detec- tion. A variant of Hopscotch hashing [25] is used to balance the trade-off between the number and the size of RDMA op- erations. Another design alternative is HERD</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_10"><head>Table 4 .</head><label>4</label><figDesc>The average number of RDMA READs for lookups at different occupancies.</figDesc><table><row><cell></cell><cell></cell><cell cols="3">Cuckoo Hopscotch Cluster</cell></row><row><cell></cell><cell>50%</cell><cell>1.348</cell><cell>1.000</cell><cell>1.008</cell></row><row><cell>Uniform</cell><cell>75%</cell><cell>1.652</cell><cell>1.011</cell><cell>1.052</cell></row><row><cell></cell><cell>90%</cell><cell>1.956</cell><cell>1.044</cell><cell>1.100</cell></row><row><cell>Zipf θ =0.99</cell><cell>50% 75% 90%</cell><cell>1.304 1.712 1.924</cell><cell>1.000 1.020 1.040</cell><cell>1.004 1.039 1.091</cell></row></table><note></note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="2">This means a concurrent conflicting access outside an HTM region will unconditionally abort a conflicting HTM transaction.</note>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="5">The INSERT and DELETE will be shipped to the host machine using SEND/RECV Verbs and also locally executed within an HTM transaction</note>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="6">As their source code is not publicly available. Our simplified implementations may have better performance than their original ones due to skipping some operations.</note>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="8">Though a recent hardware bug forced Intel to temporarily turn off this feature on a recent release of processor series, we successfully reenabled it by configuring some model specific registers.</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgment</head><p>We sincerely thank our shepherd Emmett Witchel and the anonymous reviewers for their insightful suggestions, Anuj Kalia for sharing his experience on RDMA, and Yingjun Wu for the valuable feedback. This work is supported in part by National Youth Top-notch Talent Support Program of China, China National Natural Science Foundation (61402284, 61572314), Doctoral Fund of Ministry of Education of China (No. 20130073120040), a foundation for the Author of National Excellent Doctoral Dissertation of PR China(No. TS0220103006), and Singapore CREATE E2S2.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<ptr target="http://sourceforge.net/p/ptpd/wiki/Home/" />
+		<title level="m">IEEE 1588 Precision Time Protocol (PTP) Version 2</title>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Sinfonia: A new paradigm for building scalable distributed systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">K</forename><surname>Aguilera</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Merchant</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Shah</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Veitch</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Karamanolis</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of Twenty-first ACM SIGOPS Symposium on Operating Systems Principles</title>
+		<meeting>Twenty-first ACM SIGOPS Symposium on Operating Systems Principles</meeting>
+		<imprint>
+			<date type="published" when="2007" />
+			<biblScope unit="page" from="159" to="174" />
+		</imprint>
+	</monogr>
+	<note>SOSP&apos;07, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">The cost of serializability on platforms that use snapshot isolation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Alomari</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Cahill</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Fekete</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">U</forename><surname>Röhm</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE 24th International Conference on Data Engineering</title>
+		<imprint>
+			<date type="published" when="2008" />
+			<biblScope unit="page" from="576" to="585" />
+		</imprint>
+	</monogr>
+	<note>ICDE&apos;08, IEEE</note>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Providing scalable, highly available storage for interactive services</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Baker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Bond</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">C</forename><surname>Corbett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Furman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Khorlin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Larson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J.-M</forename><surname>Leon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lloyd</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Yushprakh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Megastore</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 5th biennial Conference on Innovative Data Systems Research</title>
+		<meeting>the 5th biennial Conference on Innovative Data Systems Research</meeting>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="223" to="234" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Genesis: An extensible database management system</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Batoory</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Barnett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">F</forename><surname>Garza</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">P</forename><surname>Smith</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Tsukuda</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Twichell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Wise</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Software Engineering</title>
+		<imprint>
+			<biblScope unit="volume">14</biblScope>
+			<biblScope unit="page" from="1711" to="1730" />
+			<date type="published" when="1988" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Concurrency control for step-decomposed transactions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">J</forename><surname>Bernstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">S</forename><surname>Gerstl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">M</forename><surname>Lewis</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Inf. Syst</title>
+		<imprint>
+			<biblScope unit="volume">24</biblScope>
+			<biblScope unit="page" from="673" to="698" />
+			<date type="published" when="1999-12" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Concurrency control in distributed database systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">A</forename><surname>Bernstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Goodman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Comput. Surv</title>
+		<imprint>
+			<biblScope unit="volume">13</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="185" to="221" />
+			<date type="published" when="1981-06" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<title level="m" type="main">Concurrency control and recovery in database systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">A</forename><surname>Bernstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Hadzilacos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Goodman</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1987" />
+			<publisher>Addison-wesley</publisher>
+			<biblScope unit="volume">370</biblScope>
+			<pubPlace>New York</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">The correctness of concurrency control mechanisms in a system for distributed databases (SDD-1)</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">A</forename><surname>Bernstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">W</forename><surname>Shipman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Trans. Database Syst</title>
+		<imprint>
+			<biblScope unit="volume">5</biblScope>
+			<biblScope unit="page" from="52" to="68" />
+			<date type="published" when="1980-03" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Subtleties of transactional memory atomicity semantics</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Blundell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">C</forename><surname>Lewis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">M</forename><surname>Martin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Architecture Letters</title>
+		<imprint>
+			<biblScope unit="volume">5</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Software transactional memory for large scale clusters</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">L</forename><surname>Bocchino</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><forename type="middle">S</forename><surname>Adve</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">L</forename><surname>Chamberlain</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 13th ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming</title>
+		<meeting>the 13th ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming</meeting>
+		<imprint>
+			<date type="published" when="2008" />
+			<biblScope unit="page" from="247" to="258" />
+		</imprint>
+	</monogr>
+	<note>PPoPP&apos;08, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Asynchronous lease-based replication of software transactional memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Carvalho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Romano</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Rodrigues</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the ACM/IFIP/USENIX 11th International Conference on Middleware</title>
+		<meeting>the ACM/IFIP/USENIX 11th International Conference on Middleware</meeting>
+		<imprint>
+			<publisher>Springer-Verlag</publisher>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="376" to="396" />
+		</imprint>
+	</monogr>
+	<note>Middleware&apos;10</note>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Practical byzantine fault tolerance</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Castro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Liskov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Third Symposium on Operating Systems Design and Implementation</title>
+		<meeting>the Third Symposium on Operating Systems Design and Implementation</meeting>
+		<imprint>
+			<date type="published" when="1999" />
+			<biblScope unit="page" from="173" to="186" />
+		</imprint>
+	</monogr>
+	<note>OSDI&apos;99, USENIX Association</note>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Paxos made live: An engineering perspective</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">D</forename><surname>Chandra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Griesemer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Redstone</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Twenty-sixth Annual ACM Symposium on Principles of Distributed Computing</title>
+		<meeting>the Twenty-sixth Annual ACM Symposium on Principles of Distributed Computing</meeting>
+		<imprint>
+			<date type="published" when="2007" />
+			<biblScope unit="page" from="398" to="407" />
+		</imprint>
+	</monogr>
+	<note>PODC&apos;07, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">X10: An object-oriented approach to nonuniform cluster computing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Charles</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Grothoff</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Saraswat</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Donawa</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kielstra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Ebcioglu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Von Praun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Sarkar</surname></persName>
+		</author>
+		<idno>OOP- SLA&apos;05</idno>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 20th Annual ACM SIGPLAN Conference on Object-oriented Programming, Systems, Languages, and Applications</title>
+		<meeting>the 20th Annual ACM SIGPLAN Conference on Object-oriented Programming, Systems, Languages, and Applications</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2005" />
+			<biblScope unit="page" from="519" to="538" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">An evaluation of global address space languages: Co-array fortran and unified parallel C</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Coarfa</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Dotsenko</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Mellor-Crummey</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Cantonnet</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>El-Ghazawi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Mohanti</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Yao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Chavarría-Miranda</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Tenth ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming</title>
+		<meeting>the Tenth ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming</meeting>
+		<imprint>
+			<date type="published" when="2005" />
+			<biblScope unit="page" from="36" to="47" />
+		</imprint>
+	</monogr>
+	<note>PPoPP&apos;05, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Benchmarking cloud serving systems with YCSB</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">F</forename><surname>Cooper</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Silberstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Tam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Ramakrish-Nan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Sears</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 1st ACM Symposium on Cloud Computing</title>
+		<meeting>the 1st ACM Symposium on Cloud Computing</meeting>
+		<imprint>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="143" to="154" />
+		</imprint>
+	</monogr>
+	<note>SoCC&apos;10, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Spanner: Google&apos;s globally-distributed database</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">C</forename><surname>Corbett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Dean</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Epstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Fikes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Frost</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">J</forename><surname>Furman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ghemawat</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Gubarev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Heiser</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Hochschild</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Hsieh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Kanthak</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Kogan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lloyd</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Melnik</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Mwaura</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Nagle</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Quinlan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Rao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Rolig</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Saito</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Szymaniak</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Taylor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wood-Ford</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 10th USENIX Conference on Operating Systems Design and Implementation</title>
+		<meeting>the 10th USENIX Conference on Operating Systems Design and Implementation</meeting>
+		<imprint>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="251" to="264" />
+		</imprint>
+	</monogr>
+	<note>OSDI&apos;12, USENIX Association</note>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Granola: low-overhead distributed transaction coordination</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Cowling</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Liskov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2012 USENIX conference on Annual Technical Conference</title>
+		<meeting>the 2012 USENIX conference on Annual Technical Conference</meeting>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+	<note>USENIX ATC&apos;12, USENIX Association</note>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Hekaton: SQL server&apos;s memory-optimized OLTP engine</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Diaconu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Freedman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Ismert</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P.-A</forename><surname>Larson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Mittal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Stonecipher</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Verma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Zwilling</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2013 ACM SIGMOD International Conference on Management of Data</title>
+		<meeting>the 2013 ACM SIGMOD International Conference on Management of Data</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="1243" to="1254" />
+		</imprint>
+	</monogr>
+	<note>SIG-MOD&apos;13, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">FaRM: Fast remote memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Dragojević</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Narayanan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Hodson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Castro</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 11th USENIX Conference on Networked Systems Design and Implementation</title>
+		<meeting>the 11th USENIX Conference on Networked Systems Design and Implementation</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="401" to="414" />
+		</imprint>
+	</monogr>
+	<note>NSDI&apos;14, USENIX Association</note>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">No compromises: distributed transactions with consistency, availability and performance</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Dragojevic</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Narayanan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Nightingale</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Renzelmann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Shamis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Badam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Cas-Tro</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of ACM Symposium on Operating Systems Principles</title>
+		<meeting>ACM Symposium on Operating Systems Principles</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note>SOSP&apos;15</note>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Leases: An efficient faulttolerant mechanism for distributed file cache consistency</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Gray</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Cheriton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Twelfth ACM Symposium on Operating Systems Principles</title>
+		<meeting>the Twelfth ACM Symposium on Operating Systems Principles</meeting>
+		<imprint>
+			<date type="published" when="1989" />
+			<biblScope unit="page" from="202" to="210" />
+		</imprint>
+	</monogr>
+	<note>SOSP&apos;89, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<monogr>
+		<title level="m" type="main">Transaction processing: Concepts and Techniques</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Gray</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Reuter</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1993" />
+			<publisher>Morgan Kaufmann Publishers</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Herlihy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Shavit</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Tzafrir</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Hopscotch</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Hashing</surname></persName>
+		</author>
+		<title level="m">Proceedings of the 22Nd International Symposium on Distributed Computing</title>
+		<meeting>the 22Nd International Symposium on Distributed Computing</meeting>
+		<imprint>
+			<publisher>Springer-Verlag</publisher>
+			<date type="published" when="2008" />
+			<biblScope unit="page" from="350" to="364" />
+		</imprint>
+	</monogr>
+	<note>DISC&apos;08</note>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Distributed transactional memory for metric-space networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Herlihy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Sun</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 19th International Conference on Distributed Computing (2005), DISC&apos;05</title>
+		<meeting>the 19th International Conference on Distributed Computing (2005), DISC&apos;05</meeting>
+		<imprint>
+			<publisher>Springer-Verlag</publisher>
+			<biblScope unit="page" from="324" to="338" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Zookeeper: Wait-free coordination for internet-scale systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Hunt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Konar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><forename type="middle">P</forename><surname>Junqueira</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Reed</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2010 USENIX Conference on USENIX Annual Technical Conference</title>
+		<meeting>the 2010 USENIX Conference on USENIX Annual Technical Conference</meeting>
+		<imprint>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="11" to="11" />
+		</imprint>
+	</monogr>
+	<note>USENIX ATC&apos;10, USENIX Association</note>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Using rdma efficiently for key-value services</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kalia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Kaminsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">G</forename><surname>Andersen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2014 ACM Conference on SIGCOMM</title>
+		<meeting>the 2014 ACM Conference on SIGCOMM</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="295" to="306" />
+		</imprint>
+	</monogr>
+	<note>SIG-COMM&apos;14, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">Speculative byzantine fault tolerance</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Kotla</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Alvisi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Dahlin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Clement</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Wong</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Zyzzyva</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of Twenty-first ACM SIGOPS Symposium on Operating Systems Principles</title>
+		<meeting>Twenty-first ACM SIGOPS Symposium on Operating Systems Principles</meeting>
+		<imprint>
+			<date type="published" when="2007" />
+			<biblScope unit="page" from="45" to="58" />
+		</imprint>
+	</monogr>
+	<note>SOSP&apos;07, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">On optimistic methods for concurrency control</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><forename type="middle">T</forename><surname>Kung</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">T</forename><surname>Robinson</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Trans. Database Syst</title>
+		<imprint>
+			<biblScope unit="volume">6</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="213" to="226" />
+			<date type="published" when="1981-06" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Exploiting hardware transactional memory in main-memory databases</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Leis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kemper</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Neumann</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE 30th International Conference on Data Engineering</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="580" to="591" />
+		</imprint>
+	</monogr>
+	<note>ICDE&apos;14, IEEE</note>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">A data management extension architecture</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Lindsay</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Mcpherson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Pirahesh</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 1987 ACM SIGMOD International Conference on Management of Data</title>
+		<meeting>the 1987 ACM SIGMOD International Conference on Management of Data</meeting>
+		<imprint>
+			<date type="published" when="1987" />
+			<biblScope unit="page" from="220" to="226" />
+		</imprint>
+	</monogr>
+	<note>SIGMOD&apos;87, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Modular data storage with Anvil</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Mammarella</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Hovsepian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Kohler</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the ACM SIGOPS 22Nd Symposium on Operating Systems Principles</title>
+		<meeting>the ACM SIGOPS 22Nd Symposium on Operating Systems Principles</meeting>
+		<imprint>
+			<date type="published" when="2009" />
+			<biblScope unit="page" from="147" to="160" />
+		</imprint>
+	</monogr>
+	<note>SOSP &apos;09, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<analytic>
+		<title level="a" type="main">Exploiting distributed version concurrency in a transactional memory cluster</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Manassiev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Mihailescu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Amza</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Eleventh ACM SIG-PLAN Symposium on Principles and Practice of Parallel Programming</title>
+		<meeting>the Eleventh ACM SIG-PLAN Symposium on Principles and Practice of Parallel Programming</meeting>
+		<imprint>
+			<date type="published" when="2006" />
+			<biblScope unit="page" from="198" to="208" />
+		</imprint>
+	</monogr>
+	<note>PPoPP&apos;06, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">Cache craftiness for fast multicore key-value storage</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Mao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Kohler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">T</forename><surname>Morris</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 7th ACM European Conference on Computer Systems</title>
+		<meeting>the 7th ACM European Conference on Computer Systems</meeting>
+		<imprint>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="183" to="196" />
+		</imprint>
+	</monogr>
+	<note>EuroSys&apos;12, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<monogr>
+		<title level="m" type="main">RDMA aware networks programming user manual</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Mellanox Technologies</surname></persName>
+		</author>
+		<ptr target="http://www.mellanox.com/related-docs/prod_software/RDMA_Aware_Programming_user_manual.pdf" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<analytic>
+		<title level="a" type="main">Using one-sided rdma reads to build a fast, cpu-efficient key-value store</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Mitchell</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Geng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Li</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2013 USENIX Conference on Annual Technical Conference</title>
+		<meeting>the 2013 USENIX Conference on Annual Technical Conference</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="103" to="114" />
+		</imprint>
+	</monogr>
+	<note>USENIX ATC&apos;13, USENIX Association</note>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">Paxos quorum leases: Fast reads without sacrificing writes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Moraru</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">G</forename><surname>Andersen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Kaminsky</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the ACM Symposium on Cloud Computing</title>
+		<meeting>the ACM Symposium on Cloud Computing</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="volume">22</biblScope>
+			<biblScope unit="page" from="1" to="22" />
+		</imprint>
+	</monogr>
+	<note>SoCC&apos;14, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<analytic>
+		<title level="a" type="main">Extracting more concurrency from distributed transactions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Cui</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Lloyd</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Li</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 11th USENIX Conference on Operating Systems Design and Implementation</title>
+		<meeting>the 11th USENIX Conference on Operating Systems Design and Implementation</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="479" to="494" />
+		</imprint>
+	</monogr>
+	<note>OSDI&apos;14, USENIX Association</note>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">Naiad: A timely dataflow system</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">G</forename><surname>Murray</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Mcsherry</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Isaacs</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Isard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Barham</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Abadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Twenty-Fourth ACM Symposium on Operating Systems Principles</title>
+		<meeting>the Twenty-Fourth ACM Symposium on Operating Systems Principles</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="439" to="455" />
+		</imprint>
+	</monogr>
+	<note>SOSP&apos;13, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<analytic>
+		<title level="a" type="main">Whole-system persistence</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Narayanan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Hodson</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Seventeenth International Conference on Architectural Support for Programming Languages and Operating Systems</title>
+		<meeting>the Seventeenth International Conference on Architectural Support for Programming Languages and Operating Systems</meeting>
+		<imprint>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="401" to="410" />
+		</imprint>
+	</monogr>
+	<note>ASPLOS&apos;12, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<analytic>
+		<title level="a" type="main">Phase reconciliation for contended in-memory transactions</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Narula</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Cutler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Kohler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Morris</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 11th USENIX Conference on Operating Systems Design and Implementation</title>
+		<meeting>the 11th USENIX Conference on Operating Systems Design and Implementation</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="511" to="524" />
+		</imprint>
+	</monogr>
+	<note>OSDI&apos;14, USENIX Association</note>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<analytic>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Pagh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><forename type="middle">F</forename><surname>Rodler</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Cuckoo hashing. J. Algorithms</title>
+		<imprint>
+			<biblScope unit="volume">51</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="122" to="144" />
+			<date type="published" when="2004-05" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<monogr>
+		<title level="m" type="main">Exploiting hardware transactional memory for efficient in-memory transaction processing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Qian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Guan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Zang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Chen</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+		<respStmt>
+			<orgName>Shanghai Key Laboratory of Scalable Computing and Systems, Shanghai Jiao Tong University</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">Tech. rep.</note>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<analytic>
+		<title level="a" type="main">Transaction chopping: Algorithms and performance studies</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Shasha</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Llirbat</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Simon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Valduriez</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Trans. Database Syst</title>
+		<imprint>
+			<biblScope unit="volume">20</biblScope>
+			<biblScope unit="page" from="325" to="363" />
+			<date type="published" when="1995-09" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<analytic>
+		<title level="a" type="main">Software transactional memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Shavit</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Touitou</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Fourteenth Annual ACM Symposium on Principles of Distributed Computing</title>
+		<meeting>the Fourteenth Annual ACM Symposium on Principles of Distributed Computing</meeting>
+		<imprint>
+			<date type="published" when="1995" />
+			<biblScope unit="page" from="204" to="213" />
+		</imprint>
+	</monogr>
+	<note>PODC&apos;95, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b46">
+	<monogr>
+		<ptr target="http://hstore.cs.brown.edu/documentation/deployment/benchmarks/articles" />
+		<title level="m">THE H-STORE TEAM. Articles Benchmark</title>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b47">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>The H-Store Team</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Benchmark</surname></persName>
+		</author>
+		<ptr target="http://hstore.cs.brown.edu/documentation/deployment/benchmarks/seats/" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b48">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>The H-Store Team. Smallbank</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Benchmark</surname></persName>
+		</author>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b49">
+	<analytic>
+		<title/>
+		<ptr target="http://www.snia.org/forums/sssi/NVDIMM" />
+	</analytic>
+	<monogr>
+		<title level="j">THE STORAGE NETWORKING INDUSTRY ASSOCIATION (SNIA). NVDIMM Special Interest Group</title>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b50">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>The</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Transaction</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Council</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V5</forename><surname>Tpc-C Benchmark</surname></persName>
+		</author>
+		<ptr target="http://www.tpc.org/tpcc/" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b51">
+	<analytic>
+		<title level="a" type="main">Fast distributed transactions for partitioned database systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Thomson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Diamond</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S.-C</forename><surname>Weng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Ren</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Shao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Abadi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Calvin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2012 ACM SIGMOD International Conference on Management of Data</title>
+		<meeting>the 2012 ACM SIGMOD International Conference on Management of Data</meeting>
+		<imprint>
+			<date type="published" when="2012" />
+			<biblScope unit="page" from="1" to="12" />
+		</imprint>
+	</monogr>
+	<note>SIGMOD&apos;12, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b52">
+	<monogr>
+		<title level="m" type="main">Systems programming: Coping with parallelism. No. RJ 5118</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">K</forename><surname>Treiber</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1986" />
+		</imprint>
+		<respStmt>
+			<orgName>IBM Almaden Research Center</orgName>
+		</respStmt>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b53">
+	<analytic>
+		<title level="a" type="main">Speedy transactions in multicore in-memory databases</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Tu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Zheng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Kohler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Liskov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Madden</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Twenty-Fourth ACM Symposium on Operating Systems Principles</title>
+		<meeting>the Twenty-Fourth ACM Symposium on Operating Systems Principles</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="18" to="32" />
+		</imprint>
+	</monogr>
+	<note>SOSP&apos;13, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b54">
+	<analytic>
+		<title level="a" type="main">C-hint: An effective and reliable cache management for rdma-accelerated key-value stores</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Meng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Tan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the ACM Symposium on Cloud Computing</title>
+		<meeting>the ACM Symposium on Cloud Computing</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="volume">23</biblScope>
+			<biblScope unit="page">13</biblScope>
+		</imprint>
+	</monogr>
+	<note>SoCC&apos;14, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b55">
+	<analytic>
+		<title level="a" type="main">Opportunities and pitfalls of multi-core scaling using hardware transaction memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Qian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Li</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 4th Asia-Pacific Workshop on Systems</title>
+		<meeting>the 4th Asia-Pacific Workshop on Systems</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page" from="1" to="3" />
+		</imprint>
+	</monogr>
+	<note>APSys&apos;13, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b56">
+	<analytic>
+		<title level="a" type="main">Using restricted transactional memory to build a scalable in-memory database</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Qian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Chen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Ninth European Conference on Computer Systems</title>
+		<meeting>the Ninth European Conference on Computer Systems</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="volume">26</biblScope>
+			<biblScope unit="page">15</biblScope>
+		</imprint>
+	</monogr>
+	<note>EuroSys&apos;14, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b57">
+	<analytic>
+		<title level="a" type="main">Salt: Combining ACID and BASE in a distributed database</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Xie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Su</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Kapritsos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Yagh-Mazadeh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Alvisi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Mahajan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 11th USENIX Conference on Operating Systems Design and Implementation</title>
+		<meeting>the 11th USENIX Conference on Operating Systems Design and Implementation</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="495" to="509" />
+		</imprint>
+	</monogr>
+	<note>OSDI&apos;14, USENIX Association</note>
+</biblStruct>
+
+<biblStruct xml:id="b58">
+	<analytic>
+		<title level="a" type="main">Transaction chains: Achieving serializability with low latency in geo-distributed storage systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Power</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Zhou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Sovran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">K</forename><surname>Aguil-Era</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Li</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Twenty-Fourth ACM Symposium on Operating Systems Principles</title>
+		<meeting>the Twenty-Fourth ACM Symposium on Operating Systems Principles</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="276" to="291" />
+		</imprint>
+	</monogr>
+	<note>SOSP&apos;13, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b59">
+	<analytic>
+		<title level="a" type="main">Fast databases with fast durability and recovery through multicore parallelism</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Zheng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Tu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Kohler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Liskov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 11th USENIX Conference on Operating Systems Design and Implementation</title>
+		<meeting>the 11th USENIX Conference on Operating Systems Design and Implementation</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="465" to="477" />
+		</imprint>
+	</monogr>
+	<note>OSDI&apos;14, USENIX Association</note>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

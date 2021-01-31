@@ -1,0 +1,1703 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Diamond: Automating Data Management and Storage for Wide-area, Reactive Applications</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Irene</forename><surname>Zhang</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">University of Washington</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Niel</forename><surname>Lebeck</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">University of Washington</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Pedro</forename><surname>Fonseca</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">University of Washington</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Brandon</forename><surname>Holt</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">University of Washington</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Raymond</forename><surname>Cheng</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">University of Washington</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ariadna</forename><surname>Norberg</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">University of Washington</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Arvind</forename><surname>Krishnamurthy</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">University of Washington</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Henry</forename><forename type="middle">M</forename><surname>Levy</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">University of Washington</orgName>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Diamond: Automating Data Management and Storage for Wide-area, Reactive Applications</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:44+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<textClass>
+				<keywords>Reactive data types. Type Operations Description</keywords>
+			</textClass>
+			<abstract>
+				<p>Users of today&apos;s popular wide-area apps (e.g., Twitter, Google Docs, and Words with Friends) must no longer save and reload when updating shared data; instead, these applications are reactive, providing the illusion of continuous synchronization across mobile devices and the cloud. Achieving this illusion poses a complex distributed data management problem for programmers. This paper presents the first reactive data management service, called Diamond, which provides persistent cloud storage, reliable synchronization between storage and mobile devices, and automated execution of application code in response to shared data updates. We demonstrate that Diamond greatly simplifies the design of reactive applications, strengthens distributed data sharing guarantees, and supports automated reactivity with low performance overhead.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>The modern world's ubiquitous mobile devices, infinite cloud storage, and nearly constant network connectivity are changing applications. Led by social networks (e.g., <ref type="bibr">Twitter)</ref>, social games (e.g., Words with Friends) and collaboration tools (e.g., Google Docs), today's popular applications are reactive <ref type="bibr" target="#b40">[41]</ref>: they provide users with the illusion of continuous synchronization across their devices without requiring them to explicitly save, reload, and exchange shared data. This trend, not limited merely to mobile apps, includes the latest distributed versions of traditional desktop apps on both Windows <ref type="bibr" target="#b12">[13]</ref> and OSX <ref type="bibr" target="#b3">[4]</ref>.</p><p>Maintaining this illusion presents a challenging distributed data management problem for application programmers. Modern reactive applications consist of widely distributed processes sharing data across mobile devices, desktops, and cloud servers. These processes make concurrent data updates, can stop or fail at any time, and may be connected by slow or unreliable links. While distributed storage systems <ref type="bibr" target="#b16">[17,</ref><ref type="bibr" target="#b75">77,</ref><ref type="bibr" target="#b14">15,</ref><ref type="bibr" target="#b22">23,</ref><ref type="bibr" target="#b19">20]</ref> provide persistence and availability, programmers still face the formidable challenge of synchronizing updates between application processes and distributed storage in a fault-tolerant, con-sistent manner.</p><p>This paper presents Diamond, the first reactive data management service (RDS) for wide-area applications that continuously synchronizes shared application data across distributed processes. Specifically, Diamond performs the following functions on behalf of an application: <ref type="bibr" target="#b0">(1)</ref> it ensures that updates to shared data are consistent and durable, <ref type="bibr" target="#b1">(2)</ref> it reliably coordinates and synchronizes shared data updates across processes, and (3) it automatically triggers reactive code when shared data changes so that processes can perform appropriate tasks. For example, when a user updates data on one device (e.g., a move in a multi-player game), Diamond persists the update, reliably propagates it to other users' devices, and transparently triggers application code on those devices to react to the changes.</p><p>Reactive data management in the wide-area context requires a balanced consideration of performance trade-offs and reasoning about complex correctness requirements in the face of concurrency. Diamond implements the difficult mechanisms required by these applications (such as logging and concurrency control), letting programmers focus on high-level data-sharing requirements (e.g., atomicity, concurrency, and data layout). Diamond introduces three new concepts:</p><p>1. Reactive Data Map (rmap), a primitive that lets applications create reactive data types -shared, persistent data structures -and map them into the Diamond data management service so it can automatically synchronize them across distributed processes and persistent storage. 2. Reactive Transactions, an interactive transaction type that automatically re-executes in response to shared data updates. These "live" transactions run application code to make local, application-specific updates (e.g., UI changes).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">Data-type Optimistic Concurrency Control</head><p>(DOCC), a mechanism that leverages data-type semantics to concurrently commit transactions executing commutative operations (e.g., writes to different list elements, increments to a counter). Our experiments show that DOCC copes with wide-area latencies very effectively, reducing abort rates by up to 5x. We designed and implemented a Diamond prototype in C++ with language bindings for C++, Python, and Java on both x86 and Android platforms. We evaluate Diamond by building and measuring both Diamond and custom versions (using explicit data management) of four reactive apps. Our experiments show that Diamond significantly reduces the complexity and size of reactive applications, provides strong transactional guarantees that eliminate data races, and supports automatic reactivity with performance close to that of custom-written reactive apps.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Traditional Data Management Techniques for Reactive Apps</head><p>Reactive applications require synchronized access to distributed shared data, similar to shared virtual memory systems <ref type="bibr" target="#b45">[46,</ref><ref type="bibr" target="#b9">10]</ref>. For practical performance in the wide-area environment, apps must be able to control: <ref type="bibr" target="#b0">(1)</ref> what data in each process is shared, (2) how often it is synchronized, and (3) when concurrency control is needed. Existing applications use one of several approaches to achieve synchronization with control. This section demonstrates that these approaches are all complex, error-prone, and make it difficult to reason about application data consistency.</p><p>As an example, we analyze a simple social game based on the game <ref type="bibr" target="#b0">[1]</ref>. Such games are played by millions <ref type="bibr" target="#b76">[78]</ref>, and their popularity changes constantly; therefore, game developers want to build them quickly and focus on game logic rather than data management. Because game play increasingly uses real money (almost $2 billion last year <ref type="bibr" target="#b23">[24]</ref>), their design parallels other reactive applications where correctness is crucial (e.g., apps for first responders <ref type="bibr" target="#b51">[52]</ref> and payment apps <ref type="bibr">[81,</ref><ref type="bibr">72]</ref>).</p><p>In the 100 game, players alternately add a number between 1 and 10 to the current sum, and the first to reach 100 wins. Players make moves and can join or leave the game at different times; application processes can fail at any time. Thus, for safety, the game must maintain traditional ACID guarantees -atomicity, consistency, isolation and durability -as well as reactivity for data updates. We call this combination of properties ACID+R. While a storage system provides ACID guarantees for its own data, those guarantees do not extend to application processes. In particular, pushing updates to storage on mobile devices is insufficient for reactivity because application processes must re-compute local data derived from shared data to make changes visible to users and other components.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1">Roll-your-own Data Management</head><p>Many current reactive apps "roll-their-own" application-specific synchronization across distributed processes on top of general-purpose distributed storage (e.g., Spanner <ref type="bibr" target="#b16">[17]</ref>, Dropbox <ref type="bibr" target="#b22">[23]</ref>).   <ref type="figure" target="#fig_0">Figure 1</ref>: The 100 game. Each box is a separate address space. players, turn and sum are shared across address spaces and the storage system; myturn? and curplay are derived from shared data. When shared values change, the app manually updates distributed storage, other processes with the shared data, and any data in those processes derived from shared data, as shown by the numbered steps needed to propagate Alice's move to Bob.</p><p>shows a typical three-tiered architecture used by these apps (e.g., PlayFish uses it to serve over 50 million users/month <ref type="bibr" target="#b33">[34]</ref>). Processes on client devices access stateless cloud servers, which store persistent game state in a distributed storage system and use a reliable notification service (e.g., Thialfi <ref type="bibr" target="#b2">[3]</ref>) to trigger changes in other processes for reactivity. While all application processes can fail, we assume strong guarantees -such as durability and linearizability -for the storage system and notification service. Although such apps could rely on a single server to run the game, this would create a centralized failure point. Clients cache game data to give users a responsive experience and to reduce load on the cloud servers <ref type="bibr" target="#b33">[34]</ref>. The numbers in <ref type="figure" target="#fig_0">Figure 1</ref> show the data management steps that the application must explicitly perform for Alice's move (adding 5 to the sum). Alice's client: (1) updates turn and sum locally, <ref type="bibr" target="#b1">(2)</ref> calculates new values for myturn? and curplay, and (3) sends the move to a cloud server. The server: (4) writes turn and sum to distributed storage, and (5) sends a notification to Bob. The notification service: (6) delivers the notification to Bob's client, which (7) contacts a cloud server to get the latest move. The server: (8) reads from distributed storage and returns the latest turn and sum. Bob's client: (9) updates turn and sum locally, and (10) re-calculates myturn? and curplay.</p><p>Note that such data management must be customized to such games, making it difficult to implement a general-purpose solution. For example, only the application knows that: (1) clients share turn and sum (but not myname), (2) it needs to synchronize turn and sum after each turn (but not players), and (3) it does not need concurrency control because turn already coordinates moves.</p><p>Correctly managing this application data demands that the programmer reason about failures and data races at every step. For example, the cloud server could fail in the middle of step 4, violating atomicity. It could also fail between steps 4 and 5, making the application appear as if it is no longer reactive.</p><p>A new player, Charlie, could join the game while Bob makes his move, leading to a race; if Alice receives Bob's notification first, but Charlie writes to storage first, then both Alice and Charlie would think that it was their turn, violating isolation.</p><p>Finally, even if the programmer were to correctly handle every failure and data race and write bug-free code, reasoning about the consistency of application data would prove difficult. Enforcing a single global ordering of join, leave and move operations requires application processes to either forgo caching shared data (or data derived from shared data) altogether or invalidate all cached copies and update the storage system atomically on every operation. The first option is not realistic in a wide-area environment, while the second is not possible when clients may be unreachable.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">Wide-area Storage Systems</head><p>A simple, alternative way to manage data manually is to store shared application data in a wide-area storage system (e.g., Dropbox <ref type="bibr" target="#b22">[23]</ref>). That is, rather than calling move in step 3, the application stores and updates turn and sum in a wide-area storage system. Though simple, this design can be very expensive. Distributed file systems are not designed to frequently synchronize small pieces of data, so their coarse granularity can lead to moving more data than necessary and false sharing.</p><p>Further, while this solution synchronizes Alice's updates with the cloud, it does not ensure that Bob receives Alice's updates. To simulate reactive behavior and ensure that Bob sees Alice's updates, Alice must still use a wide-area notification system (e.g., Apple Push Notifications <ref type="bibr" target="#b5">[6]</ref>) to notify Bob's client after her update. Unfortunately, this introduces a race condition: if Bob's client receives the notification before the wide-area storage system synchronizes Alice's update, then Bob will not see Alice's changes. Worse, Bob will never check the storage system again, so he will never see Alice's update, leaving him unable to make progress. Thus, this solution retains all of the race conditions described in Section 2.1 and introduces some new ones.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.3">Reactive Programming Frameworks</head><p>Several programming frameworks (e.g., Firebase <ref type="bibr" target="#b25">[26]</ref>, Parse <ref type="bibr" target="#b59">[60]</ref> with React <ref type="bibr" target="#b63">[64]</ref>, Meteor <ref type="bibr" target="#b50">[51]</ref>) have recently been commercially developed for reactive applications. These frameworks combine storage and notification systems and automate data management and synchronization across systems. However, they do not provide a clear consistency model, making it difficult for programmers to reason about the guarantees provided by their synchro-  nization mechanisms. Further, they offer no distributed concurrency control, leaving application programmers to contend with race conditions; for example, they can lead to the race condition described in Section 2.1.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">Diamond's System and Programming Model</head><p>Diamond is a new programming platform designed to simplify the development of wide-area reactive applications. This section specifies its data and transaction models and system call API.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">System Model</head><p>Diamond applications consist of processes running on mobile devices and cloud servers. Processes can communicate through Diamond or over a network, which can vary from local IPC to the Internet. Every application process is linked to a client-side library, called LIBDIAMOND, which provides access to the shared Diamond cloud -a highly available, fault-tolerant, durable storage system. Diamond subsumes some applications' server-side functionality, but our goal is not to eliminate such code. We expect cloud servers to continue providing reliable and efficient access to computation and datacenter services (e.g., data mining) while accessing shared data needed for these tasks through Diamond. <ref type="figure" target="#fig_3">Figure 2</ref> shows the 100 game data model using Diamond. Compared to <ref type="figure" target="#fig_0">Figure 1</ref>, the application can directly read and write to shared data in memory, and Diamond ensures updates are propagated to cloud storage and other processes. Further, Diamond's strong transactional guarantees eliminate the need for programmers to reason about failures and concurrency.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">Data Model</head><p>Diamond supports reactive data types for fine-grained synchronization, efficient concurrency control, and persistence. As with popular data structure stores <ref type="bibr" target="#b18">[19]</ref>, such as Redis <ref type="bibr" target="#b66">[67]</ref> and Riak <ref type="bibr" target="#b67">[68]</ref>, we found that simple data types are general enough to support a wide range of applications Unordered map and provide the necessary semantics to enable commutativity and avoid false sharing. <ref type="table">Table 1</ref> lists the supported persistent data types and their operations. In addition to primitive data types, like String, Diamond supports simple Conflict-free Replicated Data-types (CRDTs) <ref type="bibr" target="#b68">[69]</ref> (e.g., Counter) and collection types (e.g., LongSet) with efficient type-specific interfaces. Using the most specific type possible provides the best performance (e.g., using a Counter for records that are frequently incremented).</p><p>A single Diamond instance provides a set of tables; each table is a key-to-data-type map, where each entry, or record, has a single persistent data type. Applications access Diamond through language bindings; however, applications need not be written in a single language. We currently support C++, Python and Java on both x86 and Android but could easily add support for other languages (e.g., Swift <ref type="bibr" target="#b4">[5]</ref>).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">System Calls</head><p>While apps interact with Diamond largely through reactive data types, we provide a minimal system call interface, shown in <ref type="table" target="#tab_0">Table 2</ref>, to support transactions and rmap.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3.1">The rmap Primitive</head><p>rmap is Diamond's key abstraction for providing shared memory that is flexible, persistent, and reactive across wide-area application processes. Applications call rmap with an application variable and a key to the Diamond record, giving them control over what data in their address space is shared and how it is organized. In this way, different application processes (e.g., an iOS and an Android client) and different application versions (e.g., a new and current code release) can effectively share data. When rmapping records to variables, the data types must match. Diamond's system call library checks at runtime and returns an error from the rmap call if a mismatch occurs. Read-write transactions. Diamond's read-write transactions let programmers safely and easily access shared reactive data types despite failures and concurrency. Applications invoke read-write transactions using execute txn. The application passes closures for both the transaction and a completion callback. Within the transaction closure, the application can read or write rmapped variables and variables in the closure, but it cannot modify program variables outside the closure. This limitation ensures: (1) the transaction can access all needed variables when it executes asynchronously (and they have not changed), and (2) the application is not affected by the side effects of aborted transactions. Writes to rmapped variables are buffered locally until commit, while reads go to the clientside cache or to cloud storage. Before execute txn returns, Diamond logs the transaction, with its read and write sets, to persistent storage. This step guarantees that the transaction will eventually execute and that the completion callback will eventually execute even if the client crashes and restarts. This guarantee lets applications buffer transactions if the network is unavailable and easily implement custom retry functionality in the completion callback. If the callback reports that the transaction successfully committed, then Diamond guarantees ACID+R semantics for all accesses to rmapped records; we discuss these in more detail in Section 3.4. On abort, Diamond rolls back all local modifications to rmapped variables.</p><p>Reactive transactions. Reactive transactions help application processes automatically propagate changes made to reactive data types. Each time a read-write transaction modifies an rmapped variable in a reactive transaction's read set, the reactive transaction re-executes, prop-agating changes to derived local variables. As a result, reactive transactions provide a "live" view that gives the illusion of reactivity while maintaining an imperative programming style comfortable to application programmers. Further, because they read a consistent snapshot of rmapped data, reactive transactions avoid application-level bugs common to reactive programming models <ref type="bibr" target="#b47">[48]</ref>.</p><p>Applications do not explicitly invoke reactive transactions; instead, they register them by passing a closure to register reactxn, which returns a txn id that can be used to unregister the transaction with reactxn stop. Within the reactive transaction closure, the application can read but not write rmapped records, preventing potential data flow cycles. Since reactive transactions are designed to propagate changes to local variables, the application can read and write to local variables at any time and trigger side-effects (i.e., print-outs, updating the UI). Diamond guarantees that reactive transactions never abort because it commits read-only transactions locally at the client. Section 4 details the protocol for reactive transactions.</p><p>Reactive transactions run in a background thread, concurrently with application threads. Diamond transactions do not protect accesses to local variables, so the programmer must synchronize with locks or other mechanisms. The read set of a reactive transaction can change on every execution; Diamond tracks the read set from the latest execution. Section 6.2 explains how to use reactive transactions to build general-purpose, reactive UI elements.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4">Reactive Data Management Guarantees</head><p>Diamond's guarantees were designed to meet the requirements of reactive applications specified in Section 2, eliminating the need for each application to implement its own complex data management. To do so, Diamond enforces ACID+R guarantees for reactive data types:</p><p>• Atomicity: All or no updates to shared records in a read-write transaction succeed. tered reactive transactions will eventually re-execute. These guarantees create a producer-consumer relationship: Diamond's read-write transactions produce updates to reactive data types, while reactive transactions consume those updates and propagate them to locally derived data. However, unlike the traditional producer-consumer</p><p>The C in ACID is not well defined outside a database context. Diamond simply guarantees that each transaction reads a consistent snapshot. paradigm, this mechanism is transparent to applications because the ACID+R guarantees ensure that Diamond automatically re-executes the appropriate reactive transactions when read-write transactions commit. <ref type="table" target="#tab_1">Table 3</ref> lists Diamond's isolation levels, which can be set per table. Diamond's default is strict serializability because it eliminates the need for application programmers to deal with inconsistencies caused by data races and failures. Lowering the isolation level leads to fewer aborts and more concurrency; however, more anomalies arise, so applications should either expect few conflicts, require offline access, or tolerate inaccuracy (e.g., Twitter's most popular hash tag statistics). Section 5.1 describes how DOCC increases concurrency and reduces aborts for transactions even at the highest isolation levels.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.5">A Simple Code Example</head><p>To demonstrate the power of Diamond to simplify reactive applications, <ref type="figure">Figure 3</ref> shows code to implement the 100 game from Section 2 in Diamond. This implementation provides persistence, atomicity, isolation and reactivity for every join and move operation in only 34 lines of code. We use three reactive data types for shared game data, declared on line 2 and rmapped in lines 7-9. It is important to ensure a strict ordering of updates, so we create a table in strict serializable mode on line 6. On line 12, we define a general-purpose transaction callback for potential transaction failures. On line 16, we execute a read-write transaction to add the player to the game, passing myname by value into the transaction closure. Using DOCC allows Diamond to commit two concurrent executions of this transaction while guaranteeing strict serializability.</p><p>Line 20 registers a reactive transaction to print out the score and current turn. Diamond's ACID+R guarantees ensure that the transaction re-executes if players, turn or sum change, so the user always has a consistent, up-todate view. Note that we can print to stdout because the reactive transaction will not abort, and the printouts reflect a serializable snapshot, avoiding reactive glitches <ref type="bibr" target="#b47">[48]</ref>. On line 32, we wait for user input in the while loop and use a read-write transaction to commit the entered move.</p><p>Diamond's strong guarantees eliminate the need for programmers to reason about data races or failures. Taking our examples from Section 2, Diamond ensures that when the game commits Alice's move, the move is never lost and Bob eventually sees it. Diamond also ensures that, if Charlie joins before Bob makes his move, Alice either sees Charlie join without Bob's move, or both, but never sees Bob's move without seeing Charlie join. As a result, programmers no longer need to reason about race conditions, greatly simplifying the game's design. To our knowledge, no other system provides all of Diamond's ACID+R properties.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.6">Offline Support</head><p>Wi-Fi and cellular data networks have become widely available, and reactive applications typically have limited offline functionality; thus, Diamond focuses on providing online reactivity, unlike storage systems (e.g., Bayou <ref type="bibr" target="#b75">[77]</ref> and Simba <ref type="bibr" target="#b60">[61]</ref>). However, Diamond still provides limited offline support. If the network is unavailable, execute txn logs and transparently retries, while Diamond's CRDTs make it more likely that transactions commit after be- ing retried. For applications with higher contention, Diamond's read committed mode enables commits locally at the client while offline, and any modifications eventually converge to a consistent state for Diamond's CRDTs.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.7">Security</head><p>Similar to existing client-focused services, like Firebase <ref type="bibr" target="#b25">[26]</ref> and Dropbox <ref type="bibr" target="#b22">[23]</ref>, Diamond trusts application clients not to be malicious. Application clients authenticate with the Diamond cloud through their LIBDIAMOND client before they can rmap or access reactive data types. Diamond supports isolation between users through access control lists (ACLs); applications can set rmap, read, and write permissions per table. Within tables, keys function as capabilities; a client with a key to a record has permission to access it. Applications can defend against potentially malicious clients by implementing server-side security checks using reactive transactions on a secure cloud server.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Diamond's System Design</head><p>This section relates Diamond's architecture, the design of rmap, and its transaction protocols. <ref type="figure" target="#fig_6">Figure 4</ref> presents an overview of Diamond's key components. Each LIBDIAMOND client provides client-side caching and access to cloud storage for the application process. It also registers, tracks and re-executes reactive transactions and keeps a persistent transaction log to handle device and network failures. The Diamond cloud consists of front-end servers and back-end storage servers, which together provide durable storage and reliable notifications for reactive transactions. Front-end servers are scalable, stateless nodes that provide LIBDIAMOND clients access to Diamond's back-end storage, which is partitioned for scalability and replicated (using Viewstamped Replication (VR) <ref type="bibr" target="#b57">[58]</ref>) for fault tolerance. LIBDIAMOND clients could directly access back-end storage, but front-end servers give clients a single connection point to the Diamond cloud, avoiding the need for them to authenticate with many back-end servers or track the partitioning scheme.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Data Management Architecture</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">rmap and Language Bindings</head><p>Diamond language bindings implement the library of reactive data types for apps to use as rmap variables. Diamond interposes on every operation to an rmapped variable. During a transaction, LIBDIAMOND collects an operation set for DOCC to later check for conflicts. Reads may hit the LIBDIAMOND client-side cache or require a wide-area access to the Diamond cloud, while writes (and increments, appends, etc.) are buffered in the cache until commit. <ref type="figure">Figure 5</ref> shows the coordination needed across LIBDIA-MOND clients, front-end servers and back-end storage for both read-write and reactive transactions. This section briefly describes the transaction protocols.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">Transaction Coordination Overview</head><p>Diamond uses timestamp ordering to enforce isolation across LIBDIAMOND clients and back-end storage; it assigns every read-write transaction a unique commit timestamp that is provided by a replicated timestamp service (tss) (not shown in <ref type="figure" target="#fig_6">Figure 4</ref>). Commit timestamps reflect the transaction commit order, e.g., in strict serializability mode, they reflect a single linearizable ordering of committed, read-write transactions. Both Diamond's clientside cache and back-end storage are multi-versioned using these commit timestamps.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3.1">Running Distributed Transactions</head><p>Read-write and reactive transactions execute similarly; however, as Section 5 relates, reactive transactions can commit locally and often avoid wide-area accesses altogether. We lack the space to cover Diamond's transaction protocol in depth; however, it is similar to Spanner's <ref type="bibr" target="#b16">[17]</ref> with two key differences: (1) Diamond uses DOCC for concurrency control rather than a locking mechanism, and (2) Diamond uses commit timestamps from the timestamp service (tss) rather than TrueTime <ref type="bibr" target="#b16">[17]</ref>.</p><p>As shown in <ref type="figure">Figure 5</ref> (left), transactions progress through two phases, execution and commit. During the execution phase, LIBDIAMOND runs the application code in the transaction closure passed into txn execute. It runs the code locally on the LIBDIAMOND client node (i.e., not on a storage node like a stored procedure).</p><p>The execution phase completes when the application exits the transaction closure or calls txn commit explicitly. Reactive transactions commit locally; for read-write transactions, LIBDIAMOND sends the operation sets to the front-end server, which acts as the coordinator for a twophase commit (2PC) protocol, as follows:</p><p>1. It sends Prepare to all participants (i.e., partitions of the Diamond back-end that hold records in the operation sets), which replicate it via VR.  <ref type="figure">Figure 5</ref>: Diamond transaction coordination. Left: Alice executes a read-write transaction that reads A and writes B. Right: Bob registers a reactive transaction that reads B (we omit the txn id). When Alice commits her transaction, the back-end server publishes the update to the front-end, which pushes the notification and the update to Bob's LIBDIAMOND, which can then re-execute the reactive transaction locally.</p><p>2. Each participant runs a DOCC validation check (described in Section 5); if DOCC validation succeeds, the participant adds the transaction to a prepared list and returns true; otherwise, it returns false. 3. As an optimization, the front-end server concurrently retrieves a commit timestamp from the tss.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">If all participants respond true, the front-end sends</head><p>Commits to the participants with the commit timestamp; otherwise, it sends Aborts. Then, it returns the transaction outcome to the LIBDIAMOND client. When the client receives the response, it logs the transaction outcome and invokes the transaction callback.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3.2">Managing Reactive Transactions</head><p>As shown in <ref type="figure">Figure 5</ref> (right), when an application registers a reactive transaction, the LIBDIAMOND client: (1) gives the reactive transaction a txn id, (2) executes the reactive transaction at its latest known timestamp, and (3) sends the txn id, the timestamp, and the read set in a Register request to the front-end server. For each key in the read set, the front-end server creates a Subscribe request and sends those requests, along with the timestamp, to each key's back-end partition.</p><p>For efficiency, LIBDIAMOND tracks read set changes between executions and re-registers. We expect each reactive transaction's read set to change infrequently, reducing the overhead of registrations; if it changes often, we can use other techniques (e.g., map objectrange described in Section 6.2) to improve performance.</p><p>When read-write transactions commit, Diamond executes the following steps for each updated record:</p><p>1. The leader in the partition sends a Publish request with the transaction's commit timestamp to each front-end subscribed to the updated record. 2. For each Publish, the front-end server looks up the reactive transactions that have the updated record in their read sets and checks if the commit timestamp is bigger than the last notification sent to that client. 3. If so, the front-end server sends a Notify request to the client with the commit timestamp and the reactive transaction id. 4. The client logs the notification on receipt, updates its latest known timestamp, and re-executes the reactive transaction at the commit timestamp. For keys that are updated frequently, back-and front-end servers batch updates. Application clients can bound the batching latency (e.g., to 5 seconds), ensuring that reactive transactions refresh at least once per batching latency when clients are connected.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3.3">Handling Failures</head><p>While both the back-end storage and tss are replicated using VR, Diamond can suffer failures of the LIBDIAMOND clients or front-end servers. On client failure, LIBDIA-MOND runs a client recovery protocol using its transaction log to ensure that read-write transactions eventually commit. For each completed but unprocessed transaction (i.e., in the log but with no outcome), LIBDIAMOND retries the commit. If the cloud store has a record of the transaction, it returns the outcome; otherwise, it re-runs 2PC. For each reactive transaction, the application re-registers on recovery. LIBDIAMOND uses its log to find the last timestamp at which it ran the transaction.</p><p>Although front-end servers are stateless, LIBDIAMOND clients must set up a new front-end server connection when they fail. They use the client recovery protocol to do this and re-register each reactive transaction with its latest notification timestamp. Front-end servers also act as coordinators for 2PC, so back-end storage servers use the cooperative termination protocol <ref type="bibr" target="#b10">[11]</ref> if they do not receive Commit requests after some timeout.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Wide-area Optimizations</head><p>This section discusses Diamond's optimizations to reduce wide-area overhead.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1">Data-type Optimistic Concurrency Control</head><p>Diamond uses an optimistic concurrency control (OCC) mechanism to avoid locking across wide-area clients. Unfortunately, OCC can perform poorly across the wide area due to the higher latency between a transaction's read of a record and its subsequent commit. This raises the likelihood that a concurrent write will invalidate the read, thereby causing a transaction abort. For example, to increment a counter, the transaction reads the current value, increments it, and then commits the updated value; if another transaction attempts the same operation at the same time, an abort occurs.</p><p>DOCC tackles this issue in two ways. First, it uses finegrained concurrency control based on the semantics of reactive data types, e.g., allowing concurrent updates to different list elements. Second, it uses conflict-free data  It also collects the read version for every Get, the written value for every Put, the index (e.g., list index or hash table key) for every collection operation, and the diff (e.g., the increment value or the insert or append element) for every commutative CRDT operation. We show in Section 6 that although fine-grained tracking slightly increases DOCC overhead, it improves overall performance. Using operation sets, DOCC runs a validation procedure that checks every committing transaction for potential violations of isolation guarantees. A conflicting access occurs for an operation if the table, key, and index (for collection types) match an operation in a prepared transaction. For a read, a conflict also occurs if the latest write version (or commutative CRDT operation) to the table, key, and index is bigger than the read version. For each, DOCC makes an abort decision, as noted in <ref type="table" target="#tab_3">Table 4</ref>.</p><p>Since transactions that contain only commutative operations can concurrently commit, DOCC can allow many concurrent transactions that modify the same keys. This property is important for workloads with high write contention, e.g., the Twitter "like" counter for popular celebrities <ref type="bibr" target="#b35">[36]</ref>. Further, because Diamond runs read-only and reactive transactions in serializable snapshot mode, they do not conflict with read-write transactions with commutative CRDT operations.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2">Client Caching with Bounded Validity Intervals</head><p>Some clients in the wide-area setting may occasionally be unavailable, making it impossible to atomically invalidate all cache entries on every write to enforce strong ordering. Diamond therefore uses multi-versioning in both the client-side cache and back-end storage to enforce a global ordering of transactions. To do this, it tags each version with a validity interval <ref type="bibr" target="#b61">[62]</ref>, which begins at the start timestamp and is terminated by the end timestamp. In Diamond's back-end storage, a version's start timestamp is the commit timestamp of the transaction that wrote the version. The end timestamp is either the commit timestamp of the transaction writing the next version (making that version out-of-date) or unbounded for the latest version. <ref type="figure" target="#fig_8">Figure 6</ref> shows an example of back-end storage with three keys. On reads, the Diamond cloud tags the returned value with a validity interval for the LIBDIAMOND client-side cache. These validity intervals are conservative; back-end storage guarantees that the returned version is valid at least within the validity interval, although it may be valid beyond. If the version is the latest, back-end storage will bound the validity interval by setting the end timestamp to the latest commit timestamp of a transaction that accessed that record. For example, in <ref type="figure" target="#fig_8">Figure 6</ref>, the validity interval of the latest version of B and C are capped at timestamp 16 in the cache, while they are unbounded in storage. Most importantly, bounded validity intervals eliminate the need for cache invalidations because the version is always valid within the validity interval. Diamond eventually garbage collects cached versions as they become too outdated to use.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3">Data Push Notifications</head><p>Reactive transactions require many round-trips to synchronously fetch each update; these can be expensive in a wide-area network. Fortunately, unlike stand-alone notifications services (e.g., Thialfi), Diamond has insight into what data the application is likely to access when the reactive transaction re-executes. Thus, Diamond uses data push notifications to batch updates along with notifications, reducing wide-area round trips.</p><p>When front-end servers receive Publish requests from back-end storage, they perform a snapshot read of every key in the reactive transaction's last read set at the updating transaction's commit timestamp, then piggyback the results with the Notify request to the LIBDIAMOND client. LIBDIAMOND re-executes the reactive transaction at the commit timestamp; therefore, if its read set has not changed, then it requires no additional wide-area re- </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6">Experience and Evaluation</head><p>This section evaluates Diamond with respect to both programming ease and performance. Overall, our results demonstrate that Diamond simplifies the design of reactive applications, provides stronger guarantees than existing custom solutions, and supports automated reactivity with low performance overhead.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.1">Prototype Implementation</head><p>We implemented a Diamond prototype in 11,795 lines of C++, including support for C++, Python and Java language bindings on both x86 and ARM. The Java bindings (939 LoC) use javacpp <ref type="bibr" target="#b38">[39]</ref>, and the Python bindings (115 LoC) use Boost <ref type="bibr" target="#b1">[2]</ref>. We cross-compiled Diamond and its dependencies for Android using the NDK standalone toolchain <ref type="bibr" target="#b28">[29]</ref>. We implemented most Diamond data types, but not all are supported by DOCC. Our current prototype does not include client-side persistence and relies on in-memory replication for the back-end store; however, we expect disk latency on SSDs to have a low performance impact compared to wide-area network latency, with NVRAM reducing storage latency even further in the future.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.2">Programming Experience</head><p>This section evaluates our experience in building new Diamond apps, porting existing apps to Diamond, and creating libraries to support the needs of reactive programs.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.2.1">Simplifying Reactive Applications</head><p>To evaluate Diamond's programming benefits, we implemented applications both with and without Diamond. <ref type="table" target="#tab_4">Table 5</ref> shows the lines of code for both cases. For all of the apps, Diamond simultaneously decreased program size and added important reliability or correctness properties. We briefly describe the programs and results below.</p><p>100 Game. Our non-Diamond version of the 100 game is based on the design in <ref type="figure" target="#fig_0">Figure 1</ref>. For simplicity, we used Redis <ref type="bibr" target="#b66">[67]</ref> for both storage and notifications. We found several data races between storage updates and notifications when running experiments for <ref type="figure">Figure 9</ref>, forcing us to include updates in the notifications to ensure clients did not read stale data from the store. The Diamond version eliminated these bugs and the complexities described in Section 2 and guaranteed correctness with atomicity and isolation; in addition, it reduced the code size by 26%.</p><p>Chat Room. As another simple but representative example of a reactive app, we implemented two versions of a chat room. Our version with explicit data management used Redis for storage and the Jetty <ref type="bibr" target="#b39">[40]</ref> web server to implement a REST <ref type="bibr" target="#b24">[25]</ref> API. It used POST requests to send messages and polled using GET requests for displaying the log. This design is similar to that used by Twitter <ref type="bibr" target="#b78">[80,</ref><ref type="bibr" target="#b34">35]</ref> to manage its reactive data (e.g., Twitter has POST and GET requests for tweets, timelines, etc.). The Diamond version used a StringList for the chat log, a read-write transaction to append messages, and a reactive transaction to display the log. In comparison, Diamond not only eliminated the need for a server or storage system, it also provided atomicity (the Redis version has no failure guarantees), isolation (the Redis version could not guarantee that all clients saw a consistent view of the chat log), and reactivity (the Redis version polled for new messages). Diamond also shrunk the 355-line app by 130 lines, or 33%.</p><p>PyScrabble and Diamond Scrabble. To evaluate the impact of reactive data management in an existing application, we built a Diamond version of PyScrabble <ref type="bibr" target="#b15">[16]</ref>, an open-source, multiplayer Scrabble game. The original PyScrabble does not implement persistence (i.e., it has no storage system) and uses a centralized server to process moves and notify players. The centralized server enforces isolation and consistency only if there are no failures. We made some changes to add persistence and accommodate Diamond's transaction model. We chose to directly rmap the Scrabble board to reactive data types and update the UI in a reactive transaction, so our implementation had to commit and share every update to make it visible to the user; thus, other users could see the player lay down tiles in real-time rather than at the end of the move, as in the original design. Overall, our port of PyScrabble to Diamond removed over 1000 lines of code from the 8700-line app (13%) while transparently simplifying the structure (removing the server), adding fault tolerance (persistence) and atomicity, and retaining strong isolation.</p><p>Twimight and Diamond Dove. As another modern reactive application, we implemented a subset of Twitter using an open-source Android Twitter client (Twimight <ref type="bibr" target="#b77">[79]</ref>) and a custom back-end. The Diamond version eliminated much of the data management in the Twimight version, i.e., pushing and retrying updates to the server and maintaining consistency between a client-side SQLite <ref type="bibr" target="#b70">[71]</ref> cache and back-end storage. Diamond directly plugged into UI elements and published updates with read-write transactions. As a result, it simplified the design, eliminated 1700 lines (13%) from the 14K-line application, transparently provided stronger atomicity and isolation guarantees, and eliminated inconsistent behaviors (e.g., a user seeing a retweet before the original tweet).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.2.2">Simplifying Reactive Libraries</head><p>In addition to simplifying the design and programming of reactive apps, we found that Diamond facilitates the creation of general-purpose reactive libraries. As one example, Diamond transactions naturally lend themselves to managing UI elements. For instance, a check box usually rmaps a Boolean, re-draws a UI element in a reactive transaction, and writes to the Boolean in a read-write transaction when the user checks/unchecks the box. We implemented a general library of Android UI elements, including a text box and check box. Each element required under 50 lines of code yet provided strong ACID+R guarantees. Note that these elements tie the user's UI to shared data, making it impossible to update the UI only locally; for example, if a user wants to preview a message before sharing it with others, the app must update the UI in some other way. For generality, Diamond makes no assumptions about an app's data model, but we can build libraries using rmap for common data models. For example, we implemented object-relational mapping for Java objects whose fields were Diamond data types. Using Java reflection, rmap object maps each Diamond data type inside an object to a key derived from a base key and the field's name. We also support rmap for subsets of Diamond collections, e.g., rmap range for Diamond's primitive list types, which binds a subset of the list to an array, and rmap objectrange, which maps a list of objects using rmap object.</p><p>These library functions were easy to build (under 75 lines of code) and greatly simplified several applications; for example, our Diamond Twitter implementation stores a user's timeline as a LongList of tweet ids and uses map objectrange to directly bind the tail of the user's timeline into a custom Android adapter, which then plugs into the Twimight Android client and automatically manages reactivity. In addition to reducing application complexity, these abstractions also provide valuable hints for prefetching and for how reactive transaction read sets might change. Overall, we found Diamond's programming model to be extremely flexible, powerful, and easy to generalize into widely useful libraries.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.3">Performance Evaluation</head><p>Our performance measurements demonstrate that Diamond's automated data management and strong consistency impose a low performance cost relative to custom-12th USENIX Symposium on Operating Systems Design and Implementation USENIX Association</p><p>Strong Operation Ordering</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Linearizable Txns</head><p>Strong Transaction Ordering <ref type="figure">Figure 7</ref>: Peak throughput for explicit data management vs Diamond. We compare an implementation using Redis and Jetty to Diamond at different isolation levels with and without DOCC. We label the ordering guarantees provided by each configuration. In all cases, the back-end servers were the bottleneck.</p><p>written applications. Using transactions with strong isolation properties lowers throughput, as one would expect. We also show that Diamond's DOCC improves performance of transactional guarantees, and that data push notifications reduce the latency of wide-area transactions. Finally, our experiments prove that Diamond has low overhead on mobile devices and can recover quickly from failures.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.3.1">Experimental Setup</head><p>We ran experiments on Google Compute Engine <ref type="bibr" target="#b29">[30]</ref> using 16 front-end servers and 5 back-end partitions, each with 3 replicas placed in different availability zones in the same geographic region (US-Central). Our replication protocol used adaptive batching with a batch size of 64. We placed clients in a different geographic region in the same country (US-East). The latency between zones was ≈1 ms, while the latency between regions was ≈36 ms. For our mobile device experiments, we used Google Nexus 7 LRX22G tablets connected via Wi-Fi and, for desktop experiments, we used a Dell workstation with an Intel Xeon E5-1650 CPU and 16 GB RAM. We used a benchmark based on Retwis <ref type="bibr" target="#b44">[45]</ref>, a Redisbased Twitter clone previously used to benchmark transactional storage systems <ref type="bibr" target="#b81">[84]</ref>. The benchmark was designed to be a representative, although not realistic, reflection of a Twitter-like workload that provides control over contention. It ran a mix of five transactions that range from 4-21 operations, including: loading a user's home timeline (50%), posting a tweet (20%), following a user (5%), creating a new user (1%), and "like"-ing a tweet (24%). To increase contention, we used 100K keys and a Zipf distribution with a co-efficient of 0.8.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.3.2">Overhead of Automated Data Management</head><p>For comparison, we built an implementation of the Retwis benchmark that explicitly manages reactive data using Jetty <ref type="bibr" target="#b39">[40]</ref> and Redis <ref type="bibr" target="#b66">[67]</ref>. The Redis WAIT command offers synchronous in-memory replication, which matches Diamond's fault-tolerance guarantees but provides no operation or transaction ordering <ref type="bibr" target="#b65">[66]</ref>. The leftmost bar in <ref type="figure">Figure 7</ref> shows the peak Retwis throughput of 31K trans./sec. for the Redis-based implementation, while the second bar in <ref type="figure">Figure 7</ref> shows the Diamond read-committed (RC) version, whose performance (30.5K trans./sec.) is nearly identical. Unlike the Redis-based implementation, however, the Diamond benchmark provides strong consistency based on VR, i.e., it enforces a single global order of operations but not transactions. The Diamond version also provides all of its reactivity support features. Diamond therefore provides better consistency properties and simplifies programming at little additional cost.</p><p>As we add stronger isolation through transactions, throughput declines because two-phase commit requires each back-end server to process an extra message per transaction. As the graph shows, snapshot isolation (SI) and strict serializability (SS) reduce throughput by nearly 50% from RC. The graph also shows SI and SS both with and without DOCC; eliminating DOCC hurts SS more than SI (27% vs. 13%) because SI lets transactions with read-write conflicts commit (leading to write skew).</p><p>From this experiment, we conclude that Diamond's general-purpose data management imposes almost no throughput overhead. Also, achieving strong transactional isolation guarantees does impose a cost due to the more complex message protocol required. Depending on the application, programmers can choose to offset the cost by allocating more servers or tolerate inconsistencies that result from weaker transactional guarantees.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.3.3">Benefit of DOCC</head><p>DOCC's benefit depends on both contention and transaction duration. To evaluate this effect, we measured the throughput improvement of DOCC for each type of Retwis transaction with at least one CRDT operation <ref type="figure">(Figure 8</ref>).</p><p>The add user and like transactions are short and thus unlikely to abort, but they still see close to a 2x improvement. add follower gets a larger benefit (4x) because it is a longer transaction with more commutative operations. Even get timeline, a read-only transaction, gets a tiny improvement (2.5%) due to reduced load on the servers from aborting transactions. Further, because get timeline runs in serializable snapshot mode, post tweet transactions can commit concurrently with get timeline transactions.</p><p>The post tweet transaction appends a user's new tweet to his timeline and his followers' home timelines (each user has between 5 and 20 followers). If a user follows a large number of people that tweet frequently, conventional OCC makes it highly likely that a conflicting Append would cause the entire transaction to fail. With DOCC, all Appends to a user's home timeline can commute, avoiding these aborts. As a result, we saw a 5x improvement in abort rate with DOCC over conventional OCC for post tweet, leading to a 25x improvement in throughput. Overall, these results show that Diamond's support for data types in its API and concurrency control mechanism is crucial to reducing the cost of transactional guarantees. Redis <ref type="figure">Figure 9</ref>: Latency comparison for 100 game rounds with data push notifications. Each round consist of 1 move by each of 2 players; latency is measured from 1 client. We implemented explicit data management and notifications using Redis and Diamond notifications with and without batched updates.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.3.4">Benefit of Data Push Notifications</head><p>Although Diamond's automated data management imposes a low throughput overhead, it can hurt latency due to wide-area round trips to the Diamond cloud. For example, the latency of a Retwis transaction is twice as high for Diamond relative to our Redis implementation because Diamond requires two round trips per transaction, one to read and one to commit, while Redis needs only one.</p><p>Data push notifications reduce this latency by batching updates with reactive transaction notifications to populate the client-side cache. We turned our implementation of the 100 game from <ref type="figure">Figure 3</ref> into a benchmark: two players join each game, and players make a move as soon as the other player finishes (i.e., zero "think" time). This experiment is ideal because the read set of the reactive transaction does not change, and it overlaps with the read set of the read-write transaction. We also design an implementation using Redis, where notifications carry updates to clients as a manual version of data push notifications. We measure the latency from one player's client for each player to take a turn or for one round of the game. <ref type="figure">Figure 9</ref> shows that data push notifications reduce the overall latency by almost 50% by eliminating wide-area reads for both the reactive and read-write transactions in the game. As a result, Diamond has 30% lower latency and stronger transactional guarantees than our Redis implementation.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.3.5">Impact of Wide-area Storage Server Failures</head><p>Failures affect the latency of both reactive and read-write transactions. To measure this impact, we used the same 100 game workload and killed a back-end server during the game. To increase the recovery overhead, we georeplicated the back-end servers across Asia, US-Central and Europe, while clients remained in US-East.  <ref type="figure" target="#fig_0">Figure 10</ref>: Latency of 100 game rounds during failure. We measured the latency for both players to make a move and killed the leader of the storage partition after about 15 seconds. After recovery, the leader moves to another geographic region, increasing overall messaging latency on each move. <ref type="figure" target="#fig_0">Figure 10</ref> shows the latency of each round. Note that the latency is higher than that in the previous experiment because the VR leader has to wait for a response from a quorum of replicas, which take at least 100 ms, and up to 150 ms, to contact. About 15 seconds into the game, we kill the leader in US-Central, switching it to Europe. The latency of each round increases to almost 4 seconds afterwards: the latency between the front-end servers and the leader in Europe increases to 100 ms, and the latency from the leader to the remaining replica in Asia increases to 250 ms. Despite this, the round during the failure takes only 7 seconds, meaning that Diamond can detect the failure and replace the leader in less than 3 seconds.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.3.6">End-user Application Latency</head><p>To evaluate Diamond's impact on the user experience, we measure the latency of user operations in two apps from Section 6.2 built with and without Diamond. PyScrabble is a desktop application, while our Chat Room app runs on Android. The ping times to the Diamond cloud were ≈38 ms on the desktop and ≈46 ms on the Android tablet. <ref type="figure" target="#fig_0">Figure 11</ref> (left) shows two operations for PyScrabble: MakeMove commits a transaction that updates the user's move, and DisplayMove includes MakeMove plus the notification and reactive transaction to make it visible. Compared to the original PyScrabble, Diamond's latency is slightly higher (9% and 16%, respectively). <ref type="figure">Figure  (right)</ref> shows operations for the Chat Room on an Android tablet. ReadLog gets the full chat log, and PostMessage gets the chat log, appends a message, and commits it back. The Diamond version is a few percent faster than the Redis version because it runs in native C++, while the Redis version uses a Java HTTP client. Overall, we found the latency differences between Diamond and non-Diamond operations were not perceivable to users.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7">Related Work</head><p>Diamond takes inspiration from wide-area storage systems, transactional storage systems and databases, reactive programming, distributed programming frameworks, shared memory systems and notification systems.</p><p>Several commercial platforms <ref type="bibr" target="#b50">[51,</ref><ref type="bibr" target="#b25">26,</ref><ref type="bibr" target="#b59">60]</ref> provide an early form of reactive data management without distributed transactions. Other open source projects <ref type="bibr" target="#b37">[38,</ref><ref type="bibr" target="#b54">55,</ref><ref type="bibr" target="#b20">21,</ref><ref type="bibr" target="#b58">59,</ref><ref type="bibr" target="#b69">70]</ref> have replicated the success of their commercial counterparts. Combined, they comprise a mobile back-end market of $1.32 billion dollars <ref type="bibr" target="#b48">[49]</ref>. However, these products do not meet the requirements of reactive applications, still requiring programmers to address failures and race conditions. Meteor <ref type="bibr" target="#b50">[51]</ref> lets clientside code directly access the database interface. However, because it uses existing databases (MongoDB <ref type="bibr" target="#b52">[53]</ref>, and most recently, Postgres <ref type="bibr" target="#b62">[63]</ref>) that do not support distributed transactions and offer weak consistency guarantees by default, programmers must still reason about race conditions and consistency bugs. Parse <ref type="bibr" target="#b59">[60]</ref> and Firebase <ref type="bibr" target="#b25">[26]</ref> similarly enable clients to read, write, and subscribe to objects that are automatically synchronized across mobile devices; however, these systems offer no concurrency control or transactions. As demonstrated by these Stack Overflow questions <ref type="bibr" target="#b55">[56,</ref><ref type="bibr" target="#b49">50]</ref>, programmers find this to be a significant issue with these systems. Diamond addresses this clear developer need by providing ACID+R guarantees for reactive applications.</p><p>There has been significant work in wide-area storage systems for distributed and mobile applications, including numerous traditional instantiations <ref type="bibr" target="#b75">[77,</ref><ref type="bibr" target="#b41">42,</ref><ref type="bibr" target="#b56">57]</ref> as well as more recent work <ref type="bibr" target="#b17">[18,</ref><ref type="bibr" target="#b8">9,</ref><ref type="bibr" target="#b72">74,</ref><ref type="bibr" target="#b60">61,</ref><ref type="bibr" target="#b73">75]</ref>. Many mobile applications today use commercial storage services such as Dropbox and others <ref type="bibr" target="#b22">[23,</ref><ref type="bibr" target="#b21">22,</ref><ref type="bibr" target="#b36">37]</ref>, while users can also employ revision-based storage (e.g., git <ref type="bibr" target="#b26">[27]</ref>). Applications often combine distributed storage with notifications <ref type="bibr" target="#b2">[3,</ref><ref type="bibr" target="#b5">6]</ref>. As discussed, these systems help with data management, but none offers a complete solution.</p><p>Diamond shares a data-type-based storage model with data structure stores <ref type="bibr" target="#b66">[67,</ref><ref type="bibr" target="#b67">68]</ref>. Document stores (e.g., Mon-goDB <ref type="bibr" target="#b52">[53]</ref>) support application objects; this prevents them from leveraging semantics for better performance. These datastores, along with more traditional key-value and relational storage systems <ref type="bibr" target="#b14">[15,</ref><ref type="bibr" target="#b7">8,</ref><ref type="bibr" target="#b43">44,</ref><ref type="bibr" target="#b74">76]</ref>, were not designed for wide-area use although they could support reactive applications with additional work.</p><p>Reactive transactions in Diamond are similar to database triggers <ref type="bibr" target="#b46">[47]</ref>, events <ref type="bibr" target="#b13">[14]</ref>, and materialized views <ref type="bibr" target="#b11">[12]</ref>. They differ from these mechanisms because they modify local application state and execute application code rather than database queries that update storage state. Diamond's design draws on Thialfi <ref type="bibr" target="#b2">[3]</ref>; however, Thialfi cannot efficiently support data push notifications without insight into the application's access patterns.</p><p>DOCC is similar to Herlihy <ref type="bibr" target="#b31">[32,</ref><ref type="bibr" target="#b30">31]</ref> and Weihl's <ref type="bibr" target="#b80">[83]</ref> work on concurrency control for abstract data types. However, Diamond applies their techniques to CRDTs <ref type="bibr" target="#b68">[69]</ref> over a range of isolation levels in the wide area. DOCC is also related to MDCC <ref type="bibr" target="#b42">[43]</ref> and Egalitarian Paxos <ref type="bibr" target="#b53">[54]</ref>; however, DOCC uses commutativity for transactional concurrency control rather than Paxos ordering and supports more data types. DOCC extends recent work on software transactional objects <ref type="bibr" target="#b32">[33]</ref> for single-node databases to the wide area; integrating the two would let programmers implement custom data types in Diamond.</p><p>Diamond does not strive to support a fully reactive, data-flow-based programming model, like functional reactive or constraint-based programming <ref type="bibr" target="#b79">[82,</ref><ref type="bibr" target="#b6">7]</ref>; however, reactive transactions are based on the idea of change propagation. Recent interest in reactive programming for web client UIs has resulted in Facebook's popular React.js <ref type="bibr" target="#b63">[64]</ref>, the ReactiveX projects <ref type="bibr" target="#b64">[65]</ref>, and Google's Agera <ref type="bibr" target="#b27">[28]</ref>. DREAM <ref type="bibr" target="#b47">[48]</ref>, a recently proposed, distributed reactive platform, lacks transactional guarantees. Sapphire <ref type="bibr" target="#b82">[85]</ref>, another recent programming platform for mobile/could applications, does not support reactivity, distributed transactions, or general-purpose data management.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="8">Conclusion</head><p>This paper described Diamond, the first data management service for wide-area reactive applications. Diamond introduced three new concepts: the rmap primitive, reactive transactions, and DOCC. Our evaluation demonstrated that: (1) Diamond's programming model greatly simplifies reactive applications, (2) Diamond's strong transactional guarantees eliminate data race bugs, and (3) Diamond's low performance overhead has no impact on the end-user.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1</head><label>1</label><figDesc></figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 2 :</head><label>2</label><figDesc>Diamond 100 game data model. The app rmaps players, turn and sum, updates them in read-write transactions and computes myturn? and curplay in a reactive transaction.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>•</head><label></label><figDesc>Consistency: Accesses in all transactions reflect a consistent view of shared records. 1 • Isolation: Accesses in all transactions reflect a global ordering of committed read-write transactions. • Durability: Updates to shared records in committed read-write transactions are never lost. • Reactivity: Accesses to modified records in regis-</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>1 intFigure 3 :</head><label>13</label><figDesc>main ( int argc , char ** argv ) { 2 DStringSet players ; DCounter sum , turn ; 3string myname = string ( argv<ref type="bibr" target="#b0">[1]</ref>); 5 / / Map game s t a t e 6 create (" 100 game " , STRICT_SERIALIZABLE ); 7 rmap ( players , " 100 game " , " players " ); 8 rmap ( sum , " 100 game " , " sum " ); rmap ( turn , " 100 game " , " turn " );/ / G e n e r a l−p u r p o s e c a l l b a c k , e x i t i f t x n f a i l e d auto cb = [] ( txn_func_t txn , int status ) { if ( status == REPLY_FAIL ) exit (1); }; / / Add u s e r t o t h e game execute_txn ([ myname ] () { players . Insert ( myname ); } , cb ); / / S e t up o u r p r i n t o u t s register_reactxn ([ myname ] () { string curplay = players [ turn % players . size ()]; bool myturn = myname == curplay ; cout &lt;&lt; " Sum : " &lt;&lt; sum &lt;&lt; " \ n " ; if ( sum &gt;= 100) cout &lt;&lt; curplay &lt;&lt; " won ! " ; else if ( myturn ) cout &lt;&lt; " Your turn : " ; }); / / C y c l e on u s e r i n p u t while (1) { int inc ; cin &gt;&gt; inc ; execute_txn ([ myname , inc ] () { bool myturn = myname == players [ turn % players . size ()]; / / c h e c k i n p u t s if (! myturn || inc &lt; 1 || inc &gt; 10) { abort_txn (); return ; } sum += inc ; if ( sum &lt; 100) turn ++; }, cb ); } return 0; } Diamond code example. Implementation of the 100 game using Diamond. Omitting includes, set up, and error handling, this code implements a working, C++ version of the 100 game [1]. DStringSet, DLong and DCounter are reactive data types provided by the Diamond C++ library.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_6"><head>Figure 4 :</head><label>4</label><figDesc>Diamond architecture. Distributed processes share a single instance of the Diamond storage system.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_7"><head></head><label></label><figDesc>operations, such as counters and ordered sets. As noted in Section 4.3.1, LIBDIAMOND collects an operation set for every data type operation during the transaction's execution phase. For each operation, it collects the key and table.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_8"><head>Figure 6 :</head><label>6</label><figDesc>Diamond versioned cache. Every Diamond client has a cache of the versions of records stored by the Diamond cloud storage system. The bottom half shows versions for three keys (A, B and C), and the top half shows cached versions of those same keys. Note that the cache is missing some versions, and all of the validity intervals in the cache are bounded.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_10"><head>Figure 11 :</head><label>11</label><figDesc>End-user operation latency for PyScrabble and Chat Room on Diamond and non-Diamond implementations.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head>Table 2 :</head><label>2</label><figDesc>Diamond system calls.</figDesc><table><row><cell>System call</cell><cell>Description</cell></row><row><cell>create(table, [isolation])</cell><cell>Create table</cell></row><row><cell>status = rmap(var, table, key)</cell><cell>Bind var to key</cell></row><row><cell>id = execute txn(func, cb)</cell><cell>Start read-write transaction</cell></row><row><cell>id = register reactxn(func)</cell><cell>Start reactive transaction</cell></row><row><cell>reactxn stop(txn id)</cell><cell>Stop re-executing</cell></row><row><cell>commit txn(), abort txn()</cell><cell>Commit/Abort and exit</cell></row><row><cell>3.3.2 Transaction model</cell><cell></cell></row><row><cell cols="2">Application processes use Diamond transactions to read</cell></row><row><cell>and write</cell><cell></cell></row></table><note>rmapped variables. Diamond transactions are interactive [73], i.e., they let applications interleave ap- plication code with accesses to reactive data types. We support both standard read-write transactions and new reactive transactions. Applications cannot execute trans- actions across rmapped variables from different tables, while operations executed outside transactions are treated as single-op transactions.</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>Table 3 :</head><label>3</label><figDesc>Diamond's isolation levels. Isolation levels for readwrite transactions and associated ones for reactive transactions.</figDesc><table><row><cell>Stronger</cell><cell>Read-write Isolation Level</cell><cell>Reactive Isolation Level</cell></row><row><cell>Guarantees</cell><cell>Strict Serializability</cell><cell>Serializable Snapshot</cell></row><row><cell>Fewer</cell><cell>Snapshot Isolation</cell><cell>Serializable Snapshot</cell></row><row><cell>Aborts</cell><cell>Read Committed</cell><cell>Read Committed</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_2"><head>execute commit callback Read-Write Transaction Reactive Transaction Register Notify</head><label></label><figDesc></figDesc><table><row><cell>Alice</cell><cell cols="2">libDiamond Front-end</cell><cell cols="2">Back-end</cell><cell cols="2">Front-end</cell><cell>libDiamond</cell><cell>Bob</cell></row><row><cell></cell><cell></cell><cell cols="2">read(a)</cell><cell></cell><cell></cell><cell>register</cell></row><row><cell></cell><cell></cell><cell cols="2">&lt;1,[11,13)&gt;</cell><cell></cell><cell></cell><cell>read(b,14)</cell></row><row><cell cols="2">write(b,1)</cell><cell></cell><cell></cell><cell cols="2">sub</cell><cell>&lt;0,[11,15)&gt; reg(14,[b])</cell></row><row><cell cols="2">commit</cell><cell cols="2">prepare</cell><cell cols="2">(b,14)</cell></row><row><cell></cell><cell></cell><cell>gettimestamp</cell><cell cols="2">validation</cell><cell></cell></row><row><cell>ok</cell><cell></cell><cell cols="2">ok commit</cell><cell cols="2">pub (b,1,16)</cell><cell>notify (b,1,16) re-exec</cell></row><row><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell></cell><cell>read(b)</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_3"><head>Table 4 :</head><label>4</label><figDesc>DOCC validation matrix. Matrix shows whether the committing transaction can commit (C) or must abort (A) on conflicts. Each column is further divided by the isolation level (RC=read committed, SI=snapshot isolation, SS=strict serializability). Commutative CRDT operations have the same outcome.</figDesc><table /><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_4"><head>Table 5 :</head><label>5</label><figDesc>Application comparison. Diamond both reduces code size and adds to the application's ACID+R guarantees.</figDesc><table><row><cell>Application</cell><cell>LoC w/o</cell><cell>LoC w/</cell><cell>LoC</cell><cell>Added</cell></row><row><cell></cell><cell>Diamond</cell><cell>Diamond</cell><cell>Saved</cell><cell>A C I D R</cell></row><row><cell>100 Game Chat Room PyScrabble Twitter clone</cell><cell>46 355 8729 14278</cell><cell>34 225 7603 12554</cell><cell cols="2">26% DDD 33% DDD D 13% D D 13% DDD</cell></row><row><cell cols="5">quests. Further, since the reads were done at the commit</cell></row><row><cell cols="5">timestamp, LIBDIAMOND knows that the transaction can</cell></row><row><cell cols="5">be serialized at that timestamp and committed locally,</cell></row><row><cell cols="4">eliminating all wide-area communication.</cell><cell></cell></row></table><note></note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="9">Acknowledgements</head><p>We thank the UW systems lab for their comments throughout the project. This work was supported by Google, National Science Foundation grant CNS-1518702 and NSF GRFP, and MSR Ph.D. fellowships. We also thank our anonymous reviewers and our shepherd, Bryan Ford, for their feedback.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Nim</surname></persName>
+		</author>
+		<ptr target="https://en.wikipedia.org/wiki/Nim#Thegame" />
+		<imprint>
+			<date type="published" when="2016-02" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<monogr>
+		<title level="m" type="main">Boost C++ libraries</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Abrahams</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Seefeld</surname></persName>
+		</author>
+		<ptr target="http://www.boost.org/doc/libs/10/libs/python/doc/html/index.html" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Thialfi: a client notification service for internet-scale applications</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Adya</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Cooper</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Myers</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Piatek</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of SOSP</title>
+		<meeting>of SOSP</meeting>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<monogr>
+		<title level="m" type="main">The convergence of iOS and OSX user interface design</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Alvos-Bock</surname></persName>
+		</author>
+		<ptr target="http://www.solstice-mobile.com/blog/the-convergence-of-ios-and-os-x-user-interface-design" />
+		<imprint>
+			<date type="published" when="2015-07" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<monogr>
+		<title level="m" type="main">The Swift programming language</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Apple</surname></persName>
+		</author>
+		<ptr target="https://developer.apple.com/library/ios/documentation/Swift/Conceptual/SwiftProgrammingLanguage/#//appleref/doc/uid/TP40014097-CH3-ID0" />
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<monogr>
+		<title level="m" type="main">Apple push notification service</title>
+		<ptr target="https://developer.apple.com/library/ios/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/Chapters/ApplePushService.html" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<monogr>
+		<title level="m" type="main">Principles of Constraint Programming</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Apt</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2003" />
+			<publisher>Cambridge University Press</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Megastore: Providing scalable, highly available storage for interactive services</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Baker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Bond</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">C</forename><surname>Corbett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Furman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Khorlin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Larson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J.-M</forename><surname>Leon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lloyd</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Yushprakh</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of CIDR</title>
+		<meeting>of CIDR</meeting>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">PADS: A policy architecture for distributed storage systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><forename type="middle">M</forename><surname>Belaramani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Zheng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Nayate</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Soulé</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Dahlin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Grimm</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of NSDI</title>
+		<meeting>of NSDI</meeting>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Munin: Distributed shared memory based on type-specific memory coherence</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">K</forename><surname>Bennett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">B</forename><surname>Carter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Zwaenepoel</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of PPOPP</title>
+		<meeting>of PPOPP</meeting>
+		<imprint>
+			<date type="published" when="1990" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<monogr>
+		<title level="m" type="main">Concurrency Control and Recovery in Database Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">A</forename><surname>Bernstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Hadzilacos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Goodman</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1987" />
+			<publisher>Addison Wesley</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Efficiently updating materialized views</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">A</forename><surname>Blakeley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P.-A</forename><surname>Larson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><forename type="middle">W</forename><surname>Tompa</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of SIGMOD</title>
+		<meeting>of SIGMOD</meeting>
+		<imprint>
+			<date type="published" when="1986" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<title level="m" type="main">Yes, windows 10 is the next version of windows phone. Windows Central</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Callaham</surname></persName>
+		</author>
+		<ptr target="http://www.windowscentral.com/yes-windows-10-next-version-windows-phone" />
+		<imprint>
+			<date type="published" when="2014-09" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Sentinel: an object-oriented DBMS with event-based rules</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Chakravarthy</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of SIGMOD</title>
+		<meeting>of SIGMOD</meeting>
+		<imprint>
+			<date type="published" when="1997" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Bigtable: A distributed storage system for structured data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Chang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Dean</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ghemawat</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><forename type="middle">C</forename><surname>Hsieh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">A</forename><surname>Wallach</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Burrows</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Chandra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Fikes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">E</forename><surname>Gruber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Transactions on Computer Systems</title>
+		<imprint>
+			<date type="published" when="2008" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Conaway</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Pyscrabble</surname></persName>
+		</author>
+		<ptr target="http://pyscrabble.sourceforge.net/" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Spanner: Google&apos;s globallydistributed database</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">C</forename><surname>Corbett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Dean</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Epstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Fikes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Frost</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">J</forename><surname>Furman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ghemawat</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Gubarev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Heiser</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Hochschild</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Hsieh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Kanthak</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Kogan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lloyd</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Melnik</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Mwaura</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Nagle</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Quinlan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Rao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Rolig</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Saito</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Szymaniak</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Taylor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Woodford</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of OSDI</title>
+		<meeting>of OSDI</meeting>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">PRACTI replication</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Dahlin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Gao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Nayate</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Venkataramana</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Yalagandula</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Zheng</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of NSDI</title>
+		<meeting>of NSDI</meeting>
+		<imprint>
+			<date type="published" when="2006" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<monogr>
+		<title level="m" type="main">DB-engine&apos;s ranking of key-value stores</title>
+		<ptr target="http://db-engines.com/en/ranking/key-value+store" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Dynamo: Amazon&apos;s highly available keyvalue store</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Decandia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Hastorun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Jampani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Kakulapati</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lakshman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Pilchin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Sivasubramanian</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Vosshall</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Vogels</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of SOSP</title>
+		<meeting>of SOSP</meeting>
+		<imprint>
+			<date type="published" when="2007" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<monogr>
+		<title level="m" type="main">io: a scalable server for realtime web apps</title>
+		<ptr target="https://deepstream.io/" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Google</forename><surname>Drive</surname></persName>
+		</author>
+		<ptr target="http://drive.google.com" />
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Dropbox</surname></persName>
+		</author>
+		<ptr target="http://www.dropbox.com" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Mobile game revenues to grow 16</title>
+		<ptr target="http://www.emarketer.com/Article/Mobile-Game-Revenues-Grow-165-2015-Surpassing-3-Billion/1012063" />
+	</analytic>
+	<monogr>
+		<title level="m">5% in 2015, surpassing $3 billion</title>
+		<imprint>
+			<date type="published" when="2015-02" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<monogr>
+		<title level="m" type="main">Architectural Styles and the Design of Network-based Software Architectures</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">T</forename><surname>Fielding</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2000" />
+		</imprint>
+		<respStmt>
+			<orgName>University of California, Irvine</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">PhD thesis</note>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Firebase</surname></persName>
+		</author>
+		<ptr target="https://www.firebase.com/" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Git</surname></persName>
+		</author>
+		<ptr target="https://git-scm.com/" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Google</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Agera</surname></persName>
+		</author>
+		<ptr target="https://github.com/google/agera" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<monogr>
+		<title level="m" type="main">Android standalone toolchain</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Google</surname></persName>
+		</author>
+		<ptr target="http://developer.android.com/ndk/guides/standalonetoolchain.html" />
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Google Compute Engine</surname></persName>
+		</author>
+		<ptr target="https://cloud.google.com/products/compute-engine/" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Optimistic concurrency control for abstract data types</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Herlihy</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of PODC</title>
+		<meeting>of PODC</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="1986" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">Apologizing versus asking permission: Optimistic concurrency control for abstract data types</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Herlihy</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Transactions on Database Systems</title>
+		<imprint>
+			<date type="published" when="1990" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<monogr>
+		<title level="m" type="main">Type-aware transactions for faster concurrent code</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Herman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">P</forename><surname>Inala</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Tsai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Kohler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Liskov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Shrira</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<monogr>
+		<title level="m" type="main">Playfish&apos;s social gaming architecture -50 million monthly users and growing. High Scalability</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Hoff</surname></persName>
+		</author>
+		<ptr target="highscalability.com/blog/2010/9/21/playfishs-social-gaming-architecture-50-million-monthly-user.html" />
+		<imprint>
+			<date type="published" when="2010-09" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<monogr>
+		<title level="m" type="main">The architecture that Twitter uses to deal with 150m active users, 300k qps, a 22 mb/s firehose, and send tweets in under 5 seconds. High Scalability</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Hoff</surname></persName>
+		</author>
+		<ptr target="http://highscalability.com/blog/2013/7/8/the-architecture-twitter-uses-to-deal-with-150m-active-users.html" />
+		<imprint>
+			<date type="published" when="2013-07" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<monogr>
+		<title level="m" type="main">Ellen DeGeneres crashes Twitter with Oscar selfie</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Humphries</surname></persName>
+		</author>
+		<ptr target="http://www.geek.com/mobile/ellen-degeneres-crashes-twitter-with-an-oscars-selfie-1586464/" />
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<monogr>
+		<title level="m" type="main">Apple iCloud</title>
+		<ptr target="https://www.icloud.com/" />
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<monogr>
+		<title level="m" type="main">Apache Usergrid</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Incubator</surname></persName>
+		</author>
+		<ptr target="http://usergrid.apache.org/" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<monogr>
+		<title level="m" type="main">JavaCPP: The missing bridge between Java and native C++. github</title>
+		<ptr target="https://github.com/bytedeco/javacpp" />
+		<imprint>
+			<date type="published" when="2016-03" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<monogr>
+		<ptr target="http://www.eclipse.org/jetty/" />
+		<title level="m">Jetty web server</title>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<monogr>
+		<title level="m" type="main">The reactive manifesto</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">K</forename><surname>Boner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dave</forename><surname>Farley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Thompson</surname></persName>
+		</author>
+		<ptr target="http://www.reactivemanifesto.org/" />
+		<imprint>
+			<date type="published" when="2014-09" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<analytic>
+		<title level="a" type="main">Disconnected operation in the coda file system</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">J</forename><surname>Kistler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Satyanarayanan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Transactions on Computer Systems</title>
+		<imprint>
+			<date type="published" when="1992" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<analytic>
+		<title level="a" type="main">MDCC: multi-data center consistency</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Kraska</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Pang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">J</forename><surname>Franklin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Madden</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Fekete</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of EuroSys</title>
+		<meeting>of EuroSys</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<analytic>
+		<title level="a" type="main">Cassandra: A decentralized structured storage system</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lakshman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Malik</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ACM SIGOPS Operating Systems Review</title>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<monogr>
+		<title level="m" type="main">Spring Data Redis -Retwis-J</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Leau</surname></persName>
+		</author>
+		<ptr target="http://docs.spring.io/spring-data/data-keyvalue/examples/retwisj/current/" />
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<analytic>
+		<title level="a" type="main">Memory coherence in shared virtual memory systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Hudak</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Transactions on Computer Systems</title>
+		<imprint>
+			<date type="published" when="1989" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b46">
+	<analytic>
+		<title level="a" type="main">The Ode active database: trigger semantics and implementation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">F</forename><surname>Lieuwen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Gehani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Arlein</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of ICDE</title>
+		<meeting>of ICDE</meeting>
+		<imprint>
+			<date type="published" when="1996-02" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b47">
+	<analytic>
+		<title level="a" type="main">We have a DREAM: Distributed reactive programming with consistency guarantees</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Margara</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Salvaneschi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of DEBS</title>
+		<meeting>of DEBS</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b48">
+	<monogr>
+		<title level="m" type="main">Backend as a service (BaaS) market worth 28</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Markets</forename><surname>Markets</surname></persName>
+		</author>
+		<ptr target="http://www.marketsandmarkets.com/PressReleases/baas.asp" />
+		<imprint>
+			<biblScope unit="volume">10</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b49">
+	<monogr>
+		<title level="m" type="main">Firebase data consistency across multiple nodes. Stack Overflow</title>
+		<imprint>
+			<date type="published" when="2015-04" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b50">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Meteor</surname></persName>
+		</author>
+		<ptr target="http://www.meteor.com" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b51">
+	<monogr>
+		<title level="m" type="main">New mobile apps revolutionize how organizations respond to crises and operations issues</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Mode</surname></persName>
+		</author>
+		<ptr target="http://www.missionmode.com/new-mobile-apps-revolutionize-organizations-respond-crises-operations-issues/" />
+		<imprint>
+			<date type="published" when="2014-08" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b52">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Mongodb</surname></persName>
+		</author>
+		<ptr target="https://www.mongodb.org" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b53">
+	<analytic>
+		<title level="a" type="main">There is more consensus in egalitarian parliaments</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Moraru</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">G</forename><surname>Andersen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Kaminsky</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of SOSP</title>
+		<meeting>of SOSP</meeting>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b54">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Mozilla</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Kinto</surname></persName>
+		</author>
+		<ptr target="http://kinto.readthedocs.org/en/latest/" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b55">
+	<monogr>
+		<title level="m" type="main">Firebase -maintain/guarantee consistency. Stack Overflow</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Mulia</surname></persName>
+		</author>
+		<ptr target="http://stackoverflow.com/questions/34678083/firebase-maintain-guarantee-data-consistency" />
+		<imprint>
+			<date type="published" when="2016-01" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b56">
+	<analytic>
+		<title level="a" type="main">A lowbandwidth network file system</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Muthitacharoen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Mazières</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of SOSP</title>
+		<meeting>of SOSP</meeting>
+		<imprint>
+			<date type="published" when="2001" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b57">
+	<analytic>
+		<title level="a" type="main">Viewstamped replication: A new primary copy method to support highly-available distributed systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">M</forename><surname>Oki</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">H</forename><surname>Liskov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of PODC</title>
+		<meeting>of PODC</meeting>
+		<imprint>
+			<date type="published" when="1988" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b58">
+	<monogr>
+		<ptr target="http://openio.io/" />
+		<title level="m">io: object storage grid for apps</title>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b59">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Parse</surname></persName>
+		</author>
+		<ptr target="http://www.parse.com" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b60">
+	<analytic>
+		<title level="a" type="main">Simba: tunable end-toend data consistency for mobile apps</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Perkins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Agrawal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Aranya</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Yu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Go</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><forename type="middle">V</forename><surname>Madhyastha</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Ungureanu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of EuroSys</title>
+		<meeting>of EuroSys</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b61">
+	<analytic>
+		<title level="a" type="main">Transactional consistency and automatic management in an application data cache</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">R K</forename><surname>Ports</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">T</forename><surname>Clements</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Madden</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Liskov</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of OSDI</title>
+		<meeting>of OSDI</meeting>
+		<imprint>
+			<date type="published" when="2010" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b62">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Postgresql</surname></persName>
+		</author>
+		<ptr target="http://www.postgresql.org/" />
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b63">
+	<monogr>
+		<ptr target="https://facebook.github.io/react/" />
+		<title level="m">JavaScript library for building user interfaces. Github</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b64">
+	<monogr>
+		<title level="m" type="main">ReactiveX: An api for asynchronous programming with observable streams</title>
+		<ptr target="http://reactivex.io/" />
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b65">
+	<monogr>
+		<title level="m" type="main">Wait numslaves timeout</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Redis</surname></persName>
+		</author>
+		<ptr target="http://redis.io/commands/WAIT" />
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b66">
+	<monogr>
+		<title level="m" type="main">Redis: Open source data structure server</title>
+		<ptr target="http://redis.io/" />
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b67">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Riak</surname></persName>
+		</author>
+		<ptr target="http://basho.com/products/riak-kv/" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b68">
+	<analytic>
+		<title level="a" type="main">Conflict-free replicated data types</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Shapiro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Preguiça</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Baquero</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Zawirski</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of SSS</title>
+		<meeting>of SSS</meeting>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b69">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="middle">Io</forename><surname>Socketcluster</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Socketcluster</surname></persName>
+		</author>
+		<ptr target="http://socketcluster.io/#!/" />
+		<title level="m">io: a scalable framework for realtime apps and microservices</title>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b70">
+	<monogr>
+		<title level="m" type="main">Sqlite home page</title>
+		<ptr target="https://www.sqlite.org/" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b71">
+	<monogr>
+		<title level="m" type="main">Readings in Database Systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Stonebraker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">M</forename><surname>Hellerstein</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1998" />
+			<publisher>Morgan Kaufmann San Francisco</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b72">
+	<analytic>
+		<title level="a" type="main">Eyo: Device-transparent personal storage</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Strauss</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">M</forename><surname>Paluska</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Lesniewski-Laas</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Ford</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Morris</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">F</forename><surname>Kaashoek</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of USENIX ATC</title>
+		<meeting>of USENIX ATC</meeting>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b73">
+	<analytic>
+		<title level="a" type="main">Flexible, wide-area storage for distributed systems with WheelFS</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Stribling</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Sovran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Pretzer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">F</forename><surname>Kaashoek</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Morris</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of NSDI</title>
+		<meeting>of NSDI</meeting>
+		<imprint>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b74">
+	<analytic>
+		<title level="a" type="main">Serving large-scale batch computed data with Project Voldemort</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Sumbaly</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Kreps</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Gao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Feinberg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Soman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Shah</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of FAST</title>
+		<meeting>of FAST</meeting>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b75">
+	<analytic>
+		<title level="a" type="main">Managing update conflicts in bayou, a weakly connected replicated storage system</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">B</forename><surname>Terry</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">M</forename><surname>Theimer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Petersen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">J</forename><surname>Demers</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">J</forename><surname>Spreitzer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">H</forename><surname>Hauser</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of SOSP</title>
+		<meeting>of SOSP</meeting>
+		<imprint>
+			<date type="published" when="1995" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b76">
+	<monogr>
+		<ptr target="http://www.transparencymarketresearch.com/pressrelease/social-gaming-market.htm" />
+		<title level="m">Global social gaming market to reach US$17.4 bn by 2019 propelled by rising popularity of fun games. Transparency Market Research Press Release</title>
+		<imprint>
+			<date type="published" when="2015-09" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b77">
+	<monogr>
+		<title level="m" type="main">Twimight open-source Twitter client for Android</title>
+		<ptr target="http://code.google.com/p/twimight/" />
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b78">
+	<monogr>
+		<title level="m" type="main">Twitter developer API</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Twitter</surname></persName>
+		</author>
+		<ptr target="https://dev.twitter.com/overview/api" />
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b79">
+	<analytic>
+		<title level="a" type="main">Functional reactive programming from first principles</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Wan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Hudak</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of PLDI</title>
+		<meeting>of PLDI</meeting>
+		<imprint>
+			<date type="published" when="2000" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b80">
+	<analytic>
+		<title level="a" type="main">Local atomicity properties: modular concurrency control for abstract data types</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><forename type="middle">E</forename><surname>Weihl</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Trans. Prog. Lang. Syst</title>
+		<imprint>
+			<date type="published" when="1989" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b81">
+	<analytic>
+		<title level="a" type="main">Building consistent transactions with inconsistent replication</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><forename type="middle">K</forename><surname>Sharma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Szekeres</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krishnamurhty</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">R K</forename><surname>Ports</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of SOSP</title>
+		<meeting>of SOSP</meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b82">
+	<analytic>
+		<title level="a" type="main">Customizable and extensible deployment for mobile/cloud applications</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Szekeres</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">V</forename><surname>Aken</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Ackerman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">D</forename><surname>Gribble</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Krishnamurthy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><forename type="middle">M</forename><surname>Levy</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of OSDI</title>
+		<meeting>of OSDI</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

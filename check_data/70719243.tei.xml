@@ -1,0 +1,1137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">An Introduction to Variable and Feature Selection</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author role="corresp">
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Isabelle</forename><surname>Guyon</surname></persName>
+							<email>isabelle@clopinet.com</email>
+							<affiliation key="aff0">
+								<address>
+									<addrLine>955 Creston Road Berkeley</addrLine>
+									<postCode>94708-1501</postCode>
+									<region>CA</region>
+									<country key="US">USA</country>
+								</address>
+							</affiliation>
+							<affiliation key="aff1">
+								<orgName type="department">Empirical Inference for Machine Learning and Perception Department Max Planck Institute for Biological Cybernetics Spemannstrasse</orgName>
+								<address>
+									<addrLine>38</addrLine>
+									<postCode>72076</postCode>
+									<settlement>Tübingen</settlement>
+									<country key="DE">Germany</country>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">An Introduction to Variable and Feature Selection</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+					<note type="submission">Submitted 11/02;</note>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:43+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<textClass>
+				<keywords>
+					<term>Variable selection</term>
+					<term>feature selection</term>
+					<term>space dimensionality reduction</term>
+					<term>pattern discovery</term>
+					<term>filters</term>
+					<term>wrappers</term>
+					<term>clustering</term>
+					<term>information theory</term>
+					<term>support vector machines</term>
+					<term>model selection</term>
+					<term>statistical testing</term>
+					<term>bioinformatics</term>
+					<term>computational biology</term>
+					<term>gene expression</term>
+					<term>microarray</term>
+					<term>genomics</term>
+					<term>proteomics</term>
+					<term>QSAR</term>
+					<term>text classification</term>
+					<term>information retrieval</term>
+				</keywords>
+			</textClass>
+			<abstract>
+				<p>Variable and feature selection have become the focus of much research in areas of application for which datasets with tens or hundreds of thousands of variables are available. These areas include text processing of internet documents, gene expression array analysis, and combinatorial chemistry. The objective of variable selection is threefold: improving the prediction performance of the predictors, providing faster and more cost-effective predictors, and providing a better understanding of the underlying process that generated the data. The contributions of this special issue cover a wide range of aspects of such problems: providing a better definition of the objective function, feature construction, feature ranking, multivariate feature selection, efficient search methods, and feature validity assessment methods.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>As of 1997, when a special issue on relevance including several papers on variable and feature selection was published <ref type="bibr" target="#b5">(Blum and</ref><ref type="bibr">Langley, 1997, Kohavi and</ref><ref type="bibr" target="#b22">John, 1997)</ref>, few domains explored used more than 40 features. The situation has changed considerably in the past few years and, in this special issue, most papers explore domains with hundreds to tens of thousands of variables or features: 1 New techniques are proposed to address these challenging tasks involving many irrelevant and redundant variables and often comparably few training examples.</p><p>Two examples are typical of the new application domains and serve us as illustration throughout this introduction. One is gene selection from microarray data and the other is text categorization. In the gene selection problem, the variables are gene expression coefficients corresponding to the 1. We call "variable" the "raw" input variables and "features" variables constructed for the input variables. We use without distinction the terms "variable" and "feature" when there is no impact on the selection algorithms, e.g., when features resulting from a pre-processing of input variables are explicitly computed. The distinction is necessary in the case of kernel methods for which features are not explicitly computed (see section 5.3).</p><p>abundance of mRNA in a sample (e.g. tissue biopsy), for a number of patients. A typical classification task is to separate healthy patients from cancer patients, based on their gene expression "profile". Usually fewer than 100 examples (patients) are available altogether for training and testing. But, the number of variables in the raw data ranges from 6000 to 60,000. Some initial filtering usually brings the number of variables to a few thousand. Because the abundance of mRNA varies by several orders of magnitude depending on the gene, the variables are usually standardized. In the text classification problem, the documents are represented by a "bag-of-words", that is a vector of dimension the size of the vocabulary containing word frequency counts (proper normalization of the variables also apply). Vocabularies of hundreds of thousands of words are common, but an initial pruning of the most and least frequent words may reduce the effective number of words to 15,000. Large document collections of 5000 to 800,000 documents are available for research. Typical tasks include the automatic sorting of URLs into a web directory and the detection of unsolicited email (spam). For a list of publicly available datasets used in this issue, see <ref type="table">Table 1</ref> at the end of the paper. There are many potential benefits of variable and feature selection: facilitating data visualization and data understanding, reducing the measurement and storage requirements, reducing training and utilization times, defying the curse of dimensionality to improve prediction performance. Some methods put more emphasis on one aspect than another, and this is another point of distinction between this special issue and previous work. The papers in this issue focus mainly on constructing and selecting subsets of features that are useful to build a good predictor. This contrasts with the problem of finding or ranking all potentially relevant variables. Selecting the most relevant variables is usually suboptimal for building a predictor, particularly if the variables are redundant. Conversely, a subset of useful variables may exclude many redundant, but relevant, variables. For a discussion of relevance vs. usefulness and definitions of the various notions of relevance, see the review articles of <ref type="bibr" target="#b22">Kohavi and John (1997)</ref> and <ref type="bibr" target="#b5">Blum and Langley (1997)</ref>.</p><p>This introduction surveys the papers presented in this special issue. The depth of treatment of various subjects reflects the proportion of papers covering them: the problem of supervised learning is treated more extensively than that of unsupervised learning; classification problems serve more often as illustration than regression problems, and only vectorial input data is considered. Complexity is progressively introduced throughout the sections: The first section starts by describing filters that select variables by ranking them with correlation coefficients (Section 2). Limitations of such approaches are illustrated by a set of constructed examples (Section 3). Subset selection methods are then introduced (Section 4). These include wrapper methods that assess subsets of variables according to their usefulness to a given predictor. We show how some embedded methods implement the same idea, but proceed more efficiently by directly optimizing a two-part objective function with a goodness-of-fit term and a penalty for a large number of variables. We then turn to the problem of feature construction, whose goals include increasing the predictor performance and building more compact feature subsets (Section 5). All of the previous steps benefit from reliably assessing the statistical significance of the relevance of features. We briefly review model selection methods and statistical tests used to that effect (Section 6). Finally, we conclude the paper with a discussion section in which we go over more advanced issues (Section 7). Because the organization of our paper does not follow the work flow of building a machine learning application, we summarize the steps that may be taken to solve a feature selection problem in a check list :</p><p>1. Do you have domain knowledge? If yes, construct a better set of "ad hoc" features.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">Are your features commensurate?</head><p>If no, consider normalizing them.</p><p>3. Do you suspect interdependence of features? If yes, expand your feature set by constructing conjunctive features or products of features, as much as your computer resources allow you (see example of use in Section 4.4).</p><p>4. Do you need to prune the input variables (e.g. for cost, speed or data understanding reasons)? If no, construct disjunctive features or weighted sums of features (e.g. by clustering or matrix factorization, see Section 5).</p><p>5. Do you need to assess features individually (e.g. to understand their influence on the system or because their number is so large that you need to do a first filtering)? If yes, use a variable ranking method (Section 2 and Section 7.2); else, do it anyway to get baseline results.</p><p>6. Do you need a predictor? If no, stop.</p><p>7. Do you suspect your data is "dirty" (has a few meaningless input patterns and/or noisy outputs or wrong class labels)? If yes, detect the outlier examples using the top ranking variables obtained in step 5 as representation; check and/or discard them.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="8.">Do you know what to try first?</head><p>If no, use a linear predictor. 3 Use a forward selection method (Section 4.2) with the "probe" method as a stopping criterion (Section 6) or use the 0 -norm embedded method (Section 4.3). For comparison, following the ranking of step 5, construct a sequence of predictors of same nature using increasing subsets of features. Can you match or improve performance with a smaller subset? If yes, try a non-linear predictor with that subset.</p><p>9. Do you have new ideas, time, computational resources, and enough examples? If yes, compare several feature selection methods, including your new idea, correlation coefficients, backward selection and embedded methods (Section 4). Use linear and non-linear predictors. Select the best approach with model selection (Section 6).</p><p>10. Do you want a stable solution (to improve performance and/or understanding)? If yes, subsample your data and redo your analysis for several "bootstraps" (Section 7.1).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Variable Ranking</head><p>Many variable selection algorithms include variable ranking as a principal or auxiliary selection mechanism because of its simplicity, scalability, and good empirical success. Several papers in this issue use variable ranking as a baseline method (see, e.g., <ref type="bibr" target="#b1">Bekkerman et al., 2003</ref><ref type="bibr" target="#b8">, Caruana and de Sa, 2003</ref><ref type="bibr" target="#b14">, Forman, 2003</ref><ref type="bibr" target="#b45">, Weston et al., 2003</ref>. Variable ranking is not necessarily used to build predictors. One of its common uses in the microarray analysis domain is to discover a set of drug leads <ref type="bibr">(see, e.g., et al., 1999)</ref>: A ranking criterion is used to find genes that discriminate between healthy and disease patients; such genes may code for "drugable" proteins, or proteins that may themselves be used as drugs. Validating drug leads is a labor intensive problem in biology that is outside of the scope of machine learning, so we focus here on building predictors. We consider in this section ranking criteria defined for individual variables, independently of the context of others. Correlation methods belong to that category. We also limit ourselves to supervised learning criteria. We refer the reader to Section 7.2 for a discussion of other techniques.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1">Principle of the Method and Notations</head><p>Consider a set of m examples {x k , y k } (k = 1, ...m) consisting of n input variables x k,i (i = 1, ...n) and one output variable y k . Variable ranking makes use of a scoring function S(i) computed from the values x k,i and y k , k = 1, ...m. By convention, we assume that a high score is indicative of a valuable variable and that we sort variables in decreasing order of S(i). To use variable ranking to build predictors, nested subsets incorporating progressively more and more variables of decreasing relevance are defined. We postpone until Section 6 the discussion of selecting an optimum subset size.</p><p>Following the classification of <ref type="bibr" target="#b22">Kohavi and John (1997)</ref>, variable ranking is a filter method: it is a preprocessing step, independent of the choice of the predictor. Still, under certain independence or orthogonality assumptions, it may be optimal with respect to a given predictor. For instance, using Fisher's criterion to rank variables in a classification problem where the covariance matrix is diagonal is optimum for Fisher's linear discriminant classifier <ref type="bibr">(Duda et al., 2001)</ref>. Even when variable ranking is not optimal, it may be preferable to other variable subset selection methods because of its computational and statistical scalability: Computationally, it is efficient since it requires only the computation of n scores and sorting the scores; Statistically, it is robust against overfitting because it introduces bias but it may have considerably less variance <ref type="bibr" target="#b19">(Hastie et al., 2001</ref>). <ref type="bibr">5</ref> We introduce some additional notation: If the input vector x can be interpreted as the realization of a random vector drawn from an underlying unknown distribution, we denote by X i the random variable corresponding to the i th component of x. Similarly, Y will be the random variable of which the outcome y is a realization. We further denote by x i the m dimensional vector containing all the realizations of the i th variable for the training examples, and by y the m dimensional vector containing all the target values.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">Correlation Criteria</head><p>Let us consider first the prediction of a continuous outcome y. The Pearson correlation coefficient is defined as:</p><formula xml:id="formula_0">R (i) = cov(X i ,Y ) var(X i )var(Y ) ,<label>(1)</label></formula><p>where cov designates the covariance and var the variance. The estimate of R(i) is given by:</p><formula xml:id="formula_1">R(i) = ∑ m k=1 (x k,i −x i )(y k −ȳ) ∑ m k=1 (x k,i −x i ) 2 ∑ m k=1 (y k −ȳ) 2 ,<label>(2)</label></formula><p>where the bar notation stands for an average over the index k. This coefficient is also the cosine between vectors x i and y, after they have been centered (their mean subtracted). Although the R(i) is derived from R (i) it may be used without assuming that the input values are realizations of a random variable. In linear regression, the coefficient of determination, which is the square of R(i), represents the fraction of the total variance around the mean valueȳ that is explained by the linear relation between x i and y. Therefore, using R(i) 2 as a variable ranking criterion enforces a ranking according to goodness of linear fit of individual variables. <ref type="bibr">6</ref> The use of R(i) 2 can be extended to the case of two-class classification, for which each class label is mapped to a given value of y, e.g., ±1. R(i) 2 can then be shown to be closely related to Fisher's criterion <ref type="bibr" target="#b15">(Furey et al., 2000)</ref>, to the T-test criterion, and other similar criteria <ref type="bibr">(see, e.g., et al., 1999</ref><ref type="bibr" target="#b41">, Tusher et al., 2001</ref><ref type="bibr" target="#b19">, Hastie et al., 2001</ref>. As further developed in Section 6, the link to the T-test shows that the score R(i) may be used as a test statistic to assess the significance of a variable.</p><p>Correlation criteria such as R(i) can only detect linear dependencies between variable and target. A simple way of lifting this restriction is to make a non-linear fit of the target with single variables and rank according to the goodness of fit. Because of the risk of overfitting, one can alternatively consider using non-linear preprocessing (e.g., squaring, taking the square root, the log, the inverse, etc.) and then using a simple correlation coefficient. Correlation criteria are often used for microarray data analysis, as illustrated in this issue by <ref type="bibr" target="#b45">Weston et al. (2003)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.3">Single Variable Classifiers</head><p>As already mentioned, using R(i) 2 as a ranking criterion for regression enforces a ranking according to goodness of linear fit of individual variables. One can extend to the classification case the idea of selecting variables according to their individual predictive power, using as criterion the performance of a classifier built with a single variable. For example, the value of the variable itself (or its negative, to account for class polarity) can be used as discriminant function. A classifier is obtained by setting a threshold θ on the value of the variable (e.g., at the mid-point between the center of gravity of the two classes).</p><p>The predictive power of the variable can be measured in terms of error rate. But, various other criteria can be defined that involve false positive classification rate fpr and false negative classification rate fnr. The tradeoff between fpr and fnr is monitored in our simple example by varying the threshold θ. ROC curves that plot "hit" rate (1-fpr) as a function of "false alarm" rate fnr are instrumental in defining criteria such as: The "Break Even Point" (the hit rate for a threshold value corresponding to fpr=fnr) and the "Area Under Curve" (the area under the ROC curve).</p><p>In the case where there is a large number of variables that separate the data perfectly, ranking criteria based on classification success rate cannot distinguish between the top ranking variables. One will then prefer to use a correlation coefficient or another statistic like the margin (the distance between the examples of opposite classes that are closest to one another for a given variable).</p><p>6. A variant of this idea is to use the mean-squared-error, but, if the variables are not on comparable scales, a comparison between mean-squared-errors is meaningless. Another variant is to use R(i) to rank variables, not R(i) 2 . Positively correlated variables are then top ranked and negatively correlated variables bottom ranked. With this method, one can choose a subset of variables with a given proportion of positively and negatively correlated variables.</p><p>The criteria described in this section extend to the case of binary variables. <ref type="bibr" target="#b14">Forman (2003)</ref> presents in this issue an extensive study of such criteria for binary variables with applications in text classification.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.4">Information Theoretic Ranking Criteria</head><p>Several approaches to the variable selection problem using information theoretic criteria have been proposed (as reviewed in this issue by <ref type="bibr" target="#b1">Bekkerman et al., 2003</ref><ref type="bibr" target="#b9">, Dhillon et al., 2003</ref><ref type="bibr" target="#b14">, Forman, 2003</ref><ref type="bibr" target="#b40">, Torkkola, 2003</ref>. Many rely on empirical estimates of the mutual information between each variable and the target:</p><formula xml:id="formula_2">I (i) = Z x i Z y p(x i , y) log p(x i , y) p(x i )p(y) dxdy ,<label>(3)</label></formula><p>where p(x i ) and p(y) are the probability densities of x i and y, and p(x i , y) is the joint density. The criterion I (i) is a measure of dependency between the density of variable x i and the density of the target y.</p><p>The difficulty is that the densities p(x i ), p(y) and p(x i , y) are all unknown and are hard to estimate from data. The case of discrete or nominal variables is probably easiest because the integral becomes a sum:</p><formula xml:id="formula_3">I(i) = ∑ x i ∑ y P(X = x i ,Y = y) log P(X = x i ,Y = y) P(X = x i )P(Y = y) .<label>(4)</label></formula><p>The probabilities are then estimated from frequency counts. For example, in a three-class problem, if a variable takes values, P(Y = y) represents the class prior probabilities (3 frequency counts), P(X = x i ) represents the distribution of the input variable (4 frequency counts), and P(X = x i ,Y = y) is the probability of the joint observations (12 frequency counts). The estimation obviously becomes harder with larger numbers of classes and variable values.</p><p>The case of continuous variables (and possibly continuous targets) is the hardest. One can consider discretizing the variables or approximating their densities with a non-parametric method such as Parzen windows (see, e.g., <ref type="bibr" target="#b40">Torkkola, 2003)</ref>. Using the normal distribution to estimate densities would bring us back to estimating the covariance between X i and Y , thus giving us a criterion similar to a correlation coefficient.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">Small but Revealing Examples</head><p>We present a series of small examples that outline the usefulness and the limitations of variable ranking techniques and present several situations in which the variable dependencies cannot be ignored.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">Can Presumably Redundant Variables Help Each Other?</head><p>One common criticism of variable ranking is that it leads to the selection of a redundant subset. The same performance could possibly be achieved with a smaller subset of complementary variables. Still, one may wonder whether adding presumably redundant variables can result in a performance gain. Consider the classification problem of <ref type="figure" target="#fig_0">Figure 1</ref>. For each class, we drew at random m = 100 examples, each of the two variables being drawn independently according to a normal distribution of standard deviation 1. The class centers are placed at coordinates (-1; -1) and (1; 1). <ref type="figure" target="#fig_0">Figure 1</ref>.a shows the scatter plot in the two-dimensional space of the input variables. We also show on the same figure histograms of the projections of the examples on the axes. To facilitate its reading, the scatter plot is shown twice with an axis exchange. <ref type="figure" target="#fig_0">Figure 1</ref>.b shows the same scatter plots after a forty five degree rotation. In this representation, the x-axis projection provides a better separation of the two classes: the standard deviation of both classes is the same, but the distance between centers in projection is now 2 √ 2 instead of 2. Equivalently, if we rescale the x-axis by dividing by √ 2 to obtain a feature that is the average of the two input variables, the distance between centers is still 2, but the within class standard deviation is reduced by a factor √ 2. This is not so surprising, since by averaging n i.i.d. random variables we will obtain a reduction of standard deviation by a factor of √ n. Noise reduction and consequently better class separation may be obtained by adding variables that are presumably redundant. Variables that are independently and identically distributed are not truly redundant.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">How Does Correlation Impact Variable Redundancy?</head><p>Another notion of redundancy is correlation. In the previous example, in spite of the fact that the examples are i.i.d. with respect to the class conditional distributions, the variables are correlated because of the separation of the class center positions. One may wonder how variable redundancy is affected by adding within-class variable correlation. In <ref type="figure" target="#fig_1">Figure 2</ref>, the class centers are positioned In projection on the axes, the distributions of the two variables are the same as in the previous example. (a) The class conditional distributions have a high covariance in the direction of the line of the two class centers. There is no significant gain in separation by using two variables instead of just one. (b) The class conditional distributions have a high covariance in the direction perpendicular to the line of the two class centers. An important separation gain is obtained by using two variables instead of one. similarly as in the previous example at coordinates (-1; -1) and (1; 1) but we have added some variable co-variance. We consider two cases:</p><p>In <ref type="figure" target="#fig_1">Figure 2</ref>.a, in the direction of the class center line, the standard deviation of the class conditional distributions is √ 2, while in the perpendicular direction it is a small value (ε = 1/10). With this construction, as ε goes to zero, the input variables have the same separation power as in the case of the example of <ref type="figure" target="#fig_0">Figure 1</ref>, with a standard deviation of the class distributions of one and a distance of the class centers of 2. But the feature constructed as the sum of the input variables has no better separation power: a standard deviation of √ 2 and a class center separation of 2 √ 2 (a simple scaling that does not change the separation power). Therefore, in the limit of perfect variable correlation (zero variance in the direction perpendicular to the class center line), single variables provide the same separation as the sum of the two variables. Perfectly correlated variables are truly redundant in the sense that no additional information is gained by adding them.</p><p>In contrast, in the example of <ref type="figure" target="#fig_1">Figure 2</ref>.b, the first principal direction of the covariance matrices of the class conditional densities is perpendicular to the class center line. In this case, more is gained by adding the two variables than in the example of <ref type="figure" target="#fig_0">Figure 1</ref>. One notices that in spite of their great complementarity (in the sense that a perfect separation can be achieved in the two-dimensional space spanned by the two variables), the two variables are (anti-)correlated. More anti-correlation is obtained by making the class centers closer and increasing the ratio of the variances of the class conditional distributions. Very high variable correlation (or anti-correlation) does not mean absence of variable complementarity.</p><p>The examples of <ref type="figure" target="#fig_0">Figure 1</ref> and 2 all have variables with the same distribution of examples (in projection on the axis). Therefore, methods that score variables individually and independently of each other are at loss to determine which combination of variables would give best performance.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">Can a Variable that is Useless by Itself be Useful with Others?</head><p>One concern about multivariate methods is that they are prone to overfitting. The problem is aggravated when the number of variables to select from is large compared to the number of examples. It is tempting to use a variable ranking method to filter out the least promising variables before using a multivariate method. Still one may wonder whether one could potentially lose some valuable variables through that filtering process.</p><p>We constructed an example in <ref type="figure" target="#fig_2">Figure 3</ref>.a. In this example, the two class conditional distributions have identical covariance matrices, and the principal directions are oriented diagonally. The class centers are separated on one axis, but not on the other. By itself one variable is "useless". Still, the two dimensional separation is better than the separation using the "useful" variable alone. Therefore, a variable that is completely useless by itself can provide a significant performance improvement when taken with others.</p><p>The next question is whether two variables that are useless by themselves can provide a good separation when taken together. We constructed an example of such a case, inspired by the famous XOR problem. 7 In <ref type="figure" target="#fig_2">Figure 3</ref>.b, we drew examples for two classes using four Gaussians placed on the corners of a square at coordinates (0; 0), (0; 1), (1; 0), and (1; 1). The class labels of these four "clumps" are attributed according to the truth table of the logical XOR function: f(0; 0)=0, f(0; 1)=1, f(1; 0)=1; f(1; 1)=0. We notice that the projections on the axes provide no class separation. Yet, in the two dimensional space the classes can easily be separated (albeit not with a linear decision function). 8 Two variables that are useless by themselves can be useful together.</p><p>7. The XOR problem is sometimes referred to as the two-bit parity problem and is generalizable to more than two dimensions (n-bit parity problem). A related problem is the chessboard problem in which the two classes pave the space with squares of uniformly distributed examples with alternating class labels. The latter problem is also generalizable to the multi-dimensional case. Similar examples are used in several papers in this issue <ref type="bibr" target="#b31">(Perkins et al., 2003</ref><ref type="bibr" target="#b37">, Stoppiglia et al., 2003</ref>. 8. Incidentally, the two variables are also uncorrelated with one another. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Variable Subset Selection</head><p>In the previous section, we presented examples that illustrate the usefulness of selecting subsets of variables that together have good predictive power, as opposed to ranking variables according to their individual predictive power. We now turn to this problem and outline the main directions that have been taken to tackle it. They essentially divide into wrappers, filters, and embedded methods. Wrappers utilize the learning machine of interest as a black box to score subsets of variable according to their predictive power. Filters select subsets of variables as a pre-processing step, independently of the chosen predictor. Embedded methods perform variable selection in the process of training and are usually specific to given learning machines.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Wrappers and Embedded Methods</head><p>The wrapper methodology, recently popularized by <ref type="bibr" target="#b22">Kohavi and John (1997)</ref>, offers a simple and powerful way to address the problem of variable selection, regardless of the chosen learning machine. In fact, the learning machine is considered a perfect black box and the method lends itself to the use of off-the-shelf machine learning software packages. In its most general formulation, the wrapper methodology consists in using the prediction performance of a given learning machine to assess the relative usefulness of subsets of variables. In practice, one needs to define: (i) how to search the space of all possible variable subsets; (ii) how to assess the prediction performance of a learning machine to guide the search and halt it; and (iii) which predictor to use. An exhaustive search can conceivably be performed, if the number of variables is not too large. But, the problem is known to be NP-hard <ref type="bibr" target="#b0">(Amaldi and Kann, 1998)</ref> and the search becomes quickly computationally intractable. A wide range of search strategies can be used, including best-first, branch-and-bound, simulated annealing, genetic algorithms (see <ref type="bibr" target="#b22">Kohavi and John, 1997</ref>, for a review). Performance assessments are usually done using a validation set or by cross-validation (see Section 6). As illustrated in this special issue, popular predictors include decision trees, naïve Bayes, least-square linear predictors, and support vector machines. Wrappers are often criticized because they seem to be a "brute force" method requiring massive amounts of computation, but it is not necessarily so. Efficient search strategies may be devised. Using such strategies does not necessarily mean sacrificing prediction performance. In fact, it appears to be the converse in some cases: coarse search strategies may alleviate the problem of overfitting, as illustrated for instance in this issue by the work of <ref type="bibr" target="#b33">Reunanen (2003)</ref>. Greedy search strategies seem to be particularly computationally advantageous and robust against overfitting. They come in two flavors: forward selection and backward elimination. In forward selection, variables are progressively incorporated into larger and larger subsets, whereas in backward elimination one starts with the set of all variables and progressively eliminates the least promising ones. 9 Both methods yield nested subsets of variables.</p><p>By using the learning machine as a black box, wrappers are remarkably universal and simple. But embedded methods that incorporate variable selection as part of the training process may be more efficient in several respects: they make better use of the available data by not needing to split the training data into a training and validation set; they reach a solution faster by avoiding retraining a predictor from scratch for every variable subset investigated. Embedded methods are not new: decision trees such as CART, for instance, have a built-in mechanism to perform variable selection <ref type="bibr" target="#b7">(Breiman et al., 1984)</ref>. The next two sections are devoted to two families of embedded methods illustrated by algorithms published in this issue.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Nested Subset Methods</head><p>Some embedded methods guide their search by estimating changes in the objective function value incurred by making moves in variable subset space. Combined with greedy search strategies (backward elimination or forward selection) they yield nested subsets of variables. <ref type="bibr">10</ref> Let us call s the number of variables selected at a given algorithm step and J(s) the value of the objective function of the trained learning machine using such a variable subset. Predicting the change in the objective function is obtained by: 1. Finite difference calculation: The difference between J(s) and J(s + 1) or J(s − 1) is computed for the variables that are candidates for addition or removal.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">Quadratic approximation of the cost function:</head><p>This method was originally proposed to prune weights in neural networks <ref type="bibr" target="#b24">(LeCun et al., 1990)</ref>. It can be used for backward elimination of variables, via the pruning of the input variable weights w i . A second order Taylor expansion of J is made. At the optimum of J, the first-order term can be neglected, yield-9. The name greedy comes from the fact that one never revisits former decisions to include (or exclude) variables in light of new decisions. 10. The algorithms presented in this section and in the following generally benefit from variable normalization, except if they have an internal normalization mechanism like the Gram-Schmidt orthogonalization procedure .</p><p>ing for variable i to the variation</p><formula xml:id="formula_4">DJ i = (1/2) ∂ 2 J ∂w 2 i (Dw i ) 2 .</formula><p>The change in weight Dw i = w i corresponds to removing variable i.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">Sensitivity of the objective function calculation:</head><p>The absolute value or the square of the derivative of J with respect to x i (or with respect to w i ) is used.</p><p>Some training algorithms lend themselves to using finite differences (method 1) because exact differences can be computed efficiently, without retraining new models for each candidate variable. Such is the case for the linear least-square model: The Gram-Schmidt orthogonolization procedure permits the performance of forward variable selection by adding at each step the variable that most decreases the mean-squared-error. Two papers in this issue are devoted to this technique <ref type="bibr">(Stoppiglia et al., 2003, Rivals and</ref><ref type="bibr" target="#b34">Personnaz, 2003)</ref>. For other algorithms like kernel methods, approximations of the difference can be computed efficiently. Kernel methods are learning machines of the form</p><formula xml:id="formula_5">f (x) = ∑ m k=1 α k K(x, x k ),</formula><p>where K is the kernel function, which measures the similarity between x and x k <ref type="bibr" target="#b35">(Schoelkopf and Smola, 2002)</ref>. The variation in J(s) is computed by keeping the α k values constant. This procedure originally proposed for SVMs <ref type="bibr" target="#b18">(Guyon et al., 2002)</ref> is used in this issue as a baseline method <ref type="bibr" target="#b32">(Rakotomamonjy, 2003</ref><ref type="bibr" target="#b45">, Weston et al., 2003</ref>.</p><p>The "optimum brain damage" (OBD) procedure (method 2) is mentioned in this issue in the paper of <ref type="bibr" target="#b34">Rivals and Personnaz (2003)</ref>. The case of linear predictors f (x) = w • x + b is particularly simple. The authors of the OBD algorithm advocate using DJ i instead of the magnitude of the weights |w i | as pruning criterion. However, for linear predictors trained with an objective function J that is quadratic in w i these two criteria are equivalent. This is the case, for instance, for the linear least square model using J = ∑ m k=1 (w • x k + b − y k ) 2 and for the linear SVM or optimum margin classifier, which minimizes J = (1/2)||w|| 2 , under constraints <ref type="bibr" target="#b42">(Vapnik, 1982)</ref>. Interestingly, for linear SVMs the finite difference method (method 1) and the sensitivity method (method 3) also boil down to selecting the variable with smallest |w i | for elimination at each step <ref type="bibr" target="#b32">(Rakotomamonjy, 2003)</ref>.</p><p>The sensitivity of the objective function to changes in w i (method 3) is used to devise a forward selection procedure in one paper presented in this issue <ref type="bibr" target="#b31">(Perkins et al., 2003)</ref>. Applications of this procedure to a linear model with a cross-entropy objective function are presented. In the formulation proposed, the criterion is the absolute value of ∂J</p><formula xml:id="formula_6">∂w i = ∑ m k=1 ∂J ∂ρ k ∂ρ k ∂w i , where ρ k = y k f (x k ).</formula><p>In the case of the linear model f (x) = w • x + b, the criterion has a simple geometrical interpretation: it is the the dot product between the gradient of the objective function with respect to the margin values and the vector [ ∂ρ k</p><formula xml:id="formula_7">∂w i = x k,i y k ] k=1...m .</formula><p>For the cross-entropy loss function, we have: ∂J ∂ρ k = 1 1+e ρ k . An interesting variant of the sensitivity analysis method is obtained by replacing the objective function by the leave-one-out cross-validation error. For some learning machines and some objective functions, approximate or exact analytical formulas of the leave-one-out error are known. In this issue, the case of the linear least-square model <ref type="bibr" target="#b34">(Rivals and Personnaz, 2003)</ref> and SVMs <ref type="bibr" target="#b32">(Rakotomamonjy, 2003)</ref> are treated. Approximations for non-linear least-squares have also been computed elsewhere <ref type="bibr" target="#b25">(Monari and Dreyfus, 2000)</ref>. The proposal of <ref type="bibr" target="#b32">Rakotomamonjy (2003)</ref> is to train non-linear SVMs <ref type="bibr" target="#b6">(Boser et al., 1992</ref><ref type="bibr" target="#b43">, Vapnik, 1998</ref> with a regular training procedure and select features with backward elimination like in RFE <ref type="bibr" target="#b18">(Guyon et al., 2002)</ref>. The variable ranking criterion however is not computed using the sensitivity of the objective function J, but that of a leave-one-out bound.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">Direct Objective Optimization</head><p>A lot of progress has been made in this issue to formalize the objective function of variable selection and find algorithms to optimize it. Generally, the objective function consists of two terms that compete with each other: (1) the goodness-of-fit (to be maximized), and (2) the number of variables (to be minimized). This approach bears similarity with two-part objective functions consisting of a goodness-of-fit term and a regularization term, particularly when the effect of the regularization term is to "shrink" parameter space. This correspondence is formally established in the paper of <ref type="bibr" target="#b45">Weston et al. (2003)</ref> for the particular case of classification with linear predictors f (x) = w • x + b, in the SVM framework <ref type="bibr" target="#b6">(Boser et al., 1992</ref><ref type="bibr" target="#b43">, Vapnik, 1998</ref>. Shrinking regularizers of the type ||w|| p p = (∑ n i=1 w p i ) 1/p ( p -norm) are used. In the limit as p → 0, the p -norm is just the number of weights, i.e., the number of variables. Weston et al. proceed with showing that the 0 -norm formulation of SVMs can be solved approximately with a simple modification of the vanilla SVM algorithm:</p><p>1. Train a regular linear SVM (using -norm or 2 -norm regularization).</p><p>2. Re-scale the input variables by multiplying them by the absolute values of the components of the weight vector w obtained.</p><p>3. Iterate the first 2 steps until convergence.</p><p>The method is reminiscent of backward elimination procedures based on the smallest |w i |. Variable normalization is important for such a method to work properly. Weston et al. note that, although their algorithm only approximately minimizes the 0 -norm, in practice it may generalize better than an algorithm that really did minimize the -norm, because the latter would not provide sufficient regularization (a lot of variance remains because the optimization problem has multiple solutions). The need for additional regularization is also stressed in the paper of <ref type="bibr" target="#b31">Perkins et al. (2003)</ref>. The authors use a three-part objective function that includes goodnessof-fit, a regularization term ( 1 -norm or 2 -norm), and a penalty for large numbers of variables ( -norm). The authors propose a computationally efficient forward selection method to optimize such objective.</p><p>Another paper in the issue, by <ref type="bibr" target="#b4">Bi et al. (2003)</ref>, uses -norm SVMs, without iterative multiplicative updates. The authors find that, for their application, the -norm minimization suffices to drive enough weights to zero. This approach was also taken in the context of least-square regression by other authors <ref type="bibr" target="#b38">(Tibshirani, 1994)</ref>. The number of variables can be further reduced by backward elimination.</p><p>To our knowledge, no algorithm has been proposed to directly minimize the number of variables for non-linear predictors. Instead, several authors have substituted for the problem of variable selection that of variable scaling <ref type="bibr" target="#b20">(Jebara and Jaakkola, 2000</ref><ref type="bibr" target="#b46">, Weston et al., 2000</ref><ref type="bibr" target="#b17">, Grandvalet and Canu, 2002</ref>. The variable scaling factors are "hyper-parameters" adjusted by model selection. The scaling factors obtained are used to assess variable relevance. A variant of the method consists of adjusting the scaling factors by gradient descent on a bound of the leave-one-out error <ref type="bibr" target="#b46">(Weston et al., 2000)</ref>. This method is used as baseline method in the paper of <ref type="bibr" target="#b45">Weston et al. (2003)</ref> in this issue.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.4">Filters for Subset Selection</head><p>Several justifications for the use of filters for subset selection have been put forward in this special issue and elsewhere. It is argued that, compared to wrappers, filters are faster. Still, recently proposed efficient embedded methods are competitive in that respect. Another argument is that some filters (e.g. those based on mutual information criteria) provide a generic selection of variables, not tuned for/by a given learning machine. Another compelling justification is that filtering can be used as a preprocessing step to reduce space dimensionality and overcome overfitting.</p><p>In that respect, it seems reasonable to use a wrapper (or embedded method) with a linear predictor as a filter and then train a more complex non-linear predictor on the resulting variables. An example of this approach is found in the paper of <ref type="bibr" target="#b4">Bi et al. (2003)</ref>: a linear -norm SVM is used for variable selection, but a non-linear -norm SVM is used for prediction. The complexity of linear filters can be ramped up by adding to the selection process products of input variables (monomials of a polynomial) and retaining the variables that are part of any selected monomial. Another predictor, e.g., a neural network, is eventually substituted to the polynomial to perform predictions using the selected variables <ref type="bibr" target="#b34">(Rivals and</ref><ref type="bibr">Personnaz, 2003, Stoppiglia et al., 2003)</ref>. In some cases however, one may on the contrary want to reduce the complexity of linear filters to overcome overfitting problems. When the number of examples is small compared to the number of variables (in the case of microarray data for instance) one may need to resort to selecting variables with correlation coefficients (see Section 2.2).</p><p>Information theoretic filtering methods such as Markov blanket algorithms <ref type="bibr" target="#b23">(Koller and Sahami, 1996)</ref> constitute another broad family. The justification for classification problems is that the measure of mutual information does not rely on any prediction process, but provides a bound on the error rate using any prediction scheme for the given distribution. We do not have any illustration of such methods in this issue for the problem of variable subset selection. We refer the interested reader to <ref type="bibr" target="#b23">Koller and Sahami (1996)</ref> and references therein. However, the use of mutual information criteria for individual variable ranking was covered in Section 2 and application to feature construction and selection are illustrated in Section 5.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Feature Construction and Space Dimensionality Reduction</head><p>In some applications, reducing the dimensionality of the data by selecting a subset of the original variables may be advantageous for reasons including the expense of making, storing and processing measurements. If these considerations are not of concern, other means of space dimensionality reduction should also be considered.</p><p>The art of machine learning starts with the design of appropriate data representations. Better performance is often achieved using features derived from the original input. Building a feature representation is an opportunity to incorporate domain knowledge into the data and can be very application specific. Nonetheless, there are a number of generic feature construction methods, including: clustering; basic linear transforms of the input variables (PCA/SVD, LDA); more sophisticated linear transforms like spectral transforms (Fourier, Hadamard), wavelet transforms or convolutions of kernels; and applying simple functions to subsets of variables, like products to create monomials.</p><p>11. The Markov blanket of a given variable x i is a set of variables not including x i that render x i "unnecessary". Once a Markov blanket is found, x i can safely be eliminated. Furthermore, in a backward elimination procedure, it will remain unnecessary at later stages.</p><p>Two distinct goals may be pursued for feature construction: achieving best reconstruction of the data or being most efficient for making predictions. The first problem is an unsupervised learning problem. It is closely related to that of data compression and a lot of algorithms are used across both fields. The second problem is supervised. Are there reasons to select features in an unsupervised manner when the problem is supervised? Yes, possibly several: Some problems, e.g., in text processing applications, come with more unlabelled data than labelled data. Also, unsupervised feature selection is less prone to overfitting.</p><p>In this issue, four papers address the problem of feature construction. All of them take an information theoretic approach to the problem. Two of them illustrate the use of clustering to construct features <ref type="bibr" target="#b1">(Bekkerman et al., 2003</ref><ref type="bibr" target="#b9">, Dhillon et al., 2003</ref>, one provides a new matrix factorization algorithm <ref type="bibr" target="#b16">(Globerson and Tishby, 2003)</ref>, and one provides a supervised means of learning features from a variety of models <ref type="bibr" target="#b40">(Torkkola, 2003)</ref>. In addition, two papers whose main focus is directed to variable selection also address the selection of monomials of a polynomial model and the hidden units of a neural network <ref type="bibr" target="#b34">(Rivals and</ref><ref type="bibr">Personnaz, 2003, Stoppiglia et al., 2003)</ref>, and one paper addresses the implicit feature selection in non-linear kernel methods for polynomial kernels <ref type="bibr" target="#b45">(Weston et al., 2003)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1">Clustering</head><p>Clustering has long been used for feature construction. The idea is to replace a group of "similar" variables by a cluster centroid, which becomes a feature. The most popular algorithms include K-means and hierarchical clustering. For a review, see, e.g., the textbook of <ref type="bibr">Duda et al. (2001)</ref>.</p><p>Clustering is usually associated with the idea of unsupervised learning. It can be useful to introduce some supervision in the clustering procedure to obtain more discriminant features. This is the idea of distributional clustering <ref type="bibr" target="#b30">(Pereira et al., 1993)</ref>, which is developed in two papers of this issue. Distributional clustering is rooted in the information bottleneck (IB) theory of <ref type="bibr" target="#b39">Tishby et al. (1999)</ref>. If we callX the random variable representing the constructed features, the IB method seeks to minimize the mutual information I(X,X), while preserving the mutual information I(X,Y ). A global objective function is built by introducing a Lagrange multiplier β: J = I(X,X)−βI(X,Y ). So, the method searches for the solution that achieves the largest possible compression, while retaining the essential information about the target.</p><p>Text processing applications are usual targets for such techniques. Patterns are full documents and variables come from a bag-of-words representation: Each variable is associated to a word and is proportional to the fraction of documents in which that word appears. In application to feature construction, clustering methods group words, not documents. In text categorization tasks, the supervision comes from the knowledge of document categories. It is introduced by replacing variable vectors containing document frequency counts by shorter variable vectors containing document category frequency counts, i.e., the words are represented as distributions over document categories.</p><p>The simplest implementation of this idea is presented in the paper of <ref type="bibr" target="#b9">Dhillon et al. (2003)</ref> in this issue. It uses K-means clustering on variables represented by a vector of document category frequency counts. The (non-symmetric) similarity measure used is the Kullback-Leibler divergence K(x j ,x i ) = exp(−β ∑ k x k, j ln(x k, j /x k,i )). In the sum, the index k runs over document categories. A more elaborate approach is taken by <ref type="bibr" target="#b1">Bekkerman et al. (2003)</ref> who use a "soft" version of K-means (allowing words to belong to several clusters) and who progressively divide clusters by varying the Lagrange multiplier β monitoring the tradeoff between I(X,X) and <ref type="bibr">I(X,Y )</ref>. In this way, documents are represented as a distribution over word centroids. Both methods perform well. Bekkerman et al. mention that few words end up belonging to several clusters, hinting that "hard" cluster assignment may be sufficient.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2">Matrix Factorization</head><p>Another widely used method of feature construction is singular value decomposition (SVD). The goal of SVD is to form a set of features that are linear combinations of the original variables, which provide the best possible reconstruction of the original data in the least square sense <ref type="bibr">(Duda et al., 2001)</ref>. It is an unsupervised method of feature construction. In this issue, the paper of <ref type="bibr" target="#b16">Globerson and Tishby (2003)</ref> presents an information theoretic unsupervised feature construction method: sufficient dimensionality reduction (SDR). The most informative features are extracted by solving an optimization problem that monitors the tradeoff between data reconstruction and data compression, similar to the information bottleneck of <ref type="bibr" target="#b39">Tishby et al. (1999)</ref>; the features are found as Lagrange multipliers of the objective optimized. Non-negative matrices P of dimension (m, n) representing the joint distribution of two random variables (for instance the co-occurrence of words in documents) are considered. The features are extracted by information theoretic I-projections, yielding a reconstructed matrix of special exponential formP = (1/Z) exp(ΦΨ). For a set of d features, Φ is a (m, d + 2) matrix whose (d + 1) th column is ones and Ψ is a (d + 2, n) matrix whose (d + 2) th column is ones, and Z is a normalization coefficient. Similarly to SVD, the solution shows the symmetry of the problem with respect to patterns and variables.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3">Supervised Feature Selection</head><p>We review three approaches for selecting features in cases where features should be distinguished from variables because both appear simultaneously in the same system: Nested subset methods. A number of learning machines extract features as part of the learning process. These include neural networks whose internal nodes are feature extractors. Thus, node pruning techniques such as OBD <ref type="bibr" target="#b24">LeCun et al. (1990)</ref> are feature selection algorithms. Gram-Schmidt orthogonalization is presented in this issue as an alternative to OBD <ref type="bibr" target="#b37">(Stoppiglia et al., 2003)</ref>.</p><p>Filters. <ref type="bibr" target="#b40">Torkkola (2003)</ref> proposes a filter method for constructing features using a mutual information criterion. The author maximizes I(φ, y) for m dimensional feature vectors φ and target vectors y. 12 Modelling the feature density function with Parzen windows allows him to compute derivatives ∂I/∂φ i that are transform independent. Combining them with the transform-dependent derivatives ∂φ i /∂w, he devises a gradient descent algorithm to optimize the parameters w of the transform (that need not be linear):</p><formula xml:id="formula_8">w t+1 = w t + η ∂I ∂w = w t + η ∂I ∂φ i ∂φ i ∂w .<label>(5)</label></formula><p>Direct objective optimization. Kernel methods possess an implicit feature space revealed by the kernel expansion: k(x, x ) = φ(x).φ(x ), where φ(x) is a feature vector of possibly infinite dimension. Selecting these implicit features may improve generalization, but does not change the running time or help interpreting the prediction function. In this issue, <ref type="bibr" target="#b45">Weston et al. (2003)</ref> propose a method for selecting implicit kernel features in the case of the polynomial kernel, using their framework of minimization of the 0 -norm.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Validation Methods</head><p>We group in this section all the issues related to out-of-sample performance prediction (generalization prediction) and model selection. These are involved in various aspects of variable and feature selection: to determine the number of variables that are "significant", to guide and halt the search for good variable subsets, to choose hyperparameters, and to evaluate the final performance of the system.</p><p>One should first distinguish the problem of model selection from that of evaluating the final performance of the predictor. For that last purpose, it is important to set aside an independent test set. The remaining data is used both for training and performing model selection. Additional experimental sophistication can be added by repeating the entire experiment for several drawings of the test set. <ref type="bibr">13</ref> To perform model selection (including variable/feature selection and hyperparameter optimization), the data not used for testing may be further split between fixed training and validation sets, or various methods of cross-validation can be used. The problem is then brought back to that of estimating the significance of differences in validation errors. For a fixed validation set, statistical tests can be used, but their validity is doubtful for cross-validation because independence assumptions are violated. For a discussion of these issues, see for instance the work of <ref type="bibr" target="#b10">Dietterich (1998)</ref> and <ref type="bibr" target="#b26">Nadeau and Bengio (2001)</ref>. If there are sufficiently many examples, it may not be necessary to split the training data: Comparisons of training errors with statistical tests can be used (see <ref type="bibr">Rivals and Personnaz, 2003, in this issue)</ref>. Cross-validation can be extended to time-series data and, while i.i.d. assumptions do not hold anymore, it is still possible to estimate generalization error confidence intervals (see <ref type="bibr">Bengio and Chapados, 2003, in this issue)</ref>.</p><p>Choosing what fraction of the data should be used for training and for validation is an open problem. Many authors resort to using the leave-one-out cross-validation procedure, even though it is known to be a high variance estimator of generalization error <ref type="bibr" target="#b42">(Vapnik, 1982)</ref> and to give overly optimistic results, particularly when data are not properly independently and identically sampled from the "true" distribution. The leave-one-out procedure consists of removing one example from the training set, constructing the predictor on the basis only of the remaining training data, then testing on the removed example. In this fashion one tests all examples of the training data and averages the results. As previously mentioned, there exist exact or approximate formulas of the leave-one-out error for a number of learning machines <ref type="bibr" target="#b25">(Monari and Dreyfus, 2000</ref><ref type="bibr" target="#b34">, Rivals and Personnaz, 2003</ref><ref type="bibr" target="#b32">, Rakotomamonjy, 2003</ref>.</p><p>Leave-one-out formulas can be viewed as corrected values of the training error. Many other types of penalization of the training error have been proposed in the literature (see, e.g., <ref type="bibr" target="#b43">Vapnik, 1998</ref><ref type="bibr" target="#b19">, Hastie et al., 2001</ref>). Recently, a new family of such methods called "metric-based methods" have been proposed <ref type="bibr" target="#b36">(Schuurmans, 1997)</ref>. The paper of <ref type="bibr" target="#b3">Bengio and Chapados (2003)</ref> in this issue illustrates their application to variable selection. The authors make use of unlabelled data, which are readily available in the application considered, time series prediction with a horizon. Consider two models f A and f B trained with nested subsets of variables A ⊂ B. We call d( f A , f B ) the discrepancy of the two models. The criterion involves the ratio</p><formula xml:id="formula_9">d U ( f A , f B )/d T ( f A , f B ), where d U ( f A , f B )</formula><p>is computed with unlabelled data and d T ( f A , f B ) is computed with training data. A ratio significantly larger than one sheds doubt on the usefulness of the variables in subset B that are not in A.</p><p>For variable ranking or nested subset ranking methods (Sections 2 and 4.2), another statistical approach can be taken. The idea is to introduce a probe in the data that is a random variable. Roughly speaking, variables that have a relevance smaller or equal to that of the probe should be discarded. <ref type="bibr" target="#b4">Bi et al. (2003)</ref> consider a very simple implementation of that idea: they introduce in their data three additional "fake variables" drawn randomly from a Gaussian distribution and submit them to their variable selection process with the other "true variables". Subsequently, they discard all the variables that are less relevant than one of the three fake variables (according to their weight magnitude criterion). <ref type="bibr" target="#b37">Stoppiglia et al. (2003)</ref> propose a more sophisticated method for the Gram-Schmidt forward selection method. For a Gaussian distributed probe, they provide an analytical formula to compute the rank of the probe associated with a given risk of accepting an irrelevant variable. A non-parametric variant of the probe method consists in creating "fake variables" by randomly shuffling real variable vectors. In a forward selection process, the introduction of fake variables does not disturb the selection because fake variables can be discarded when they are encountered. At a given step in the forward selection process, let us call f t the fraction of true variables selected so far (among all true variables) and f f the fraction of fake variables encountered (among all fake variables). As a halting criterion one can place a threshold on the ratio f f / f t , which is an upper bound on the fraction of falsely relevant variables in the subset selected so far. The latter method has been used for variable ranking <ref type="bibr" target="#b41">(Tusher et al., 2001</ref>). Its parametric version for Gaussian distributions using the T statistic as ranking criterion is nothing but the T-test.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7">Advanced Topics and Open Problems</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.1">Variance of Variable Subset Selection</head><p>Many methods of variable subset selection are sensitive to small perturbations of the experimental conditions. If the data has redundant variables, different subsets of variables with identical predictive power may be obtained according to initial conditions of the algorithm, removal or addition of a few variables or training examples, or addition of noise. For some applications, one might want to purposely generate alternative subsets that can be presented to a subsequent stage of processing. Still one might find this variance undesirable because (i) variance is often the symptom of a "bad" model that does not generalize well; (ii) results are not reproducible; and (iii) one subset fails to capture the "whole picture". One method to "stabilize" variable selection explored in this issue is to use several "bootstraps" <ref type="bibr" target="#b4">(Bi et al., 2003)</ref>. The variable selection process is repeated with sub-samples of the training data. The union of the subsets of variables selected in the various bootstraps is taken as the final "stable" subset. This joint subset may be at least as predictive as the best bootstrap subset. Analyzing the behavior of the variables across the various bootstraps also provides further insight, as described in the paper. In particular, an index of relevance of individual variables can be created considering how frequently they appear in the bootstraps. Related ideas have been described elsewhere in the context of Bayesian variable selection <ref type="bibr" target="#b20">(Jebara and Jaakkola, 2000</ref><ref type="bibr" target="#b28">, Ng and Jordan, 2001</ref><ref type="bibr" target="#b44">, Vehtari and Lampinen, 2002</ref>. A distribution over a population of models using various variable subsets is estimated. Variables are then ranked according to the marginal distribution, reflecting how often they appear in important subsets (i.e., associated with the most probable models).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.2">Variable Ranking in the Context of Others</head><p>In Section 2, we limited ourselves to presenting variable ranking methods using a criterion computed from single variables, ignoring the context of others. In Section 4.2, we introduced nested subset methods that provide a useful ranking of subsets, not of individual variables: some variables may have a low rank because they are redundant and yet be highly relevant. Bootstrap and Bayesian methods presented in Section 7.1, may be instrumental in producing a good variable ranking incorporating the context of others.</p><p>The relief algorithm uses another approach based on the nearest-neighbor algorithm <ref type="bibr" target="#b21">(Kira and Rendell, 1992)</ref>. For each example, the closest example of the same class (nearest hit) and the closest example of a different class (nearest miss) are selected. The score S(i) of the i th variable is computed as the average over all examples of magnitude of the difference between the distance to the nearest hit and the distance to the nearest miss, in projection on the i th variable.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.3">Unsupervised Variable Selection</head><p>Sometimes, no target y is provided, but one still would want to select a set of most significant variables with respect to a defined criterion. Obviously, there are as many criteria as problems can be stated. Still, a number of variable ranking criteria are useful across applications, including saliency, entropy, smoothness, density and reliability. A variable is salient if it has a high variance or a large range, compared to others. A variable has a high entropy if the distribution of examples is uniform. In a time series, a variable is smooth if on average its local curvature is moderate. A variable is in a high-density region if it is highly correlated with many other variables. A variable is reliable if the measurement error bars computed by repeating measurements are small compared to the variability of the variable values (as quantified, e.g., by an ANOVA statistic).</p><p>Several authors have also attempted to perform variable or feature selection for clustering applications (see, e.g., <ref type="bibr" target="#b47">Xing and</ref><ref type="bibr">Karp, 2001, Ben-Hur and</ref><ref type="bibr" target="#b2">Guyon, 2003</ref>, and references therein).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.4">Forward vs. Backward Selection</head><p>It is often argued that forward selection is computationally more efficient than backward elimination to generate nested subsets of variables. However, the defenders of backward elimination argue that weaker subsets are found by forward selection because the importance of variables is not assessed in the context of other variables not included yet. We illustrate this latter argument by the example of <ref type="figure" target="#fig_3">Figure 4</ref>. In that example, one variable separates the two classes better by itself than either of the two other ones taken alone and will therefore be selected first by forward selection. At the next step, when it is complemented by either of the two other variables, the resulting class separation in two dimensions will not be as good as the one obtained jointly by the two variables that were discarded at the first step. A backward selection method may outsmart forward selection by eliminating at the first step the variable that by itself provides the best separation to retain the two variables that . It is therefore the best candidate in a forward selection process. Still, the two other variables are better taken together than any subset of two including it. A backward selection method may perform better in this case.</p><p>together perform best. Still, if for some reason we need to get down to a single variable, backward elimination will have gotten rid of the variable that works best on its own.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.5">The Multi-class Problem</head><p>Some variable selection methods treat the multi-class case directly rather than decomposing it into several two-class problems: All the methods based on mutual information criteria extend naturally to the multi-class case (see in this issue <ref type="bibr" target="#b1">Bekkerman et al., 2003</ref><ref type="bibr" target="#b9">, Dhillon et al., 2003</ref><ref type="bibr" target="#b40">, Torkkola, 2003</ref>. Multi-class variable ranking criteria include Fisher's criterion (the ratio of the between class variance to the within-class variance). It is closely related to the F statistic used in the ANOVA test, which is one way of implementing the probe method (Section 6) for the multi-class case. Wrappers or embedded methods depend upon the capability of the classifier used to handle the multi-class case. Examples of such classifiers include linear discriminant analysis (LDA), a multi-class version of Fisher's linear discriminant <ref type="bibr">(Duda et al., 2001)</ref>, and multi-class SVMs (see, e.g., <ref type="bibr" target="#b45">Weston et al., 2003)</ref>. One may wonder whether it is advantageous to use multi-class methods for variable selection. On one hand, contrary to what is generally admitted for classification, the multi-class setting is in some sense easier for variable selection than the two-class case. This is because the larger the number of classes, the less likely a "random" set of features provide a good separation. To illustrate this point, consider a simple example where all features are drawn independently from the same distribution P and the first of them is the target y. Assume that all these features correspond to rolling a die with Q faces n times (n is the number of samples). The probability that one fixed feature (except the first one) is exactly y is then (1/Q) n . Therefore, finding the feature that corresponds to the target y when it is embedded in a sea of noisy features is easier when Q is large. On the other hand, <ref type="bibr" target="#b14">Forman (2003)</ref> points out in this issue that in the case of uneven distributions across classes, multi-class methods may over-represent abundant or easily separable classes. A possible alternative is to mix ranked lists of several two-class problems. <ref type="bibr" target="#b45">Weston et al. (2003)</ref> propose one such mixing strategy.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.6">Selection of Examples</head><p>The dual problems of feature selection/construction are those of pattern selection/construction. The symmetry of the two problems is made explicit in the paper of <ref type="bibr" target="#b16">Globerson and Tishby (2003)</ref> in this issue. Likewise, both <ref type="bibr" target="#b37">Stoppiglia et al. (2003)</ref> and <ref type="bibr" target="#b45">Weston et al. (2003)</ref> point out that their algorithm also applies to the selection of examples in kernel methods. Others have already pointed out the similarity and complementarity of the two problems <ref type="bibr" target="#b5">(Blum and Langley, 1997)</ref>. In particular, mislabeled examples may induce the choice of wrong variables. Conversely, if the labeling is highly reliable, selecting wrong variables associated with a confounding factor may be avoided by focusing on informative patterns that are close to the decision boundary <ref type="bibr" target="#b18">(Guyon et al., 2002)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.7">Inverse Problems</head><p>Most of the special issue concentrates on the problem of finding a (small) subset of variables useful to build a good predictor. In some applications, particularly in bioinformatics, this is not necessarily the only goal of variable selection. In diagnosis problems, for instance, it is important to identify the factors that triggered a particular disease or unravel the chain of events from the causes to the symptoms. But reverse engineering the system that produced the data is a more challenging task than building a predictor. The readers interested in these issues can consult the literature on gene networks in the conference proceedings of the pacific symposium on biocomputing (PSB) or intelligent systems for molecular biology conference (ISMB) and the causality inference literature (see, e.g., <ref type="bibr" target="#b29">Pearl, 2000)</ref>. At the heart of this problem is the distinction between correlation and causality. Observational data such as the data available to machine learning researchers allow us only to observe correlations. For example, observations can be made about correlations between expression profiles of given genes or between profiles and symptoms, but a leap of faith is made when deciding which gene activated which other one and in turn triggered the symptom.</p><p>In this issue, the paper of <ref type="bibr" target="#b8">Caruana and de Sa (2003)</ref> presents interesting ideas about using variables discarded by variable selection as additional outputs of a neural network. They show improved performance on synthetic and real data. Their analysis supports the idea that some variables are more efficiently used as outputs than as inputs. This could be a step toward distinguishing causes from consequences. Web directory 14500 50 D <ref type="table">Table 1</ref>: Publicly available data sets used in the special issue. Approximate numbers or ranges of patterns, variables, and classes effectively used are provided. The "classes" column indicates "reg" for regression problems, or the number of queries for Information Retrieval (IR) problems. For artificial data sets, the fraction of variables that are relevant ranges from 2 to 10. The initial of the first author are provided as reference: Bk=Bekkerman, Bn=Bengio, Bt=Bennett, C=Caruana, D=Dhillon, F=Forman, G=Globerson, P=Perkins, Re=Reunanen, Ra=Rakotomamonjy, Ri=Rivals, S=Stoppiglia, T=Torkkola, W=Weston. Please also check the JMLR web site for later additions and preprocessed data.</p><p>a. http://www.kyb.tuebingen.mpg.de/bs/people/weston/l0 ( not 10) b. http://www.clopinet.com/isabelle/Projects/NIPS2001/Artificial.zip c. http://nis-www.lanl.gov/∼simes/data/jmlr02/ d. http://www.rpi.edu/∼bij2/featsele.html e. http://www.ics.uci.edu/∼mlearn/MLRepository.html f . http://www.cis.hut.fi/research/software.shtml g. http://ida.first.gmd.de/∼raetsch/data/benchmarks.htm h. http://www.nerg.aston.ac.uk/GTM/3PhaseData.html i. http://q.cis.uoguelph.ca/ skremer/NIPS2000/ j. http://kdd.ics.uci.edu/databases/20newsgroups/20newsgroups.html k. http://trec.nist.gov/data.html (Filtering Track Collection) l. http://www.cs.utk.edu/∼lsi/ m. http://www.daviddlewis.com/resources/testcollections/reuters21578/ n. http://dmoz.org/ and http://www.cs.utexas.edu/users/manyam/dmoz.txt o. http://www.cs.technion.ac.il/∼ronb/thesis.html</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="8">Conclusion</head><p>The recent developments in variable and feature selection have addressed the problem from the pragmatic point of view of improving the performance of predictors. They have met the challenge of operating on input spaces of several thousand variables. Sophisticated wrapper or embedded methods improve predictor performance compared to simpler variable ranking methods like correlation methods, but the improvements are not always significant: domains with large numbers of input variables suffer from the curse of dimensionality and multivariate methods may overfit the data. For some domains, applying first a method of automatic feature construction yields improved performance and a more compact set of features. The methods proposed in this special issue have been tested on a wide variety of data sets (see <ref type="table">Table 1</ref>), which limits the possibility of making comparisons across papers. Further work includes the organization of a benchmark. The approaches are very diverse and motivated by various theoretical arguments, but a unifying theoretical framework is lacking. Because of these shortcomings, it is important when starting with a new problem to have a few baseline performance values. To that end, we recommend using a linear predictor of your choice (e.g. a linear SVM) and select variables in two alternate ways: (1) with a variable ranking method using a correlation coefficient or mutual information;</p><p>(2) with a nested subset selection method performing forward or backward selection or with multiplicative updates. Further down the road, connections need to be made between the problems of variable and feature selection and those of experimental design and active learning, in an effort to move away from observational data toward experimental data, and to address problems of causality inference.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 :</head><label>1</label><figDesc>Information gain from presumably redundant variables. (a) A two class problem with independently and identically distributed (i.i.d.) variables. Each class has a Gaussian distribution with no covariance. (b) The same example after a 45 degree rotation showing that a combination of the two variables yields a separation improvement by a factor √ 2. I.i.d. variables are not truly redundant.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 2 :</head><label>2</label><figDesc>Intra-class covariance.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 3 :</head><label>3</label><figDesc>A variable useless by itself can be useful together with others. (a) One variable has completely overlapping class conditional densities. Still, using it jointly with the other variable improves class separability compared to using the other variable alone. (b) XOR-like or chessboardlike problems. The classes consist of disjoint clumps such that in projection on the axes the class conditional densities overlap perfectly. Therefore, individual variables have no separation power. Still, taken together, the variables provide good class separability .</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 4 :</head><label>4</label><figDesc>Forward or backward selection? Of the three variables of this example, the third one separates the two classes best by itself (bottom right histogram)</figDesc></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot">c Isabelle Guyon and André Elisseeff.</note>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="2">. We caution the reader that this check list is heuristic. The only recommendation that is almost surely valid is to try the simplest things first.</note>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="3">. By "linear predictor" we mean linear in the parameters. Feature construction may render the predictor non-linear in the input variables.</note>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="4">. The ratio of the between class variance to the within-class variance. 5. The similarity of variable ranking to the ORDERED-FS algorithm<ref type="bibr" target="#b27">(Ng, 1998)</ref> indicates that its sample complexity may be logarithmic in the number of irrelevant features, compared to a power law for "wrapper" subset selection methods. This would mean that variable ranking can tolerate a number of irrelevant variables exponential in the number of training examples.</note>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="12">. In fact, the author uses a quadratic measure of divergence instead of the usual mutual information.</note>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="13">. In the limit, the test set can have only one example and leave-out-out can be carried out as an "outer loop", outside the feature/variable selection process, to estimate the final performance of the predictor. This computationally expensive procedure is used in cases where data is extremely scarce.</note>
+		</body>
+		<back>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">On the approximation of minimizing non zero variables or unsatisfied relations in linear systems</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Amaldi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Kann</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Theoretical Computer Science</title>
+		<imprint>
+			<biblScope unit="volume">209</biblScope>
+			<biblScope unit="page" from="237" to="260" />
+			<date type="published" when="1998" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Distributional word clusters vs. words for text categorization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Bekkerman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>El-Yaniv</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Tishby</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Winter</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMLR</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page" from="1183" to="1208" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+	<note>this issue</note>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Detecting stable clusters using principal component analysis</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Ben-Hur</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Guyon</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Methods In Molecular Biology</title>
+		<editor>M.J. Brownstein and A. Kohodursky</editor>
+		<imprint>
+			<publisher>Humana Press</publisher>
+			<date type="published" when="2003" />
+			<biblScope unit="page" from="159" to="182" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Extensions to metric-based model selection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Chapados</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMLR</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page" from="1209" to="1227" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+	<note>this issue</note>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Dimensionality reduction via sparse support vector machines</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Bi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Bennett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Embrechts</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Breneman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Song</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMLR</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page" from="1229" to="1243" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+	<note>this issue</note>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Selection of relevant features and examples in machine learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Blum</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Langley</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Artificial Intelligence</title>
+		<imprint>
+			<biblScope unit="volume">97</biblScope>
+			<biblScope unit="issue">1-2</biblScope>
+			<biblScope unit="page" from="245" to="271" />
+			<date type="published" when="1997-12" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">A training algorithm for optimal margin classifiers</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Boser</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Guyon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Vapnik</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Fifth Annual Workshop on Computational Learning Theory</title>
+		<meeting><address><addrLine>Pittsburgh</addrLine></address></meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="1992" />
+			<biblScope unit="page" from="144" to="152" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<title level="m" type="main">Classification and Regression Trees</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Breiman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">H</forename><surname>Friedman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">A</forename><surname>Olshen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">J</forename><surname>Stone</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1984" />
+			<publisher>Wadsworth and Brooks</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Benefitting from the variables that variable selection discards</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Caruana</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>De Sa</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMLR</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page" from="1245" to="1264" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+	<note>this issue</note>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">A divisive information-theoretic feature clustering algorithm for text classification</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Dhillon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Mallela</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Kumar</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMLR</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page" from="1265" to="1287" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+	<note>this issue</note>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Approximate statistical test for comparing supervised classification learning algorithms</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">G</forename><surname>Dietterich</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural Computation</title>
+		<imprint>
+			<biblScope unit="volume">10</biblScope>
+			<biblScope unit="issue">7</biblScope>
+			<biblScope unit="page" from="1895" to="1924" />
+			<date type="published" when="1998" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<monogr>
+		<title level="m" type="main">Pattern Classification</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">O</forename><surname>Duda</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">E</forename><surname>Hart</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">G</forename><surname>Stork</surname></persName>
+		</author>
+		<imprint>
+			<publisher>John Wiley &amp;amp</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Usa</forename><surname>Sons</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2001" />
+		</imprint>
+	</monogr>
+	<note>2nd edition</note>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<analytic>
+		<title level="a" type="main">Molecular classification of cancer: Class discovery and class prediction by gene expression monitoring</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">R</forename><surname>Golub</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Science</title>
+		<imprint>
+			<biblScope unit="volume">286</biblScope>
+			<biblScope unit="page" from="531" to="537" />
+			<date type="published" when="1999" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">An extensive empirical study of feature selection metrics for text classification</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Forman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMLR</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page" from="1289" to="1306" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+	<note>this issue</note>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Support vector machine classification and validation of cancer tissue samples using microarray expression data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Furey</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Cristianini</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Duffy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Bednarski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Schummer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Haussler</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Bioinformatics</title>
+		<imprint>
+			<biblScope unit="volume">16</biblScope>
+			<biblScope unit="page" from="906" to="914" />
+			<date type="published" when="2000" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Globerson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Tishby</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Sufficient dimensionality reduction. JMLR</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page" from="1307" to="1331" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+	<note>this issue</note>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Adaptive scaling for feature selection in SVMs</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Grandvalet</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Canu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS 15</title>
+		<imprint>
+			<date type="published" when="2002" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Gene selection for cancer classification using support vector machines</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Guyon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Barnhill</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Vapnik</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Machine Learning</title>
+		<imprint>
+			<date type="published" when="2002" />
+			<biblScope unit="volume">46</biblScope>
+			<biblScope unit="page" from="389" to="422" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<title level="m" type="main">The Elements of Statistical Learning. Springer series in statistics</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Hastie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Tibshirani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Friedman</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2001" />
+			<publisher>Springer</publisher>
+			<pubPlace>New York</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Feature selection and dualities in maximum entropy discrimination</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Jebara</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Jaakkola</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">16th Annual Conference on Uncertainty in Artificial Intelligence</title>
+		<imprint>
+			<date type="published" when="2000" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">A practical approach to feature selection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kira</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Rendell</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">International Conference on Machine Learning</title>
+		<editor>D. Sleeman and P. Edwards</editor>
+		<meeting><address><addrLine>Aberdeen</addrLine></address></meeting>
+		<imprint>
+			<publisher>Morgan Kaufmann</publisher>
+			<date type="published" when="1992-07" />
+			<biblScope unit="page" from="368" to="377" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Wrappers for feature selection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Kohavi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>John</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Artificial Intelligence</title>
+		<imprint>
+			<biblScope unit="volume">97</biblScope>
+			<biblScope unit="issue">1-2</biblScope>
+			<biblScope unit="page" from="273" to="324" />
+			<date type="published" when="1997-12" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Toward optimal feature selection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Koller</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Sahami</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">13th International Conference on Machine Learning</title>
+		<imprint>
+			<date type="published" when="1996-07" />
+			<biblScope unit="page" from="284" to="292" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">Optimal brain damage</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lecun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Denker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Solla</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">E</forename><surname>Howard</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">D</forename></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems II</title>
+		<editor>D. S. Touretzky</editor>
+		<meeting><address><addrLine>San Mateo, CA</addrLine></address></meeting>
+		<imprint>
+			<publisher>Morgan Kaufmann</publisher>
+			<date type="published" when="1990" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Withdrawing an example from the training set: an analytic estimation of its effect on a nonlinear parameterized model</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Monari</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Dreyfus</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neurocomputing Letters</title>
+		<imprint>
+			<biblScope unit="volume">35</biblScope>
+			<biblScope unit="page" from="195" to="201" />
+			<date type="published" when="2000" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Inference for the generalization error</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Nadeau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Machine Learning</title>
+		<imprint>
+			<date type="published" when="2001" />
+		</imprint>
+	</monogr>
+	<note>to appear</note>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">On feature selection: learning with exponentially many irrelevant features as training examples</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">Y</forename><surname>Ng</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">15th International Conference on Machine Learning</title>
+		<meeting><address><addrLine>San Francisco, CA</addrLine></address></meeting>
+		<imprint>
+			<publisher>Morgan Kaufmann</publisher>
+			<date type="published" when="1998" />
+			<biblScope unit="page" from="404" to="412" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<analytic>
+		<title level="a" type="main">Convergence rates of the voting Gibbs classifier, with application to Bayesian feature selection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">Y</forename><surname>Ng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Jordan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">18th International Conference on Machine Learning</title>
+		<imprint>
+			<date type="published" when="2001" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Pearl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Causality</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2000" />
+			<publisher>Cambridge University Press</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Distributional clustering of English words</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Pereira</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Tishby</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Lee</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. Meeting of the Association for Computational Linguistics</title>
+		<meeting>Meeting of the Association for Computational Linguistics</meeting>
+		<imprint>
+			<date type="published" when="1993" />
+			<biblScope unit="page" from="183" to="190" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">Grafting: Fast incremental feature selection by gradient descent in function space</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Perkins</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Lacker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Theiler</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMLR</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page" from="1333" to="1356" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+	<note>this issue</note>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Variable selection using SVM-based criteria</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Rakotomamonjy</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMLR</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page" from="1357" to="1370" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+	<note>this issue</note>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<analytic>
+		<title level="a" type="main">Overfitting in making comparisons between variable selection methods</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Reunanen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMLR</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page" from="1371" to="1382" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+	<note>this issue</note>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">MLPs (mono-layer polynomials and multi-layer perceptrons) for nonlinear modeling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Rivals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Personnaz</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMLR</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page" from="1383" to="1398" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+	<note>this issue</note>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<monogr>
+		<title level="m" type="main">Learning with Kernels</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Schoelkopf</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Smola</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2002" />
+			<publisher>MIT Press</publisher>
+			<pubPlace>Cambridge MA</pubPlace>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<analytic>
+		<title level="a" type="main">A new metric-based approach to model selection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Schuurmans</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">9th Innovative Applications of Artificial Intelligence Conference</title>
+		<imprint>
+			<date type="published" when="1997" />
+			<biblScope unit="page" from="552" to="558" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b37">
+	<analytic>
+		<title level="a" type="main">Ranking a random feature for variable and feature selection</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Stoppiglia</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Dreyfus</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Dubois</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Oussar</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMLR</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page" from="1399" to="1414" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+	<note>this issue</note>
+</biblStruct>
+
+<biblStruct xml:id="b38">
+	<monogr>
+		<title level="m" type="main">Regression selection and shrinkage via the lasso</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Tibshirani</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1994-06" />
+			<pubPlace>Palo Alto, CA</pubPlace>
+		</imprint>
+		<respStmt>
+			<orgName>Stanford University</orgName>
+		</respStmt>
+	</monogr>
+	<note type="report_type">Technical report</note>
+</biblStruct>
+
+<biblStruct xml:id="b39">
+	<analytic>
+		<title level="a" type="main">The information bottleneck method</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Tishby</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><forename type="middle">C</forename><surname>Pereira</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Bialek</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of the 37th Annual Allerton Conference on Communication, Control and Computing</title>
+		<meeting>of the 37th Annual Allerton Conference on Communication, Control and Computing</meeting>
+		<imprint>
+			<date type="published" when="1999" />
+			<biblScope unit="page" from="368" to="377" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b40">
+	<analytic>
+		<title level="a" type="main">Feature extraction by non-parametric mutual information maximization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Torkkola</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMLR</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page" from="1415" to="1438" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+	<note>this issue</note>
+</biblStruct>
+
+<biblStruct xml:id="b41">
+	<monogr>
+		<title level="m" type="main">Significance analysis of microarrays applied to the ionizing radiation response</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><forename type="middle">G</forename><surname>Tusher</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Tibshirani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Chu</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2001-04" />
+			<publisher>PNAS</publisher>
+			<biblScope unit="volume">98</biblScope>
+			<biblScope unit="page" from="5116" to="5121" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b42">
+	<monogr>
+		<title level="m" type="main">Estimation of dependencies based on empirical data. Springer series in statistics</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Vapnik</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="1982" />
+			<publisher>Springer</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b43">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><forename type="middle">Y</forename><surname>Vapnik ; N</surname></persName>
+		</author>
+		<title level="m">Statistical Learning Theory. John Wiley &amp; Sons</title>
+		<imprint>
+			<date type="published" when="1998" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b44">
+	<monogr>
+		<title level="m" type="main">Bayesian input variable selection using posterior probabilities and expected utilities</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Vehtari</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Lampinen</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2002" />
+		</imprint>
+	</monogr>
+	<note type="report_type">Report B31</note>
+</biblStruct>
+
+<biblStruct xml:id="b45">
+	<analytic>
+		<title level="a" type="main">Use of the zero norm with linear models and kernel methods</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Elisseff</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Schoelkopf</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Tipping</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">JMLR</title>
+		<imprint>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page" from="1439" to="1461" />
+			<date type="published" when="2003" />
+		</imprint>
+	</monogr>
+	<note>this issue</note>
+</biblStruct>
+
+<biblStruct xml:id="b46">
+	<analytic>
+		<title level="a" type="main">Feature selection for SVMs</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mukherjee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Chapelle</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Pontil</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Poggio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Vapnik</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS 13</title>
+		<imprint>
+			<date type="published" when="2000" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b47">
+	<analytic>
+		<title level="a" type="main">Cliff: Clustering of high-dimensional microarray data via iterative feature filtering using normalized cuts</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">P</forename><surname>Xing</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">M</forename><surname>Karp</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">9th International Conference on Intelligence Systems for Molecular Biology</title>
+		<imprint>
+			<date type="published" when="2001" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

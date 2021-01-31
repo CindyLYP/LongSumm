@@ -1,0 +1,1000 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Z-Forcing: Training Stochastic Recurrent Networks</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Anirudh</forename><surname>Goyal</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">Université de Montréal</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Alessandro</forename><surname>Sordoni</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">Université de Montréal</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Microsoft</forename><surname>Maluuba</surname></persName>
+							<affiliation key="aff1">
+								<orgName type="institution">Microsoft Maluuba</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Marc-Alexandre</forename><surname>Côté</surname></persName>
+							<affiliation key="aff1">
+								<orgName type="institution">Microsoft Maluuba</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Nan</forename><surname>Rosemary</surname></persName>
+							<affiliation key="aff1">
+								<orgName type="institution">Microsoft Maluuba</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Ke</forename><surname>Mila</surname></persName>
+							<affiliation key="aff2">
+								<orgName type="institution" key="instit1">Yoshua Bengio MILA</orgName>
+								<orgName type="institution" key="instit2">Université de Montréal</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Polytechnique</forename><surname>Montréal</surname></persName>
+							<affiliation key="aff2">
+								<orgName type="institution" key="instit1">Yoshua Bengio MILA</orgName>
+								<orgName type="institution" key="instit2">Université de Montréal</orgName>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Z-Forcing: Training Stochastic Recurrent Networks</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:43+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>Many efforts have been devoted to training generative latent variable models with autoregressive decoders, such as recurrent neural networks (RNN). Stochastic recurrent models have been successful in capturing the variability observed in natural sequential data such as speech. We unify successful ideas from recently proposed architectures into a stochastic recurrent model: each step in the sequence is associated with a latent variable that is used to condition the recurrent dynamics for future steps. Training is performed with amortised variational inference where the approximate posterior is augmented with a RNN that runs backward through the sequence. In addition to maximizing the variational lower bound, we ease training of the latent variables by adding an auxiliary cost which forces them to reconstruct the state of the backward recurrent network. This provides the latent variables with a task-independent objective that enhances the performance of the overall model. We found this strategy to perform better than alternative approaches such as KL annealing. Although being conceptually simple, our model achieves state-of-the-art results on standard speech benchmarks such as TIMIT and Blizzard and competitive performance on sequential MNIST. Finally, we apply our model to language modeling on the IMDB dataset where the auxiliary cost helps in learning interpretable latent variables.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>Due to their ability to capture long-term dependencies, autoregressive models such as recurrent neural networks (RNN) have become generative models of choice for dealing with sequential data. By leveraging weight sharing across timesteps, they can model variable length sequences within a fixed parameter space. RNN dynamics involve a hidden state that is updated at each timestep to summarize all the information seen previously in the sequence. Given the hidden state at the current timestep, the network predicts the desired output, which in many cases corresponds to the next input in the sequence. Due to the deterministic evolution of the hidden state, RNNs capture the entropy in the observed sequences by shaping conditional output distributions for each step, which are usually of simple parametric form, i.e. unimodal or mixtures of unimodal. This may be insufficient for highly structured natural sequences, where there is correlation between output variables at the same step, i.e. simultaneities <ref type="bibr" target="#b3">(Boulanger-Lewandowski et al., 2012)</ref>, and complex dependencies between variables at different timesteps, i.e. long-term dependencies. For these reasons, recent efforts recur to highly multi-modal output distribution by augmenting the RNN with stochastic latent variables trained by amortised variational inference, or variational auto-encoding framework (VAE) <ref type="bibr" target="#b9">Fraccaro et al., 2016;</ref>. The VAE framework allows efficient approximate inference by parametrizing the approximate posterior and generative model with neural networks trainable end-to-end by backpropagation.</p><p>Another motivation for including stochastic latent variables in autoregressive models is to infer, from the observed variables in the sequence (e.g. pixels or sound-waves), higher-level abstractions (e.g. objects or speakers). Disentangling in such way the factors of variations is appealing as it would increase high-level control during generation, ease semi-supervised and transfer learning, and enhance interpretability of the trained model <ref type="bibr" target="#b17">Hu et al., 2017)</ref>.</p><p>Stochastic recurrent models proposed in the literature vary in the way they use the stochastic variables to perform output prediction and in how they parametrize the posterior approximation for variational inference. In this paper, we propose a stochastic recurrent generative model that incorporates into a single framework successful techniques from earlier models. We associate a latent variable with each timestep in the generation process. Similar to <ref type="bibr" target="#b9">Fraccaro et al. (2016)</ref>, we use a (deterministic) RNN that runs backwards through the sequence to form our approximate posterior, allowing it to capture the future of the sequence. However, akin to <ref type="bibr" target="#b7">Chung et al. (2015)</ref>; <ref type="bibr" target="#b2">Bayer and Osendorfer (2014)</ref>, the latent variables are used to condition the recurrent dynamics for future steps, thus injecting highlevel decisions about the upcoming elements of the output sequence. Our architectural choices are motivated by interpreting the latent variables as encoding a "plan" for the future of the sequence. The latent plan is injected into the recurrent dynamics in order to shape the distribution of future hidden states. We show that mixing stochastic forward pass, conditional prior and backward recognition network helps building effective stochastic recurrent models.</p><p>The recent surge in generative models suggests that extracting meaningful latent representations is difficult when using a powerful autoregressive decoder, i.e. the latter captures well enough most of the entropy in the data distribution <ref type="bibr" target="#b4">(Bowman et al., 2015;</ref><ref type="bibr" target="#b22">Kingma et al., 2016;</ref><ref type="bibr" target="#b6">Chen et al., 2017;</ref><ref type="bibr" target="#b14">Gulrajani et al., 2017)</ref>. We show that by using an auxiliary, task-agnostic loss, we ease the training of the latent variables which, in turn, helps achieving higher performance for the tasks at hand. The latent variables in our model are forced to contain useful information by predicting the state of the backward encoder, i.e. by predicting the future information in the sequence.</p><p>Our work provides the following contributions:</p><p>• We unify several successful architectural choices into one generative stochastic model for sequences: backward posterior, conditional prior and latent variables that condition the hidden dynamics of the network. Our model achieves state-of-the-art in speech modeling. • We propose a simple way of improving model performance by providing the latent variables with an auxiliary, task-agnostic objective. In the explored tasks, the auxiliary cost yielded better performance than other strategies such as KL annealing. Finally, we show that the auxiliary signal helps the model to learn interpretable representations in a language modeling task.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Background</head><p>We operate in the well-known VAE framework <ref type="bibr" target="#b20">(Kingma and Ba, 2014;</ref><ref type="bibr" target="#b5">Burda et al., 2015;</ref><ref type="bibr" target="#b28">Rezende and Mohamed, 2015)</ref>, a neural network based approach for training generative latent variable models. Let x be an observation of a random variable, taking values in X . We assume that the generation of x involves a latent variable z, taking values in Z, by means of a joint density p θ (x, z), parametrized by θ. Given a set of observed datapoints D = {x 1 , . . . , x n }, the goal of maximum likelihood estimation (MLE) is to estimate the parameters θ that maximize the marginal log-likelihood L(θ; D):</p><formula xml:id="formula_0">θ * = arg max θ L(θ; D) = n i=1 log z p θ (x i , z) dz .<label>(1)</label></formula><p>Optimizing the marginal log-likelihood is usually intractable, due to the integration over the latent variables. A common approach is to maximize a variational lower bound on the marginal loglikelihood. The evidence lower bound (ELBO) is obtained by introducing an approximate posterior q φ (z|x) yielding:</p><formula xml:id="formula_1">log p θ (x) ≥ E q φ (z|x) log p θ (x, z) q φ (z|x) = log p(x) − D KL q φ (z|x) p(z|x) = F(x; θ, φ),<label>(2)</label></formula><p>where KL denotes the Kullback-Leibler divergence. The ELBO is particularly appealing because the bound is tight when the approximate posterior matches the true posterior, i.e. it reduces to the  <ref type="bibr" target="#b7">(Chung et al., 2015)</ref>, SRNN <ref type="bibr" target="#b9">(Fraccaro et al., 2016)</ref> and our model. In this picture, we consider that the task of the generative model consists in predicting the next observation in the sequence, given previous ones. Diamonds represent deterministic states, z t and x t are respectively the latent variables and the sequence input at step t. Dashed lines represent the computation that is part of the inference model. Double lines indicate auxiliary predictions implied by the proposed auxiliary cost. Differently from VRNN and SRNN, in STORN and our model the latent variable z t participates to the prediction of the next step x t+1 .</p><formula xml:id="formula_2">h t h t−1 z t x t d t d t−1 (a) STORN h t h t−1 z t x t (b) VRNN h t h t−1 z t z t−1 x t b t b t−1 (c) SRNN h t h t−1 z t x t b t b t−1 (d) Our model</formula><p>marginal log-likelihood. The ELBO can also be rewritten as a minimum description length loss function <ref type="bibr" target="#b16">(Honkela and Valpola, 2004)</ref>:</p><formula xml:id="formula_3">F(x; θ, φ) = E q φ (z|x) log p θ (x|z) − D KL q φ (z|x) p θ (z) ,<label>(3)</label></formula><p>where the second term measures the degree of dependence between x and z, i.e. if D KL q φ (z|x) p θ (z) is zero then z is independent of x. Usually, the parameters of the generative model p θ (x|z), the prior p θ (z) and the inference model q φ (z|x) are computed using neural networks. In this case, the ELBO can be maximized by gradient ascent on a Monte Carlo approximation of the expectation. For particularly simple parametric forms of q φ (z|x), e.g. multivariate diagonal Gaussian or, more generally, for reparamatrizable distributions , one can backpropagate through the sampling process z ∼ q φ (z|x) by applying the reparametrization trick, which simulates sampling from q φ (z|x) by first sampling from a fixed distribution u, ∼ u( ), and then by applying deterministic transformation z = f φ (x, ). This makes the approach appealing in comparison to other approximate inference approaches.</p><p>In order to have a better generative model overall, many efforts have been put in augmenting the capacity of the approximate posteriors <ref type="bibr" target="#b28">(Rezende and Mohamed, 2015;</ref><ref type="bibr" target="#b22">Kingma et al., 2016;</ref><ref type="bibr" target="#b25">Louizos and Welling, 2017)</ref>, the prior distribution <ref type="bibr" target="#b6">(Chen et al., 2017;</ref><ref type="bibr" target="#b33">Serban et al., 2017a)</ref> and the decoder <ref type="bibr" target="#b14">(Gulrajani et al., 2017;</ref><ref type="bibr" target="#b26">Oord et al., 2016)</ref>. By having more powerful decoders p θ (x|z), one could model more complex distributions over X . This idea has been explored while applying VAEs to sequences <ref type="bibr" target="#b2">(Bayer and Osendorfer, 2014;</ref><ref type="bibr" target="#b7">Chung et al., 2015;</ref><ref type="bibr" target="#b9">Fraccaro et al., 2016)</ref>. In these models, z typically decomposes as a sequence of latent variables,</p><formula xml:id="formula_4">x = (x 1 , . . . , x T ), where the decoding distribution p θ (x|z) is modeled by an autoregressive model, p θ (x|z) = t p θ (x t |z, x 1:t−1 )</formula><formula xml:id="formula_5">z = (z 1 , . . . , z T ), yielding p θ (x|z) = t p θ (x t |z 1:t−1 , x 1:t−1 ).</formula><p>We operate in this setting and, in the following section, we present our choices for parametrizing the generative model, the prior and the inference model.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">Proposed Approach</head><p>In <ref type="figure" target="#fig_0">Figure 1</ref>, we report the dependencies in the inference and the generative parts of our model, compared to existing models. From a broad perspective, we use a backward recurrent network for the approximate posterior (akin to SRNN <ref type="bibr" target="#b9">(Fraccaro et al., 2016</ref>)), we condition the recurrent state of the forward auto-regressive model with the stochastic variables and use a conditional prior (akin to VRNN <ref type="bibr" target="#b7">(Chung et al., 2015)</ref>, STORN <ref type="bibr" target="#b2">(Bayer and Osendorfer, 2014)</ref>). In order to make better use of the latent variables, we use auxiliary costs (double arrows) to force the latent variables to encode information about the future. In the following, we describe each of these components.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">Generative Model</head><p>Decoder Given a sequence of observations x = (x 1 , . . . , x T ), and desired set of labels or predictions y = (y 1 , . . . , y T ), we assume that there exists a corresponding set of stochastic latent variables z = (z 1 , . . . , z T ). In the following, without loss of generality, we suppose that the set of predictions corresponds to a shifted version of the input sequence, i.e. the model tries to predict the next observation given the previous ones, a common setting in language and speech modeling <ref type="bibr" target="#b9">(Fraccaro et al., 2016;</ref><ref type="bibr" target="#b7">Chung et al., 2015</ref>). The generative model couples observations and latent variables by using an autoregressive model, i.e. by exploiting a LSTM architecture <ref type="bibr" target="#b15">(Hochreiter and Schmidhuber, 1997)</ref>, that runs through the sequence:</p><formula xml:id="formula_6">h t = − → f (x t , h t−1 , z t ).<label>(4)</label></formula><p>The parameters of the conditional probability distribution on the next observation p θ (x t+1 |x 1:t , z 1:t ) are computed by a multi-layered feed-forward network that conditions on h t , f (o) (h t ). In the case of continuous-valued observations, f (o) may output the µ, log σ parameters of a Gaussian distribution, or the categorical proportions in the case of one-hot predictions. Note that, even if f (o) is a simple unimodal distribution, the marginal distribution p θ (x t+1 |x 1:t ) may be highly multimodal, due to the integration over the sequence of latent variables z. Note that f (o) does not condition on z t , i.e. z t is not directly used in the computation of the output conditional probabilities. We observed better performance by avoiding the latent variables from directly producing the next output.</p><p>Prior The parameters of the prior distribution p θ (z t |x 1:t , z 1:t−1 ) over each latent variable are obtained by using a non-linear transformation of the previous hidden state of the forward network. A common choice in the VAE framework is to use Gaussian latent variables. Therefore, f (p) produces the parameters of a diagonal multivariate Gaussian distribution:</p><formula xml:id="formula_7">p θ (z t |x 1:t , z 1:t−1 ) = N (z t ; µ (p) t , σ (p) t ) where [µ (p) t , log σ (p) t ] = f (p) (h t−1 ).<label>(5)</label></formula><p>This type of conditional prior has proven to be useful in previous work <ref type="bibr" target="#b7">(Chung et al., 2015)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">Inference Model</head><p>The inference model is responsible for approximating the true posterior over the latent variables p(z 1 , . . . , z T |x) in order to provide a tractable lower-bound on the log-likelihood. Our posterior approximation uses a LSTM processing the sequence x backwards:</p><formula xml:id="formula_8">b t = ← − f (x t+1 , b t+1 ).<label>(6)</label></formula><p>Each state b t contains information about the future of the sequence and can be used to shape the approximate posterior for the latent z t . As the forward LSTM uses z t to condition future predictions, the latent variable can directly inform the recurrent dynamics about the future states, acting as a "plan" of the future in the sequence. This information is channeled into the posterior distribution by a feed-forward neural network f (q) taking as input both the previous forward state h t−1 and the backward state b t :</p><formula xml:id="formula_9">q φ (z t |x) = N (z t ; µ (q) t , σ (q) t ) where [µ (q) t , log σ (q) t ] = f (q) (h t−1 , b t ).<label>(7)</label></formula><p>By injecting stochasticity in the hidden state of the forward recurrent model, the true posterior distribution for a given variable z t depends on all the variables z t+1:T after z t through dependence on h t+1:T . In order to formulate an efficient posterior approximation, we drop the dependence on z t+1:T . This is at the cost of introducing intrinsic bias in the posterior approximation, e.g. we may exclude the true posterior from the space of functions modelled by our function approximator. This is in contrast with SRNN <ref type="bibr" target="#b9">(Fraccaro et al., 2016)</ref>, in which the posterior distribution factorizes in a tractable manner at the cost of not including the latent variables in the forward autoregressive dynamics, i.e. the latent variables don't condition the hidden state, but only help in shaping a multi-modal distribution for the current prediction.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">Auxiliary Cost</head><p>In various domains, such as text and images, it has been empirically observed that it is difficult to make use of latent variables when coupled with a strong autoregressive decoder <ref type="bibr" target="#b4">(Bowman et al., 2015;</ref><ref type="bibr" target="#b14">Gulrajani et al., 2017;</ref><ref type="bibr" target="#b6">Chen et al., 2017)</ref>. The difficulty in learning meaningful latent variables, in many cases of interest, is related to the fact that the abstractions underlying observed data may be encoded with a smaller number of bits than the observed variables. For example, there are multiple ways of picturing a particular "cat" (e.g. different poses, colors or lightning) without varying the more abstract properties of the concept "cat". In these cases, the maximum-likelihood training objective may not be sensitive to how well abstractions are encoded, causing the latent variables to "shut off", i.e. the local correlations at the pixel level may be too strong and bias the learning process towards finding parameter solutions for which the latent variables are unused. In these cases, the posterior approximation tends to provide a too weak or noisy signal, due to the variance induced by the stochastic gradient approximation. As a result, the decoder may learn to ignore z and instead to rely solely on the autoregressive properties of x, causing x and z to be independent, i.e. the KL term in Eq. 2 vanishes.</p><p>Recent solutions to this problem generally propose to reduce the capacity of the autoregressive decoder <ref type="bibr" target="#b4">(Bowman et al., 2015;</ref><ref type="bibr" target="#b0">Bachman, 2016;</ref><ref type="bibr" target="#b6">Chen et al., 2017;</ref><ref type="bibr" target="#b32">Semeniuta et al., 2017)</ref>. The constraints on the decoder capacity inherently bias the learning towards finding parameter solutions for which z and x are dependent. One of the shortcomings with this approach is that, in general, it may be hard to achieve the desired solutions by architecture search. Instead, we investigate whether it is useful to keep the expressiveness of the autoregressive decoder but force the latent variables to encode useful information by adding an auxiliary training signal for the latent variables alone. In practice, our results show that this auxiliary cost, albeit simple, helps achieving better performance on the objective of interest.</p><p>Specifically, we consider training an additional conditional generative model of the backward states</p><formula xml:id="formula_10">b = {b 1 , . . . , b T } given the forward states p ξ (b|h) = z p ξ (b, z|h)dz ≥ E q ξ (z|b,h) [log p ξ (b|z) + log p ξ (z|h) − log q ξ (z|b, h)].</formula><p>This additional model is also trained through amortized variational inference. However, we share its prior p ξ (z|h) and approximate posterior q ξ (z|b, h) with those of the "primary" model (b is a deterministic function of x per Eq. 6 and the approximate posterior is conditioned on b). In practice, we solely learn additional parameters ξ for the decoding model p ξ (b|z) = t p ξ (b t |z t ). The auxiliary reconstruction model trains z t to contain relevant information about the future of the sequence contained in the hidden state of the backward network b t :</p><formula xml:id="formula_11">p ξ (b t |z t ) = N (µ (a) t , σ (a) t ) where [µ (a) t , log σ (a) t ] = f (a) (z t ),<label>(8)</label></formula><p>By means of the auxiliary reconstruction cost, the approximate posterior and prior of the primary model is trained with an additional signal that may help with escaping local minima due to short term reconstructions appearing in the lower bound, similarly to what has been recently noted in <ref type="bibr" target="#b18">Karl et al. (2016)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4">Learning</head><p>The training objective is a regularized version of the lower-bound on the data log-likelihood based on the variational free-energy, where the regularization is imposed by the auxiliary cost:</p><formula xml:id="formula_12">L(x; θ, φ, ξ) = t E q φ (zt|x) log p θ (x t+1 |x 1:t , z 1:t ) + α log p ξ (b t |z t ) −D KL q φ (z t |x 1:T ) p θ (z t |x 1:t , z 1:t−1 ) .<label>(9)</label></formula><p>We learn the parameters of our model by backpropagation through time <ref type="bibr" target="#b29">(Rumelhart et al., 1988)</ref> and we approximate the expectation with one sample from the posterior q φ (z|x) by using reparametrization. When optimizing Eq. 9, we disconnect the gradients of the auxiliary prediction from affecting the backward network, i.e. we don't use the gradients ∇ φ log p ξ (b t |z t ) to train the parameters φ of the approximate posterior: intuitively, the backward network should be agnostic about the auxiliary task assigned to the latent variables. It also performed better empirically. As the approximate posterior is trained only with the gradient flowing through the ELBO, the backward states b may be receiving a weak training signal early in training, which may hamper the usefulness of the auxiliary generative cost, i.e. all the backward states may be concentrated around the zero vector. Therefore, we additionally train the backward network to predict the output variables in reverse (see <ref type="figure" target="#fig_0">Figure 1</ref>):</p><formula xml:id="formula_13">L(x; θ, φ, ξ) = t E q φ (zt|x) log p θ (x t+1 |x 1:t , z 1:t ) + α log p ξ (b t |z t ) + β log p ξ (x t |b t ) −D KL q φ (z t |x 1:T ) p θ (z t |x 1:t , z 1:t−1 ) .<label>(10)</label></formula><p>3.5 Connection to previous models</p><p>Our model is similar to several previous stochastic recurrent models: similarly to STORN <ref type="bibr" target="#b2">(Bayer and Osendorfer, 2014)</ref> and VRNN <ref type="bibr" target="#b7">(Chung et al., 2015)</ref> the latent variables are provided as input to the autoregressive decoder. Differently from STORN, we use the conditional prior parametrization proposed in <ref type="bibr" target="#b7">Chung et al. (2015)</ref>. However, the generation process in the VRNN differs from our approach. In VRNN, z t are directly used, along with h t−1 , to produce the next output x t . We found that the model performed better if we relieved the latent variables from producing the next output. VRNN has a "myopic" posterior in such that the latent variables are not informed about the whole future in the sequence. SRNN <ref type="bibr" target="#b9">(Fraccaro et al., 2016)</ref> addresses the issue by running a posterior backward in the sequence and thus providing future context for the current prediction. However, the autoregressive decoder is not informed about the future of the sequence through the latent variables. Several efforts have been made in order to bias the learning process towards parameter solutions for which the latent variables are used <ref type="bibr" target="#b4">(Bowman et al., 2015;</ref><ref type="bibr" target="#b18">Karl et al., 2016;</ref><ref type="bibr" target="#b22">Kingma et al., 2016;</ref><ref type="bibr" target="#b6">Chen et al., 2017;</ref><ref type="bibr" target="#b36">Zhao et al., 2017)</ref>. <ref type="bibr" target="#b4">Bowman et al. (2015)</ref> tackle the problem in a language modeling setting by dropping words from the input at random in order to weaken the autoregressive decoder and by annealing the KL divergence term during training. We achieve similar latent interpolations by using our auxiliary cost. Similarly, <ref type="bibr" target="#b6">Chen et al. (2017)</ref> propose to restrict the receptive field of the pixel-level decoder for image generation tasks. <ref type="bibr" target="#b22">Kingma et al. (2016)</ref> propose to reserve some free bits of KL divergence. In parallel to our work, the idea of using a task-agnostic loss for the latent variables alone has also been considered in <ref type="bibr" target="#b36">(Zhao et al., 2017)</ref>. The authors force the latent variables to predict a bag-of-words representation of a dialog utterance. Instead, we work in a sequential setting, in which we have a latent variable for each timestep in the sequence.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Experiments</head><p>In this section, we evaluate our proposed model on diverse modeling tasks (speech, images and text). We show that our model can achieve state-of-the-art results on two speech modeling datasets: Blizzard <ref type="bibr" target="#b19">(King and Karaiskos, 2013)</ref> and TIMIT raw audio datasets (also used in <ref type="bibr" target="#b7">Chung et al. (2015)</ref>). Our approach also gives competitive results on sequential generation on MNIST <ref type="bibr" target="#b30">(Salakhutdinov and Murray, 2008)</ref>. For text, we show that the the auxiliary cost helps the latent variables to capture information about latent structure of language (e.g. sequence length, sentiment). In all experiments, we used the ADAM optimizer <ref type="bibr" target="#b20">(Kingma and Ba, 2014)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Speech Modeling and Sequential MNIST</head><p>Blizzard and TIMIT We test our model in two speech modeling datasets. Blizzard consists in 300 hours of English, spoken by a single female speaker. TIMIT has been widely used in speech recognition and consists in 6300 English sentences read by 630 speakers. We train the model directly on raw sequences represented as a sequence of 200 real-valued amplitudes normalized using the global mean and standard deviation of the training set. We adopt the same train, validation and test split as in <ref type="bibr" target="#b7">Chung et al. (2015)</ref>. For Blizzard, we report the average log-likelihood for half-second sequences <ref type="bibr" target="#b9">(Fraccaro et al., 2016)</ref>, while for TIMIT we report the average log-likelihood for the sequences in the test set.</p><p>In this setting, our models use a fully factorized multivariate Gaussian distribution as the output distribution for each timestep. In order to keep our model comparable with the state-of-the-art, we keep the number of parameters comparable to those of SRNN <ref type="bibr" target="#b9">(Fraccaro et al., 2016)</ref>. Our forward/backward networks are LSTMs with 2048 recurrent units for Blizzard and 1024 recurrent units for TIMIT. The dimensionality of the Gaussian latent variables is 256. The prior f <ref type="bibr">(p)</ref> , inference f <ref type="bibr">(q)</ref> and auxiliary networks f (a) have a single hidden layer, with 1024 units for Blizzard and 512 units for TIMIT, and use leaky rectified nonlinearities with leakiness 1 3 and clipped at ±3 <ref type="bibr" target="#b9">(Fraccaro et al., 2016)</ref>. For Blizzard, we use a learning rate of 0.0003 and batch size of 128, for TIMIT they are  <ref type="bibr" target="#b10">(Germain et al., 2015)</ref> ≈ 84.55 NADE <ref type="bibr" target="#b35">(Uria et al., 2016)</ref> 88.33 EoNADE-5 2hl <ref type="bibr" target="#b27">(Raiko et al., 2014)</ref> 84.68 DLGM 8 <ref type="bibr" target="#b31">(Salimans et al., 2014)</ref> ≈ 85.51 DARN 1hl <ref type="bibr" target="#b12">(Gregor et al., 2015)</ref> ≈ 84.13 DRAW <ref type="bibr" target="#b12">(Gregor et al., 2015)</ref> ≤ 80.97 PixelVAE <ref type="bibr" target="#b13">(Gulrajani et al., 2016)</ref> ≈ 79.02 P-Forcing (3-layer) <ref type="bibr" target="#b11">(Goyal et al., 2016)</ref> 79.58 PixelRNN (1-layer) <ref type="bibr" target="#b26">(Oord et al., 2016)</ref> 80.75 PixelRNN (7-layer) <ref type="bibr" target="#b26">(Oord et al., 2016)</ref> 79.20 MatNets <ref type="bibr" target="#b0">(Bachman, 2016)</ref> 78.50</p><p>Ours (1 layer) ≤ 80.60 Ours + aux (1 layer) ≤ 80.09 <ref type="table">Table 1</ref>: On the left, we report the average log-likelihood per sequence on the test sets for Blizzard and TIMIT datasets. "kla" and "aux" denote respectively KL annealing and the use of the proposed auxiliary costs. On the right, we report the test set negative log-likelihood for sequential MNIST, where denotes lower performance of our model with respect to the baselines. For MNIST, we observed that KL annealing hurts overall performance.</p><p>0.001 and 32 respectively. Previous work reliably anneal the KL term in the ELBO via a temperature weight during training (KL annealing) <ref type="bibr" target="#b9">(Fraccaro et al., 2016;</ref><ref type="bibr" target="#b7">Chung et al., 2015)</ref>. We report the results obtained by our model by training both with KL annealing and without. When KL annealing is used, the temperature was linearly annealed from 0.2 to 1 after each update with increments of 0.00005 <ref type="bibr" target="#b9">(Fraccaro et al., 2016)</ref>.</p><p>We show our results in <ref type="table">Table 1</ref> (left), along with results that were obtained by models of comparable size to SRNN. Similar to <ref type="bibr" target="#b9">(Fraccaro et al., 2016;</ref><ref type="bibr" target="#b7">Chung et al., 2015)</ref>, we report the conservative evidence lower bound on the log-likelihood. In Blizzard, the KL annealing strategy (Ours + kla) is effective in the first training iterations, but eventually converges to a slightly lower log-likelihood than the model trained without KL annealing (Ours). We explored different annealing strategies but we didn't observe any improvements in performance. Models trained with the proposed auxiliary cost outperform models trained with KL annealing strategy in both datasets. In TIMIT, it appears that there is a slightly synergistic effect between KL annealing and auxiliary cost. Even if not explicitly reported in the table, similar performance gains were observed on the training sets.</p><p>Sequential MNIST The task consists in pixel-by-pixel generation of binarized MNIST digits. We use the standard binarized MNIST dataset used in <ref type="bibr" target="#b24">Larochelle and Murray (2011)</ref>. Both forward and backward networks are LSTMs with one layer of 1024 hidden units. We use a learning rate of 0.001 and batch size of 32. We report the results in <ref type="table">Table 1</ref> (right). In this setting, we observed that KL annealing hurt performance of the model. Although being architecturally flat, our model is competitive with respect to strong baselines, e.g. DRAW <ref type="bibr" target="#b12">(Gregor et al., 2015)</ref>, and is outperformed by deeper version of autoregressive models with latent variables, i.e. PixelVAE (gated) <ref type="bibr" target="#b13">(Gulrajani et al., 2016)</ref>, and deep autoregressive models such as PixelRNN <ref type="bibr" target="#b26">(Oord et al., 2016)</ref> and MatNets <ref type="bibr" target="#b0">(Bachman, 2016)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Language modeling</head><p>A well-known result in language modeling tasks is that the generative model tends to fit the observed data without storing information in the latent variables, i.e. the KL divergence term in the ELBO becomes zero <ref type="bibr" target="#b4">(Bowman et al., 2015;</ref><ref type="bibr" target="#b36">Zhao et al., 2017;</ref><ref type="bibr" target="#b34">Serban et al., 2017b)</ref>. We test our proposed stochastic recurrent model trained with the auxiliary cost on a medium-sized IMDB text corpus containing 350K movie reviews <ref type="bibr" target="#b8">(Diao et al., 2014)</ref>. Following the setting described in <ref type="bibr" target="#b17">Hu et al. (2017)</ref>, we keep only sentences with less than 16 words and fixed the vocabulary size to 16K words. We split the dataset into train/valid/test sets following these ratios respectively: 85%, 5%, 10%. Special delimiter tokens were added at the beginning and end of each sentence but we only learned to TIMIT ours ours + kla ours + aux ours + kla, aux <ref type="figure">Figure 2</ref>: Evolution of the KL divergence term (measured in nats) in the ELBO with and without auxiliary cost during training for Blizzard (left) and TIMIT (right). We plot curves for models that performed best after hyper-parameter (KL annealing and auxiliary cost weights) selection on the validation set. The auxiliary cost puts pressure on the latent variables resulting in higher KL divergence. Models trained with the auxiliary cost (Ours + aux) exhibit a more stable evolution of the KL divergence. Models trained with auxiliary cost alone achieve better performance than using KL annealing alone (Ours + kla) and similar, or better performance for Blizzard, compared to both using KL annealing and auxiliary cost (Ours + kla, aux).  <ref type="table">Table 2</ref>: IMDB language modeling results for models trained by maximizing the standard evidence lower-bound. We report word perplexity as evaluated by both the ELBO and the IWAE bound and KL divergence between approximate posterior and prior distribution, for different values of auxiliary cost hyperparameters α, β. The gap in perplexity between the ELBO and IWAE (evaluated with 25 samples) increases with greater KL divergence values.</p><p>generate the end of sentence token. We use a single layered LSTM with 500 hidden recurrent units, fix the dimensionality of word embeddings to 300 and use 64 dimensional latent variables. All the f <ref type="bibr">(•)</ref> networks are single-layered with 500 hidden units and leaky relu activations. We used a learning rate of 0.001 and a batch size of 32.</p><p>Results are shown in <ref type="table">Table 2</ref>. As expected, it is hard to obtain better perplexity than a baseline model when latent variables are used in language models. We found that using the IWAE (Importance Weighted Autoencoder) <ref type="bibr" target="#b5">(Burda et al., 2015)</ref> bound gave great improvements in perplexity. This observation highlights the fact that, in the text domain, the ELBO may be severely underestimating the likelihood of the model: the approximate posterior may loosely match the true posterior and the IWAE bound can correct for this mismatch by tightening the posterior approximation, i.e. the IWAE bound can be interpreted as the standard VAE lower bound with an implicit posterior distribution <ref type="bibr" target="#b1">(Bachman and Precup, 2015)</ref>. On the basis of this observation, we attempted training our models with the IWAE bound, but observed no noticeable improvement on validation perplexity.</p><p>We analyze whether the latent variables capture characteristics of language by interpolating in the latent space <ref type="bibr" target="#b4">(Bowman et al., 2015)</ref>. Given a sentence, we first infer the latent variables at each step by running the approximate posterior and then concatenate them in order to form a contiguous latent encoding for the input sentence. Then, we perform linear interpolation in the latent space between the latent encodings of two sentences. At each step of the interpolation, the latent encoding is run through the decoder network to generate a sentence. We show the results in <ref type="table">Table 3</ref>.</p><p>this movie is so terrible . never watch ever a Argmax Sampling 0.0 it 's a movie that does n't work ! this film is more of a " classic " 0.1 it 's a movie that does n't work ! i give it a 5 out of 10 0.2 it 's a movie that does n't work ! i felt that the movie did n't have any 0.3 it 's a very powerful piece of film ! i do n't know what the film was about 0.4 it 's a very powerful story about it ! the acting is good and the acting is very good 0.5 it 's a very powerful story about a movie about life the acting is great and the acting is good too 0.6 it 's a very dark part of the film , eh ? i give it a 7 out of 10 , kids 0.7 it 's a very dark movie with a great ending ! ! the acting is pretty good and the story is great 0.8 it 's a very dark movie with a great message here ! the best thing i 've seen before is in the film 0.9 it 's a very dark one , but a great one ! funny movie , with some great performances 1.0 it 's a very dark movie , but a great one ! but the acting is good and the story is really interesting this movie is great . i want to watch it again !</p><p>(1 / 10) violence : yes .</p><p>a Argmax Sampling 0.0 greetings again from the darkness . greetings again from the darkness . 0.1 " oh , and no .</p><p>" let 's screenplay it . 0.2 " oh , and it is .</p><p>rating : **** out of 5 . 0.3 well ... i do n't know .</p><p>i do n't know what the film was about 0.4 so far , it 's watchable .</p><p>( pg-13 ) violence , no . 0.5 so many of the characters are likable .</p><p>just give this movie a chance . 0.6 so many of the characters were likable . so far , but not for children 0.7 so many of the characters have been there . so many actors were excellent as well . 0.8 so many of them have fun with it .</p><p>there are a lot of things to describe . 0.9 so many of the characters go to the house ! so where 's the title about the movie ? 1.0 so many of the characters go to the house ! as much though it 's going to be funny ! there was a lot of fun in this movie ! <ref type="table">Table 3</ref>: Results of linear interpolation in the latent space. The left column reports greedy argmax decoding obtained by selecting, at each step of the decoding, the word with maximum probability under the model distribution, while the right column reports random samples from the model. a is the interpolation parameter. In general, latent variables seem to capture the length of the sentences.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Conclusion</head><p>In this paper, we proposed a recurrent stochastic generative model that builds upon recent architectures that use latent variables to condition the recurrent dynamics of the network. We augmented the inference network with a recurrent network that runs backward through the input sequence and added a new auxiliary cost that forces the latent variables to reconstruct the state of that backward network, thus explicitly encoding a summary of future observations. The model achieves state-of-the-art results on standard speech benchmarks such as TIMIT and Blizzard. The proposed auxiliary cost, albeit simple, appears to promote the use of latent variables more effectively compared to other similar strategies such as KL annealing. In future work, it would be interesting to use a multitask learning setting, e.g. sentiment analysis as in <ref type="bibr" target="#b17">(Hu et al., 2017)</ref>. Also, it would be interesting to incorporate the proposed approach with more powerful autogressive models, e.g. PixelRNN/PixelCNN <ref type="bibr" target="#b26">(Oord et al., 2016)</ref>.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 :</head><label>1</label><figDesc>Computation graph for generative models of sequences that use latent variables: STORN<ref type="bibr" target="#b2">(Bayer and Osendorfer, 2014)</ref>, VRNN</figDesc></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="31">31st Conference on Neural Information Processing Systems (NIPS 2017), Long Beach, CA, USA.</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgments</head><p>The authors would like to thank Phil Bachman, Alex Lamb and Adam Trischler for the useful discussions. AG and YB would also like to thank NSERC, CIFAR, Google, Samsung, IBM and Canada Research Chairs for funding, and Compute Canada and NVIDIA for computing resources. The authors would also like to express debt of gratitude towards those who contributed to Theano over the years (as it is no longer maintained), making it such a great tool.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">An architecture for deep, hierarchical generative models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Bachman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="4826" to="4834" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<monogr>
+		<title level="m" type="main">Training deep generative models: Variations on a theme</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Bachman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Precup</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<title level="m" type="main">Learning stochastic recurrent networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Bayer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Osendorfer</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1411.7610</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<monogr>
+		<title level="m" type="main">Modeling temporal dependencies in high-dimensional sequences: Application to polyphonic music generation and transcription</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Boulanger-Lewandowski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Vincent</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1206.6392</idno>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">R</forename><surname>Bowman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Vilnis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">M</forename><surname>Dai</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Jozefowicz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Bengio</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1511.06349</idno>
+		<title level="m">Generating sentences from a continuous space</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Burda</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Grosse</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1509.00519</idno>
+		<title level="m">Importance weighted autoencoders</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Salimans</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Duan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Dhariwal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schulman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Abbeel</surname></persName>
+		</author>
+		<title level="m">Variational lossy autoencoder. Proc. of ICLR</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">A recurrent latent variable model for sequential data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Chung</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kastner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Dinh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Goel</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">C</forename><surname>Courville</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="2980" to="2988" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Jointly modeling aspects, ratings and sentiments for movie recommendation (jmars)</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Diao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Qiu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C.-Y</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">J</forename><surname>Smola</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Jiang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Wang</forename></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 20th ACM SIGKDD international conference on Knowledge discovery and data mining</title>
+		<meeting>the 20th ACM SIGKDD international conference on Knowledge discovery and data mining</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="193" to="202" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Sequential neural models with stochastic layers</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Fraccaro</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">K</forename><surname>Sønderby</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">U</forename><surname>Paquet</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Winther</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="2199" to="2207" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Made: Masked autoencoder for distribution estimation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Germain</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Gregor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Murray</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Larochelle</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">ICML</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page" from="881" to="889" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Professor forcing: A new algorithm for training recurrent networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Goyal</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lamb</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">C</forename><surname>Courville</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems 29: Annual Conference on Neural Information Processing Systems</title>
+		<meeting><address><addrLine>Barcelona, Spain</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2016-12-05" />
+			<biblScope unit="page" from="4601" to="4609" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Gregor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Danihelka</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Graves</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Rezende</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wierstra</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1502.04623</idno>
+		<title level="m">Draw: A recurrent neural network for image generation</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Gulrajani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kumar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Ahmed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">A</forename><surname>Taiga</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Visin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Vazquez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Courville</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1611.05013</idno>
+		<title level="m">Pixelvae: A latent variable model for natural images</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Pixelvae: A latent variable model for natural images</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Gulrajani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kumar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Ahmed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">A</forename><surname>Taiga</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Visin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Vazquez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Courville</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of ICLR</title>
+		<meeting>of ICLR</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Long short-term memory</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Hochreiter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Schmidhuber</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Neural computation</title>
+		<imprint>
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="issue">8</biblScope>
+			<biblScope unit="page" from="1735" to="1780" />
+			<date type="published" when="1997" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Variational learning and bits-back coding: an informationtheoretic view to bayesian learning</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Honkela</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Valpola</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Neural Networks</title>
+		<imprint>
+			<biblScope unit="volume">15</biblScope>
+			<biblScope unit="issue">4</biblScope>
+			<biblScope unit="page" from="800" to="810" />
+			<date type="published" when="2004" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Hu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Liang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">P</forename><surname>Xing</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1703.00955</idno>
+		<title level="m">Controllable text generation</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<monogr>
+		<title level="m" type="main">Deep variational bayes filters: Unsupervised learning of state space models from raw data</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Karl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Soelch</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Bayer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Van Der</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Smagt</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1605.06432</idno>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<title level="m" type="main">The blizzard challenge 2013. The Ninth Annual Blizzard Challenge</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>King</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Karaiskos</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<monogr>
+		<title level="m" type="main">Adam: A method for stochastic optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Ba</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1412.6980</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Semi-supervised learning with deep generative models</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mohamed</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Rezende</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Welling</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="3581" to="3589" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Improved variational inference with inverse autoregressive flow</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Salimans</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Jozefowicz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Welling</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="4743" to="4751" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Stochastic Gradient VB and the Variational Auto-Encoder</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Welling</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2nd International Conference on Learning Representationsm (ICLR)</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="1" to="14" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">The neural autoregressive distribution estimator</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Larochelle</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Murray</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Fourteenth International Conference on Artificial Intelligence and Statistics</title>
+		<meeting>the Fourteenth International Conference on Artificial Intelligence and Statistics</meeting>
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="page" from="29" to="37" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Louizos</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Welling</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1703.01961</idno>
+		<title level="m">Multiplicative normalizing flows for variational bayesian neural networks</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Oord</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Kalchbrenner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1601.06759</idno>
+		<title level="m">Pixel recurrent neural networks</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">Iterative neural autoregressive distribution estimator nade-k</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Raiko</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Cho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in neural information processing systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="325" to="333" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Rezende</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Mohamed</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1505.05770</idno>
+		<title level="m">Variational inference with normalizing flows</title>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Learning representations by backpropagating errors</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">E</forename><surname>Rumelhart</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">E</forename><surname>Hinton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">J</forename><surname>Williams</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Cognitive modeling</title>
+		<imprint>
+			<biblScope unit="volume">5</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page">1</biblScope>
+			<date type="published" when="1988" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">On the quantitative analysis of deep belief networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Murray</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 25th international conference on Machine learning</title>
+		<meeting>the 25th international conference on Machine learning</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2008" />
+			<biblScope unit="page" from="872" to="879" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Salimans</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Welling</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1410.6460</idno>
+		<title level="m">Markov chain monte carlo and variational inference: Bridging the gap</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Semeniuta</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Severyn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Barth</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1702.02390</idno>
+		<title level="m">A hybrid convolutional variational autoencoder for text generation</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<analytic>
+		<title level="a" type="main">Piecewise latent variables for neural variational text processing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><forename type="middle">V</forename><surname>Serban</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">G O</forename><surname>Ii</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Pineau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">C</forename><surname>Courville</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2017 Conference on Empirical Methods in Natural Language Processing</title>
+		<meeting>the 2017 Conference on Empirical Methods in Natural Language Processing<address><addrLine>Copenhagen, Denmark</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2017-09-09" />
+			<biblScope unit="page" from="422" to="432" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">A hierarchical latent variable encoder-decoder model for generating dialogues</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><forename type="middle">V</forename><surname>Serban</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Sordoni</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Lowe</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Charlin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Pineau</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">C</forename><surname>Courville</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proc. of AAAI</title>
+		<meeting>of AAAI</meeting>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<analytic>
+		<title level="a" type="main">Neural autoregressive distribution estimation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Uria</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M.-A</forename><surname>Côté</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Gregor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Murray</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Larochelle</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Journal of Machine Learning Research</title>
+		<imprint>
+			<biblScope unit="volume">17</biblScope>
+			<biblScope unit="issue">205</biblScope>
+			<biblScope unit="page" from="1" to="37" />
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<monogr>
+		<title level="m" type="main">Learning discourse-level diversity for neural dialog models using conditional variational autoencoders</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Zhao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Zhao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Eskenazi</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1703.10960</idno>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

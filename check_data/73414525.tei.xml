@@ -1,0 +1,360 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Towards Neural Network-based Reasoning</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+				<date type="published" when="2015-08-22">22 Aug 2015</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Baolin</forename><surname>Peng</surname></persName>
+							<email>blpeng@se.cuhk.edu.hk</email>
+							<affiliation key="aff0">
+								<orgName type="department">Dept. of Systems Engineering &amp; Engineering Management</orgName>
+								<orgName type="institution">The Chinese University of Hong Kong</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Zhengdong</forename><surname>Lu</surname></persName>
+							<email>lu.zhengdong@huawei.com</email>
+							<affiliation key="aff1">
+								<orgName type="laboratory">Noah&apos;s Ark Lab, Huawei Technologies</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Hang</forename><surname>Li</surname></persName>
+							<affiliation key="aff1">
+								<orgName type="laboratory">Noah&apos;s Ark Lab, Huawei Technologies</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Kam-Fai</forename><surname>Wong</surname></persName>
+							<email>kfwong@se.cuhk.edu.hk</email>
+							<affiliation key="aff0">
+								<orgName type="department">Dept. of Systems Engineering &amp; Engineering Management</orgName>
+								<orgName type="institution">The Chinese University of Hong Kong</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff2">
+								<orgName type="laboratory">Noah&apos;s Ark Lab, Huawei Technologies</orgName>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Towards Neural Network-based Reasoning</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date type="published" when="2015-08-22">22 Aug 2015</date>
+						</imprint>
+					</monogr>
+					<idno type="arXiv">arXiv:1508.05508v1[cs.AI]</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:44+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>We propose Neural Reasoner , a framework for neural network-based reasoning over natural language sentences. Given a question, Neural Reasoner can infer over multiple supporting facts and find an answer to the question in specific forms. Neural Reasoner has 1) a specific interaction-pooling mechanism, allowing it to examine multiple facts, and 2) a deep architecture, allowing it to model the complicated logical relations in reasoning tasks. Assuming no particular structure exists in the question and facts, Neural Reasoner is able to accommodate different types of reasoning and different forms of language expressions. Despite the model complexity, Neural Reasoner can still be trained effectively in an end-to-end manner. Our empirical studies show that Neural Reasoner can outperform existing neural reasoning systems with remarkable margins on two difficult artificial tasks (Positional Reasoning and Path Finding) proposed in [8]. For example, it improves the accuracy on Path Finding(10K) from 33.4% [6] to over 98%.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>Reasoning is essential to natural language processing tasks, most obviously in examples like document summarization, question-answering, and dialogue. Previous efforts in this direction are built on rule-based models, requiring first mapping natural languages to logic forms and then inference over them. The mapping (roughly corresponding to semantic parsing), and the inference, are by no means easy, given the variability and flexibility of natural language, the variety of the reasoning tasks, and the brittleness of a rule-based system.</p><p>Just recently, there is some new effort, mainly represented by Memory Network and its dynamic variants <ref type="bibr" target="#b8">[9,</ref><ref type="bibr" target="#b4">5]</ref>, trying to build a purely neural network-based reasoning system with fully distributed semantics that can infer over multiple facts to answer simple questions, all in natural language, e.g., Fact1: John travelled to the hallway. Fact2: Mary journeyed to the bathroom. Question: Where is Mary? The Memory Nets perform fairly well on simple tasks like the examples above, but poorly on more complicated ones due to their simple and rigid way of modeling the dynamics of question-fact interaction and the complex process of reasoning.</p><p>In this paper we give a more systematic treatment of the problem and propose a flexible neural reasoning system, named Neural Reasoner. It is purely neural network based and can be trained in an end-to-end way <ref type="bibr" target="#b5">[6]</ref>, using only supervision from the final answer. Our contributions are mainly two-folds</p><p>• we propose a novel neural reasoning system Neural Reasoner that can infer over multiple facts in a way insensitive to 1) the number of supporting facts, 2)the form of language, and 3) the type of reasoning;</p><p>• we give a particular instantiation of Neural Reasoner and a multi-task training method for effectively fitting the model with relatively small amount of data, yielding significantly better results than existing neural models on two artificial reasoning task;</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Overview of Neural Reasoner</head><p>Neural Reasoner has a layered architecture to deal with the complicated logical relations in reasoning, as illustrated in <ref type="figure" target="#fig_0">Figure 1</ref>. It consists of one encoding layer and multiple reasoning layers. The encoder layer first converts the question and facts from natural language sentences to vectorial representations. More specifically,</p><formula xml:id="formula_0">Q encode −−−−→ q (0) , F k encode −−−−→ f (0) k , k = 1, 2, • • • , K.</formula><p>where</p><formula xml:id="formula_1">q (0) ∈ R d Q and f (0) k ∈ R d F .</formula><p>With the representations obtained from the encoding layer, the reasoning layer recursively updates the representations of questions and facts,</p><formula xml:id="formula_2">{q ( ) f ( ) 1 • • • f ( ) K } reason −−−−→ {q ( +1) f ( +1) 1 • • • f ( +1) K }</formula><p>through the interaction between question representation and fact representations. Intuitively, this interaction models the reasoning, including examination of the facts and comparison of the facts and the questions. Finally at layer-L, the resulted question representation q (L) is fed to an answerer, which layer can be a classifier for choosing between a number of pre-determined classes (e.g., {Yes, No}) or a text generator for create a sentence. We argue that Neural Reasoner has the following desired properties:</p><p>• it can handle varying number of facts, including irrelevant ones, and reach the final conclusion through repeated processing of filtering and combining;</p><p>• it makes no assumption about the form of language, as long as enough training examples are given.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">Model</head><p>In this section we give an instantiation of Neural Reasoner described in Section 2, as illustrated in <ref type="figure" target="#fig_2">Figure 2</ref>. In a nutshell, question and facts, as symbol sequences, are first converted to vectorial representations in the encoding layer via recurrent neural networks (RNNs). The vectorial representations are then fed to the reasoning layers, where the question and the facts get updated through an nonlinear transformation jointly controlled by deep neural networks (DNNs)and pooling. Finally at the answering layer, the resulted question representation is used to generate the final answer to the question. More specifically</p><p>• in the encoding layer (Layer-0) we use recurrent neural networks (RNNs) to convert question and facts to their vectorial representations, which are then forwarded to the first reasoning layer;</p><p>• in each reasoning layer (i.e., Layer-with 1 ≤ ≤ L − 1), we use a deep neural network (denoted as DNN ) to model the pairwise interaction between question representation q ( −1) and each fact representation f • we then fuse the individual updated fact representations {q</p><formula xml:id="formula_3">( ) 1 , q ( ) 2 , • • • , q ( )</formula><p>K } for the global updated representation q ( ) through a pooling operation (see Section 3.2 for more details)</p><p>• finally in Layer-L, the interaction net (DNN L ) returns only question update, which, after summarization by the pooling operation, will serve as input to the Answering Layer.</p><p>In the rest of this section, we will give details of different components of the model.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">Encoding Layer</head><p>The encoding layer is designed to find semantic representations of question and facts. Suppose that we are given a fact or a question as word sequence {x 1 , • • • , x T }, the encoding module summarizes the word sequence with a vector with fixed length. We have different modeling choices for this purpose, e.g., CNN <ref type="bibr" target="#b3">[4]</ref> and RNN <ref type="bibr" target="#b6">[7]</ref>, while in this paper we use GRU <ref type="bibr" target="#b1">[2]</ref>, a variant of RNN, as the encoding module. GRU is shown to be able to alleviate the gradient vanishing issue of RNN and have similar performance to the more complicated LSTM <ref type="bibr" target="#b2">[3]</ref>. As shown in <ref type="figure" target="#fig_3">Figure 3</ref>, GRU takes as input a sequence of word vectors (for either question or facts) where |V| stands for the size of vocabulary for input sentences. Detailed forward computations are as follows:</p><formula xml:id="formula_4">X = {x 1 , • • • , x T }, x i ∈ R |V|<label>(1)</label></formula><formula xml:id="formula_5">z t = σ(W xz Ex t + W hz h t−1 ) (2) r t = σ(W xr Ex t + W hr h t−1 ) (3) h t = tanh(W xh Ex t + U hh (r t h t−1 )) (4) h t = (1 − z t ) h t−1 + z t h t<label>(5)</label></formula><p>where E ∈ R m×k is the word embedding and</p><formula xml:id="formula_6">W xz , W xr , W</formula><p>xh , W hz , W hr , U hh are weight matrices. We take the last hidden state h t as the representation of the word sequence. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">Reasoning Layers</head><p>The modules in the reasoning layers include those for question-fact interaction, pooling.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2.1">Question-Fact Interaction</head><p>On reasoning layer , the k th interaction is between q ( −1) and f</p><formula xml:id="formula_7">( −1) k , resulting in updated representations q ( ) k and f ( ) k [q ( ) k , f ( ) k ] def = g DNN ([(q ( −1) ) , f ( −1) k ] ; Θ ),<label>(6)</label></formula><p>with Θ being the parameters. In general, q</p><formula xml:id="formula_8">( ) k and f ( )</formula><p>k can be of different dimensionality as those of the previous layers. In the simplest case with a single layer in DNN , we have</p><formula xml:id="formula_9">q ( ) k def = σ(W [(q ( −1) ) , f ( −1) k ] + b ),<label>(7)</label></formula><p>where σ(•) stands for the nonlinear activation function. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2.2">Pooling</head><p>Pooling aims to fuse the understanding of the question right after its interaction with all the facts to form the current status of the question, through which we can enable the comparison between different facts. There are several strategies for this pooling</p><p>• Average/Max Pooling: To obtain the n th element in q ( ) , we can take the average or the maximum of the elements at the same location from {q</p><formula xml:id="formula_10">( ) 1 , • • • q ( ) K }.</formula><p>For example, with max-pooling, we have</p><formula xml:id="formula_11">q ( ) (d) = max({q ( ) 1 (d), q ( ) 2 (d), • • • , q ( ) K (d)}), d = 1, 2, • • • , D</formula><p>where q ( ) (d) stands for the d th element of vector q ( ) . Clearly this kind of pooling is the simplest, without any associated parameters;</p><p>• Gating: We can have an extra gating network g ( ) (•) to determine the certainty of the features in q</p><p>• Model-based: In the case of temporal-reasoning, there is crucial information in the sequential order of the facts. To account for this temporal structure, we can use a CNN or RNN to combine the information in {q</p><formula xml:id="formula_12">( ) 1 , • • • q ( ) K }.</formula><p>At layer-L, the query representation q <ref type="bibr">(L)</ref> after the pooling will serve as the features for the final decision.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3">Answering Layer</head><p>For simplicity, we focus on the reasoning tasks which can be formulated as classification with predetermined classes. More specifically, we apply Neural Reasoner to deal with the following two types of questions </p><formula xml:id="formula_13">q = pool({q (L) 1 , q (L) 2 , • • • , q (L) K }) (8) y = softmax(W softmax q (L) )<label>(9)</label></formula><p>After reaching the last reasoning step, in this paper we take two steps, Q 2 is sent to a standard softmax layer to generate an answer which is formulated as a classification problem. There is another type of prediction as classification where the effective classes dynamically change with instances, e.g., the Single-Supporting-Fact task in <ref type="bibr" target="#b8">[9]</ref>. Those tasks cannot be directly solved with Neural Reasoner. One simple way to circumvent this is to define the following score function</p><formula xml:id="formula_14">score z = g match (q (L) , w z ; θ)</formula><p>where g match is a function (e.g., a DNN) parameterized with θ, and w z is the embedding for class z, with z being dynamically determined for the task.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4">Training</head><p>The training of model tunes the parameters in</p><formula xml:id="formula_15">{RNN 0 , DNN 1 , • • • , DNN L }</formula><p>and those in the softmax classifier. Similar to <ref type="bibr" target="#b5">[6]</ref>, we perform end-to-end training, taking the final answer as the only supervision. More specifically, We use the cross entropy for the cost of classification</p><formula xml:id="formula_16">E reasoning = n∈T D CE (p(y|r n )||y n )</formula><p>where n indexes the instances in the training set T , and</p><formula xml:id="formula_17">r n = {Q n , F n,1 , • • • , F n,</formula><p>Kn } stands for question and facts for the n th instance.</p><p>Our end-to-end training is the same as <ref type="bibr" target="#b5">[6]</ref>, while the training in <ref type="bibr" target="#b8">[9]</ref>and <ref type="bibr" target="#b4">[5]</ref> use the stepby-step labels on the supporting facts for each instance (see <ref type="table">Table 1</ref> for examples) in addition to the answer. As described in <ref type="bibr" target="#b5">[6]</ref>, those extra labels brings much stronger supervision just the answer in the end-to-end learning setting, and typically yield significantly better result on relatively complicated tasks.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Auxiliary Training for Question/Fact Representation</head><p>We use auxiliary training to facilitate the learning of representations of question and facts. Basically, in addition to using the learned representations of question and facts in the reasoning process, we also use those representations to reconstruct the original questions or their more abstract forms with variables (elaborated later in Section 4.2).</p><p>In the auxiliary training, we intend to achieve the following two goals • to compensate the lack of supervision in the learning task. In our experiments, the supervision can be fairly weak since for each instance it is merely a classification with no more than 12 classes, while the number of instances are 1K to 10K.</p><p>• to introduce beneficial bias for the representation learning task. Since the network is a complicated nonlinear function, the back-propagation from the answering layer to the encoding layer can easily fail to learn well.  </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Multi-task Learning Setting</head><p>As illustrated in <ref type="figure" target="#fig_6">Figure 4</ref>, we take the simplest way to fuse the auxiliary tasks (recovering) with the main task (reasoning) through linearly combining their costs with trade-off parameter α</p><formula xml:id="formula_18">E = αE recovering + (1 − α)E reasoning<label>(10)</label></formula><p>whereE reasoning is the cross entropy loss describing the discrepancy of model prediction from correct answer (see Section 3.4), and E recovering is the negative log-likelihood of the sequences (question or facts) to be recovered. More specifically,</p><formula xml:id="formula_19">E recovering = n∈T { Kn k=1 log p(F n,k |f (0) n,k ) + log p(Q n |q (0) n )}</formula><p>where the likelihood is estimated as in the encoder-decoder framework proposed in <ref type="bibr" target="#b1">[2]</ref>. On top of the encoding layer (RNN), we add another decoding layer (RNN) which is trained to sequentially predict words in the original sentence.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Abstract Forms with Variables</head><p>Instead of recovering the original sentence in question and facts, we also study the effect of producing a more abstract form in the auxiliary training task. More specifically, we let the decoding RNN to recover a sentence with entities replaced with variables (treated as particular symbols), e.g.,</p><p>The triangle is above the pink rectangle. Through this, we intend to teach the system a more abstract way of representing sentences (both question and facts) and their interactions. More specifically,</p><p>• all the entities are only meaningful only when they are compared with each other.</p><p>In other words, the model (in the encoding and reasoning layers) should not consider specific entities, but their general notions.</p><p>• it helps the model to focus on the relations between the entities, the commonality of different facts, and the patterns shared between different instances.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Experiments</head><p>We report our empirical study on applying Neural Reasoner to the Question Answer task defined in <ref type="bibr" target="#b7">[8]</ref>, and compare it against state-of-the-art neural models <ref type="bibr" target="#b8">[9,</ref><ref type="bibr" target="#b4">5]</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1">Setup</head><p>bAbI is a synthetic question and answering dataset. It contains 20 tasks, and each of them is composed of a set of facts, a question and followed by an answer which is mostly a single word. For most of the time, only a subset of facts are relevant to the given question. Two versions of the data are available, one has 1K training instances per task and the other has 10K instances per task, while the testing set are the same for the two versions. We select the two most challenging tasks (among the 20 tasks in <ref type="bibr" target="#b7">[8]</ref> ) Positional Reasoning and Path Finding, to test the reasoning ability of Neural Reasoner. Positional Reasoning task tests model's spatial reasoning ability, while Path Finding task, first proposed in <ref type="bibr" target="#b0">[1]</ref> tests the ability to reason the correct path between objects based on natural language instructions. In <ref type="table">Table 1</ref>, we give an instance of each task.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2">Implementation Details</head><p>In our experiments, we actually used a simplified version of Neural Reasoner . In the version</p><p>• we choose to keep the representation un-updated on each layer, e.g.,</p><formula xml:id="formula_20">F k encode −−−−→ f (0) k = f (1) k = • • • = f (L−1) k , k = 1, 2, • • • , K.</formula><p>This choice pushes the update q ( ) k (and its summarization q ( ) ) to record all the information in the interaction between facts and question.  <ref type="table">Table 1</ref>: Samples of the two tasks: path finding (upper panel) and positional reasoning (lower panel), with facts, questions and given answers (following each question). For each panel, we first list facts and then question that one needs to answer based on the given facts. On Task I, the answer to the first question is south, east, standing for going south first and then east, obtained based on fact 2 and 4.</p><p>• we use only two layers, i.e., L = 2, for the relatively simple task in the experiments.</p><p>Our model was trained with the standard back-propagation (BP) aiming to maximize the likelihood of correct answers. All the parameters including the word-embeddings were initialized by randomly sampling from a uniform distribution [-0.1, 0.1]. No momentum and weight decay was used. We trained all the tasks for 200 epochs with stochastic gradient descent and the gradients which had 2 norm larger than 40 were clipped, learning rate being controlled by AdaDelta <ref type="bibr" target="#b9">[10]</ref>. For multi-task learning, different mixture ratios were tried, from 0.1 to 0.9.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.3">Neural Reasoner vs. Competitor Models</head><p>We compare Neural Reasoner with the following three neural reasoning models: 1)Memory Network, including the one with step-by-step supervision <ref type="bibr" target="#b8">[9]</ref>(denoted as Memory Net-Step) and the end-to-end version <ref type="bibr" target="#b5">[6]</ref> (denoted as Memory Net-N2N), and 2) Dynamic Memory Network, proposed in <ref type="bibr" target="#b4">[5]</ref>, also with step-by-step supervision. In <ref type="table">Table 2</ref>, we report the performance of a particular case of Neural Reasoner with 1) two reasoning layers, 2) 2-layer DNNs as the interaction modules in each reasoning layer, and 3) auxiliary task of recovering the original question and facts. The results are compared against three neural competitors. We have the following observations.</p><p>• The proposed Neural Reasoner performs significantly better than Memory Net-N2N, especially with more training data.</p><p>• </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Neural Reasoner</head><p>17.3% 87.0% <ref type="table">Table 2</ref>: Results on two reasoning tasks. The results of Memory Net-step, Memory Net-N2N, and Dynamic Memory Net are taken respectively from <ref type="bibr" target="#b8">[9]</ref>, <ref type="bibr" target="#b5">[6]</ref> and <ref type="bibr" target="#b4">[5]</ref>.</p><p>Please note that the results of Neural Reasoner reported in <ref type="table">Table 2</ref> are not based on architectures specifically tuned for the tasks. As a matter of fact, with more complicated models (more reasoning layers and deeper interaction modules), we can achieve even better results on large datasets (e.g., over 98% accuracy on Path Finding with 10K instances). We will however leave the discussion on different architectural variants to the next section.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.4">Architectural Variations</head><p>This section is devoted to the study of architectural variants of Neural Reasoner. More specifically, we consider the variations in 1)the number of reasoning layers, 2) the depth of the interaction DNN, and 3) the auxiliary tasks, with results summarized by <ref type="table" target="#tab_3">Table 3</ref>. We have the following observations:</p><p>• Auxiliary tasks are essential to the efficacy of Neural Reasoner, without which the performances of Neural Reasoner drop dramatically. The reason, as we conjecture in Section 4, is that the reasoning task alone cannot give enough supervision for learning accurate word vectors and parameters of the RNN encoder. We note that Neural Reasoner can still outperform Memory Net (N2N) with 10K data on both tasks.</p><p>• Neural Reasoner with shallow architectures, more specifically two reasoning layers and 1-layer DNN, apparently can benefit from the auxiliary learning of recovering abstract forms on small datasets (1K on both tasks). However, with deeper architectures or more training data, the improvement over that of recovering original sentences become smaller, despite the extra information it utilizes.</p><p>• When larger training datasets are available, Neural Reasoner appears to prefer relatively deeper architectures. More importantly, although both tasks require two reasoning steps, the performance does not deteriorate with three reasoning layers. On both  </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6">Conclusion and Future Work</head><p>We have proposed Neural Reasoner, a framework for neural network-based reasoning over natural language sentences. Neural Reasoner is flexible, powerful, and language indepedent. Our empirical studies show that Neural Reasoner can dramatically improve upon existing neural reasoning systems on two difficult artificial tasks proposed in <ref type="bibr" target="#b8">[9]</ref>. For future work, we will explore 1) tasks with higher difficulty and reasoning depth, e.g., tasks which require a large number of supporting facts and facts with complex intrinsic structures, 2) the common structure in different but similar reasoning tasks (e.g., multiple tasks all with general questions), and 3) automatic selection of the reasoning architecture, for example, determining when to stop the reasoning based on the data.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 :</head><label>1</label><figDesc>High level system diagram of Neural Reasoner .</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>( − 1</head><label>1</label><figDesc>) k from the previous layer, which yields updated fact representation f ( ) k and updated (fact-dependent) question representation q ( ) k ;</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 2 :</head><label>2</label><figDesc>A diagram of our implementation of Neural Reasoner with L reasoning layers, operating on one question and K facts.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 3 :</head><label>3</label><figDesc>The RNN encoder. The last state is used to summarize the word sequence.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>k</head><label></label><figDesc>contains the update of the system's understanding on answering the question after its interaction with fact K, while f ( ) k records the change of the K th fact. Therefore, constitute the "state" of the reasoning process.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>(</head><label></label><figDesc>a) reconstructing the original sentence (b) producing an abstract form with variables</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_6"><head>Figure 4 :</head><label>4</label><figDesc>Auxiliary training for question representation. The training for fact representation is identical and therefore omitted.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_7"><head></head><label></label><figDesc>recover −−−−→x is above y. The blue square is to the left of the triangle. recover −−−−→z is to the left of x. Is the pink rectangle to the right of the square? recover −−−−→Is y to the right of the z ?</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_8"><head>Task I: path finding 1 .</head><label>1</label><figDesc>The office is east of the hallway. 2.The kitchen is north of the office. 3.The garden is west of the bedroom. 4.The office is west of the garden. 5.The bathroom is north of the garden. How do you go from the kitchen to the garden? south, east, relies on 2 and 4 How do you go from the office to the bathroom? east, north, relies on 4 and 5Task II: positional reasoning1.The triangle is above the pink rectangle. 2.The blue square is to the left of the triangle. Is the pink rectangle to the right of the blue square? Yes, relies on 1 and 2 Is the blue square below the pink rectangle? No, relies on 1 and 2</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head>•</head><label></label><figDesc>Type I: General questions, i.e., questions with Yes-No answer;• Type II: Special questions with a small set of candidate answers.</figDesc><table /><note>At reasoning Layer-L, it performs pooling over the intermediate results to select important information for further uses.</note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head></head><label></label><figDesc>Although not a fair comparison to our model, Neural Reasoner is actually better than Memory Net-N2N and Dynamic Memory Net on Positional Reasoning (1K) &amp; (10K) as well as Path Finding (10K), with about 20% margin on both tasks with 10K training instances. . Reason. (1K) Posi. Reason. (10K)</figDesc><table><row><cell>PosiStep-by-step Supervision</cell><cell></cell><cell></cell></row><row><cell>Memory Net-step</cell><cell>65.0%</cell><cell>75.4%</cell></row><row><cell>Dynamic Memory Net</cell><cell>59.6%</cell><cell>-</cell></row><row><cell>End-to-End</cell><cell></cell><cell></cell></row><row><cell>Memory Net-N2N</cell><cell>59.6%</cell><cell>60.3%</cell></row><row><cell>Neural Reasoner</cell><cell>66.4%</cell><cell>97.9%</cell></row><row><cell cols="3">Path Finding (1K) Path Finding (10K)</cell></row><row><cell>Step-by-step Supervision</cell><cell></cell><cell></cell></row><row><cell>Memory Net-step</cell><cell>36.0%</cell><cell>68.1%</cell></row><row><cell>Dynamic Memory Net</cell><cell>34.5%</cell><cell>-</cell></row><row><cell>End-to-End</cell><cell></cell><cell></cell></row><row><cell>Memory Net-N2N</cell><cell>17.2%</cell><cell>33.4%</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_2"><head></head><label></label><figDesc>Posi. Reason. (1K) Posi. Reason. (10K)</figDesc><table><row><cell>No auxiliary task</cell><cell></cell><cell></cell></row><row><cell>2-layer reasoning, 1-layer DNN</cell><cell>60.2%</cell><cell>72.1%</cell></row><row><cell>2-layer reasoning, 2-layer DNN</cell><cell>59.6%</cell><cell>69.3%</cell></row><row><cell>3-layer reasoning, 3-layer DNN</cell><cell>58.7%</cell><cell>59.7%</cell></row><row><cell>Auxiliary task: Original</cell><cell></cell><cell></cell></row><row><cell>2-layer reasoning, 1-layer DNN</cell><cell>63.1%</cell><cell>93.8%</cell></row><row><cell>2-layer reasoning, 2-layer DNN</cell><cell>66.4%</cell><cell>97.9%</cell></row><row><cell>3-layer reasoning, 3-layer DNN</cell><cell>69.4%</cell><cell>99.1%</cell></row><row><cell>Auxiliary task: Abstract</cell><cell></cell><cell></cell></row><row><cell>2-layer reasoning, 1-layer DNN</cell><cell>70.9%</cell><cell>95.2%</cell></row><row><cell>2-layer reasoning, 2-layer DNN</cell><cell>66.6%</cell><cell>95.6%</cell></row><row><cell>3-layer reasoning, 3-layer DNN</cell><cell>68.3%</cell><cell>97.4%</cell></row><row><cell></cell><cell cols="2">Path Finding (1K) Path Finding (10K)</cell></row><row><cell>No auxiliary task</cell><cell></cell><cell></cell></row><row><cell>2-layer reasoning, 1-layer DNN</cell><cell>13.6%</cell><cell>52.2%</cell></row><row><cell>2-layer reasoning, 2-layer DNN</cell><cell>12.3%</cell><cell>54.2%</cell></row><row><cell>3-layer reasoning, 3-layer DNN</cell><cell>13.1%</cell><cell>51.7%</cell></row><row><cell>Auxiliary task: Original</cell><cell></cell><cell></cell></row><row><cell>2-layer reasoning, 1-layer DNN</cell><cell>14.1%</cell><cell>57.0%</cell></row><row><cell>2-layer reasoning, 2-layer DNN</cell><cell>17.3%</cell><cell>87.0%</cell></row><row><cell>3-layer reasoning, 3-layer DNN</cell><cell>14.0%</cell><cell>98.4%</cell></row><row><cell>Auxiliary task: Abstract</cell><cell></cell><cell></cell></row><row><cell>2-layer reasoning, 1-layer DNN</cell><cell>18.1%</cell><cell>55.8%</cell></row><row><cell>2-layer reasoning, 2-layer DNN</cell><cell>15.4%</cell><cell>87.8%</cell></row><row><cell>3-layer reasoning, 3-layer DNN</cell><cell>11.3%</cell><cell>98.6%</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_3"><head>Table 3 :</head><label>3</label><figDesc>Results on two reasoning tasks yielded by Neural Reasoner with different architectural variations. tasks, with 10K training instances, Neural Reasoner with three reasoning layers and 3-layer DNN can achieve over 98% accuracy.</figDesc><table /><note></note></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot">( ) k based on {q ( −1) , f ( −1) k } (the input for getting q ( ) k ). The output g ( ) (q ( −1) , f ( −1) k) has the same dimension as q ( ) k , whose n th element, after normalization, can be used as weight for the corresponding element in q ( ) k in obtaining q ( ) .</note>
+		</body>
+		<back>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Learning to interpret natural language navigation instructions from observations</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">L</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">J</forename><surname>Mooney</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Twenty-Fifth AAAI Conference on Artificial Intelligence, AAAI 2011</title>
+		<meeting>the Twenty-Fifth AAAI Conference on Artificial Intelligence, AAAI 2011<address><addrLine>San Francisco, California, USA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2011" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Learning phrase representations using rnn encoder-decoder for statistical machine translation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Cho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Van Merrienboer</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Gulcehre</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Bougares</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Schwenk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of EMNLP</title>
+		<meeting>EMNLP</meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="1724" to="1734" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<title level="m" type="main">Empirical evaluation of gated recurrent neural networks on sequence modeling</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Chung</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Gülccehre</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Cho</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Bengio</surname></persName>
+		</author>
+		<idno>abs/1412.3555</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Convolutional neural network architectures for matching natural language sentences</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Hu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Lu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><surname>Chen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="volume">27</biblScope>
+			<biblScope unit="page" from="2042" to="2050" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<monogr>
+		<title level="m" type="main">Ask me anything: Dynamic memory networks for natural language processing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Kumar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Irsoy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Su</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Bradbury</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>English</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Pierce</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Ondruska</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Gulrajani</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Socher</surname></persName>
+		</author>
+		<idno>abs/1506.07285</idno>
+		<imprint>
+			<date type="published" when="2015" />
+			<publisher>CoRR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<monogr>
+		<title level="m" type="main">Weakly supervised memory networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Sukhbaatar</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Szlam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Fergus</surname></persName>
+		</author>
+		<idno>abs/1503.08895</idno>
+		<imprint>
+			<date type="published" when="2015" />
+			<publisher>CoRR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Sequence to sequence learning with neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Sutskever</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Vinyals</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Q</forename><forename type="middle">V</forename><surname>Le</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Advances in Neural Information Processing Systems</title>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="3104" to="3112" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<title level="m" type="main">Towards ai-complete question answering: A set of prerequisite toy tasks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bordes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Chopra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mikolov</surname></persName>
+		</author>
+		<idno>abs/1502.05698</idno>
+		<imprint>
+			<date type="published" when="2015" />
+			<publisher>CoRR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Weston</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Chopra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bordes</surname></persName>
+		</author>
+		<idno>abs/1410.3916</idno>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">D</forename><surname>Zeiler</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1212.5701</idno>
+		<title level="m">Adadelta: an adaptive learning rate method</title>
+		<imprint>
+			<date type="published" when="2012" />
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Instance Normalization: The Missing Ingredient for Fast Stylization</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Dmitry</forename><surname>Ulyanov</surname></persName>
+							<email>dmitry.ulyanov@skoltech.ru</email>
+							<affiliation key="aff0">
+								<orgName type="laboratory">Computer Vision Group Skoltech</orgName>
+								<address>
+									<country>Yandex Russia</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Andrea</forename><surname>Vedaldi</surname></persName>
+							<email>vedaldi@robots.ox.ac.uk</email>
+							<affiliation key="aff1">
+								<orgName type="laboratory">Visual Geometry Group University of Oxford United Kingdom</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Victor</forename><surname>Lempitsky</surname></persName>
+							<email>lempitsky@skoltech.ru</email>
+							<affiliation key="aff2">
+								<orgName type="laboratory">Computer Vision Group</orgName>
+								<address>
+									<country>Skoltech Russia</country>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Instance Normalization: The Missing Ingredient for Fast Stylization</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:44+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>It this paper we revisit the fast stylization method introduced in Ulyanov et al. (2016). We show how a small change in the stylization architecture results in a significant qualitative improvement in the generated images. The change is limited to swapping batch normalization with instance normalization, and to apply the latter both at training and testing times. The resulting method can be used to train high-performance architectures for real-time image generation.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Introduction</head><p>The recent work of <ref type="bibr" target="#b0">Gatys et al. (2016)</ref> introduced a method for transferring a style from an image onto another one, as demonstrated in <ref type="figure" target="#fig_0">fig. 1</ref>. The stylized image matches simultaneously selected statistics of the style image and of the content image. Both style and content statistics are obtained from a deep convolutional network pre-trained for image classification. The style statistics are extracted from shallower layers and averaged across spatial locations whereas the content statistics are extracted form deeper layers and preserve spatial information. In this manner, the style statistics capture the "texture" of the style image whereas the content statistics capture the "structure" of the content image.</p><p>Although the method of Gatys et. al produces remarkably good results, it is computationally inefficient. The stylized image is, in fact, obtained by iterative optimization until it matches the desired statistics. In practice, it takes several minutes to stylize an image of size 512 × 512. Two recent works, <ref type="bibr" target="#b2">Ulyanov et al. (2016</ref><ref type="bibr" target="#b1">) Johnson et al. (2016</ref>, sought to address this problem by learning equivalent feed-forward generator networks that can generate the stylized image in a single pass. These two methods differ mainly by the details of the generator architecture and produce results of a comparable quality; however, neither achieved as good results as the slower optimization-based method of <ref type="bibr">Gatys et. al.</ref> In this paper we revisit the method for feed-forward stylization of <ref type="bibr" target="#b2">Ulyanov et al. (2016)</ref> and show that a small change in a generator architecture leads to much improved results. The results are in fact of comparable quality as the slow optimization method of Gatys et al. but can be obtained in real time on standard GPU hardware. The key idea (section 2) is to replace batch normalization  layers in the generator architecture with instance normalization layers, and to keep them at test time (as opposed to freeze and simplify them out as done for batch normalization). Intuitively, the normalization process allows to remove instance-specific contrast information from the content image, which simplifies generation. In practice, this results in vastly improved images (section 3).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Method</head><p>The work of <ref type="bibr" target="#b2">Ulyanov et al. (2016)</ref> showed that it is possible to learn a generator network g(x, z) that can apply to a given input image x the style of another x 0 , reproducing to some extent the results of the optimization method of Gatys et al. Here, the style image x 0 is fixed and the generator g is learned to apply the style to any input image x. The variable z is a random seed that can be used to obtain sample stylization results.</p><p>The function g is a convolutional neural network learned from examples. Here an example is just a content image x t , t = 1, . . . , n and learning solves the problem</p><formula xml:id="formula_0">min g 1 n n t=1 L(x 0 , x t , g(x t , z t ))</formula><p>Figure 3: Row 1: content image (left), style image (middle) and style transfer using method of <ref type="bibr">Gatys et. al (right)</ref>. Row 2: typical stylization results when trained for a large number of iterations using fast stylization method from Ulyanov et al. <ref type="formula">2016</ref>: with zero padding (left), with a better padding technique (middle), with zero padding and instance normalization (right).</p><p>where</p><formula xml:id="formula_1">z t ∼ N (0, 1) are i.i.d. samples from a Gaussian distribution.</formula><p>The loss L uses a pre-trained CNN (not shown) to extracts features from the style x 0 image, the content image x t , and the stylized image g(x t , z t ), and compares their statistics as explained before.</p><p>While the generator network g is fast, the authors of <ref type="bibr" target="#b2">Ulyanov et al. (2016)</ref> observed that learning it from too many training examples yield poorer qualitative results. In particular, a network trained on just 16 example images produced better results than one trained from thousands of those. The most serious artifacts were found along the border of the image due to the zero padding added before every convolution operation (see <ref type="figure">fig. 3</ref>). Even by using more complex padding techniques it was not possible to solve this issue. Ultimately, the best results presented in <ref type="bibr" target="#b2">Ulyanov et al. (2016)</ref> were obtained using a small number of training images and stopping the learning process early. We conjectured that the training objective was too hard to learn for a standard neural network architecture.</p><p>A simple observation is that the result of stylization should not, in general, depend on the contrast of the content image (see <ref type="figure" target="#fig_1">fig. 2</ref>). In fact, the style loss is designed to transfer elements from a style image to the content image such that the contrast of the stylized image is similar to the contrast of the style image. Thus, the generator network should discard contrast information in the content image. The question is whether contrast normalization can be implemented efficiently by combining standard CNN building blocks or whether, instead, is best implemented directly in the architecture.</p><p>The generators used in <ref type="bibr" target="#b2">Ulyanov et al. (2016)</ref> and <ref type="bibr" target="#b1">Johnson et al. (2016)</ref> use convolution, pooling, upsampling, and batch normalization. In practice, it may be difficult to learn a highly nonlinear contrast normalization function as a combination of such layers. To see why, let x ∈ R T ×C×W ×H be an input tensor containing a batch of T images. Let x tijk denote its tijk-th element, where k and j span spatial dimensions, i is the feature channel (color channel if the input is an RGB image), and t is the index of the image in the batch. Then a simple version of contrast normalization is given by:</p><formula xml:id="formula_2">y tijk = x tijk W l=1 H m=1 x tilm .<label>(1)</label></formula><p>It is unclear how such as function could be implemented as a sequence of ReLU and convolution operator.</p><p>On the other hand, the generator network of <ref type="bibr" target="#b2">Ulyanov et al. (2016)</ref> does contain a normalization layers, and precisely batch normalization ones. The key difference between eq. (1) and batch normalization is that the latter applies the normalization to a whole batch of images instead for single ones:</p><formula xml:id="formula_3">y tijk = x tijk − µ i σ 2 i + , µ i = HW T T t=1 W l=1 H m=1 x tilm , σ 2 i = 1 HW T T t=1 W l=1 H m=1 (x tilm −mu i ) 2 .</formula><p>(2) In order to combine the effects of instance-specific normalization and batch normalization, we propose to replace the latter by the instance normalization (also known as "contrast normalization") layer:</p><formula xml:id="formula_4">y tijk = x tijk − µ ti σ 2 ti + , µ ti = 1 HW W l=1 H m=1 x tilm , σ 2 ti = 1 HW W l=1 H m=1 (x tilm − mu ti ) 2 . (3)</formula><p>We replace batch normalization with instance normalization everywhere in the generator network g. This prevents instance-specific mean and covariance shift simplifying the learning process. Differently from batch normalization, furthermore, the instance normalization layer is applied at test time as well.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">Experiments</head><p>In this section, we evaluate the effect of the modification proposed in section 2 and replace batch normalization with instance normalization. We tested both generator architectures described in <ref type="bibr" target="#b2">Ulyanov et al. (2016)</ref> and <ref type="bibr" target="#b1">Johnson et al. (2016)</ref> in order too see whether the modification applies to different architectures. While we did not have access to the original network by <ref type="bibr" target="#b1">Johnson et al. (2016)</ref>, we carefully reproduced their model from the description in the paper. Ultimately, we found that both generator networks have similar performance and shortcomings ( <ref type="figure" target="#fig_3">fig. 5 first row)</ref>.</p><p>Next, the replaced batch normalization with instance normalization and retrained the generators using the same hyperparameters. We found that both architectures significantly improved by the use of instance normalization ( <ref type="figure" target="#fig_3">fig. 5 second row)</ref>. The quality of both generators is similar, but we found the residuals architecture of <ref type="bibr" target="#b1">Johnson et al. (2016)</ref> to be somewhat more efficient and easy to use, so we adopted it for the results shown in <ref type="figure" target="#fig_2">fig. 4</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Conclusion</head><p>In this short note, we demonstrate that by replacing batch normalization with instance normalization it is possible to dramatically improve the performance of certain deep neural networks for image generation. The result is suggestive, and we are currently experimenting with similar ideas for image discrimination tasks as well.   </p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Figure 1 :</head><label>1</label><figDesc>Artistic style transfer example of Gatys et al. (2016) method. (a) Content image. (b) Stylized image. (c) Low contrast content image. (d) Stylized low contrast image.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 2 :</head><label>2</label><figDesc>A contrast of a stylized image is mostly determined by a contrast of a style image and almost independent of a content image contrast. The stylization is performed with method of<ref type="bibr" target="#b0">Gatys et al. (2016)</ref>.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Figure 4 :</head><label>4</label><figDesc>Stylization examples using proposed method. First row: style images; second row: original image and its stylized versions.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 5 :</head><label>5</label><figDesc>Qualitative comparison of generators proposed in Ulyanov et al. (2016) (left), Johnson et al. (2016) (right) with batch normalization (first row) and instance normalization (second row). Both architectures benefit from instance normalization.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Figure 6 :</head><label>6</label><figDesc>Processing a content image from fig. 4 with Delaunay style at different resolutions: 512 (left) and 1080 (right).</figDesc></figure>
+		</body>
+		<back>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Image style transfer using convolutional neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">A</forename><surname>Gatys</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">S</forename><surname>Ecker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Bethge</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">The IEEE Conference on Computer Vision and Pattern Recognition (CVPR)</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<monogr>
+		<title level="m" type="main">Perceptual losses for real-time style transfer and superresolution</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Johnson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Alahi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Li</surname></persName>
+		</author>
+		<idno>abs/1603.08155</idno>
+		<imprint>
+			<date type="published" when="2016" />
+			<publisher>CoRR</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Texture networks: Feed-forward synthesis of textures and stylized images</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Ulyanov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Lebedev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Vedaldi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><forename type="middle">S</forename><surname>Lempitsky</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 33nd International Conference on Machine Learning</title>
+		<meeting>the 33nd International Conference on Machine Learning<address><addrLine>New York City, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2016-06-19" />
+			<biblScope unit="page" from="1349" to="1357" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

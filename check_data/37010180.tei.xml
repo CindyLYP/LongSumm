@@ -1,0 +1,916 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Precomputed Real-Time Texture Synthesis with Markovian Generative Adversarial Networks</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Chuan</forename><surname>Li</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="department">Institut for Informatik</orgName>
+								<orgName type="institution">University of Mainz</orgName>
+								<address>
+									<country key="DE">Germany</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Michael</forename><surname>Wand</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="department">Institut for Informatik</orgName>
+								<orgName type="institution">University of Mainz</orgName>
+								<address>
+									<country key="DE">Germany</country>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Precomputed Real-Time Texture Synthesis with Markovian Generative Adversarial Networks</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:42+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<textClass>
+				<keywords>Texture synthesis, Adversarial Generative Networks</keywords>
+			</textClass>
+			<abstract>
+				<p>This paper proposes Markovian Generative Adversarial Networks (MGANs), a method for training generative neural networks for efficient texture synthesis. While deep neural network approaches have recently demonstrated remarkable results in terms of synthesis quality, they still come at considerable computational costs (minutes of run-time for low-res images). Our paper addresses this efficiency issue. Instead of a numerical deconvolution in previous work, we precompute a feedforward, strided convolutional network that captures the feature statistics of Markovian patches and is able to directly generate outputs of arbitrary dimensions. Such network can directly decode brown noise to realistic texture, or photos to artistic paintings. With adversarial training, we obtain quality comparable to recent neural texture synthesis methods. As no optimization is required any longer at generation time, our run-time performance (0.25M pixel images at 25Hz) surpasses previous neural texture synthesizers by a significant margin (at least 500 times faster). We apply this idea to texture synthesis, style transfer, and video stylization.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Introduction</head><p>Image synthesis is a classical problem in computer graphics and vision <ref type="bibr" target="#b5">[6,</ref><ref type="bibr" target="#b32">33]</ref>. The key challenges are to capture the structure of complex classes of images in a concise, learnable model, and to find efficient algorithms for learning such models and synthesizing new image data. Most traditional "texture synthesis" methods address the complexity constraints using Markov random field (MRF) models that characterize images by statistics of local patches of pixels.</p><p>Recently, generative models based on deep neural networks have shown exciting new perspectives for image synthesis <ref type="bibr" target="#b9">[10,</ref><ref type="bibr" target="#b7">8,</ref><ref type="bibr" target="#b10">11]</ref>. Deep architectures capture appearance variations in object classes beyond the abilities of pixel-level approaches. However, there are still strong limitations of how much structure can be learned from limited training data. This currently leaves us with two main classes of "deep" generative models: 1) full-image models that generate whole images <ref type="bibr" target="#b9">[10,</ref><ref type="bibr" target="#b2">3]</ref>, and 2) Markovian models that also synthesize textures <ref type="bibr" target="#b7">[8,</ref><ref type="bibr" target="#b20">21]</ref>.</p><p>The first class, full-image models, are often designed as specially trained auto-encoders <ref type="bibr" target="#b15">[16,</ref><ref type="bibr" target="#b10">11]</ref>. Results are impressive but limited to rather small images arXiv:1604.04382v1 [cs.CV] 15 Apr 2016 (typically around 64×64 pixels) with limited fidelity in details. The second class, the deep Markovian models, capture the statistics of local patches only and assemble them to high-resolution images. Consequently, the fidelity of details is good, but additional guidance is required if non-trivial global structure should be reproduced <ref type="bibr" target="#b5">[6,</ref><ref type="bibr" target="#b11">12,</ref><ref type="bibr" target="#b0">1,</ref><ref type="bibr" target="#b7">8,</ref><ref type="bibr" target="#b20">21]</ref>. Our paper addresses this second approach of deep Markovian texture synthesis.</p><p>Previous neural methods of this type <ref type="bibr" target="#b7">[8,</ref><ref type="bibr" target="#b20">21]</ref> are built upon a deconvolutional framework <ref type="bibr" target="#b36">[37,</ref><ref type="bibr" target="#b24">25]</ref>. This naturally provides blending of patches and permits reusing the intricate, emergent multi-level feature representations of large, discriminatively trained neural networks like the VGG network <ref type="bibr" target="#b29">[30]</ref>, repurposing them for image synthesis. As a side note, we will later observe that this is actually crucial for high-quality result ( <ref type="figure" target="#fig_5">Figure 10</ref>). Gatys et al. <ref type="bibr" target="#b7">[8]</ref> pioneer this approach by modeling patch statistics with a global Gaussian models of the higher-level feature vectors, and Li et al. <ref type="bibr" target="#b20">[21]</ref> utilize dictionaries of extended local patches of neural activation, trading-off flexibility for visual realism.</p><p>Deep Markovian models are able to produce remarkable visual results, far beyond traditional pixel-level MRF methods. Unfortunately, the run-time costs of the deconvolution approach are still very high, requiring iterative back-propagation in order to estimate a pre-image (pixels) of the feature activations (higher network layer). In the most expensive case of modeling MRFs of higher-level feature patches <ref type="bibr" target="#b20">[21]</ref>, a high-end GPU needs several minutes to synthesize low-resolution images (such as a 512-by-512 pixels image).</p><p>The objective of our paper is therefore to improve the efficiency of deep Markovian texture synthesis. The key idea is to precompute the inversion of the network by fitting a strided 1 convolutional network <ref type="bibr" target="#b30">[31,</ref><ref type="bibr" target="#b28">29]</ref> to the inversion process, which operates purely in a feed-forward fashion. Despite being trained on patches of a fixed size, the resulting network can generate continuous images of arbitrary dimension without any additional optimization or blending, yielding a high-quality texture synthesizer of a specific style and high performance .</p><p>We train the convolutional network using adversarial training <ref type="bibr" target="#b28">[29]</ref>, which permits maintaining image quality similar to the original, expensive optimization approach. As result, we obtain significant speed-up: Our GPU implementation computes 512 × 512 images within 40ms (on an nVidia TitanX). The key limitation, of course, is to precompute the feed-forward convolutional network for each texture style. Nonetheless, this is still an attractive trade-off for many potential applications, for example from the area of artistic image or video stylization. We explore some of these applications in our experiments.</p><p>A strided convolutional network hence replaces pooling layers by subsampled convolution filters that learn pooling during training (for example, two-fold mean pooling is equivalent to blurred convolution kernels sampled at half resolution).</p><p>2 See supplementary material and code at: https://github.com/chuanli11/MGANs</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Related Work</head><p>Deconvolutional neural networks have been introduced to visualize deep features and object classes. Zeiler et al. <ref type="bibr" target="#b36">[37]</ref> back-project neural activations to pixels. Mahendran et al. <ref type="bibr" target="#b22">[23]</ref> reconstruct images from the neural encoding in intermediate layers. Recently, effort are made to improve the efficiency and accuracy of deep visualization <ref type="bibr" target="#b35">[36,</ref><ref type="bibr" target="#b25">26]</ref>. Mordvintsev et al. have raised wide attention by showing how deconvolution of class-specifc activations can create hallucinogenic imagery from discriminative networks <ref type="bibr" target="#b24">[25]</ref>. The astonishing complexity of the obtained visual patterns has immediately spurred hope for new generative models: Gatys et al. <ref type="bibr" target="#b7">[8,</ref><ref type="bibr" target="#b6">7]</ref> drove deconvolution by global covariance statistics of feature vectors on higher network layers, obtaining unprecedented results in artistic style transfer. The statistical model has some limitations: Enforcing per-feature-vector statistics permits a mixing of feature patterns that never appear in actual images and limit plausibility of the learned texture. This can be partially addressed by replacing point-wise feature statistics by statistics of spatial patches of feature activations <ref type="bibr" target="#b20">[21]</ref>. This permits photo-realistic synthesis in some cases, but also reduces invariance because the simplistic dictionary of patches introduces rigidity. On the theory side, Xie et al. <ref type="bibr" target="#b33">[34]</ref> have proved that a generative random field model can be derived from used discriminative networks, and show applications to unguided texture synthesis.</p><p>Full image methods employ specially trained auto-encoders as generative networks <ref type="bibr" target="#b15">[16]</ref>. For example, the Generative Adversarial Networks (GANs) use two networks, one as the discriminator and other as the generator, to iteratively improve the model by playing a minimax game <ref type="bibr" target="#b9">[10]</ref>. This model is extended to work with a Laplacian pyramid <ref type="bibr" target="#b8">[9]</ref>, and with a conditional setting <ref type="bibr" target="#b2">[3]</ref>. Very recently, Radford et al. <ref type="bibr" target="#b28">[29]</ref> propose a set of architectural refinements that stabilized the performance of this model, and show that the generators have vector arithmetic properties. One important strength of adversarial networks is that it offers perceptual metrics <ref type="bibr" target="#b19">[20,</ref><ref type="bibr" target="#b3">4]</ref> that allows auto-encoders to be training more efficiently. These models can also be augmented semantic attributes <ref type="bibr" target="#b34">[35]</ref>, image captions <ref type="bibr" target="#b23">[24]</ref>, 3D data <ref type="bibr" target="#b4">[5,</ref><ref type="bibr" target="#b16">17]</ref>, spatial/temporal status <ref type="bibr" target="#b10">[11,</ref><ref type="bibr" target="#b12">13,</ref><ref type="bibr" target="#b26">27]</ref> etc.</p><p>In very recent, two concurrent work, Ulyanov et al. <ref type="bibr" target="#b31">[32]</ref> and Johnson et al. <ref type="bibr" target="#b13">[14]</ref> propose fast implementations of Gatys et al's approach. Both of their methods employ precomputed decoders trained with a perceptual texture loss and obtain significant run-time benefits (higher decoder complexity reduces their speed-up a bit). The main conceptual difference in our paper is the use of Li et al.'s <ref type="bibr" target="#b20">[21]</ref> feature-patch statistics as opposed to learning Gaussian distributions of individual feature vectors, which provides some benefits in terms of reproducing textures more faithfully. <ref type="figure">Fig. 1</ref>: Motivation: real world data does not always comply with a Gaussian distribution (first), but a complex nonlinear manifold (second). We adversarially learn a mapping to project contextually related patches to that manifold.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3">Model</head><p>Let us first conceptually motive our method. Statistics based methods <ref type="bibr" target="#b7">[8,</ref><ref type="bibr" target="#b31">32]</ref> match the distributions of source (input photo or noise signal) and target (texture) with a Gaussian model <ref type="figure">(Figure 1, first)</ref>. They do not further improve the result once two distributions match. However, real world data does not always comply with a Gaussian distribution. For example, it can follow a complicated non-linear manifold. Adversarial training <ref type="bibr" target="#b9">[10]</ref> can recognize such manifold with its discriminative network <ref type="figure">(Figure 1</ref>, second), and strengthen its generative power with a projection on the manifold <ref type="figure">(Figure 1, third)</ref>. We improve adversarial training with contextually corresponding Markovian patches <ref type="figure">(Figure 1</ref>, fourth). This allows the learning to focus on the mapping between different depictions of the same context, rather than the mixture of context and depictions. <ref type="figure" target="#fig_0">Figure 2</ref> visualizes our pipeline, which extends the patch-based synthesis algorithm of Li et al. <ref type="bibr" target="#b20">[21]</ref>. We first replace their patch dictionary (including the iterative nearest-neighbor search) with a continuous discriminative network D (green blocks) that learns to distinguish actual feature patches (on VGG 19 layer Relu3 1, purple block) from inappropriately synthesized ones. A second comparison (pipeline below D) with a VGG 19 encoding of the same image on the higher, more abstract layer Relu5 1 can be optionally used for guidance. If we run deconvolution on the VGG networks (from the discriminator and optionally from the guidance content), we obtain deconvolutional image synthesizer, which we call Markovian Deconvolutional Adversarial Networks (MDANs).</p><p>MDANs are still very slow; therefore, we aim for an additional generative network G (blue blocks; a strided convolutional network). It takes a VGG 19 layer Relu4 1 encoding of an image and directly decodes it to pixels of the synthesis image. During all of the training we do not change the VGG 19 network (gray blocks), and only optimize D and G. Importantly, both D and G are trained simultaneously to maximize the quality of G; D acts here as adversary to G. We denote the overall architecture by Markovian Generative Adversarial Networks (MGANs).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1">Markovian Deconvolutional Adversarial Networks (MDANs)</head><p>Our MDANs synthesize textures with a deconvolutional process that is driven by adversarial training: a discriminative network D (green blocks in <ref type="figure" target="#fig_0">Figure 2</ref>) is trained to distinguish between "neural patches" sampled from the synthesis image and sampled from the example image. We use regular sampling on layer relu3 of VGG output (purple block). It outputs a classification score s = ±1 for each neural patch, indicating how "real" the patch is (with s = 1 being real). For each patch sampled from the synthesized image, 1 − s is its texture loss to minimize. The deconvolution process back-propagates this loss to pixels. Like Radford et al. <ref type="bibr" target="#b28">[29]</ref> we use batch normalization (BN) and leaky ReLU (LReLU) to improve the training of D.</p><p>Formally, we denote the example texture image by x t ∈ R wt×ht , and the synthesized image by x ∈ R w×h . We initialize x with random noise for un-guided synthesis, or an content image x c ∈ R w×h for guided synthesis. The deconvolutio iteratively updates x so the following energy is minimized:</p><formula xml:id="formula_0">x = arg min x E t (Φ(x), Φ(x t )) + α 1 E c (Φ(x), Φ(x c )) + α 2 Υ (x)<label>(1)</label></formula><p>Here E t denotes the texture loss, in which Φ(x) is x's feature map output from layer relu3 of VGG 19. We sample patches from Φ(x), and compute E t as the Hinge loss with their labels fixed to one:</p><formula xml:id="formula_1">E t (Φ(x), Φ(x t )) = 1 N N i=1 max(0, 1 − 1 × s i )<label>(2)</label></formula><p>Here s i denotes the classification score of i-th neural patch, and N is the total number of sampled patches in Φ(x). The discriminative network is trained on the fly: Its parameters are randomly initialized, and then updated after each deconvolution, so it becomes increasingly smarter as synthesis results improve. The additional regularizer Υ (x) in Eq. 1 is a smoothness prior for pixels <ref type="bibr" target="#b22">[23]</ref>. Using E t and Υ (x) can synthesize random textures ( <ref type="figure">Figure 3</ref>). By minimizing an additional content loss E c , the network can generate an image that is contextually related to a guidance image x c <ref type="figure" target="#fig_1">(Figure 4</ref>). This content loss is the Mean Squared Error between two feature maps Φ(x) and Φ(x c ). We set the weights with α 1 = 1 and α 2 = 0.0001, and minimize Equation 1 using back-propagation <ref type="figure">Fig. 3</ref>: Un-guided texture synthesis using MDANs. For each case the first image is the example texture, and the other two are the synthesis results. Image credits: <ref type="bibr" target="#b33">[34]</ref>'s "Ivy", flickr user erwin brevis's "gell", Katsushika Hokusai's "The Great Wave off Kanagawa", Kandinsky's "Composition VII". with ADAM <ref type="bibr" target="#b14">[15]</ref> (learning rate 0.02, momentum 0.5). Notice each neural patch receives its own output gradient through the back-propagation of D. In order to have a coherent transition between adjacent patches, we blend their output gradient like texture optimization <ref type="bibr" target="#b17">[18]</ref> did.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2">Markovian Generative Adversarial Networks (MGANs)</head><p>MDANs require many iterations and a separate run for each output image. We now train a variational auto-encoder (VAE) that decodes a feature map directly to pixels. The target examples (textured photos) are obtained from the MDANs. Our generator G (blue blocks in <ref type="figure" target="#fig_0">Figure 2</ref>) takes the layer relu4 of VGG as the input, and decodes a picture through a ordinary convolution followed by a cascade of fractional-strided convolutions (FS Conv). Although being trained with fixed size input, the generator naturally extends to arbitrary size images.</p><p>As Dosovitskiy et al. <ref type="bibr" target="#b3">[4]</ref> point out, it is crucially important to find a good metric for training an auto-encoder: Using the Euclidean distance between the synthesized image and the target image at the pixel level ( <ref type="figure" target="#fig_2">Figure 5</ref>, pixel VAE) yields an over-smoothed image. Comparing at the neural encoding level improves results ( <ref type="figure" target="#fig_2">Figure 5</ref>, neural VAE), and adversarial training improves the reproduction of the intended style further <ref type="figure" target="#fig_2">(Figure 5</ref>, MGANs).</p><p>Our approach is similar to classical Generative Adversarial Networks (GANs) <ref type="bibr" target="#b9">[10]</ref>, with the key difference of not operating on full images, but neural patches from the same image. Doing so utilizes the contextual correspondence between the patches, and makes learning easier and more effective in contrast to learning the distribution of a object class <ref type="bibr" target="#b9">[10]</ref> or a mapping between contextually irrelevant data <ref type="bibr" target="#b31">[32]</ref>. In additional we also replace the Sigmoid function and the binary cross entropy criteria from <ref type="bibr" target="#b28">[29]</ref> by a max margin criteria (Hinge loss). This avoids the vanishing gradient problem when learning D. This is more problematic in our case than in Radfort et al.'s <ref type="bibr" target="#b28">[29]</ref> because of less diversity in our training data. Thus, the Sigmoid function can be easily saturated. <ref type="figure" target="#fig_2">Figure 5</ref> (MGANs) shows the results of a network that is trained to produce paintings in the style of Picasso's "Self-portrait 1907". For training, we randomly selected 75 faces photos from the CelebA data set <ref type="bibr" target="#b21">[22]</ref>, and in additional to it non-celebrity photos from the public domain. We resize all photos so that the maximum dimension is 384 pixels. We augmented the training data by generating copies of each photo with different rotations and scales. We regularly sample subwindows of 128-by-128 croppings from them for batch processing. In total we have 24,506 training examples, each is treated as a training image where neural patches are sampled from its relu3 encoding as the input of D. <ref type="figure" target="#fig_2">Figure 5</ref> (top row, MGANs) shows the decoding result of our generative network for a training photo. The bottom row shows the network generalizes well to test data. Notice the MDANs image for the test image is never used in the training. Nonetheless, direct decoding with G produces very good approximation of it. The main difference between MDANs and MGANs is: MDANs preserve the content of the input photo better and MGANs produce results that are more stylized. This is because MGANs was trained with many images, hence learned the most frequent features. Another noticeable difference is MDANs   <ref type="figure" target="#fig_3">Figure 6</ref> shows some intermediate results MGANs. It is clear that the decoder gets better with more training. After 100 batches, the network is able to learn the overall color, and where the regions of strong contrast are. After 300 batches the network started to produce textures for brush strokes. After 1000 batches it learns how to paint eyes. Further training is able to remove some of the ghosting artifacts in the results. Notice the model generalizes well to testing data (right).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Experimental Analysis</head><p>We conduct empirical experiments with our model: we study parameter influence (layers for classification, patch size) and the complexity of the model (number of layers in the network, number of channels in each layer). While there may not be a universal optimal design for all textures, our study shed some light on how <ref type="figure">Fig. 8</ref>: Different layers and patch sizes for training the discriminative netowrk. Input image credit: "ropenet" from the project link of <ref type="bibr" target="#b18">[19]</ref>. the model behaves for different cases. For fair comparison, we scale the example textures in this study to fixed size (128-by-128 pixels), and demand the synthesis output to be 256-by-256 pixels.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Visualizing decoder features:</head><p>We visualize the learned filters of decoder G in <ref type="figure" target="#fig_4">Figure 7</ref>. These features are directly decoded from a one-hot input vector. Individual patches are similar to, but not very faithfully matching the example textures (reconfirming the semi-distributed and non-linear nature of the encoding). Nonetheless, visual similarity of such artificial responses seems strong enough for synthesizing new images.</p><p>Parameters: Next, we study the influence of changing the input layers for the discriminative network. To do so we run unguided texture synthesis with discriminator D taking layer relu2 1, relu3 1, and relu4 of VGG as the input. We use patch sizes of 16, 8 and 4 respectively for the three options, so they have the same receptive field of 32 image pixels (approximately; ignoring padding). The first three results in <ref type="figure">Fig. 8</ref> shows the results of these three settings. Lower layers (relu2 ) produce sharper appearances but at the cost of losing form and structure of the texture. Higher layer (relu4 ) preserves coarse structure better (such as regularity) but at the risk of being too rigid for guided scenarios. Layer relu3 offers a good balance between quality and flexibility. We then show the influence of patch size: We fix the input layer of D to be relu3 1, and compare patch size of 4 and 16 to with the default setting of 8. The last two results in <ref type="figure">Fig. 8</ref> shows that such change will also affect the rigidity of the model: smaller patches increase the flexibility and larger patches preserve better structure.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Complexity:</head><p>We now study the influence of 1) the number of layers in the networks and 2) the number of channels in each layer. We first vary the D by removing the convolutional layer. Doing so reduces the depth of the network and in consequence the synthesis quality (first column, <ref type="figure">Fig. 9</ref>). Bringing this convolutional layer back produces smoother synthesis (second column, <ref type="figure">Fig. 9</ref>). However, in these examples the quality does not obviously improves with more additional layers (third column, <ref type="figure">Fig. 9</ref>).</p><p>Testing the D with 4, 64, and 128 channels for the convolutional layer, we observe in general that decreasing the number of channels leads to worse results (fourth column, <ref type="figure">Fig. 9</ref>), but there is no significance difference between 64 channels and 128 channels (second column v.s. fifth column). The complexity requirements also depend on the actual texture. For example, the ivy texture is <ref type="figure">Fig. 9</ref>: Different depths for training the discriminative netowrk. The input textures are "ropenet" from the project link of <ref type="bibr" target="#b18">[19]</ref>, <ref type="bibr" target="#b33">[34]</ref>'s "Ivy", and Pablo Picasso's "self portrait 1907". a rather simple MRF, so the difference between 4 channel and 64 channel are marginal, unlike in the other two cases.</p><p>Next, we fix the discriminative network and vary the complexity of the generative network. We notice some quality loss when removing the first convolutional layer from the decoder, or reducing the number of channels for all layers, and only very limited improvement from a more complex design. However the difference is not very significant. This is likely because the networks are all driven by the same discriminative network, and the reluctance of further improvement indicates there are some non-trivial information from the deconvolutional process that can not be recovered by a feed forward process. In particular, the fractionally-strided convolutions does not model the nonlinear behaviour of the max-pooling layer, hence often produces alias patterns. These become visible in homogeneous, texture-less area. To avoid artifacts but encourage texture variability, we can optionally add Perlin noise <ref type="bibr" target="#b27">[28]</ref> to the input image.</p><p>Initialization Usually, networks are initialized with random values. However we found D has certain generalization ability. Thus, for transferring the same texture to different images with MDANs, a previously trained network can serve as initialization. <ref type="figure" target="#fig_5">Figure 10</ref> shows initialization with pre-trained discriminative network (that has already transferred 50 face images) produces good result with only 50 iterations. In comparison, random initialization does not produce comparable quality even after the first 500 iterations. It is useful to initialize G with an auto-encoder that directly decodes the input feature to the original input photo. Doing so essentially approximates the process of inverting VGG 19, and let the whole adversarial network to be trained more stably.</p><p>The role of VGG: We also validate the importance of the pre-trained VGG 19 network. As the last two pictures in <ref type="figure" target="#fig_5">Figure 10</ref> show, training a discriminative network from scratch (from pixel to class label <ref type="bibr" target="#b28">[29]</ref>) yields significantly worse results. This has also been observed by Ulyanov et al. <ref type="bibr" target="#b31">[32]</ref>. Our explanation is that much of the statistical power of VGG stems from building shared feature cascades for a diverse set of images, thereby approaching human visual perception more closely than a network trained with a limited example set.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5">Results</head><p>This section shows examples of our MGANs synthesis results. We train each model with 100 randomly selected images from ImageNet, and a single example texture. We first produce 100 transferred images using the MDANs model, then regularly sample 128-by-128 image croppings as training data for MGANs. In total we have around 16k samples for each model. The training take as about 12 min per epoch. Each epoch min-batches through all samples in random order. We train each texture for upto five epochs. <ref type="figure" target="#fig_6">Figure 11</ref> compares our synthesis results with previous methods. First, our method has a very different character in comparison to the methods that use global statistics <ref type="bibr" target="#b31">[32,</ref><ref type="bibr" target="#b7">8]</ref>: It transfers texture more coherently, such as the hair of Lena was consistently mapped to dark textures. In contrast, the Gaussian model <ref type="bibr" target="#b31">[32,</ref><ref type="bibr" target="#b7">8]</ref> failed to keep such consistency, and have difficulty in transferring complicated image content. For example the eyes in <ref type="bibr" target="#b31">[32]</ref>'s result and the entire face in <ref type="bibr" target="#b7">[8]</ref>'s result are not textured. Since these features do not fit a Gaussian distribution, they are difficult to be constrained by a Gram matrix. The other local patch based approach <ref type="bibr" target="#b20">[21]</ref> produces the most coherent synthesis, due to the use of non-parametric sampling. However, their method requires patch matching so is significantly slower (generate this 384-by-384 picture in 110 seconds). Our method and Ulyanov et al. <ref type="bibr" target="#b31">[32]</ref> run at the same level of speed; both bring significantly improvement of speed over Gatys et al. <ref type="bibr" target="#b7">[8]</ref> (500 times faster) and Li et al. <ref type="bibr" target="#b20">[21]</ref> (5000 times faster).  <ref type="bibr" target="#b31">[32]</ref>, Gatys et al. <ref type="bibr" target="#b7">[8]</ref> and input images are from <ref type="bibr" target="#b31">[32]</ref>. <ref type="figure" target="#fig_0">Fig. 12</ref>: More comparisons with Texture Networks <ref type="bibr" target="#b31">[32]</ref>. Results of <ref type="bibr" target="#b31">[32]</ref> and input images are from <ref type="bibr" target="#b31">[32]</ref>. <ref type="figure" target="#fig_0">Figure 12</ref> further discuss the difference between the Gaussian based method <ref type="bibr" target="#b31">[32]</ref> and our method <ref type="bibr" target="#b3">4</ref> . In general <ref type="bibr" target="#b31">[32]</ref> produces more faithful color distributions in respect to the style image. It also texture background better (see the starry night example) due to the learning of mapping from noise to Gaussian distribution. On the other hand, our method produces more coherent texture transfer and does not suffer the incapability of Gaussian model for more complex scenarios, such as the facade in both examples. In comparison <ref type="bibr" target="#b31">[32]</ref> produces either too much or too little textures in such complex regions. <ref type="figure">Figure 13</ref> shows that unguided texture synthesis is possible by using the trained model to decode noise input. In this case, Perlin noise images are <ref type="bibr" target="#b3">4</ref> Since Ulyanov et al. <ref type="bibr" target="#b31">[32]</ref> and Johnson et al. <ref type="bibr" target="#b13">[14]</ref> are very similar approaches, in this paper we only compare to one of them <ref type="bibr" target="#b31">[32]</ref>. The main differences of <ref type="bibr" target="#b13">[14]</ref> are: 1) using a residual architecture instead of concatenating the outputs from different layers; 2) no additional noise in the decoding process. We need to use "brown" noise with spectrum decaying to the higher frequencies because flat "white" noise creates an almost flat response in the encoding of the VGG network. Somer lower-frequency structure is required to trigger the feature detectors in the discriminative network. forwarded through VGG to generate feature maps for the decoder. To our surprise, the model that was trained with random ImageNet images is able to decode such features maps to plausible textures. This again shows the generalization ability of our model. Last, <ref type="figure">Figure 13</ref> shows our video decoding result. As a feed-forward process our method is not only faster but also relatively more temporally coherent than the deconvolutional methods. <ref type="figure" target="#fig_2">Fig. 15</ref>: Left: speed comparison between our method and Ulyanov et al. <ref type="bibr" target="#b31">[32]</ref>. Right: speed comparison (in log space) between our method and Gatys et al. <ref type="bibr" target="#b7">[8]</ref>, Li et al. <ref type="bibr" target="#b20">[21]</ref>, and Ulyanov et al. <ref type="bibr" target="#b31">[32]</ref>. The feed-forward methods (ours and <ref type="bibr" target="#b31">[32]</ref>) are significantly faster than Gatys et al. <ref type="bibr" target="#b7">[8]</ref> (500 times speed up) and Li et al. <ref type="bibr" target="#b20">[21]</ref> (5000 times speed up).</p><p>Last but not the least, we provide details for the time/memory usage of our method. The time measurement is based on a standard benchmark framework <ref type="bibr" target="#b1">[2]</ref> ( <ref type="figure" target="#fig_2">Figure 15</ref>): Our speed is at the same level as the concurrent work by Ulyanov et al. <ref type="bibr" target="#b31">[32]</ref>, who also use a feed-forward approach, perform significantly faster than previous deconvolution based approaches <ref type="bibr" target="#b7">[8,</ref><ref type="bibr" target="#b20">21]</ref>. More precisely, both our method and Ulyanov et al. <ref type="bibr" target="#b31">[32]</ref> are able to decode 512-by-512 images at 25Hz <ref type="figure" target="#fig_2">(Figure 15</ref>, left), while <ref type="bibr" target="#b31">[32]</ref> leads the race by a very small margin. The time cost of both methods scale linearly with the number of pixels in the image. For example, our method cost 10 ms for a 256-by-256 image, 40 ms for a 512-by-512 image, and 160 ms for a 1024-by-1024 image. Both methods show a very significant improvement in speed over previous deconvolutional methods such as Gatys et al. <ref type="bibr" target="#b7">[8]</ref> and Li et al. <ref type="bibr" target="#b20">[21]</ref>  <ref type="figure" target="#fig_2">(Figure 15 right)</ref>: about 500 times faster than Gatys et al. <ref type="bibr" target="#b7">[8]</ref>, and 5000 times faster than Li et al. <ref type="bibr" target="#b20">[21]</ref>. In the meantime our method is also faster than most traditional pixel based texture synthesizers (which rely on expensive nearest-neighbor searching). A possible exceptions would be a GPU implementation of "Patch Match" <ref type="bibr" target="#b0">[1]</ref>, which could run at comparable speed. However, it provides the quality benefits (better blending, invariance) of a deepneural-network method (as established in previous work <ref type="bibr" target="#b7">[8,</ref><ref type="bibr" target="#b20">21]</ref>).</p><p>Memory-wise, our generative model takes 70 Mb memory for its parameters(including the VGG network till layer Relu4 1). At runtime, the required memory to decode a image linearly depends on the image's size: for a 256-bypicture it takes about 600 Mb, and for a 512-by-512 picture it requires about 2.5 Gb memory. Notice memory usage can be reduced by subdividing the input photo into blocks and run the decoding in a scanline fashion. However, we do not further explore the optimization of memory usage in this paper.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Limitation</head><p>Our current method works less well with non-texture data. For example, it failed to transfer facial features between two difference face photos. This is because facial features can not be treated as textures, and need semantic understanding (such as expression, pose, gender etc.). A possible solution is to couple our model with the learning of object class <ref type="bibr" target="#b28">[29]</ref> so the local statistics is better conditioned. For synthesizing photo-realistic textures, Li et al. <ref type="bibr" target="#b20">[21]</ref> often produces better results due to its non-parametric sampling that prohibits data distortion. However, the rigidity of their model restricts its application domain. Our method works better with deformable textures, and runs significantly faster.</p><p>Our model has a very different character compared to Gaussian based models <ref type="bibr" target="#b7">[8,</ref><ref type="bibr" target="#b31">32]</ref>. By capturing a global feature distribution, these other methods are able to better preserve the global "look and feels" of the example texture. In contrast, our model may deviate from the example texture in, for example, the global color distribution. However, such deviation may not always be bad when the content image is expected to play a more important role.</p><p>Since our model learns the mapping between different depictions of the same content, it requires features highly invariant features. For this reason we use the pre-trained VGG network. This makes our method weaker in dealing with highly stationary backgrounds (sky, out of focus region etc.) due to their weak activation from VGG 19. We observed that in general statistics based methods <ref type="bibr" target="#b31">[32,</ref><ref type="bibr" target="#b7">8]</ref> generate better textures for areas that has weak content, and our method works better for areas that consist of recognizable features. We believe it is valuable future work to combine the strength of both methods.</p><p>Finally, we discuss the noticeable difference between the results of MDANs and MGANs. The output of MGANs is often more consistent with the example texture, this shows MGANs' strength of learning from big data. MGANs has weakness in flat regions due to the lack of iterative optimization. More sophisticated architectures such as the recurrent neural networks can bring in state information that may improve the result.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7">Conclusion</head><p>The key insight of this paper is that adversarial generative networks can be applied in a Markovian setting to learn the mapping between different depictions of the same content. We develop a fully generative model that is trained from a single texture example and randomly selected images from ImageNet. Once trained, our model can decode brown noise to realistic texture, or photos into artworks. We show our model has certain advantages over the statistics based methods <ref type="bibr" target="#b31">[32,</ref><ref type="bibr" target="#b7">8]</ref> in preserving coherent texture for complex image content. Once trained (which takes about an hour per example), synthesis is extremely fast and offers very attractive invariance for style transfer.</p><p>Our method is only one step in the direction of learning generative models for images. An important avenue for future work would be to study the broader framework in a big-data scenario to learn not only Markovian models but also include coarse-scale structure models. This additional invariance to image layout could, as a side effect, open up ways to also use more training data for the Markovian model, thus permitting more complex decoders with stronger generalization capability over larger classes. The ultimate goal would be a directly decoding, generative image model of large classes of real-world images.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Fig. 2 :</head><label>2</label><figDesc>Our model contains a generative network (blue blocks) and a discriminative network (green blocks). We apply the discriminative training on Markovian neural patches (purple block as the input of the discriminative network.).</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Fig. 4 :</head><label>4</label><figDesc>Guided texture synthesis using MDANs. The reference textures are the same as inFigure 3.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Fig. 5 :</head><label>5</label><figDesc>Our MGANs learn a mapping from VGG 19 encoding of the input photo to the stylized example (MDANs). The reference style texture for MDANs is Pablo Picasso's "self portrait 1907". We compare the results of MGANs to Pixel VAE and Neural VAE in with both training and testing data.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Fig. 6 :</head><label>6</label><figDesc>Intermediate decoding results during the training of MGANs. The reference style texture for MDANs is Pablo Picasso's "self portrait 1907".</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Fig. 7 :</head><label>7</label><figDesc>Visualizing the learned features in the generative networks. Image credits:<ref type="bibr" target="#b33">[34]</ref>'s "Ivy", flickr user erwin brevis's "gell", Katsushika Hokusai's "The Great Wave off Kanagawa". create more natural backgrounds (such as regions with flat color), due to its iterative refinement. Despite such flaws, the MGANs model produces comparable results with a speed that is 25,000 times faster.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>Fig. 10 :</head><label>10</label><figDesc>Different initializations of the discriminative networks. The reference texture is Pablo Picasso's "self portrait 1907".</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_6"><head>Fig. 11 :</head><label>11</label><figDesc>Comparisons with previous methods. See more examples in our supplementary report. Results of Ulyanov et al.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_7"><head>Fig. 13 :Fig. 14 :</head><label>1314</label><figDesc>Generate random textures by decoding from Brown noise. Decoding a 1080-by-810 video. We achieved the speed of 8Hz. Input video is credited to flickr user macro antonio torres.</figDesc></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" n="3">strided convolution, ReLUs, batch normalization, removing fully connected layers</note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgments</head><p>This work has been partially supported by the Intel Visual Computing Institute and the Center for Computational Science Mainz. We like to thank Bertil Schmidt and Christian Hundt for providing additional computational resources.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Patchmatch: A randomized correspondence algorithm for structural image editing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Barnes</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Shechtman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Finkelstein</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">B</forename><surname>Goldman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Siggrah pp</title>
+		<imprint>
+			<biblScope unit="volume">24</biblScope>
+			<biblScope unit="issue">11</biblScope>
+			<biblScope unit="page">14</biblScope>
+			<date type="published" when="2009" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<monogr>
+		<title level="m" type="main">Easy benchmarking of all publicly accessible implementations of convnets</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Chintala</surname></persName>
+		</author>
+		<ptr target="https://github.com/soumith/convnet-benchmarks" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Deep generative image models using a laplacian pyramid of adversarial networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><forename type="middle">L</forename><surname>Denton</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Fergus</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Szlam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Chintala</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">NIPS</title>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="page">3</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<monogr>
+		<title level="m" type="main">Generating images with perceptual similarity metrics based on deep networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Dosovitskiy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Brox</surname></persName>
+		</author>
+		<idno>abs/1602.02644</idno>
+		<ptr target="http://arxiv.org/abs/1602.02644" />
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page">6</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<monogr>
+		<title level="m" type="main">Learning to generate chairs with convolutional neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Dosovitskiy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">T</forename><surname>Springenberg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Brox</surname></persName>
+		</author>
+		<idno>CoRR abs/1411.5928</idno>
+		<ptr target="http://arxiv.org/abs/1411.59283" />
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Image quilting for texture synthesis and transfer</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">A</forename><surname>Efros</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><forename type="middle">T</forename><surname>Freeman</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Siggraph. pp</title>
+		<imprint>
+			<date type="published" when="2001" />
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="page" from="341" to="346" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Texture synthesis and the controlled generation of natural stimuli using convolutional neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">A</forename><surname>Gatys</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">S</forename><surname>Ecker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Bethge</surname></persName>
+		</author>
+		<ptr target="http://arxiv.org/abs/1505.073763" />
+	</analytic>
+	<monogr>
+		<title level="j">NIPS</title>
+		<imprint>
+			<date type="published" when="2015-05" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<monogr>
+		<title level="m" type="main">A neural algorithm of artistic style</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">A</forename><surname>Gatys</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">S</forename><surname>Ecker</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Bethge</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="volume">14</biblScope>
+			<biblScope unit="page">15</biblScope>
+		</imprint>
+	</monogr>
+	<note>arXiv preprint; http://arxiv.org/abs/1508.06576 1, 2, 3, 4, 11, 12, 13</note>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<monogr>
+		<title level="m" type="main">Conditional generative adversarial nets for convolutional face generation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Gauthier</surname></persName>
+		</author>
+		<ptr target="http://www.foldl.me/2015/conditional-gans-face-generation/" />
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="page">3</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Generative adversarial nets</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Goodfellow</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Pouget-Abadie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Mirza</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Xu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Warde-Farley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Ozair</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Courville</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Bengio</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">NIPS. pp</title>
+		<imprint>
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="page">7</biblScope>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+	<note>3, 4, 6</note>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<monogr>
+		<title level="m" type="main">DRAW: A recurrent neural network for image generation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Gregor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Danihelka</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Graves</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wierstra</surname></persName>
+		</author>
+		<idno>abs/1502.04623</idno>
+		<ptr target="http://arxiv.org/abs/1502.04623" />
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="page">3</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Image analogies</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Hertzmann</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">E</forename><surname>Jacobs</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Oliver</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Curless</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">H</forename><surname>Salesin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Siggraph</title>
+		<imprint>
+			<date type="published" when="2001" />
+			<biblScope unit="page" from="327" to="340" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<monogr>
+		<title level="m" type="main">Generating images with recurrent adversarial networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">J</forename><surname>Im</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">D</forename><surname>Kim</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Jiang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Memisevic</surname></persName>
+		</author>
+		<idno>abs/1602.05110</idno>
+		<ptr target="http://arxiv.org/abs/1602.051103" />
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<monogr>
+		<title level="m" type="main">Perceptual losses for real-time style transfer and super-resolution</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Johnson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Alahi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><forename type="middle">F</forename><surname>Li</surname></persName>
+		</author>
+		<idno>abs/1603.08155</idno>
+		<ptr target="http://arxiv.org/abs/1603.08155v1" />
+		<imprint>
+			<date type="published" when="2016-03" />
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page">12</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<monogr>
+		<title level="m" type="main">Adam: A method for stochastic optimization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Ba</surname></persName>
+		</author>
+		<idno>abs/1412.6980</idno>
+		<ptr target="http://arxiv.org/abs/1412.69806" />
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<monogr>
+		<title level="m" type="main">Auto-encoding variational bayes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">P</forename><surname>Kingma</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Welling</surname></persName>
+		</author>
+		<idno>abs/1312.6114</idno>
+		<ptr target="http://arxiv.org/abs/1312.6114" />
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="volume">1</biblScope>
+			<biblScope unit="page">3</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<monogr>
+		<title level="m" type="main">Deep convolutional inverse graphics network</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">D</forename><surname>Kulkarni</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Whitney</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Kohli</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">B</forename><surname>Tenenbaum</surname></persName>
+		</author>
+		<idno>abs/1503.03167</idno>
+		<ptr target="http://arxiv.org/abs/1503.031673" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Texture optimization for examplebased synthesis</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Kwatra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Essa</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bobick</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Kwatra</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Siggraph</title>
+		<imprint>
+			<biblScope unit="volume">24</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page">6</biblScope>
+			<date type="published" when="2005" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Graphcut textures: Image and video synthesis using graph cuts</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Kwatra</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Schödl</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Essa</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Turk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Bobick</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">ACM Trans. Graph</title>
+		<imprint>
+			<biblScope unit="volume">22</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page">10</biblScope>
+			<date type="published" when="2003-07" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<monogr>
+		<title level="m" type="main">Autoencoding beyond pixels using a learned similarity metric</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">B L</forename><surname>Larsen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">K</forename><surname>Sønderby</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">O</forename><surname>Winther</surname></persName>
+		</author>
+		<idno>abs/1512.09300</idno>
+		<ptr target="http://arxiv.org/abs/1512.093003" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<monogr>
+		<title level="m" type="main">Combining markov random fields and convolutional neural networks for image synthesis</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Wand</surname></persName>
+		</author>
+		<idno>abs/1601.04589</idno>
+		<ptr target="http://arxiv.org/abs/1601.045891" />
+		<imprint>
+			<date type="published" when="2011" />
+			<biblScope unit="volume">13</biblScope>
+			<biblScope unit="page">14</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<monogr>
+		<title level="m" type="main">Deep learning face attributes in the wild</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Z</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Luo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Tang</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015" />
+			<publisher>ICCV</publisher>
+			<biblScope unit="page">7</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<monogr>
+		<title level="m" type="main">Understanding deep image representations by inverting them</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Mahendran</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Vedaldi</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2015" />
+			<publisher>CVPR</publisher>
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page">5</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<monogr>
+		<title level="m" type="main">Generating images from captions with attention</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Mansimov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Parisotto</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">J</forename><surname>Ba</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Salakhutdinov</surname></persName>
+		</author>
+		<idno>abs/1511.02793</idno>
+		<ptr target="http://arxiv.org/abs/1511.027933" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<monogr>
+		<title level="m" type="main">Inceptionism: Going deeper</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Mordvintsev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Olah</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Tyka</surname></persName>
+		</author>
+		<ptr target="http://googleresearch.blogspot.com/2015/06/inceptionism-going-deeper-into-neural.html" />
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page">3</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<monogr>
+		<title level="m" type="main">Multifaceted feature visualization: Uncovering the different types of features learned by each neuron in deep neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">M</forename><surname>Nguyen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Yosinski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Clune</surname></persName>
+		</author>
+		<idno>CoRR abs/1602.03616</idno>
+		<ptr target="http://arxiv.org/abs/1602.036163" />
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<monogr>
+		<title level="m" type="main">Pixel recurrent neural networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">V D</forename><surname>Oord</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Kalchbrenner</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Kavukcuoglu</surname></persName>
+		</author>
+		<idno>CoRR abs/1601.06759</idno>
+		<ptr target="http://arxiv.org/abs/1601.067593" />
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<analytic>
+		<title level="a" type="main">An image synthesizer</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Perlin</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">SIGGRAPH</title>
+		<imprint>
+			<biblScope unit="volume">19</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page">10</biblScope>
+			<date type="published" when="1985" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<monogr>
+		<title level="m" type="main">Unsupervised representation learning with deep convolutional generative adversarial networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Radford</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Metz</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Chintala</surname></persName>
+		</author>
+		<idno>abs/1511.06434</idno>
+		<ptr target="http://arxiv.org/abs/1511.064342" />
+		<imprint>
+			<date type="published" when="2015" />
+			<biblScope unit="volume">3</biblScope>
+			<biblScope unit="page">14</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Very deep convolutional networks for large-scale image recognition</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Simonyan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Zisserman</surname></persName>
+		</author>
+		<ptr target="http://arxiv.org/abs/1409.15562" />
+	</analytic>
+	<monogr>
+		<title level="j">CoRR</title>
+		<imprint>
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<monogr>
+		<title level="m" type="main">Striving for simplicity: The all convolutional net</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Springenberg</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Dosovitskiy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Brox</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Riedmiller</surname></persName>
+		</author>
+		<ptr target="http://lmb.informatik.uni-freiburg.de/Publications/2015/DB15a2" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<monogr>
+		<title level="m" type="main">Texture networks: Feedforward synthesis of textures and stylized images</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Ulyanov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Lebedev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Vedaldi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Lempitsky</surname></persName>
+		</author>
+		<idno>abs/1603.03417</idno>
+		<ptr target="http://arxiv.org/abs/1603.03417v13,4" />
+		<imprint>
+			<date type="published" when="2016-03" />
+			<biblScope unit="volume">7</biblScope>
+			<biblScope unit="page">15</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<analytic>
+		<title level="a" type="main">Fast texture synthesis using tree-structured vector quantization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">Y</forename><surname>Wei</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Levoy</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Siggraph</title>
+		<imprint>
+			<date type="published" when="2000" />
+			<biblScope unit="page">1</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Xie</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Lu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">C</forename><surname>Zhu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><forename type="middle">N</forename><surname>Wu</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:1602.03264</idno>
+		<ptr target="http://arxiv.org/abs/1602.032643" />
+		<title level="m">A theory of generative convnet</title>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="volume">6</biblScope>
+			<biblScope unit="page">10</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<monogr>
+		<title level="m" type="main">Attribute2image: Conditional image generation from visual attributes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">X</forename><surname>Yan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Sohn</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Lee</surname></persName>
+		</author>
+		<idno>abs/1512.00570</idno>
+		<ptr target="http://arxiv.org/abs/1512.005703" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<monogr>
+		<title level="m" type="main">Understanding neural networks through deep visualization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Yosinski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Clune</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><forename type="middle">M</forename><surname>Nguyen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Fuchs</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Lipson</surname></persName>
+		</author>
+		<idno>abs/1506.06579</idno>
+		<ptr target="http://arxiv.org/abs/1506.065793" />
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<monogr>
+		<title level="m" type="main">Visualizing and understanding convolutional networks</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><forename type="middle">D</forename><surname>Zeiler</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Fergus</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="volume">2</biblScope>
+			<biblScope unit="page">3</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

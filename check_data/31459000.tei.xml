@@ -1,0 +1,958 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 /Users/cindy/tmp/grobid-0.6.1/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Towards Deploying Decommissioned Mobile Devices as Cheap Energy-Efficient Compute Nodes</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Mohammad</forename><surname>Shahrad</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">Princeton University</orgName>
+							</affiliation>
+						</author>
+						<author>
+							<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">David</forename><surname>Wentzlaff</surname></persName>
+							<affiliation key="aff0">
+								<orgName type="institution">Princeton University</orgName>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Towards Deploying Decommissioned Mobile Devices as Cheap Energy-Efficient Compute Nodes</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.6.1" ident="GROBID" when="2021-01-31T12:42+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+				<p>The performance of mobile phone processors has been steadily increasing, causing the performance gap between server and mobile processors to narrow with mobile processors sporting superior performance per unit energy. Fueled by the slowing of Moore&apos;s Law, the overall performance of single-chip mobile and server processors have likewise plateaued. These trends and the glut of used and partially broken smartphones which become environmental e-waste motivate creating cloud servers out of decommissioned mobile phones. This work proposes creating a compute dense server built out of used and partially broken smartphones (e.g. screen can be broken). This work evaluates the total cost of ownership (TCO) benefit of using servers based on decommissioned mobile devices and analyzes some of the architectural design trade-offs in creating such servers.</p>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1">Introduction</head><p>The global sales of mobile devices surpassed PC sales in 2010 and is projected to grow. Smartphones alone are anticipated to have 6.3 billion subscriptions in 2021, double the number of subscribers in 2015 <ref type="bibr" target="#b0">[1]</ref>. This growing market has created extraordinary competition for relevant industries and has lead to a great innovation rate.</p><p>In particular, two trends have become visible: the performance gap between mobile system on chips (SoCs) and commodity desktop and server processors is shrinking, and TCO for mobile SoCs remains much lower than typical CPUs. The HPC community has seen this same trend switching from vector to RISC machines and then from RISC to x86 machines <ref type="bibr" target="#b29">[31]</ref>. Speculating that mobile SoCs will be the next cost-effective platform, academia, as well as industry, are building HPC and cloud systems using mobile SoCs <ref type="bibr" target="#b30">[32,</ref><ref type="bibr" target="#b18">19]</ref>.</p><p>While systems can be custom-built using mobile SoCs to achieve the best possible performance, we propose the  direct deployment of decommissioned (used) mobile devices in Infrastructure-as-a-Service (IaaS) clouds. The key idea is that after some time, mobile devices lose a significant portion of their value due to physical damage, slowdowns due to OS updates, etc.; whereas their processing power remains constant. Therefore, it makes economic sense to purchase cheap, low-power, used devices and only use their SoCs.</p><p>Deploying decommissioned mobile devices can be a major move towards green computing. This is mostly due to the fact that most of the carbon footprint of those devices comes from their production <ref type="bibr" target="#b11">[12]</ref>. Such deployment extends effective lifetime of mobile devices and decreases their average global warming potential (GWP), benefiting the environment.</p><p>Analyzing the mobile SoC performance for the last five years <ref type="figure" target="#fig_1">(Figure 1</ref>), we find two interesting trends. First, the end of Moore's Law is starting to kick in for mobile SoCs, which means soon, the relative performance gap of a new vs. a 3-year-old device will shrink. Second, the relative performance gap between high-end and low-end SoCs is shrinking, which enables having similar performance on a cheaper device. These trends reveal the promising opportunities for deploying used mobile devices in the near future.</p><p>In this paper, we explore the merits of deploying decommissioned mobile devices in data centers. We then investigate the possible applications that can benefit from them. We propose a design that efficiently integrates such devices in typical data centers and analyze the integration density. We finally compare the TCO of our proposed system to a performance-and density-comparable traditional server.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2">Background &amp; Motivation</head><p>In this section, we describe the primary motivations for deploying decommissioned mobile devices in the cloud and mention some similar efforts.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1">Performance and Power</head><p>Although mobile SoCs are relatively slower than commodity servers, the performance "gap is quickly being closed" <ref type="bibr" target="#b29">[31]</ref>. We used the publicly available data from PassMark's PerformanceTest Mobile benchmark <ref type="bibr" target="#b28">[29]</ref> to understand the CPU performance trends in Android mobile devices. In particular, CPUMark is a thorough measure of CPU performance which fully utilizes all CPU cores <ref type="bibr">[30]</ref>.</p><p>Comparing the CPUMark ratings of 350 different models versus their release dates ( <ref type="figure" target="#fig_1">Figure 1</ref>), two main trends are observed. First, the end of Moore's law is kicking in for mobile SoCs and their exponential rate of growth in computational performance has slowed down. Second, the relative performance gap between high-end and low-end mobile devices is shrinking.</p><p>Halpern et al. have observed that "the mobile CPU's single-core thermal design point (TDP) has saturated at around 1.5 W." <ref type="bibr" target="#b15">[16]</ref>. Moreover, newer smartphone generations have slightly lower energy efficiency as their power "consumption increases outweigh performance gains" <ref type="bibr" target="#b15">[16]</ref>. Deploying decommissioned devices in the cloud, the former observation guarantees that the percore power budget won't increase as devices scale, and the latter suggests that decommissioned devices have better overall energy efficiency.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2">State of Decommissioned Devices</head><p>Decommissioned mobile devices are anticipated to suffer from physical damage and/or reduced battery life. They might also be running legacy OSs, with fewer capabilities, or updated OSs, which usually run slower on older SoCs. Although all of these factors can seriously affect mobile user experience, they have no effect on the deployment of such devices as compute nodes, since their computational capacity is fixed.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.3">Environmental Benefits</head><p>Designed to work under tight energy constraints, mobile devices are more energy-efficient than commodity servers. Therefore their adoption can help further improve the energy efficiency of modern data centers. In addition, using decommissioned mobile devices can have a more specific advantage. The production phase of a mobile device consumes significantly more energy than the device's energy consumption under use <ref type="bibr" target="#b8">[9]</ref>. In fact, considering a three-year period, more than 80% of an average smartphone's carbon dioxide equivalent (CO 2 e) is due to its production <ref type="bibr" target="#b11">[12]</ref>. Therefore, extending the effective lifetime of such devices can decrease their average global warming potential (GWP) and benefit the environment.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Targeted Applications &amp; Services</head><p>Due to their energy efficiency and improved performance, ARM-based architectures have recently gained substantial attention for HPC and cloud infrastructure deployment. ARM multicores deliver good energy proportionality <ref type="bibr" target="#b6">[7]</ref> for server workloads <ref type="bibr" target="#b33">[35]</ref>. Researchers have explored the possibility of building ARM-based HPC clusters <ref type="bibr" target="#b29">[31,</ref><ref type="bibr" target="#b30">32]</ref>. HP has built the Moonshot system using Texas Instrument's (TI) KeyStone II SoCs, which incorporates TI DSPs and ARM processors <ref type="bibr" target="#b18">[19]</ref>. In March 2017, Microsoft announced a collaboration with Qualcomm to use their 48-core Centriq 2400 ARM-based SoC in its cloud platform and will support Windows Server for ARM.</p><p>The most promising applications for decommissioned mobile devices in the cloud include: 1) I/O-intensive applications. For I/O-intensive applications, the processing capacity remains underutilized due to I/O-induced idle cycles <ref type="bibr" target="#b34">[36]</ref>. Considering the fact that smaller processors generally have a better I/O to computation ratio, researchers have proposed systems to use low-end CPUs to match I/O and computation. For instance, the Fast Array of Wimpy Nodes (FAWN) <ref type="bibr" target="#b3">[4]</ref> uses embedded CPUs to provide two orders of magnitude more queries per Joule in a key-value storage system.</p><p>Modern mobile devices support high bandwidth I/O 1 , which is usually enough to saturate their SoC I/O capacity. This together with their ample RAM size enables I/O-intensive applications to run with less I/O-CPU mismatch on them. Moreover, the shrinking performance gap between ARM SoCs and commodity servers <ref type="bibr" target="#b29">[31]</ref> is resolving previous concerns about low quality-of-service of wimpy nodes <ref type="bibr" target="#b16">[17,</ref><ref type="bibr" target="#b17">18]</ref>. 2) Low-end VM provisioning. Cloud infrastructure providers provision low-end virtual machines (VMs) to the clients. For instance, Amazon EC2's burstable t2.nano and t2.micro instances have 0.5GB and 1GB of memory, respectively. Considering that common hypervisors such as KVM and Xen support virtualization for ARM <ref type="bibr" target="#b7">[8]</ref> and an average mobile device has more than 2GB of memory, IaaS providers can assign multiple of such miniature instances to each device.</p><p>3) GPU-accelerated dwarfs. GPU-accelerated instances offered by IaaS providers such as Amazon EC2 (P2 instances <ref type="bibr" target="#b2">[3]</ref>), GCE <ref type="bibr" target="#b14">[15]</ref>, and the Azure N Series <ref type="bibr" target="#b23">[24]</ref> use beefy accelerators, such as the NVIDIA K80. These instances are mainly designed to accelerate workloads with massive parallelism. However, mobile SoCs are equipped with smaller GPUs, primarily used for graphics rendering. This allows low-end GPU acceleration for small VMs to utilize platforms like OpenCL. Techniques such as Virtual Function I/O (VFIO) allow sharing an SoC's GPU between multiple tenants <ref type="bibr" target="#b24">[25]</ref>. 4) Low-end nodes for dynamic reliability platforms. Researchers have shown how heterogeneity of IaaS cloud resources can be utilized to serve different clients with various availability requirements <ref type="bibr" target="#b31">[33]</ref>. Decommissioned devices can be used as cheap nodes with lower reliability in order to diversify the reliability heterogeneity of the infrastructure. While the diversity of ISAs can limit the potential gains, there had been recent efforts towards cross-ISA migration <ref type="bibr" target="#b26">[27,</ref><ref type="bibr" target="#b35">37,</ref><ref type="bibr" target="#b4">5]</ref> and composable cores for IaaS systems <ref type="bibr" target="#b36">[38]</ref>. <ref type="figure" target="#fig_3">Figure 2</ref> shows our proposed server design that houses decommissioned mobile devices in standard server racks. As seen, mobile devices are held in cages with fixed size and don't have to be modified. Analyzing the dimensions of the 350 mobile device models used in <ref type="figure" target="#fig_1">Figure 1</ref>, we decided that each cage be 180×80×9mm. This fits more than 75% of those models, with most of the tablets not fitting. Adding three rows of fans, a network router, and a power supply, allows room for 84 cages (smartphones) with the spacing of 5.5mm for airflow. We will use this number to estimate other design parameters.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4">Data Center Integration</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1">Integration Density</head><p>The average number of CPU cores per device for the mobile devices we studied is about 5.6 (M=5.55, SD=1.97). This means our 2U server could fit around 470 cores and the core density would be 235 cores/1U. This core density number can help better interpret TCO analysis results in Section 4.4.</p><p>Server weight might be one possible concern with the dense deployment of mobile devices in standard racks since such mobile devices have many extraneous components. The average weight for devices fitting in our cage is about 160g. Together with other elements, we estimate the overall server component weight to be under 20kg, which is below the typical 2U weight of 25kg.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2">Networking</head><p>Mobile devices are equipped with multiple communication means such as USB ports, Wi-Fi, Bluetooth, etc. Büsching et al. has compared USB and WiFi to build a small smartphone cluster (6 devices) running the Linpack benchmark. They concluded that USB links scale slightly better <ref type="bibr" target="#b8">[9]</ref>. Our proposed platform, however, is at a much larger scale, having 84 devices per-server. In this section, we investigate and compare a number of different possible network architectures. <ref type="table" target="#tab_1">Table 1</ref> compares the performance for those network solutions.</p><p>1. USB Tree with a Master Node: A USB connection is required to power each device. A USB tree can be formed to connect all mobile devices to a master node. The master can then establish virtual Ethernet interfaces for mobile devices <ref type="bibr" target="#b8">[9]</ref>. <ref type="figure" target="#fig_2">Figure 3</ref> shows how such USB trees can be built efficiently, by matching the hubs to the uplink/downlink bandwidths. Here, the root hubs support USB 3.1 and their underlying hubs support USB 3.0.</p><p>2. USB On-The-Go (OTG): USB OTG enables Ethernet over USB for mobile devices using USB-Ethernet adapters <ref type="bibr" target="#b10">[11,</ref><ref type="bibr" target="#b9">10]</ref>. Special cables should be used to support charging while communicating <ref type="figure">(Figure 4</ref>). As shown in <ref type="table" target="#tab_1">Table 1</ref>, this solution can offer much higher network performance compared to the USB tree, depending on the capability of the network switch that mobile devices connect to. However, using more Ethernet ports requires more network switches, leading to a higher cost <ref type="bibr" target="#b5">[6]</ref>.  </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="10">10</head><p>Master Node Master Node Smartphones <ref type="figure" target="#fig_2">Figure 3</ref>: Two possible architectures for connecting mobile device using USB hubs in a server.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">Intra-server WiFi communication:</head><p>WiFi is another possible means of communicating with mobile devices in the server. This could be done by having a WiFi router inside each of these mobile farm servers. The metal case of the server attenuates the radio waves and the congestion risk with outside entities is reduced. However, due to the high density of transmitters and receivers, we anticipate the signal to noise (SNR) ratios to be very low and the channel to be highly congested. This means reduced bandwidth and more energy per bit for wireless communication. Although such a factor should be evaluated through precise empirical measurements, we think overcoming this issue with current WiFi standards can be fairly tricky. However, WiFi can still be used as a cheap complementary or redundant communication channel for deployed mobile devices.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3">Mobile Batteries as Distributed UPSs</head><p>Researchers have proposed using distributed UPSs <ref type="bibr" target="#b19">[20]</ref> or batteries <ref type="bibr" target="#b1">[2]</ref> to shave peak power in data centers. This allows installing more servers using the same power infrastructure and decreases the TCO.</p><p>The average battery capacity for devices we studied is slightly more than 3100mAh. Battery degradation de-</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>USB OTG Ethernet</head><p>Ethernet Switch</p><p>Upstream Network <ref type="figure">Figure 4</ref>: Mobile devices can connect to Ethernet via USB On-The-Go (OTG) and be charged simultaneously.</p><p>pends on the number of charging cycles, but even assuming a capacity loss of 15% per year, a 3-year-old device would have~61% of its capacity left (~1900mAh). Therefore, we can approximate a server with 84 used mobile devices to have a total capacity of~160Ah. This much capacity on a single server is 8 times denser than batteries used by Aksanli et al. <ref type="bibr" target="#b1">[2]</ref> and 4 times denser than distributed UPSs used by Kontorinis et al. <ref type="bibr" target="#b19">[20]</ref>.</p><p>The important takeaway here is that such a high battery capacity is a byproduct of deploying mobile devices and comes at no extra cost. Distributed batteries effectively dampen temporal power demand variations; shaving the peak power under high utilization, while storing energy under low utilization. The high energy storage density enables more aggressive power capping of servers that are filled with used mobile devices.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.4">Total Cost of Ownership Analysis</head><p>In order to have a fair comparison between our proposed system and existing servers, we select a server which has roughly similar performance as our 84-node server. We use Geekbench 4 <ref type="bibr" target="#b13">[14]</ref>, which is a cross-platform benchmark. We pick the Samsung Galaxy Note 4 as a threeyear-old device. This phone's multicore Geekbench 4 performance grade is 3060. As seen in <ref type="table" target="#tab_3">Table 2</ref>, to have a similar performance density, we select the Lenovo Flex System x880 X6 server <ref type="bibr" target="#b20">[21]</ref> with two Intel Xeon E7-8890 v3 processors. Although this server supports up to 48 DDR3 memory DIMMs, we consider using only eighteen 2 8GB DDR3 DIMMs (144 GB) to have a similar RAM density. Also, using two 800GB SSDs leads to a very similar storage density to the case where only internal storage of smartphones (32 GB each) is used. <ref type="table">Table 3</ref> presents the details of our TCO analysis. We used the OuterVision Power Supply Calculator <ref type="bibr" target="#b27">[28]</ref> to estimate the power consumption of non-CPU components of System A as listed in <ref type="table" target="#tab_3">Table 2</ref> and based our CPU power calculations on 90% of TDP. We also assumed our   <ref type="table">Table 3</ref>: Capital expenditure (CAPEX) and operational expense (OPEX) for two systems described in <ref type="table" target="#tab_3">Table 2</ref>.</p><p>proposed server to have twice the monitoring, engineering, and installation cost compared to a standard server. Using the CAPEX and OPEX values calculated in <ref type="table">Table 3</ref> we performed TCO analysis, results of which are reflected in <ref type="figure" target="#fig_5">Figure 5</ref>. To include residual values after deployment lifetime for these systems, we considered annual depreciation rates (δ ) of 45% and 77.5%, which translate into only 5% of initial value after 5 and 2 years, respectively. We also studied the case where servers have no residual value after deployment (δ =100%), which occurs when they cannot be resold. The right sub-figures in <ref type="figure" target="#fig_5">Figure 5</ref> compare TCO when those two servers have different lifetimes. This analysis is essential for a fair comparison because we anticipate our proposed server to have a shorter lifetime compared to a new high-end server. It can be seen that with much shorter lifetimes, our proposed server can deliver better TCO values. It also shows how the equal-TCO margin (the line between light and dark areas) varies for different depreciation rates.</p><p>Server A that can achieve a similar density of performance, memory, and storage compared to our proposed server (Server B) has a much higher CAPEX, with slightly lower OPEX. <ref type="figure" target="#fig_5">Figure 5</ref> indicates that for a typical deployment cycle of an expensive high-end server, CAPEX is the dominant term. That is the motivation behind deploying used mobile devices that have low CAPEX but can be used to build dense servers with low power consumption. The power consumption of our proposed server together with a master node is slightly lower than the high-end server we are comparing against.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Discussion and Future Work</head><p>The debate around "wimpy" (low-performance) versus "brawny" (high-performance) cores has been ongoing for the past decade with proponents on both sides <ref type="bibr" target="#b3">[4,</ref><ref type="bibr" target="#b25">26,</ref><ref type="bibr" target="#b16">17,</ref><ref type="bibr" target="#b17">18]</ref>. Undoubtedly, their relative merits highly depend on the application and environment. However, we  believe some trends should be considered in that discussion. First, wimpy cores have evolved to catch up with higher performance processors, narrowing the gap; second, wimpy and brawny cores can be deployed heterogeneously; third, manycore architectures are widely used in data centers today <ref type="bibr" target="#b22">[23]</ref> and utilizing high parallelism is not unusual; and finally, some emerging applications support very high parallelism <ref type="bibr" target="#b12">[13]</ref>. We expect this work to fuel the wimpy versus brawny discussion regarding those aspects.</p><p>In this paper, we mentioned four classes of applications that can benefit from the proposed environment, some of which are unprecedented. In future work, we will explore additional killer applications for this platform.</p><p>Reliability of used mobile devices can be a concern since mobile SoCs and memories (DRAM and flash) might age faster under continuous data center workloads. Although we modeled this in our TCO analysis using a higher depreciation rate, empirical tests are required to precisely model smartphone aging under such workloads.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6">Conclusion</head><p>In this work, we proposed deploying decommissioned mobile devices in clusters as well as IaaS clouds. We argue that this makes economic sense considering the CPU performance trend for those devices and enumerate a few major motivations to do so, including decreasing the global warming potential of mobile devices by extending their lifetime. We listed a number of applications that can benefit from our proposed architecture. We discussed how those mobile devices can be integrated into the data center and performed a TCO analysis to compare our proposed server with a conventional server that has similar computational, memory, and storage densities. The results showed that our proposed system is cheaper even with a higher depreciation rate.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Figure 1 :</head><label>1</label><figDesc>CPU performance trend for Android mobile devices.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>USB 3 .</head><label>3</label><figDesc>1 introduced in July 2013 supports transfer rates up to 10Gbps.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Figure 2 :</head><label>2</label><figDesc>A standard 19-inch 2U server can gracefully lodge 84 typical mobile devices, 3 rows of fans, a network router, and a power supply.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>Figure 5 :</head><label>5</label><figDesc>TCO analysis of sytems described in the Table 2 with different annual depreciation rate (δ ) values. In the last case, δ = 100% means no residual value.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>Table 1 :</head><label>1</label><figDesc>Peak and mean performance comparison of multiple proposed network architectures.</figDesc><table><row><cell>10 10</cell><cell>10</cell></row><row><cell>(a) USB Tree A</cell><cell>(b) USB Tree B</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_2"><head></head><label></label><figDesc>Although 19 DIMMs lead to a more similar number, for this specific server DIMMs should be used in pairs.</figDesc><table><row><cell cols="2">System Server</cell><cell>CPU/SoC</cell><cell>Server Height</cell><cell>CPU per Server</cell><cell>Grade per CPU</cell><cell>Total RAM</cell><cell>Total Storage</cell><cell cols="3">Per Rack Unit (1U) Grade Memory Storage</cell></row><row><cell>A</cell><cell>Lenovo Flex System x880 X6 [21]</cell><cell>Intel Xeon E7-8890 v3</cell><cell>1.2U</cell><cell></cell><cell>74482 [14]</cell><cell>GB (18×8)</cell><cell>1.56 TB (2×800GB)</cell><cell>124,137</cell><cell>GB</cell><cell>1.30 TB</cell></row><row><cell>B</cell><cell>Proposed Server</cell><cell>Snapdragon 805 (Samsung Galaxy Note 4)</cell><cell>2U</cell><cell></cell><cell>[14]</cell><cell>GB (84×3)</cell><cell>2.63 TB (84×32GB)</cell><cell>128,520</cell><cell>GB</cell><cell>1.32 TB</cell></row></table><note></note></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_3"><head>Table 2 :</head><label>2</label><figDesc>Platforms chosen for total cost of ownership (TCO) study.</figDesc><table><row><cell>TCO Component</cell><cell>Parameter</cell><cell>Server A Cost ($)</cell><cell>Server B Cost ($)</cell></row><row><cell></cell><cell>Server Unit Price</cell><cell>$26,545</cell><cell>-</cell></row><row><cell></cell><cell>Memory DIMMs</cell><cell>18×$95=$1,710</cell><cell>-</cell></row><row><cell></cell><cell>Intel 800GB SSD</cell><cell>2×$620=$1,240</cell><cell>-</cell></row><row><cell></cell><cell>Used Galaxy Note 4</cell><cell>-</cell><cell>84×$160=$13,440</cell></row><row><cell></cell><cell>Power Supply</cell><cell>-</cell><cell>$50-$150</cell></row><row><cell></cell><cell>Server Fans</cell><cell>-</cell><cell>12×$10 = $120</cell></row><row><cell></cell><cell>USB Cabling</cell><cell cols="2">-~$100</cell></row><row><cell></cell><cell>Network Router(s)</cell><cell cols="2">-~$300</cell></row><row><cell></cell><cell>Server Case</cell><cell cols="2">-~$50</cell></row><row><cell></cell><cell>Master Node (Lenovo ThinkServer RS160 [22])</cell><cell cols="2">-~$725</cell></row><row><cell></cell><cell>2-port 10Gb Network Card</cell><cell cols="2">Included in Unit Price~$400</cell></row><row><cell>CAPEX</cell><cell cols="3">Total~$29,495~$15,235</cell></row><row><cell></cell><cell>CPU per Server</cell><cell></cell><cell>84</cell></row><row><cell></cell><cell>TDP per CPU</cell><cell>165W [21]</cell><cell>3.5W [16]</cell></row><row><cell></cell><cell>CPU Utilization</cell><cell>90% TDP</cell><cell>90% TDP</cell></row><row><cell></cell><cell cols="2">Non-CPU Power~200W [28]</cell><cell>-</cell></row><row><cell></cell><cell>Router Power</cell><cell>-</cell><cell>20W [34]</cell></row><row><cell></cell><cell>Fan Power</cell><cell cols="2">-~25W</cell></row><row><cell></cell><cell>Master Node Power (NIC Included)</cell><cell cols="2">-~165W [28]</cell></row><row><cell></cell><cell cols="3">Total Power~500W [28]~475W</cell></row><row><cell></cell><cell cols="3">Monthly kWh~360~342</cell></row><row><cell></cell><cell>Electricity Unit Cost [6]</cell><cell>$0.10/kWh</cell><cell>$0.10/kWh</cell></row><row><cell></cell><cell>Electricity Cost</cell><cell>$36.0</cell><cell>$34.2</cell></row><row><cell></cell><cell>Server Height (Rack Unit)</cell><cell>1.2</cell><cell>+ 1(Master Node)</cell></row><row><cell></cell><cell>Facility Space Depreciation [20]</cell><cell>$4.15</cell><cell>$10.38</cell></row><row><cell></cell><cell>Infrastructure Depreciation [20]</cell><cell>$8.54</cell><cell>$8.54</cell></row><row><cell></cell><cell>Monitoring, Engineering, and Installation</cell><cell>$9.13 [20]</cell><cell>2×$9.13=$18.26</cell></row><row><cell></cell><cell>PUE Overhead (PUE=1.8 [6])</cell><cell>$28.8</cell><cell>$27.4</cell></row><row><cell>OPEX (monthly)</cell><cell>Total</cell><cell>$86.62</cell><cell>$98.74</cell></row></table><note></note></figure>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Acknowledgments</head><p>This work was partially supported by the NSF under Grants No. CCF-1217553, CCF-1453112, and CCF-1438980, AFOSR under Grant No. FA9550-14-1-0148, and DARPA under Grant No. N66001-14-1-4040. Any opinions, findings, and conclusions or recommendations expressed in this material are those of the authors and do not necessarily reflect the views of our sponsors.</p></div>
+			</div>
+
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct xml:id="b0">
+	<analytic>
+		<title/>
+	</analytic>
+	<monogr>
+		<title level="j">Ericsson mobility report. Tech. rep., Ericsson</title>
+		<imprint>
+			<date type="published" when="2016-06" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Architecting efficient peak power shaving using batteries in data centers</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Aksanli</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Pettis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Rosing</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE 21st International Symposium on Modelling, Analysis and Simulation of Computer and Telecommunication Systems</title>
+		<imprint>
+			<date type="published" when="2013-08" />
+			<biblScope unit="page" from="242" to="253" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b2">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Web</forename><surname>Amazon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Services</surname></persName>
+		</author>
+		<title level="m">Amazon EC2 P2 instances</title>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b3">
+	<analytic>
+		<title level="a" type="main">FAWN: A fast array of wimpy nodes</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">G</forename><surname>Andersen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Franklin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Kaminsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Phan-Ishayee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Tan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Vasudevan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the ACM SIGOPS 22nd Symposium on Operating Systems Principles</title>
+		<meeting>the ACM SIGOPS 22nd Symposium on Operating Systems Principles<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2009" />
+			<biblScope unit="page" from="1" to="14" />
+		</imprint>
+	</monogr>
+	<note>SOSP &apos;09, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Breaking the boundaries in heterogeneous-ISA datacenters</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Barbalace</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Lyerly</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Jelesnianski</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Carno</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H.-R</forename><surname>Chuang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Legout</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Ravindran</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 22nd Int. Conference on Architectural Support for Programming Languages and Operating Systems</title>
+		<meeting>the 22nd Int. Conference on Architectural Support for Programming Languages and Operating Systems<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="645" to="659" />
+		</imprint>
+	</monogr>
+	<note>ASPLOS &apos;17, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b5">
+	<analytic>
+		<title level="a" type="main">The datacenter as a computer: An introduction to the design of warehousescale machines</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">A</forename><surname>Barroso</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Clidaras</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">U</forename><surname>Hölzle</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Synthesis Lectures on Computer Architecture</title>
+		<imprint>
+			<biblScope unit="volume">8</biblScope>
+			<biblScope unit="page" from="1" to="154" />
+			<date type="published" when="2013" />
+		</imprint>
+	</monogr>
+	<note>second edition</note>
+</biblStruct>
+
+<biblStruct xml:id="b6">
+	<analytic>
+		<title level="a" type="main">The case for energyproportional computing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">A</forename><surname>Barroso</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">U</forename><surname>Hölzle</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Computer</title>
+		<imprint>
+			<biblScope unit="volume">40</biblScope>
+			<biblScope unit="page" from="33" to="37" />
+			<date type="published" when="2007-12" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Hardware and software support for virtualization</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Bugnion</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Nieh</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Tsafrir</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Synthesis Lectures on Computer Architecture</title>
+		<imprint>
+			<biblScope unit="volume">12</biblScope>
+			<biblScope unit="page" from="1" to="206" />
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b8">
+	<analytic>
+		<title level="a" type="main">DroidCluster: Towards smartphone cluster computing -the streets are paved with potential computer clusters</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">F</forename><surname>Büsching</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Schildt</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Wolf</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2012 32nd International Conference on Distributed Computing Systems Workshops</title>
+		<imprint>
+			<date type="published" when="2012-06" />
+			<biblScope unit="page" from="114" to="117" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b9">
+	<analytic>
+		<title level="a" type="main">A case for leveraging 802.11p for direct phone-to-phone communications</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Choi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Gao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Ramanathan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Mao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Xu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><forename type="middle">C</forename><surname>Boon</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><forename type="middle">A</forename><surname>Fahmy</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">S</forename><surname>Peh</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE/ACM International Symposium on Low Power Electronics and Design (ISLPED)</title>
+		<imprint>
+			<date type="published" when="2014-08" />
+			<biblScope unit="page" from="207" to="212" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Towards energy-aware intrusion detection systems on mobile devices</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Curti</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Merlo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Migliardi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Schiap-Pacasse</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2013 International Conference on High Performance Computing Simulation (HPCS)</title>
+		<imprint>
+			<date type="published" when="2013-07" />
+			<biblScope unit="page" from="289" to="296" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Life cycle assessment of a smartphone</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Ercan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Malmodin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Bergmark</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Kimfalk</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Nilsson</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">4th International Conference on ICT for Sustainability</title>
+		<imprint>
+			<date type="published" when="2016" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Encoding, fast and slow: Lowlatency video processing using thousands of tiny threads</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Fouladi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><forename type="middle">S</forename><surname>Wahby</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Shacklett</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><forename type="middle">V</forename><surname>Balasubra-Maniam</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">W</forename><surname>Zeng</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">R</forename><surname>Bhalerao</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Sivaraman</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><surname>Porter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Winstein</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">14th USENIX Symposium on Networked Systems Design and Implementation (NSDI 17</title>
+		<meeting><address><addrLine>Boston, MA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2017" />
+			<biblScope unit="page" from="363" to="376" />
+		</imprint>
+	</monogr>
+	<note>USENIX Association</note>
+</biblStruct>
+
+<biblStruct xml:id="b13">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Geekbench</forename><surname>Software</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Geekbench</surname></persName>
+		</author>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b14">
+	<monogr>
+		<title level="m" type="main">GPUs on compute engine</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Google</forename><surname>Cloud Platform</surname></persName>
+		</author>
+		<ptr target="https://cloud.google.com/compute/docs/gpus/" />
+		<imprint>
+			<biblScope unit="page" from="2017" to="2020" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b15">
+	<analytic>
+		<title level="a" type="main">Mobile CPU&apos;s rise to power: Quantifying the impact of generational mobile CPU design trends on performance, energy, and user satisfaction</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Halpern</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Zhu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><forename type="middle">J</forename><surname>Reddi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2016 IEEE International Symposium on High Performance Computer Architecture (HPCA)</title>
+		<imprint>
+			<date type="published" when="2016-03" />
+			<biblScope unit="page" from="64" to="76" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b16">
+	<analytic>
+		<title level="a" type="main">Web search using mobile cores: Quantifying and mitigating the price of efficiency</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Janapa Reddi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">C</forename><surname>Lee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Chilimbi</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Vaid</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 37th Annual International Symposium on Computer Architecture</title>
+		<meeting>the 37th Annual International Symposium on Computer Architecture<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2010" />
+			<biblScope unit="page" from="314" to="325" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b17">
+	<analytic>
+		<title level="a" type="main">Profiling a warehouse-scale computer</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Kanev</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><forename type="middle">P</forename><surname>Darago</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Hazelwood</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><surname>Ran-Ganathan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Moseley</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">G</forename><forename type="middle">Y</forename><surname>Wei</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Brooks</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2015 ACM/IEEE 42nd Annual International Symposium on Computer Architecture (ISCA</title>
+		<imprint>
+			<date type="published" when="2015-06" />
+			<biblScope unit="page" from="158" to="169" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b18">
+	<analytic>
+		<title level="a" type="main">The Machine: An architecture for memory-centric computing</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">K</forename><surname>Keeton</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Workshop on Runtime and Operating Systems for</title>
+		<meeting><address><addrLine>Supercomputers (ROSS</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2015" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Managing distributed UPS energy for effective power capping in data centers</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Kontorinis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><forename type="middle">E</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><surname>Aksanli</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Sampson</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Homayoun</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">E</forename><surname>Pettis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">M</forename><surname>Tullsen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><forename type="middle">S</forename><surname>Rosing</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">39th Annual International Symposium on Computer Architecture (ISCA</title>
+		<imprint>
+			<date type="published" when="2012-06" />
+			<biblScope unit="page" from="488" to="499" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b20">
+	<monogr>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Lenovo Inc</surname></persName>
+		</author>
+		<ptr target="https://lenovopress.com/tips1286.pdf" />
+		<title level="m">Lenovo Flex system X6 compute nodes</title>
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b21">
+	<monogr>
+		<title level="m" type="main">Lenovo ThinkServer RS160</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Lenovo Inc</surname></persName>
+		</author>
+		<ptr target="https://lenovopress.com/lp0553.pdf" />
+		<imprint>
+			<date type="published" when="2017" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Piton: A manycore processor for multitenant clouds</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Mckeown</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Fu</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Nguyen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Zhou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Balkind</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Lavrov</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Shahrad</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Payne</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wentzlaff</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Micro</title>
+		<imprint>
+			<biblScope unit="volume">37</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="70" to="80" />
+			<date type="published" when="2017-03" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b23">
+	<monogr>
+		<title level="m" type="main">Virtual machine series</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Microsoft Azure</surname></persName>
+		</author>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b24">
+	<analytic>
+		<title level="a" type="main">Platform device assignment to KVM-on-ARM virtual machines via VFIO</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Motakis</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Rigo</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Raho</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">12th IEEE International Conference on Embedded and Ubiquitous Computing</title>
+		<imprint>
+			<date type="published" when="2014-08" />
+			<biblScope unit="page" from="170" to="177" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Challenges and opportunities for extremely energy-efficient processors</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">T</forename><surname>Mudge</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">U</forename><surname>Hölzle</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Micro</title>
+		<imprint>
+			<biblScope unit="volume">30</biblScope>
+			<biblScope unit="issue">4</biblScope>
+			<biblScope unit="page" from="20" to="24" />
+			<date type="published" when="2010-07" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Cross-ISA container migration</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Nider</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Rapoport</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 9th ACM International on Systems and Storage Conference</title>
+		<meeting>the 9th ACM International on Systems and Storage Conference<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="volume">24</biblScope>
+			<biblScope unit="page">1</biblScope>
+		</imprint>
+	</monogr>
+	<note>SYSTOR &apos;16, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b27">
+	<monogr>
+		<title level="m" type="main">Outervision ® power supply calculator</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Outervision</surname></persName>
+		</author>
+		<ptr target="https://outervision.com/power-supply-calculator" />
+		<imprint>
+			<biblScope unit="page" from="2017" to="2022" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b28">
+	<monogr>
+		<title/>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Passmark</forename><surname>Performancetest Mobile</surname></persName>
+		</author>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Supercomputing with commodity CPUs: Are mobile SoCs ready for HPC?</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Rajovic</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">P</forename><forename type="middle">M</forename><surname>Carpenter</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Gelado</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Puzovic</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Ramirez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Valero</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the International Conference on High Performance Computing, Networking, Storage and Analysis</title>
+		<meeting>the International Conference on High Performance Computing, Networking, Storage and Analysis<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="volume">40</biblScope>
+			<biblScope unit="page">12</biblScope>
+		</imprint>
+	</monogr>
+	<note>SC &apos;13, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Making the case for an ARMbased HPC system</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Rajovic</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Rico</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">N</forename><surname>Puzovic</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">C</forename><surname>Adeniyi-Jones</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Ramirez</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Tibidabo</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Future Generation Computer Systems</title>
+		<imprint>
+			<biblScope unit="volume">36</biblScope>
+			<biblScope unit="page" from="322" to="334" />
+			<date type="published" when="2014" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b31">
+	<analytic>
+		<title level="a" type="main">Availability Knob: Flexible user-defined availability in the cloud</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Shahrad</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wentzlaff</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Seventh ACM Symposium on Cloud Computing</title>
+		<meeting>the Seventh ACM Symposium on Cloud Computing<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="42" to="56" />
+		</imprint>
+	</monogr>
+	<note>SoCC &apos;16, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b32">
+	<monogr>
+		<title level="m" type="main">TPCDB. The power consumption database</title>
+		<imprint/>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b33">
+	<analytic>
+		<title level="a" type="main">On understanding the energy consumption of ARM-based multicore servers</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">B</forename><forename type="middle">M</forename><surname>Tudor</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><forename type="middle">M</forename><surname>Teo</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the ACM SIGMETRICS/International Conference on Measurement and Modeling of Computer Systems</title>
+		<meeting>the ACM SIGMETRICS/International Conference on Measurement and Modeling of Computer Systems<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2013" />
+			<biblScope unit="page" from="267" to="278" />
+		</imprint>
+	</monogr>
+	<note>SIGMETRICS &apos;13, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b34">
+	<analytic>
+		<title level="a" type="main">Fawndamentally power-efficient clusters</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">V</forename><surname>Vasudevan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">J</forename><surname>Franklin</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">G</forename><surname>Andersen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Phan-Ishayee</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">L</forename><surname>Tan</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">M</forename><surname>Kaminsky</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">I</forename><surname>Moraru</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">HotOS</title>
+		<imprint>
+			<date type="published" when="2009" />
+			<biblScope unit="volume">9</biblScope>
+			<biblScope unit="page" from="22" to="22" />
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct xml:id="b35">
+	<analytic>
+		<title level="a" type="main">Heterogeneous-ISA program state relocation</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">A</forename><surname>Venkat</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">S</forename><surname>Shamasunder</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">H</forename><surname>Shacham</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><forename type="middle">M</forename><surname>Tullsen</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><surname>Hipstr</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 21st International Conference on Architectural Support for Programming Languages and Operating Systems</title>
+		<meeting>the 21st International Conference on Architectural Support for Programming Languages and Operating Systems<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2016" />
+			<biblScope unit="page" from="727" to="741" />
+		</imprint>
+	</monogr>
+	<note>ASPLOS &apos;16, ACM</note>
+</biblStruct>
+
+<biblStruct xml:id="b36">
+	<analytic>
+		<title level="a" type="main">The sharing architecture: Subcore configurability for IaaS clouds</title>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">Y</forename><surname>Zhou</surname></persName>
+		</author>
+		<author>
+			<persName xmlns="http://www.tei-c.org/ns/1.0"><forename type="first">D</forename><surname>Wentzlaff</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 19th International Conference on Architectural Support for Programming Languages and Operating Systems</title>
+		<meeting>the 19th International Conference on Architectural Support for Programming Languages and Operating Systems<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<date type="published" when="2014" />
+			<biblScope unit="page" from="559" to="574" />
+		</imprint>
+	</monogr>
+	<note>ASPLOS &apos;14, ACM</note>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

@@ -134,30 +134,21 @@ def xml2json(info_path='../dataset/abstract_info.json', xml_path='../check_data'
         root = dom.getroot()
 
         body = root.findall(ns_tag('body', 'div'))
+        section_name, section_content = [], []
 
         for div in body:
             head = div.find(ns_tag('head'))
-
-            try:
-                head_text = etree.tostring(head, encoding='utf-8', method='text')
-            except:
-                print(i, it['id'], "  div num: ", len(body))
-                continue
-
             ps = div.findall(ns_tag('p'))
-            p_text = ""
             if not ps:
+                print('no content found in ', i, it['id'])
                 continue
-            p_text = " ".join([etree.tostring(p, encoding='utf-8', method='text').decode('utf-8') for p in ps])
+            section_name.append(etree.tostring(head, encoding='utf-8', method='text').decode('utf-8'))
+            section_content.append(" ".join([etree.tostring(p, encoding='utf-8', method='text').
+                                            decode('utf-8') for p in ps]))
+        abs_info[i]['section_name'] = section_name
+        abs_info[i]['section_content'] = section_content
+    with open("../dataset/train.json", 'w') as f:
+        json.dump(abs_info, f)
 
-            # print(head_text)
-            # print(p_text)
 
-
-        # print("***")
-
-        #break
-
-a = " ". join(['sd'])
-print(a)
 xml2json()

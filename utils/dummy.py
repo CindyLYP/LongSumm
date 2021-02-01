@@ -80,9 +80,9 @@ def gen_abstract_data():
     for subdir, dirs, files in os.walk('../abstractive_papers'):
         for file in files:
             pdf_id.append(file.replace(".pdf", ''))
-    pdf_id.remove('.DS_Store')
+    if '.DS_Store' in pdf_id:
+        pdf_id.remove('.DS_Store')
     print(len(pdf_id))
-    print(pdf_id)
     c_pdf, b_pdf = [], []
     for pdf in tot_pdf:
         if str(pdf['id']) in pdf_id:

@@ -4,6 +4,8 @@ import os
 from xml.etree.ElementTree import parse
 from lxml import etree
 from xml.etree.ElementTree import iterparse
+import pandas as pd
+import re
 
 
 import tensorflow as tf
@@ -116,7 +118,7 @@ def read_tf_record(filepath='/data/ysc/tensorflow_datasets/scientific_papers/'
     return x, y
 
 
-def xml2json(info_path='./dataset/abstract_info.json', xml_path='./check_data'):
+def xml2json(info_path='../dataset/abstract_info.json', xml_path='../check_data'):
 
     def ns_tag(*args):
         ns = "/{http://www.tei-c.org/ns/1.0}"
@@ -125,28 +127,37 @@ def xml2json(info_path='./dataset/abstract_info.json', xml_path='./check_data'):
 
     with open(info_path, 'r') as f:
         abs_info = json.load(f)
-    for it in abs_info:
+    for i, it in enumerate(abs_info):
         xml_file = xml_path + os.sep + str(it['id']) + '.tei.xml'
 
-        # for evt, elem in iterparse(xml_file, ('end', 'start-ns', 'end-ns')):
-        #     print(evt, elem)
         dom = etree.parse(xml_file)
-
         root = dom.getroot()
-        f = ns_tag('abstract')
-        f1 = ns_tag('abstract','p')
-        abstract = root.find(ns_tag('abstract', 'p')).xpath('text()')
-        print(abstract)
 
         body = root.findall(ns_tag('body', 'div'))
-        print("div num: ", len(body))
+
         for div in body:
-            head = div.find(ns_tag('head')).xpath('text()')
-            print(head)
-        print("***")
+            head = div.find(ns_tag('head'))
 
-        break
+            try:
+                head_text = etree.tostring(head, encoding='utf-8', method='text')
+            except:
+                print(i, it['id'], "  div num: ", len(body))
+                continue
+
+            ps = div.findall(ns_tag('p'))
+            p_text = ""
+            if not ps:
+                continue
+            p_text = " ".join([etree.tostring(p, encoding='utf-8', method='text').decode('utf-8') for p in ps])
+
+            # print(head_text)
+            # print(p_text)
 
 
+        # print("***")
 
+        #break
+
+a = " ". join(['sd'])
+print(a)
 xml2json()

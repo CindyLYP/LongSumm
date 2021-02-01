@@ -37,9 +37,4 @@ dataset = tfds.load('scientific_papers/arxiv', data_dir='/data/ysc/tensorflow_da
 scorer = rouge_scorer.RougeScorer(["rouge1", "rouge2", "rougeLsum"], use_stemmer=True)
 aggregator = scoring.BootstrapAggregator()
 
-for ex in tqdm(dataset.take(20), position=0):
-    print(ex)
-    print("##"*32)
-    print(ex[0])
-    print("##"*32)
-    print(ex[1])
+

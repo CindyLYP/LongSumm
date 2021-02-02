@@ -11,7 +11,7 @@ def gen_train_data(path='train.json'):
         summary = " ".join(d['summary'])
         article_words = len(article.split())
         summary_words = len(summary.split())
-        train_v1.append({'article': article, 'summary': summary,
+        train_v1.append({'id': d['id'], 'article': article, 'summary': summary,
                          'article_words': article_words, 'summary_words': summary_words})
         print("id: %d, article words: %d, summary words: %d" % (d['id'], article_words, summary_words))
     with open('train_v1.json', 'w') as f:

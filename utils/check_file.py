@@ -23,10 +23,6 @@ class DelBrokenPDF:
         return bValid
 
     def isValidPDF_pathfile(self, pathfile):
-        r"""
-        直接用文件内容判断头尾，
-        参数为pdf文件全路径名
-        """
         content = ''
         with open(pathfile, mode='rb') as f:
             content = f.read()

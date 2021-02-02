@@ -82,7 +82,7 @@ def test_roberta_model():
     random.shuffle(ds)
     for i, ex in enumerate(ds):
         print("#", end='')
-        if i and i % 30 == 0:
+        if i and i % 8 == 0:
             res = aggregator.aggregate()
             print()
             print(res)
@@ -96,6 +96,3 @@ def test_roberta_model():
         with open('./roberta/%d_pred.json' % ds[i]['id'], 'w') as f:
             json.dump(ds[i], f)
         aggregator.add_scores(score)
-
-
-test_roberta_model()

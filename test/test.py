@@ -40,13 +40,14 @@ def test_pegasus_model():
 
         score = scorer.score(ex['summary'], predicted_summary)
         ds[i]['pred'] = predicted_summary
-        with open('%d_pred.json' % ds[i]['id'], 'w') as f:
+        with open('./pegasus/%d_pred.json' % ds[i]['id'], 'w') as f:
             json.dump(ds[i], f)
         aggregator.add_scores(score)
 
 
 def test_eval():
-    path = "./pegasus"
+
+    path = "./roberta"
 
     info, pred, gt = [], [], []
     for _, _, files in os.walk(path):

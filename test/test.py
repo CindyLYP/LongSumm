@@ -51,9 +51,36 @@ def test_pegasus_model():
         aggregator.add_scores(score)
 
 
+def test_section_model():
+
+    tf.enable_v2_behavior()
+    print("==" * 8, "start pegasus model", "==" * 8)
+    path = "/data/ysc/pretrain/saved_model"
+    imported_model = tf.saved_model.load(path, tags='serve')
+    summerize = imported_model.signatures['serving_default']
+
+    print("==" * 8, "load model finish", "==" * 8)
+
+    with open('../dataset/train_v3.json', 'r') as f:
+        ds = json.load(f)
+
+    random.shuffle(ds)
+    for i, ex in tqdm(enumerate(ds)):
+
+        art = ex['article']
+        pred = []
+        for sec in art:
+            predicted_summary = summerize(
+                tf.convert_to_tensor(sec, dtype=tf.string))['pred_sent'][0].numpy().decode('utf-8')
+            pred.append(predicted_summary)
+        ds[i]['pred'] = " ".join(pred)
+        with open('./result/sections/%d_pred.json' % ds[i]['id'], 'w') as f:
+            json.dump(ds[i], f)
+
+
 def test_eval():
 
-    path = "./roberta"
+    path = "./result/sections"
 
     info, pred, gt = [], [], []
     for _, _, files in os.walk(path):
@@ -62,8 +89,8 @@ def test_eval():
                 d = json.load(f)
                 pred.append(d['summary'])
                 gt.append(d['pred'])
-                info.append("paper id: %d, article len: %d, summary len: %d, pred len: %d"
-                            % (d['id'], d['article_words'], d['summary_words'], len(d['pred'].split())))
+                info.append("paper id: %d, summary len: %d, pred len: %d"
+                            % (d['id'], d['summary_words'], len(d['pred'].split())))
     print("eval data num:", len(gt))
     for i in range(len(gt)):
         print('paper info:', info[i])
@@ -105,4 +132,4 @@ def test_roberta_model():
         aggregator.add_scores(score)
 
 
-test_pegasus_model()
+test_eval()

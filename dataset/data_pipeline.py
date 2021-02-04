@@ -53,4 +53,26 @@ def gen_train_data_v2(path='train.json'):
         json.dump(train_v2, f)
 
 
-gen_train_data_v2()
+def gen_train_data_v3(path='train.json'):
+    with open(path, 'r') as f:
+        raw_data = json.load(f)
+    train_v3 = []
+    cnt = 0
+    f = 0
+    for d in raw_data:
+        abstract = d['abstract']
+        summary = " ".join(d['summary'])
+        introduction = d['section_content'][0]
+        conclusion = d['section_content'][-1]
+        for i, sec_name in enumerate(d['section_name']):
+            if "conclusion" in sec_name:
+                conclusion = d['section_content'][i]
+        summary_words = len(summary.split())
+        train_v3.append({'id': d['id'], 'article': [abstract, introduction, conclusion], 'summary': summary,
+                        'summary_words': summary_words})
+        # print("id: %d, article words: %d, summary words: %d" % (d['id'], article_words, summary_words))
+
+    with open('train_v3.json', 'w') as f:
+        json.dump(train_v3, f)
+
+gen_train_data_v3()

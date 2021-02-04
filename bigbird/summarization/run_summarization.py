@@ -181,15 +181,14 @@ def input_fn_builder(data_dir, vocab_model_file, max_encoder_length,
       d = tfds.load('scientific_papers/arxiv', split=split, data_dir='/data/ysc/tensorflow_datasets',
                     shuffle_files=is_training, as_supervised=True)
     else:
-      with open(data_dir, 'r') as f:
-          ds = json.load(f)
+
       # For training, we want a lot of parallel reading and shuffling.
       # For eval, we want no shuffling and parallel reading doesn't matter.
-      if is_training:
+      if not is_training:
         d = tf.data.Dataset.from_tensor_slices(data_dir)
-        d = d.shuffle(buffer_size=len(ds['summary']))
+        d = d.shuffle(buffer_size=1)
       else:
-        d = tf.data.TFRecordDataset(ds)
+        d = tf.data.TFRecordDataset(data_dir)
 
       d = d.map(_decode_record,
                 num_parallel_calls=tf.data.experimental.AUTOTUNE)

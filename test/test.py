@@ -8,28 +8,34 @@ import tensorflow_text as tft
 from rouge_score import rouge_scorer
 from rouge_score import scoring
 from tqdm import tqdm
-from scripts.eval import rouge_metric
+try:
+    from scripts.eval import rouge_metric
+except:
+    print("please check python path before eval")
 import json
 import random
 import os
 
 
 def test_pegasus_model():
+
     tf.enable_v2_behavior()
+    print("==" * 8, "start pegasus model", "==" * 8)
     path = "/data/ysc/pretrain/saved_model"
     imported_model = tf.saved_model.load(path, tags='serve')
     summerize = imported_model.signatures['serving_default']
 
+    print("==" * 8, "load model finish", "==" * 8)
     scorer = rouge_scorer.RougeScorer(["rouge1", "rouge2", "rougeLsum"], use_stemmer=True)
     aggregator = scoring.BootstrapAggregator()
 
-    with open('../dataset/train_v1.json', 'r') as f:
+    with open('../dataset/train_v2.json', 'r') as f:
         ds = json.load(f)
 
     random.shuffle(ds)
     for i, ex in enumerate(ds):
         print("#", end='')
-        if i and i % 30 == 0:
+        if i and i % 15 == 0:
             res = aggregator.aggregate()
             print()
             print(res)
@@ -40,7 +46,7 @@ def test_pegasus_model():
 
         score = scorer.score(ex['summary'], predicted_summary)
         ds[i]['pred'] = predicted_summary
-        with open('./pegasus/%d_pred.json' % ds[i]['id'], 'w') as f:
+        with open('./pegasus/%d_pred_with_abs.json' % ds[i]['id'], 'w') as f:
             json.dump(ds[i], f)
         aggregator.add_scores(score)
 
@@ -97,3 +103,6 @@ def test_roberta_model():
         with open('./roberta/%d_pred.json' % ds[i]['id'], 'w') as f:
             json.dump(ds[i], f)
         aggregator.add_scores(score)
+
+
+test_pegasus_model()

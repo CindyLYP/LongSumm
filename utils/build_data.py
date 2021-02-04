@@ -133,6 +133,9 @@ def xml2json(info_path='../dataset/abstract_info.json', xml_path='../check_data'
         dom = etree.parse(xml_file)
         root = dom.getroot()
 
+        abstract = str(root.find(ns_tag('abstract', 'p')).xpath('text()')[0])
+        abs_info[i]['abstract'] = abstract
+
         body = root.findall(ns_tag('body', 'div'))
         section_name, section_content = [], []
 
@@ -142,7 +145,7 @@ def xml2json(info_path='../dataset/abstract_info.json', xml_path='../check_data'
             if not ps:
                 print('no content found in ', i, it['id'])
                 continue
-            section_name.append(etree.tostring(head, encoding='utf-8', method='text').decode('utf-8'))
+            section_name.append(etree.tostring(head, encoding='utf-8', method='text').decode('utf-8').lower())
             section_content.append(" ".join([etree.tostring(p, encoding='utf-8', method='text').
                                             decode('utf-8') for p in ps]))
         abs_info[i]['section_name'] = section_name

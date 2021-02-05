@@ -28,7 +28,6 @@ def write_record():
 # write_record()
 
 
-
 def _decode_record(record):
     """Decodes a record to a TensorFlow example."""
     name_to_features = {

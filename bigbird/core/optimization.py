@@ -17,7 +17,7 @@
 import re
 
 from absl import logging
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.ops import resource_variable_ops

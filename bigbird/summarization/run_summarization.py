@@ -37,18 +37,18 @@ FLAGS = flags.FLAGS
 ## Required parameters
 
 flags.DEFINE_string(
-    "data_dir", "/data/ysc/pycharm_work_space/LongSumm/bigbird/dataset/bigbird.tfrecords",
+    "data_dir", "/home/pycharm_work_space/LongSumm/bigbird/dataset/bigbird.tfrecords",
     "The input data dir. Should contain the TFRecord files. "
     "Can be TF Dataset with prefix tfds://")
 
 flags.DEFINE_string(
-    "output_dir", "/data/ysc/pycharm_work_space/LongSumm/bigbird/output_dir",
+    "output_dir", "/home/pycharm_work_space/LongSumm/bigbird/output_dir",
     "The output directory where the model checkpoints will be written.")
 
 ## Other parameters
 
 flags.DEFINE_string(
-    "init_checkpoint", "/data/ysc/pycharm_work_space/LongSumm/pretrain_model/bigbird_pegasus/model.ckpt-300000",
+    "init_checkpoint", "/home/pycharm_work_space/LongSumm/pretrain_model/bigbird_pegasus/model.ckpt-300000",
     "Initial checkpoint (usually from a pre-trained BigBird model).")
 
 flags.DEFINE_integer(
@@ -58,7 +58,7 @@ flags.DEFINE_integer(
     "than this will be padded.")
 
 flags.DEFINE_integer(
-    "max_decoder_length", 1024,
+    "max_decoder_length", 666,
     "The maximum total input sequence length after SentencePiece tokenization. "
     "Sequences longer than this will be truncated, and sequences shorter "
     "than this will be padded.")
@@ -80,7 +80,7 @@ flags.DEFINE_bool(
     "Whether to export the model as TF SavedModel.")
 
 flags.DEFINE_integer(
-    "train_batch_size", 8,
+    "train_batch_size", 2,
     "Local batch size for training. "
     "Total batch size will be multiplied by number gpu/tpu cores available.")
 
@@ -131,8 +131,7 @@ flags.DEFINE_float(
 
 
 def input_fn_builder(data_dir, vocab_model_file, max_encoder_length,
-                     max_decoder_length, substitute_newline, is_training,
-                     tmp_dir=None):
+                     max_decoder_length, substitute_newline, is_training, batch_size):
   """Creates an `input_fn` closure to be passed to TPUEstimator."""
 
   def _decode_record(record):
@@ -171,9 +170,8 @@ def input_fn_builder(data_dir, vocab_model_file, max_encoder_length,
 
     return document_ids, summary_ids
 
-  def input_fn(params):
+  def input_fn():
     """The actual input function."""
-    batch_size = params["batch_size"]
 
     # Load dataset and handle tfds separately
     split = "train" if is_training else "validation"
@@ -188,19 +186,16 @@ def input_fn_builder(data_dir, vocab_model_file, max_encoder_length,
 
       d = d.map(_decode_record,
                 num_parallel_calls=tf.data.experimental.AUTOTUNE)
-
     d = d.map(_tokenize_example,
               num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
     if is_training:
-      d = d.shuffle(buffer_size=10000, reshuffle_each_iteration=True)
+      d = d.shuffle(buffer_size=1000, reshuffle_each_iteration=True)
       d = d.repeat()
     d = d.padded_batch(batch_size, ([max_encoder_length], [max_decoder_length]),
                        drop_remainder=True)
     # For static shape
-    for i in d.take(2):
-        print(i[0])
-        print(i[1])
+
     return d
 
   return input_fn
@@ -287,13 +282,11 @@ def model_fn_builder(transformer_config):
       gradients = optimizer.compute_gradients(total_loss, tvars)
       train_op = optimizer.apply_gradients(gradients, global_step=global_step)
 
-      output_spec = tf.compat.v1.estimator.tpu.TPUEstimatorSpec(
+      output_spec = tf.estimator.EstimatorSpec(
           mode=mode,
           loss=total_loss,
-          train_op=train_op,
-          host_call=utils.add_scalars_to_summary(
-              transformer_config["output_dir"],
-              {"learning_rate": learning_rate}))
+          train_op=train_op
+      )
 
     elif mode == tf.estimator.ModeKeys.EVAL:
 
@@ -355,12 +348,11 @@ def model_fn_builder(transformer_config):
           })
         return metric_dict
 
-      eval_metrics = (metric_fn,
-                      [total_loss, llh, labels, pred_ids])
-      output_spec = tf.compat.v1.estimator.tpu.TPUEstimatorSpec(
+      eval_metric_ops = metric_fn(total_loss, llh, labels, pred_ids)
+      output_spec = tf.estimator.EstimatorSpec(
           mode=mode,
           loss=total_loss,
-          eval_metrics=eval_metrics)
+          eval_metric_ops=eval_metric_ops)
     else:
 
       prediction_dict = {"pred_ids": pred_ids}
@@ -377,7 +369,7 @@ def model_fn_builder(transformer_config):
               pred_sent, transformer_config["substitute_newline"], "\n")
         prediction_dict.update({"pred_sent": pred_sent})
 
-      output_spec = tf.compat.v1.estimator.tpu.TPUEstimatorSpec(
+      output_spec = tf.estimator.EstimatorSpec(
           mode=mode,
           predictions=prediction_dict)
 
@@ -462,8 +454,8 @@ def main(_):
         max_encoder_length=FLAGS.max_encoder_length,
         max_decoder_length=FLAGS.max_decoder_length,
         substitute_newline=FLAGS.substitute_newline,
-        tmp_dir=os.path.join(FLAGS.output_dir, "tfds"),
-        is_training=True)
+        is_training=True, batch_size=FLAGS.train_batch_size)
+
     estimator.train(input_fn=train_input_fn, max_steps=FLAGS.num_train_steps)
 
   if FLAGS.do_eval:

@@ -565,11 +565,7 @@ class EmbeddingLayer(tf.compat.v1.layers.Layer):
 def get_estimator(config, model_fn, keep_checkpoint_max=10):
   """Create TPUEstimator object for given config and model_fn."""
   tpu_cluster_resolver = None
-  if config["use_tpu"] and config["tpu_name"]:
-    tpu_cluster_resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
-        config["tpu_name"],
-        zone=config["tpu_zone"],
-        project=config["gcp_project"])
+
 
   # Batch size book-keeping
   # Estimators handle batch sizes differently among GPUs and TPUs
@@ -579,33 +575,16 @@ def get_estimator(config, model_fn, keep_checkpoint_max=10):
   config_eval_batch_size = config["eval_batch_size"]       # For estimator
   effective_train_batch_size = config["train_batch_size"]  # For human
   effective_eval_batch_size = config["eval_batch_size"]    # For human
-  if config["use_tpu"]:
-    sliced_eval_mode = tf.compat.v1.estimator.tpu.InputPipelineConfig.SLICED
-    distribute_strategy = None
-    config_train_batch_size *= config["num_tpu_cores"]
-    config_eval_batch_size *= config["num_tpu_cores"]
-    effective_train_batch_size = config_train_batch_size
-    effective_eval_batch_size = config_eval_batch_size
-  else:
-    sliced_eval_mode = tf.compat.v1.estimator.tpu.InputPipelineConfig.PER_HOST_V1
-    distribute_strategy = tf.distribute.MirroredStrategy(devices=None)
-    effective_train_batch_size *= distribute_strategy.num_replicas_in_sync
-    # effective_eval_batch_size *= distribute_strategy.num_replicas_in_sync
 
-  is_per_host = tf.compat.v1.estimator.tpu.InputPipelineConfig.PER_HOST_V2
-  run_config = tf.compat.v1.estimator.tpu.RunConfig(
-      cluster=tpu_cluster_resolver,
-      master=config["master"],
-      model_dir=config["output_dir"],
-      save_checkpoints_steps=config["save_checkpoints_steps"],
-      keep_checkpoint_max=keep_checkpoint_max,
-      # train_distribute=distribute_strategy,
-      tpu_config=tf.compat.v1.estimator.tpu.TPUConfig(
-          tpu_job_name=config["tpu_job_name"],
-          iterations_per_loop=config["iterations_per_loop"],
-          num_shards=config["num_tpu_cores"],
-          per_host_input_for_training=is_per_host,
-          eval_training_input_configuration=sliced_eval_mode))
+  distribute_strategy = tf.distribute.MirroredStrategy(["GPU:7"])
+  effective_train_batch_size *= distribute_strategy.num_replicas_in_sync
+
+  run_config = tf.estimator.RunConfig(
+    model_dir=config["output_dir"],
+    train_distribute=distribute_strategy,
+    save_checkpoints_steps=config["save_checkpoints_steps"],
+    keep_checkpoint_max=keep_checkpoint_max)
+
 
   if config["init_checkpoint"]:
     ckpt_var_list = tf.compat.v1.train.list_variables(config["init_checkpoint"])
@@ -623,12 +602,9 @@ def get_estimator(config, model_fn, keep_checkpoint_max=10):
   config["ckpt_var_list"] = ckpt_var_list
 
   # If no TPU, this will fall back to normal Estimator on CPU or GPU.
-  estimator = tf.compat.v1.estimator.tpu.TPUEstimator(
-      use_tpu=config["use_tpu"],
+  estimator = tf.estimator.Estimator(
       model_fn=model_fn,
       config=run_config,
-      train_batch_size=config_train_batch_size,
-      eval_batch_size=config_eval_batch_size,
       warm_start_from=warm_start_settings)
 
   # assign batch sizes

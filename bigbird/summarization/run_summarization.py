@@ -25,6 +25,7 @@ from bigbird.core import modeling
 from bigbird.core import optimization
 from bigbird.core import utils
 import tensorflow.compat.v2 as tf
+import tensorflow as tf
 import tensorflow_datasets as tfds
 import tensorflow_text as tft
 
@@ -51,7 +52,7 @@ flags.DEFINE_string(
     "Initial checkpoint (usually from a pre-trained BigBird model).")
 
 flags.DEFINE_integer(
-    "max_encoder_length", 8192,
+    "max_encoder_length", 4096,
     "The maximum total input sequence length after SentencePiece tokenization. "
     "Sequences longer than this will be truncated, and sequences shorter "
     "than this will be padded.")
@@ -176,7 +177,6 @@ def input_fn_builder(data_dir, vocab_model_file, max_encoder_length,
 
     # Load dataset and handle tfds separately
     split = "train" if is_training else "validation"
-    # data_dir = 'tfds://sd'
     if "tfds://" == data_dir[:7]:
       d = tfds.load('scientific_papers/arxiv', split=split, data_dir='/data/ysc/tensorflow_datasets',
                     shuffle_files=is_training, as_supervised=True)
@@ -184,11 +184,7 @@ def input_fn_builder(data_dir, vocab_model_file, max_encoder_length,
 
       # For training, we want a lot of parallel reading and shuffling.
       # For eval, we want no shuffling and parallel reading doesn't matter.
-      if not is_training:
-        d = tf.data.Dataset.from_tensor_slices(data_dir)
-        d = d.shuffle(buffer_size=1)
-      else:
-        d = tf.data.TFRecordDataset(data_dir)
+      d = tf.data.TFRecordDataset(data_dir)
 
       d = d.map(_decode_record,
                 num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -200,7 +196,11 @@ def input_fn_builder(data_dir, vocab_model_file, max_encoder_length,
       d = d.shuffle(buffer_size=10000, reshuffle_each_iteration=True)
       d = d.repeat()
     d = d.padded_batch(batch_size, ([max_encoder_length], [max_decoder_length]),
-                       drop_remainder=True)  # For static shape
+                       drop_remainder=True)
+    # For static shape
+    for i in d.take(2):
+        print(i[0])
+        print(i[1])
     return d
 
   return input_fn

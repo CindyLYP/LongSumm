@@ -105,16 +105,12 @@ def read_tf_record(filepath='/data/ysc/tensorflow_datasets/scientific_papers/'
             'targets': tf.FixedLenFeature((), tf.string)
         }
         parsed_features = tf.parse_single_example(example_photo, features=features)
-        return parsed_features
+        return parsed_features['inputs'], parsed_features['targets']
 
-    file_queue = tf.train.string_input_producer([filepath],)
-    reader = tf.TFRecordReader()
-    _, serialized_example = reader.read(file_queue)
-    features = tf.parse_single_example(serialized_example, features={'inputs': tf.FixedLenFeature([], tf.string),
-                                                                    'targets': tf.FixedLenFeature([], tf.string)})
-    x, y = features['inputs'], features['targets']
-    d = tf.data.TFRecordDataset(filepath)
-    dd = d.map(_parse_record)
+    ds = tf.data.TFRecordDataset(filepath)
+    ds.map(_parse_record)
+    for d in ds.take(10):
+        (x, y) = d
     return x, y
 
 

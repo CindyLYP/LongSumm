@@ -6,7 +6,7 @@ python3 bigbird/summarization/run_summarization.py \
   --output_dir="/data/ysc/pycharm_work_space/LongSumm/bigbird/output_dir" \
   --attention_type=block_sparse \
   --couple_encoder_decoder=False \
-  --max_encoder_length=8192 \
+  --max_encoder_length=4096 \
   --max_decoder_length=1024 \
   --num_attention_heads=16 \
   --num_hidden_layers=16 \

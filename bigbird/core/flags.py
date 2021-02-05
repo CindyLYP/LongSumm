@@ -66,10 +66,10 @@ flags.DEFINE_float(
     "The stdev of the truncated_normal_initializer for initializing all "
     "weight matrices.")
 flags.DEFINE_integer(
-    "intermediate_size", 3072,
+    "intermediate_size", 4096,
     "The size of intermediate (i.e. feed-forward) layer in the Transformer.")
 flags.DEFINE_integer(
-    "max_position_embeddings", 8192,
+    "max_position_embeddings", 4096,
     "The size position embeddings of matrix, which dictates the maximum"
     "length for which the model can be run.")
 flags.DEFINE_integer(

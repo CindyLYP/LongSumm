@@ -15,6 +15,7 @@
 """Run summarization fine-tuning for BigBird.."""
 
 import os
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 import time
 import json
 
@@ -25,12 +26,11 @@ from bigbird.core import modeling
 from bigbird.core import optimization
 from bigbird.core import utils
 import tensorflow.compat.v2 as tf
-import tensorflow as tf
 import tensorflow_datasets as tfds
 import tensorflow_text as tft
 
-
 from rouge_score import rouge_scorer
+
 
 FLAGS = flags.FLAGS
 
@@ -48,7 +48,7 @@ flags.DEFINE_string(
 ## Other parameters
 
 flags.DEFINE_string(
-    "init_checkpoint", "/home/pycharm_work_space/LongSumm/pretrain_model/bigbird_pegasus/model.ckpt-300000",
+    "init_checkpoint", "/home/pretrain/model.ckpt-300000",
     "Initial checkpoint (usually from a pre-trained BigBird model).")
 
 flags.DEFINE_integer(
@@ -58,7 +58,7 @@ flags.DEFINE_integer(
     "than this will be padded.")
 
 flags.DEFINE_integer(
-    "max_decoder_length", 666,
+    "max_decoder_length", 608,  # 512
     "The maximum total input sequence length after SentencePiece tokenization. "
     "Sequences longer than this will be truncated, and sequences shorter "
     "than this will be padded.")
@@ -94,11 +94,11 @@ flags.DEFINE_string(
     "Optimizer to use. Can be Adafactor, Adam, and AdamWeightDecay.")
 
 flags.DEFINE_float(
-    "learning_rate", 0.001,
+    "learning_rate", 1e-5,
     "The initial learning rate for Adam.")
 
 flags.DEFINE_integer(
-    "num_train_steps", 1000,
+    "num_train_steps", 100000,
     "Total number of training steps to perform.")
 
 flags.DEFINE_integer(
@@ -106,7 +106,7 @@ flags.DEFINE_integer(
     "Number of steps to perform linear warmup.")
 
 flags.DEFINE_integer(
-    "save_checkpoints_steps", 2000,
+    "save_checkpoints_steps", 2500,
     "How often to save the model checkpoint.")
 
 flags.DEFINE_integer(
@@ -251,15 +251,16 @@ def model_fn_builder(transformer_config):
     is_training = (mode == tf.estimator.ModeKeys.TRAIN)
 
     model = modeling.TransformerModel(transformer_config)
+
     (llh, logits, pred_ids), _ = model(features, target_ids=labels,
                                        training=is_training)
-
     total_loss = padded_cross_entropy_loss(
         logits, labels,
         transformer_config["label_smoothing"],
         transformer_config["vocab_size"])
 
     tvars = tf.compat.v1.trainable_variables()
+
     utils.log_variables(tvars, transformer_config["ckpt_var_list"])
 
     output_spec = None
@@ -278,6 +279,11 @@ def model_fn_builder(transformer_config):
         logging.info("Fixing position embedding, i.e. not trainable.")
         posemb = "pegasus/embeddings/position_embeddings"
         tvars = list(filter(lambda v: v.name.split(":")[0] != posemb, tvars))
+
+      if True:
+        logging.info("fixing transformers encoder, i.e. not trainable")
+        rule = "pegasus/decoder/layer_15"
+        tvars = list(filter(lambda v: rule in v.name.split(":")[0], tvars))
 
       gradients = optimizer.compute_gradients(total_loss, tvars)
       train_op = optimizer.apply_gradients(gradients, global_step=global_step)

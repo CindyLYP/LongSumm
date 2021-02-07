@@ -6,7 +6,11 @@ from lxml import etree
 from xml.etree.ElementTree import iterparse
 import pandas as pd
 import re
-
+import tensorflow as tf
+import tensorflow_datasets as tfds
+import tensorflow_text as tft
+from tqdm import tqdm
+import numpy as np
 
 import tensorflow as tf
 
@@ -150,4 +154,97 @@ def xml2json(info_path='../dataset/abstract_info.json', xml_path='../check_data'
         json.dump(abs_info, f)
 
 
-xml2json()
+def _bytes_feature(value):
+    """Returns a bytes_list from a string / byte."""
+    if isinstance(value, str):
+        value = value.encode('utf-8')
+    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+
+def write_record(features: dict, feat_type: dict, file_path):
+    def _bytes_feature(value):
+        """Returns a bytes_list from a string / byte."""
+        return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value.encode('utf-8')]))
+
+    feat_name = list(features.keys())
+    n_example = len(features[feat_name[0]])
+    writer = tf.io.TFRecordWriter(file_path)
+    for it in range(n_example):
+        feature = {}
+        for name in feat_name:
+            if feat_type[name] == 'string':
+                tf_feat = _bytes_feature(features[name][it])
+            feature[name] = tf_feat
+        tf_example = tf.train.Example(features=tf.train.Features(feature=feature))
+        writer.write(tf_example.SerializeToString())
+
+    writer.close()
+
+
+def _decode_record(record):
+    """Decodes a record to a TensorFlow example."""
+    name_to_features = {
+        "document": tf.io.FixedLenFeature([], tf.string),
+        "summary": tf.io.FixedLenFeature([], tf.string),
+
+    }
+    example = tf.io.parse_single_example(record, name_to_features)
+    return example["document"], example["summary"]
+
+
+def gen_long_arxiv_data(file_path='../bigbird/dataset/arxiv/train.tfrecord-'):
+    d = tfds.load('scientific_papers/arxiv', split="train", data_dir='/home/tensorflow_datasets',
+                  as_supervised=True)
+    threhold = [2000, 3000, 4000, 5000]
+    d = d.as_numpy_iterator()
+    feat_type = {'document': 'string',
+                 'summary': 'string'}
+    articles = []
+    summaries = []
+    print("===== write into the tf records =====")
+    cnt = 0
+    for it in tqdm(d):
+        article = it[0].decode('utf-8')
+        summary = it[1].decode('utf-8')
+        l = len(summary.split())
+        for j in range(4):
+            if threhold[j] > 0 and j*100 < l <= (j+1)*100:
+                articles.append(article), summaries.append(summary)
+                threhold[j] -= 1
+                flag = False
+                break
+        if l > 400:
+            articles.append(article), summaries.append(summary)
+        if len(articles) >= 4096:
+            print("write into record-%d" % cnt)
+            features = {'document': articles,
+                        'summary': summaries}
+            write_record(features, feat_type, file_path+str(cnt))
+            print("write finish")
+            cnt += 1
+            articles.clear(), summaries.clear()
+
+    if articles:
+        features = {'document': articles,
+                    'summary': summaries}
+        write_record(features, feat_type, file_path + str(cnt))
+
+    print("=====           finish           =====")
+
+
+
+file_path='../bigbird/dataset/arxiv/train.tfrecord-'
+
+gen_long_arxiv_data(file_path)
+# ds = tf.data.TFRecordDataset(file_path)
+# ds = ds.map(_decode_record)
+# for i in ds.take(3):
+#     print(repr(i))
+#
+# dataset = ds.repeat(5).shuffle(1024).batch(32)
+#
+# dataset = dataset.repeat(2)
+# dataset = dataset.batch(4) # Batch size to use
+#
+# iterator = dataset.make_one_shot_iterator()
+# batch_features, batch_labels = iterator.get_next()

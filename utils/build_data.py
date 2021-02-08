@@ -232,8 +232,7 @@ def gen_long_arxiv_data(file_path='../bigbird/dataset/arxiv/train.tfrecord-'):
     print("=====           finish           =====")
 
 
-
-file_path='../bigbird/dataset/arxiv/train.tfrecord-'
+file_path='../dataset/arxiv/train.tfrecord-'
 
 gen_long_arxiv_data(file_path)
 # ds = tf.data.TFRecordDataset(file_path)

@@ -576,10 +576,8 @@ def get_estimator(config, model_fn, keep_checkpoint_max=10):
   effective_train_batch_size = config["train_batch_size"]  # For human
   effective_eval_batch_size = config["eval_batch_size"]    # For human
 
-  distribute_strategy = tf.distribute.MirroredStrategy(["GPU:5", "GPU:6", "GPU:7" ])
+  distribute_strategy = tf.distribute.MirroredStrategy(["GPU:6", "GPU:7"])
   effective_train_batch_size *= distribute_strategy.num_replicas_in_sync
-
-  # session_config.gpu_options.allow_growth = True
 
   run_config = tf.estimator.RunConfig(
     model_dir=config["output_dir"],

@@ -43,7 +43,7 @@ def page_rank(similarity_matrix):
     return cur_vector
 
 
-def  extract_raw_dataset(embedding_path="./pretrain_model/glove/glove_50d.txt"):
+def extract_raw_dataset(embedding_path="./pretrain_model/glove/glove_50d.txt"):
     _, _, examples, summary = gen_training_data()
     word_embeddings = gen_embedding(embedding_path)
     train_examples = []
@@ -73,7 +73,7 @@ def  extract_raw_dataset(embedding_path="./pretrain_model/glove/glove_50d.txt"):
                         similarity_matrix[i][j] = cosine_similarity(
                             sentences_vectors[i].reshape(1, -1), sentences_vectors[j].reshape(1, -1)
                         )
-            similarity_matrix = similarity_matrix+similarity_matrix.T-np.diag(similarity_matrix.diagonal())
+            similarity_matrix = similarity_matrix + similarity_matrix.T - np.diag(similarity_matrix.diagonal())
             norm = np.sum(similarity_matrix, axis=0)
             norm_similarity_matrix = np.divide(similarity_matrix, norm, where=norm != 0)
 
@@ -82,7 +82,7 @@ def  extract_raw_dataset(embedding_path="./pretrain_model/glove/glove_50d.txt"):
 
             sect = ""
             for i in range(min(5, len(sentences))):
-                if len(sect)< 900:
+                if len(sect) < 900:
                     sect += sentences[idx[i]]
 
             train_example.append(sect)

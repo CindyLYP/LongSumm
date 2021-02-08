@@ -19,7 +19,8 @@ path = "/data/ysc/pretrain/saved_model"
 imported_model = tf.saved_model.load(path, tags='serve')
 summerize = imported_model.signatures['serving_default']
 
-dataset = tfds.load('scientific_papers/arxiv', data_dir='/data/ysc/tensorflow_datasets',split='test', shuffle_files=False, as_supervised=True)
+dataset = tfds.load('scientific_papers/arxiv', data_dir='/data/ysc/tensorflow_datasets', split='test',
+                    shuffle_files=False, as_supervised=True)
 batch = 16
 dataset = dataset.repeat().shuffle(1024).batch(batch)
 
@@ -40,7 +41,7 @@ for ex in dataset:
         batch_gt.append(gt)
         score = scorer.score(gt, pred)
     for i in range(batch):
-        if i%(batch/4) == 0 :
+        if i % (batch / 4) == 0:
             print()
         else:
             print(len(ex[0].numpy().decode('utf-8').s))
@@ -48,12 +49,8 @@ for ex in dataset:
     print(aggregator.aggregate())
     print(rouge_metric(batch_pred, batch_gt))
 
-
-
 #
 for ex in tqdm(dataset.take(20), position=0):
-  predicted_summary = summerize(ex[0])['pred_sent'][0]
-  score = scorer.score(ex[1].numpy().decode('utf-8'), predicted_summary.numpy().decode('utf-8'))
-  aggregator.add_scores(score)
-
-
+    predicted_summary = summerize(ex[0])['pred_sent'][0]
+    score = scorer.score(ex[1].numpy().decode('utf-8'), predicted_summary.numpy().decode('utf-8'))
+    aggregator.add_scores(score)

@@ -6,7 +6,7 @@ from PyPDF2 import PdfFileReader
 
 class DelBrokenPDF:
     def __init__(self, path):
-        self.filter=[".pdf"]
+        self.filter = [".pdf"]
         self.root_path = path
 
     def isValidPDF_pathfile2(self, pathfile):

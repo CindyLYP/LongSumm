@@ -41,7 +41,7 @@ def gen_broken_pdf_info():
             num = p.findall(line)
             pdf_id.append(num[0])
             line = f.readline()
-    print("broken pdf num: ",len(pdf_id))
+    print("broken pdf num: ", len(pdf_id))
     with open('../dataset/pdf_info.json', 'r') as f:
         ds = json.load(f)
     res = []
@@ -50,7 +50,7 @@ def gen_broken_pdf_info():
             res.append(d)
     print("check broken num: ", len(res))
     with open('../dataset/broken.json', 'w') as f:
-        json.dump(res,f)
+        json.dump(res, f)
 
 
 def download_broken():
@@ -59,7 +59,7 @@ def download_broken():
         for d in tqdm(ds):
             try:
                 r = requests.get(d['pdf_url'])
-                with open('../dataset/%d.pdf'%(d['id']), 'wb') as f:
+                with open('../dataset/%d.pdf' % (d['id']), 'wb') as f:
                     f.write(r.content)
             except:
                 print("error id : ", d['id'])
@@ -101,4 +101,3 @@ def gen_abstract_data():
 # download_broken()
 # print_broken_pdf()
 gen_abstract_data()
-

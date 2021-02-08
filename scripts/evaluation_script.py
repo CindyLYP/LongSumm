@@ -2,6 +2,7 @@ import os.path
 import json
 import sys
 import re
+
 try:
     os.system("pip install rouge-score")
 except:
@@ -12,8 +13,8 @@ from rouge_score import rouge_scorer
 
 
 def impose_max_length(summary_text, max_tokens=600):
-    #same tokenization as in rouge_score
-    #https://github.com/google-research/google-research/blob/26a130831ee903cb97b7d04e71f227bbe24960b2/rouge/tokenize.py
+    # same tokenization as in rouge_score
+    # https://github.com/google-research/google-research/blob/26a130831ee903cb97b7d04e71f227bbe24960b2/rouge/tokenize.py
     text = summary_text.lower()
     text = re.sub(r"[^a-z0-9]+", " ", text)
     tokens = re.split(r"\s+", text)
@@ -31,7 +32,7 @@ def evaluate_rouge(test_annotation_file, user_submission_file):
             submission_data = json.load(f2)
             print("open submission file " + user_submission_file)
             scorer = rouge_scorer.RougeScorer(metrics, use_stemmer=True)
-            results = {"rouge1_f":[], "rouge1_r":[], "rouge2_f":[], "rouge2_r":[], "rougeL_f":[], "rougeL_r":[]}
+            results = {"rouge1_f": [], "rouge1_r": [], "rouge2_f": [], "rouge2_r": [], "rougeL_f": [], "rougeL_r": []}
             results_avg = {}
 
             if len(submission_data) < len(ground_truth_data):
@@ -47,10 +48,10 @@ def evaluate_rouge(test_annotation_file, user_submission_file):
                 submission_summary = impose_max_length(submission_summary)
                 ground_truth_summary = impose_max_length(ground_truth_summary)
 
-                print("evaluating summary for article with id `"+article_id+"'")
+                print("evaluating summary for article with id `" + article_id + "'")
                 scores = scorer.score(ground_truth_summary.strip(), submission_summary.strip())
                 for metric in metrics:
-                    results[metric+"_f"].append(scores[metric].fmeasure)
+                    results[metric + "_f"].append(scores[metric].fmeasure)
                     results[metric + "_r"].append(scores[metric].recall)
 
                 for rouge_metric, rouge_scores in results.items():
@@ -60,10 +61,10 @@ def evaluate_rouge(test_annotation_file, user_submission_file):
 
 
 def evaluate(test_annotation_file, user_submission_file, phase_codename, **kwargs):
-    #print(kwargs["submission_metadata"])
+    # print(kwargs["submission_metadata"])
     output = {}
     if phase_codename == "dev":
-        print(" phase_codename "+ phase_codename + " isn't supported", file=sys.stderr)
+        print(" phase_codename " + phase_codename + " isn't supported", file=sys.stderr)
 
     elif phase_codename == "test":
         print("Evaluating for Test Phase")

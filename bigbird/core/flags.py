@@ -26,10 +26,9 @@ import sentencepiece as spm
 
 # pylint: disable=g-import-not-at-top
 if sys.version_info >= (3, 9):
-  import importlib.resources as importlib_resources
+    import importlib.resources as importlib_resources
 else:
-  import importlib_resources
-
+    import importlib_resources
 
 ############################### FLAGS UTILS ####################################
 
@@ -39,7 +38,6 @@ DEFINE_enum = flags.DEFINE_enum
 DEFINE_float = flags.DEFINE_float
 DEFINE_integer = flags.DEFINE_integer
 DEFINE_string = flags.DEFINE_string
-
 
 # Flag names are globally defined!  So in general, we need to be
 # careful to pick names that are unlikely to be used by other libraries.
@@ -177,137 +175,138 @@ flags.DEFINE_string(
 
 
 def as_dictionary():
-  """Get current config from flag."""
+    """Get current config from flag."""
 
-  # Resolve vocab file location from hotword
-  if FLAGS.vocab_model_file == "gpt2":
-    FLAGS.vocab_model_file = str(importlib_resources.files(bigbird).joinpath(
-        "vocab/gpt2.model"))
-  elif FLAGS.vocab_model_file == "pegasus":
-    FLAGS.vocab_model_file = str(importlib_resources.files(bigbird).joinpath(
-        "vocab/pegasus.model"))
+    # Resolve vocab file location from hotword
+    if FLAGS.vocab_model_file == "gpt2":
+        FLAGS.vocab_model_file = str(importlib_resources.files(bigbird).joinpath(
+            "vocab/gpt2.model"))
+    elif FLAGS.vocab_model_file == "pegasus":
+        FLAGS.vocab_model_file = str(importlib_resources.files(bigbird).joinpath(
+            "vocab/pegasus.model"))
 
-  config = {
-      # transformer basic configs
-      "attention_probs_dropout_prob": FLAGS.attention_probs_dropout_prob,
-      "hidden_act": FLAGS.hidden_act,
-      "hidden_dropout_prob": FLAGS.hidden_dropout_prob,
-      "hidden_size": FLAGS.hidden_size,
-      "initializer_range": FLAGS.initializer_range,
-      "intermediate_size": FLAGS.intermediate_size,
-      "max_position_embeddings": FLAGS.max_position_embeddings,
-      "num_attention_heads": FLAGS.num_attention_heads,
-      "num_hidden_layers": FLAGS.num_hidden_layers,
-      "type_vocab_size": FLAGS.type_vocab_size,
-      "scope": FLAGS.scope,
-      "use_bias": FLAGS.use_bias,
-      "rescale_embedding": FLAGS.rescale_embedding,
-      "vocab_model_file": FLAGS.vocab_model_file,
-      # sparse mask configs
-      "attention_type": FLAGS.attention_type,
-      "norm_type": FLAGS.norm_type,
-      "block_size": FLAGS.block_size,
-      "num_rand_blocks": FLAGS.num_rand_blocks,
-      # common bert configs
-      "data_dir": FLAGS.data_dir,
-      "output_dir": FLAGS.output_dir,
-      "init_checkpoint": FLAGS.init_checkpoint,
-      "max_encoder_length": FLAGS.max_encoder_length,
-      "substitute_newline": FLAGS.substitute_newline,
-      "do_train": FLAGS.do_train,
-      "do_eval": FLAGS.do_eval,
-      "do_export": FLAGS.do_export,
-      "train_batch_size": FLAGS.train_batch_size,
-      "eval_batch_size": FLAGS.eval_batch_size,
-      "optimizer": FLAGS.optimizer,
-      "learning_rate": FLAGS.learning_rate,
-      "num_train_steps": FLAGS.num_train_steps,
-      "num_warmup_steps": FLAGS.num_warmup_steps,
-      "save_checkpoints_steps": FLAGS.save_checkpoints_steps,
-      "weight_decay_rate": FLAGS.weight_decay_rate,
-      "optimizer_beta1": FLAGS.optimizer_beta1,
-      "optimizer_beta2": FLAGS.optimizer_beta2,
-      "optimizer_epsilon": FLAGS.optimizer_epsilon,
-      # TPU settings
-      "use_tpu": FLAGS.use_tpu,
-      "tpu_name": FLAGS.tpu_name,
-      "tpu_zone": FLAGS.tpu_zone,
-      "tpu_job_name": FLAGS.tpu_job_name,
-      "gcp_project": FLAGS.gcp_project,
-      "master": FLAGS.master,
-      "num_tpu_cores": FLAGS.num_tpu_cores,
-      "iterations_per_loop": FLAGS.iterations_per_loop,
-  }
+    config = {
+        # transformer basic configs
+        "attention_probs_dropout_prob": FLAGS.attention_probs_dropout_prob,
+        "hidden_act": FLAGS.hidden_act,
+        "hidden_dropout_prob": FLAGS.hidden_dropout_prob,
+        "hidden_size": FLAGS.hidden_size,
+        "initializer_range": FLAGS.initializer_range,
+        "intermediate_size": FLAGS.intermediate_size,
+        "max_position_embeddings": FLAGS.max_position_embeddings,
+        "num_attention_heads": FLAGS.num_attention_heads,
+        "num_hidden_layers": FLAGS.num_hidden_layers,
+        "type_vocab_size": FLAGS.type_vocab_size,
+        "scope": FLAGS.scope,
+        "use_bias": FLAGS.use_bias,
+        "rescale_embedding": FLAGS.rescale_embedding,
+        "vocab_model_file": FLAGS.vocab_model_file,
+        # sparse mask configs
+        "attention_type": FLAGS.attention_type,
+        "norm_type": FLAGS.norm_type,
+        "block_size": FLAGS.block_size,
+        "num_rand_blocks": FLAGS.num_rand_blocks,
+        # common bert configs
+        "data_dir": FLAGS.data_dir,
+        "output_dir": FLAGS.output_dir,
+        "init_checkpoint": FLAGS.init_checkpoint,
+        "max_encoder_length": FLAGS.max_encoder_length,
+        "substitute_newline": FLAGS.substitute_newline,
+        "do_train": FLAGS.do_train,
+        "do_eval": FLAGS.do_eval,
+        "do_export": FLAGS.do_export,
+        "train_batch_size": FLAGS.train_batch_size,
+        "eval_batch_size": FLAGS.eval_batch_size,
+        "optimizer": FLAGS.optimizer,
+        "learning_rate": FLAGS.learning_rate,
+        "num_train_steps": FLAGS.num_train_steps,
+        "num_warmup_steps": FLAGS.num_warmup_steps,
+        "save_checkpoints_steps": FLAGS.save_checkpoints_steps,
+        "weight_decay_rate": FLAGS.weight_decay_rate,
+        "optimizer_beta1": FLAGS.optimizer_beta1,
+        "optimizer_beta2": FLAGS.optimizer_beta2,
+        "optimizer_epsilon": FLAGS.optimizer_epsilon,
+        # TPU settings
+        "use_tpu": FLAGS.use_tpu,
+        "tpu_name": FLAGS.tpu_name,
+        "tpu_zone": FLAGS.tpu_zone,
+        "tpu_job_name": FLAGS.tpu_job_name,
+        "gcp_project": FLAGS.gcp_project,
+        "master": FLAGS.master,
+        "num_tpu_cores": FLAGS.num_tpu_cores,
+        "iterations_per_loop": FLAGS.iterations_per_loop,
+        "gpu_id": FLAGS.gpu_id,
+    }
 
-  # pretraining dedicated flags
-  if hasattr(FLAGS, "max_predictions_per_seq"):
-    config["max_predictions_per_seq"] = FLAGS.max_predictions_per_seq
-  if hasattr(FLAGS, "masked_lm_prob"):
-    config["masked_lm_prob"] = FLAGS.masked_lm_prob
-  if hasattr(FLAGS, "max_eval_steps"):
-    config["max_eval_steps"] = FLAGS.max_eval_steps
-  if hasattr(FLAGS, "preprocessed_data"):
-    config["preprocessed_data"] = FLAGS.preprocessed_data
-  if hasattr(FLAGS, "use_nsp"):
-    config["use_nsp"] = FLAGS.use_nsp
+    # pretraining dedicated flags
+    if hasattr(FLAGS, "max_predictions_per_seq"):
+        config["max_predictions_per_seq"] = FLAGS.max_predictions_per_seq
+    if hasattr(FLAGS, "masked_lm_prob"):
+        config["masked_lm_prob"] = FLAGS.masked_lm_prob
+    if hasattr(FLAGS, "max_eval_steps"):
+        config["max_eval_steps"] = FLAGS.max_eval_steps
+    if hasattr(FLAGS, "preprocessed_data"):
+        config["preprocessed_data"] = FLAGS.preprocessed_data
+    if hasattr(FLAGS, "use_nsp"):
+        config["use_nsp"] = FLAGS.use_nsp
 
-  # classifier dedicated flags
-  if hasattr(FLAGS, "num_labels"):
-    config["num_labels"] = FLAGS.num_labels
+    # classifier dedicated flags
+    if hasattr(FLAGS, "num_labels"):
+        config["num_labels"] = FLAGS.num_labels
 
-  # summarization dedicated flags
-  if hasattr(FLAGS, "max_decoder_length"):
-    config["max_decoder_length"] = FLAGS.max_decoder_length
-  if hasattr(FLAGS, "trainable_bias"):
-    config["trainable_bias"] = FLAGS.trainable_bias
-  if hasattr(FLAGS, "couple_encoder_decoder"):
-    config["couple_encoder_decoder"] = FLAGS.couple_encoder_decoder
-  if hasattr(FLAGS, "beam_size"):
-    config["beam_size"] = FLAGS.beam_size
-  if hasattr(FLAGS, "alpha"):
-    config["alpha"] = FLAGS.alpha
-  if hasattr(FLAGS, "label_smoothing"):
-    config["label_smoothing"] = FLAGS.label_smoothing
+    # summarization dedicated flags
+    if hasattr(FLAGS, "max_decoder_length"):
+        config["max_decoder_length"] = FLAGS.max_decoder_length
+    if hasattr(FLAGS, "trainable_bias"):
+        config["trainable_bias"] = FLAGS.trainable_bias
+    if hasattr(FLAGS, "couple_encoder_decoder"):
+        config["couple_encoder_decoder"] = FLAGS.couple_encoder_decoder
+    if hasattr(FLAGS, "beam_size"):
+        config["beam_size"] = FLAGS.beam_size
+    if hasattr(FLAGS, "alpha"):
+        config["alpha"] = FLAGS.alpha
+    if hasattr(FLAGS, "label_smoothing"):
+        config["label_smoothing"] = FLAGS.label_smoothing
 
-  # calculate vocab
-  sp_model = spm.SentencePieceProcessor()
-  sp_proto = tf.io.gfile.GFile(config["vocab_model_file"], "rb").read()
-  sp_model.LoadFromSerializedProto(sp_proto)
-  vocab_size = sp_model.GetPieceSize()
-  config["vocab_size"] = vocab_size
+    # calculate vocab
+    sp_model = spm.SentencePieceProcessor()
+    sp_proto = tf.io.gfile.GFile(config["vocab_model_file"], "rb").read()
+    sp_model.LoadFromSerializedProto(sp_proto)
+    vocab_size = sp_model.GetPieceSize()
+    config["vocab_size"] = vocab_size
 
-  return config
+    return config
 
 
 def save(path):
-  """Save current flag config."""
-  config = as_dictionary()
-  with tf.io.gfile.GFile(path, "w") as f:
-    json.dump(config, f, indent=4, sort_keys=True)
+    """Save current flag config."""
+    config = as_dictionary()
+    with tf.io.gfile.GFile(path, "w") as f:
+        json.dump(config, f, indent=4, sort_keys=True)
 
-  # log flags
-  max_len = max([len(ii) for ii in config.keys()])
-  fmt_string = "\t%" + str(max_len) + "s : %s"
-  logging.info("Arguments:")
-  for key, value in sorted(config.items()):
-    logging.info(fmt_string, key, value)
+    # log flags
+    max_len = max([len(ii) for ii in config.keys()])
+    fmt_string = "\t%" + str(max_len) + "s : %s"
+    logging.info("Arguments:")
+    for key, value in sorted(config.items()):
+        logging.info(fmt_string, key, value)
 
-  return config
+    return config
 
 
 def load(path):
-  """Set flag from saved config."""
+    """Set flag from saved config."""
 
-  with tf.io.gfile.GFile(path) as f:
-    config = json.load(f)
+    with tf.io.gfile.GFile(path) as f:
+        config = json.load(f)
 
-  # log and set flags
-  max_len = max([len(ii) for ii in config.keys()])
-  fmt_string = "\t%" + str(max_len) + "s : %s"
-  logging.info("Arguments:")
-  for key, value in config.items():
-    if hasattr(FLAGS, key):
-      logging.info(fmt_string, key, value)
-      setattr(FLAGS, key, value)
+    # log and set flags
+    max_len = max([len(ii) for ii in config.keys()])
+    fmt_string = "\t%" + str(max_len) + "s : %s"
+    logging.info("Arguments:")
+    for key, value in config.items():
+        if hasattr(FLAGS, key):
+            logging.info(fmt_string, key, value)
+            setattr(FLAGS, key, value)
 
-  return config
+    return config

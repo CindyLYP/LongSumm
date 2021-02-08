@@ -17,13 +17,14 @@ def write_record():
         doc = ds['document'][i]
         summ = ds['summary'][i]
         feature = {
-        'document': _bytes_feature(doc),
-        'summary': _bytes_feature(summ)}
+            'document': _bytes_feature(doc),
+            'summary': _bytes_feature(summ)}
 
         tf_example = tf.train.Example(features=tf.train.Features(feature=feature))
         writer.write(tf_example.SerializeToString())
     writer.close()
     print("finish")
+
 
 # write_record()
 
@@ -38,6 +39,7 @@ def _decode_record(record):
     example = tf.io.parse_single_example(record, name_to_features)
     return example["document"], example["summary"]
 
+
 ds = tf.data.TFRecordDataset('bigbird.tfrecords')
 ds = ds.map(_decode_record)
 for i in ds.take(3):
@@ -46,7 +48,7 @@ for i in ds.take(3):
 dataset = ds.repeat(5).shuffle(1024).batch(32)
 
 dataset = dataset.repeat(2)
-dataset = dataset.batch(4) # Batch size to use
+dataset = dataset.batch(4)  # Batch size to use
 
 iterator = dataset.make_one_shot_iterator()
 batch_features, batch_labels = iterator.get_next()

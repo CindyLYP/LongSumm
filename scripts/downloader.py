@@ -6,6 +6,7 @@ from tqdm import tqdm
 import csv
 import json
 from utils.check_file import DelBrokenPDF
+
 OUTPUT_DIR = '../abstractive_papers/'
 
 
@@ -14,20 +15,20 @@ def url_response(url):
     name = str(name)
     if not os.path.isfile(os.path.join(OUTPUT_DIR, name + ".pdf")):
         try:
-            r = requests.get(url, stream = True)
-            with open(os.path.join(OUTPUT_DIR,name+".pdf"), 'wb') as f:
+            r = requests.get(url, stream=True)
+            with open(os.path.join(OUTPUT_DIR, name + ".pdf"), 'wb') as f:
                 for ch in r:
                     f.write(ch)
         except:
-        # except requests.ConnectionError as e:
-            with open ('broken.txt', 'a') as f:
-                f.write(url+"\n")
-            print("  Failed to open: "+ url)
+            # except requests.ConnectionError as e:
+            with open('broken.txt', 'a') as f:
+                f.write(url + "\n")
+            print("  Failed to open: " + url)
 
 
 def set_globdir_to_new(out_dir):
-        global OUTPUT_DIR
-        OUTPUT_DIR = out_dir
+    global OUTPUT_DIR
+    OUTPUT_DIR = out_dir
 
 
 def main(args):
@@ -64,7 +65,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--clusters_dir', default='../abstractive_summaries/'
                                                   'by_clusters', help='link to the folder that contains the summaries')
-    parser.add_argument('--out_folder',default=OUTPUT_DIR, help='output folder')
+    parser.add_argument('--out_folder', default=OUTPUT_DIR, help='output folder')
     parser.add_argument('--num_processes', default=20, help='number of processes to use')
 
     args = parser.parse_args()

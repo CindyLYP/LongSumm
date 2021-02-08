@@ -4,6 +4,7 @@ import tensorflow_text as tft
 from rouge_score import rouge_scorer
 from rouge_score import scoring
 from tqdm import tqdm
+
 try:
     from scripts.eval import rouge_metric
 except:
@@ -14,7 +15,6 @@ import os
 
 
 def test_pegasus_model():
-
     tf.enable_v2_behavior()
     print("==" * 8, "start pegasus model", "==" * 8)
     path = "/data/ysc/pretrain/saved_model"
@@ -48,7 +48,6 @@ def test_pegasus_model():
 
 
 def test_section_model():
-
     tf.enable_v2_behavior()
     print("==" * 8, "start pegasus model", "==" * 8)
     path = "/data/ysc/pretrain/saved_model"
@@ -75,13 +74,12 @@ def test_section_model():
 
 
 def test_eval():
-
     path = "./result/sections"
 
     info, pred, gt = [], [], []
     for _, _, files in os.walk(path):
         for file in files:
-            with open(path+os.sep+file, 'r') as f:
+            with open(path + os.sep + file, 'r') as f:
                 d = json.load(f)
                 pred.append(d['summary'])
                 gt.append(d['pred'])
@@ -91,8 +89,8 @@ def test_eval():
     for i in range(len(gt)):
         print('paper info:', info[i])
         print(rouge_metric([pred[i]], [gt[i]]))
-        print('--'*32)
-    print("***"*32)
+        print('--' * 32)
+    print("***" * 32)
     print('average rouge')
     print(rouge_metric(pred, gt))
 

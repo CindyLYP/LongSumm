@@ -15,7 +15,8 @@
 """Run summarization fine-tuning for BigBird.."""
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3,4,5,6,7"
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 import time
 import json
@@ -32,7 +33,6 @@ import tensorflow_text as tft
 
 from rouge_score import rouge_scorer
 
-tf.config.list_physical_devices('GPU')
 FLAGS = flags.FLAGS
 
 ## Required parameters
@@ -49,7 +49,7 @@ flags.DEFINE_string(
 ## Other parameters
 
 flags.DEFINE_string(
-    "init_checkpoint", "/home/gitlib/pretrain_model/pegasus/model.ckpt-300000",
+    "init_checkpoint", "/home/gitlib/longsumm/bigbird/output_dir/model.ckpt-5000",
     "Initial checkpoint (usually from a pre-trained BigBird model).")
 
 flags.DEFINE_integer(
@@ -64,16 +64,22 @@ flags.DEFINE_integer(
     "Sequences longer than this will be truncated, and sequences shorter "
     "than this will be padded.")
 
+
+flags.DEFINE_string(
+    "gpu_id", "GPU:6",
+    "choose the gpu id for running."
+)
+
 flags.DEFINE_string(
     "substitute_newline", "<n>",
     "Replace newline charachter from text with supplied string.")
 
 flags.DEFINE_bool(
-    "do_train", True,
+    "do_train", False,
     "Whether to run training.")
 
 flags.DEFINE_bool(
-    "do_eval", False,
+    "do_eval", True,
     "Whether to run eval on the dev set.")
 
 flags.DEFINE_bool(
@@ -81,7 +87,7 @@ flags.DEFINE_bool(
     "Whether to export the model as TF SavedModel.")
 
 flags.DEFINE_integer(
-    "train_batch_size", 2,
+    "train_batch_size", 4,
     "Local batch size for training. "
     "Total batch size will be multiplied by number gpu/tpu cores available.")
 
@@ -181,10 +187,17 @@ def input_fn_builder(data_dir, vocab_model_file, max_encoder_length,
                           shuffle_files=is_training, as_supervised=True)
         else:
             file_dir = tf.io.gfile.walk(data_dir)
+            print("==" * 32)
+
+            print(data_dir)
             file_dir = next(file_dir)
-            print("=="*32), print(file_dir[2]), print("=="*32)
+
+            print("==" * 32), print(file_dir[2]), print("==" * 32)
 
             files = [data_dir + str(it) for it in file_dir[2]]
+            if not is_training:
+                files = [data_dir+"bigbird.tfrecords"]
+
             d = tf.data.TFRecordDataset(files)
 
             d = d.map(_decode_record,
@@ -476,7 +489,7 @@ def main(_):
             max_encoder_length=FLAGS.max_encoder_length,
             max_decoder_length=FLAGS.max_decoder_length,
             substitute_newline=FLAGS.substitute_newline,
-            is_training=False)
+            is_training=False, batch_size=FLAGS.train_batch_size)
 
         # Run continuous evaluation for latest checkpoint as training progresses.
         last_evaluated = None

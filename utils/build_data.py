@@ -119,7 +119,6 @@ def read_tf_record(filepath='/data/ysc/tensorflow_datasets/scientific_papers/'
 
 
 def xml2json(info_path='../dataset/abstract_info.json', xml_path='../check_data'):
-
     def ns_tag(*args):
         ns = "/{http://www.tei-c.org/ns/1.0}"
 
@@ -192,6 +191,23 @@ def _decode_record(record):
     return example["document"], example["summary"]
 
 
+def read_tf_record(file_path):  # "need '/' at the end of the path eg: /home/dataset/ "
+    f = tf.io.gfile.walk(file_path)
+    f = next(f)
+    print("find files: ", f)
+    files = [file_path + str(it) for it in f[2]]
+
+    ds = tf.data.TFRecordDataset(files)
+    print("total num: ", len(list(ds.as_numpy_iterator())))
+    ds = ds.map(_decode_record)
+
+    # # try this to print an example
+    # for i in ds.take(1):
+    #     print(i)
+    #
+    return ds
+
+
 def gen_long_arxiv_data(file_path='../bigbird/dataset/arxiv/train.tfrecord-'):
     d = tfds.load('scientific_papers/arxiv', split="train", data_dir='/home/tensorflow_datasets',
                   as_supervised=True)
@@ -208,7 +224,7 @@ def gen_long_arxiv_data(file_path='../bigbird/dataset/arxiv/train.tfrecord-'):
         summary = it[1].decode('utf-8')
         l = len(summary.split())
         for j in range(4):
-            if threhold[j] > 0 and j*100 < l <= (j+1)*100:
+            if threhold[j] > 0 and j * 100 < l <= (j + 1) * 100:
                 articles.append(article), summaries.append(summary)
                 threhold[j] -= 1
                 flag = False
@@ -219,7 +235,7 @@ def gen_long_arxiv_data(file_path='../bigbird/dataset/arxiv/train.tfrecord-'):
             print("write into record-%d" % cnt)
             features = {'document': articles,
                         'summary': summaries}
-            write_record(features, feat_type, file_path+str(cnt))
+            write_record(features, feat_type, file_path + str(cnt))
             print("write finish")
             cnt += 1
             articles.clear(), summaries.clear()
@@ -232,7 +248,7 @@ def gen_long_arxiv_data(file_path='../bigbird/dataset/arxiv/train.tfrecord-'):
     print("=====           finish           =====")
 
 
-file_path='../dataset/arxiv/train.tfrecord-'
+file_path = '../dataset/arxiv/train.tfrecord-'
 
 gen_long_arxiv_data(file_path)
 # ds = tf.data.TFRecordDataset(file_path)

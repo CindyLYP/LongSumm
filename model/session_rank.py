@@ -1,0 +1,135 @@
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+import nltk
+import json
+import torch
+import torch.nn as nn
+from nltk.corpus import stopwords
+from tqdm import tqdm
+import numpy as np
+from utils.build_data import write_record
+
+stop_words = stopwords.words('english')
+
+print("length of stopwords: ", len(stop_words))
+print(stop_words[:20])
+
+window_size = 3000
+buffer = 72
+decode_max_len = 10000
+
+
+def load_model(path="/home/gitlib/pretrain_model/pytorch_pegasus"):
+    tokenizer = AutoTokenizer.from_pretrained(path)
+    model = AutoModelForSeq2SeqLM.from_pretrained(path)
+    return tokenizer, model
+
+
+def window_score_pegasus(single_window_data: str, gt_emb, tokenizer, model):
+    sents = nltk.sent_tokenize(single_window_data)
+    batch_sent = tokenizer(sents, return_tensors="pt", padding=True, truncation=True)
+    output = model(batch_sent['input_ids'], batch_sent['attention_mask'], decoder_input_ids=batch_sent['input_ids'])
+    encode_sent = output.encoder_last_hidden_state
+    sent_emb = torch.sum(encode_sent, dim=1)
+
+    cos = nn.CosineSimilarity()
+
+    scores = [torch.mean(cos(sent_emb, g.reshape(1, -1))) for g in gt_emb]
+    scores = torch.hstack(scores)
+    return scores
+
+
+def slide_window(raw_data: str, mode='window'):
+    spilt_data = []
+    words = nltk.word_tokenize(raw_data)
+    if len(words) - window_size - buffer < 0:
+        spilt_data.append(raw_data)
+    for i in range(0, len(words), window_size):
+        spilt_data.append(" ".join(words[max(0, i - buffer):min(i + window_size, len(words))]))
+
+    return spilt_data
+
+
+def window_score(single_window_data: str, gt_rm_sw: list, metric='recall'):
+    if metric == 'recall':
+        win_rm_sw = word_token(single_window_data, "article")
+        score = [len(set(win_rm_sw) & set(it)) / len(set(it)) for it in gt_rm_sw]
+
+    return score
+
+
+def word_token(raw_str, str_type):
+    if str_type == "article":
+        sents = nltk.sent_tokenize(raw_str)
+        words = []
+        for sent in sents:
+            words.extend(nltk.word_tokenize(sent))
+    if str_type == "sent":
+        words = nltk.word_tokenize(raw_str)
+
+    return [w for w in words if w.lower() not in stop_words]
+
+
+def save_record(d, s, f):
+    feat = {"document": d, "summary": s}
+    feat_type = {'document': 'string',
+                 'summary': 'string'}
+    write_record(feat, feat_type, f)
+
+
+def session_rank(document, summary, out_file):
+    split_doc = list(map(slide_window, document))
+    split_summary = [nltk.sent_tokenize(it) for it in summary]
+
+    features, labels = [], []
+    for i in tqdm(range(len(split_doc))):
+        gt_rm_sw = [word_token(s, "sent") for s in split_summary[i]]
+        scores = np.array([window_score(it, gt_rm_sw) for it in split_doc[i]])
+        ind = np.argmax(scores, axis=0)
+        summ = [[] for it in split_doc[i]]
+        for j in range(len(split_summary[i])):
+            summ[ind[j]].append(split_summary[i][j])
+
+        for j in range(len(split_doc[i])):
+            features.append(split_doc[i][j])
+            if summ[j]:
+                labels.append(" ".join(summ[j]))
+            else:
+                labels.append("<unused_34>")
+
+    save_record(features, labels, out_file)
+
+    print("write into %s" % out_file)
+
+
+def test_unit():
+    a = "this is my dog. do you like cs? machine learning is good, i think"
+    b = ["my cat is good", "bad machine is you"]
+    gt_rm_sw = [word_token(s, "sent") for s in b]
+    print(gt_rm_sw)
+    score = window_score(a, gt_rm_sw)
+    print(score)
+
+
+def input_fn(file_path='../dataset/json_data/bigbird_train.json'):
+    with open(file_path, 'r') as f:
+        d = json.load(f)
+    document = d['document']
+    summary = d['summary']
+    return document, summary
+
+
+def main():
+    in_file = '../dataset/json_data/bigbird_train.json'
+    document, summary = input_fn(in_file)
+    out_file = '../dataset/slide_window_data/train/train.tfrecord-0'
+    val_file = '../dataset/slide_window_data/val/val.tfrecord-0'
+    pred_file = '../dataset/slide_window_data/pred/pred.tfrecord-0'
+    train_x, train_y = document[10:], summary[10:]
+    val_x, val_y = document[:10], summary[:10]
+
+    session_rank(train_x, train_y, out_file)
+    session_rank(val_x, val_y, val_file)
+    save_record(val_x, val_y, pred_file)
+
+
+main()

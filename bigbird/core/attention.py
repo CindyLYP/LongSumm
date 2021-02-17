@@ -891,20 +891,20 @@ class MultiHeadedAttentionLayer(tf.compat.v1.layers.Layer):
                 band_mask, from_mask, to_mask, from_blocked_mask, to_blocked_mask,
                 batch_size, from_seq_length, to_seq_length, training):
             if attention_type == "original_full":
-                logging.info("**** Using original full attention ****")
+                # logging.info("**** Using original full attention ****")
                 attn_fn = original_full_attention(
                     query, key, value,
                     attention_mask, size_per_head,
                     attention_probs_dropout_prob if training else 0.0)
             elif attention_type == "simulated_sparse":
-                logging.info("**** Using simulated sparse attention ****")
+                # logging.info("**** Using simulated sparse attention ****")
                 attn_fn = bigbird_simulated_attention(
                     query, key, value,
                     attention_mask, num_attention_heads, num_rand_blocks, size_per_head,
                     from_seq_length, to_seq_length, from_block_size, to_block_size,
                     seed)
             elif attention_type == "block_sparse":
-                logging.info("**** Using block sparse attention ****")
+                # logging.info("**** Using block sparse attention ****")
                 attn_fn = bigbird_block_sparse_attention(
                     query, key, value,
                     band_mask, from_mask, to_mask, from_blocked_mask, to_blocked_mask,

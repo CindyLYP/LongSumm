@@ -15,12 +15,10 @@
 """Run summarization fine-tuning for BigBird.."""
 
 import os
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1,3,4,5,6,7"
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
-import time
-import json
 
+import time
 from absl import app
 from absl import logging
 from bigbird.core import flags
@@ -30,71 +28,67 @@ from bigbird.core import utils
 import tensorflow.compat.v2 as tf
 import tensorflow_datasets as tfds
 import tensorflow_text as tft
-
 from rouge_score import rouge_scorer
 
 FLAGS = flags.FLAGS
 
-## Required parameters
-
 flags.DEFINE_string(
-    "data_dir", "/home/gitlib/longsumm/dataset/arxiv/",
+    "data_dir", "/home/gitlib/longsumm/dataset/slide_window_data/train/",
     "The input data dir. Should contain the TFRecord files. "
     "Can be TF Dataset with prefix tfds://")
 
+
 flags.DEFINE_string(
-    "output_dir", "/home/gitlib/longsumm/bigbird/output_dir",
+    "output_dir", "/home/gitlib/longsumm/output/slide_window",
     "The output directory where the model checkpoints will be written.")
 
-## Other parameters
 
 flags.DEFINE_string(
-    "init_checkpoint", "/home/gitlib/longsumm/bigbird/output_dir/model.ckpt-5000",
+    "init_checkpoint", "/home/gitlib/pretrain_model/bigbird_pegasus/model.ckpt-300000",
     "Initial checkpoint (usually from a pre-trained BigBird model).")
 
 flags.DEFINE_integer(
-    "max_encoder_length", 4096,
+    "max_encoder_length", 3072,  # 3072, 4096
     "The maximum total input sequence length after SentencePiece tokenization. "
     "Sequences longer than this will be truncated, and sequences shorter "
     "than this will be padded.")
 
 flags.DEFINE_integer(
-    "max_decoder_length", 608,  # 512
+    "max_decoder_length", 256,  # 256 608
     "The maximum total input sequence length after SentencePiece tokenization. "
     "Sequences longer than this will be truncated, and sequences shorter "
     "than this will be padded.")
 
 
-flags.DEFINE_string(
-    "gpu_id", "GPU:6",
-    "choose the gpu id for running."
-)
+flags.DEFINE_bool(
+    "do_train", True,
+    "Whether to run training.")
+
+flags.DEFINE_bool(
+    "do_eval", False,
+    "Whether to run eval on the dev set.")
+
+
+flags.DEFINE_bool(
+    "do_pred", False,
+    "Whether to run eval on the dev set.")
+
+
+flags.DEFINE_integer(
+    "train_batch_size", 1,
+    "Local batch size for training. "
+    "Total batch size will be multiplied by number gpu/tpu cores available.")
+
+flags.DEFINE_integer(
+    "eval_batch_size", 4,
+    "Local batch size for eval. "
+    "Total batch size will be multiplied by number gpu/tpu cores available.")
+
 
 flags.DEFINE_string(
     "substitute_newline", "<n>",
     "Replace newline charachter from text with supplied string.")
 
-flags.DEFINE_bool(
-    "do_train", False,
-    "Whether to run training.")
-
-flags.DEFINE_bool(
-    "do_eval", True,
-    "Whether to run eval on the dev set.")
-
-flags.DEFINE_bool(
-    "do_export", False,
-    "Whether to export the model as TF SavedModel.")
-
-flags.DEFINE_integer(
-    "train_batch_size", 4,
-    "Local batch size for training. "
-    "Total batch size will be multiplied by number gpu/tpu cores available.")
-
-flags.DEFINE_integer(
-    "eval_batch_size", 8,
-    "Local batch size for eval. "
-    "Total batch size will be multiplied by number gpu/tpu cores available.")
 
 flags.DEFINE_string(
     "optimizer", "Adafactor",
@@ -105,7 +99,7 @@ flags.DEFINE_float(
     "The initial learning rate for Adam.")
 
 flags.DEFINE_integer(
-    "num_train_steps", 50000,
+    "num_train_steps", 600000,
     "Total number of training steps to perform.")
 
 flags.DEFINE_integer(
@@ -113,11 +107,11 @@ flags.DEFINE_integer(
     "Number of steps to perform linear warmup.")
 
 flags.DEFINE_integer(
-    "save_checkpoints_steps", 2500,
+    "save_checkpoints_steps", 10000,
     "How often to save the model checkpoint.")
 
 flags.DEFINE_integer(
-    "max_eval_steps", 100,
+    "max_eval_steps", 5,
     "Maximum number of eval steps.")
 
 flags.DEFINE_bool(
@@ -148,6 +142,7 @@ def input_fn_builder(data_dir, vocab_model_file, max_encoder_length,
             "summary": tf.io.FixedLenFeature([], tf.string),
         }
         example = tf.io.parse_single_example(record, name_to_features)
+        # example["document"] = tf.compat.v1.Print(example["document"], [example["document"]])
         return example["document"], example["summary"]
 
     def _tokenize_example(document, summary):
@@ -181,85 +176,36 @@ def input_fn_builder(data_dir, vocab_model_file, max_encoder_length,
         """The actual input function."""
 
         # Load dataset and handle tfds separately
-        split = "train" if is_training else "validation"
-        if "tfds://" == data_dir[:7]:
-            d = tfds.load('scientific_papers/arxiv', split=split, data_dir='/data/ysc/tensorflow_datasets',
-                          shuffle_files=is_training, as_supervised=True)
-        else:
-            file_dir = tf.io.gfile.walk(data_dir)
-            print("==" * 32)
 
-            print(data_dir)
-            file_dir = next(file_dir)
+        file_dir = tf.io.gfile.walk(data_dir)
+        file_dir = next(file_dir)
 
-            print("==" * 32), print(file_dir[2]), print("==" * 32)
+        files = [data_dir + str(it) for it in file_dir[2]]
 
-            files = [data_dir + str(it) for it in file_dir[2]]
-            if not is_training:
-                files = [data_dir+"bigbird.tfrecords"]
+        logging.info("input dataset: " + " ".join(files))
 
-            d = tf.data.TFRecordDataset(files)
-
-            d = d.map(_decode_record,
-                      num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        d = tf.data.TFRecordDataset(files)
+        d = d.map(_decode_record,
+                  num_parallel_calls=tf.data.experimental.AUTOTUNE,
+                  deterministic=is_training)
 
         d = d.map(_tokenize_example,
-                  num_parallel_calls=tf.data.experimental.AUTOTUNE)
+                  num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=is_training)
 
         if is_training:
-            d = d.shuffle(buffer_size=5000, reshuffle_each_iteration=True)
+            d = d.shuffle(buffer_size=1000, reshuffle_each_iteration=True)
             d = d.repeat()
+
         d = d.padded_batch(batch_size, ([max_encoder_length], [max_decoder_length]),
                            drop_remainder=True)
-        # For static shape
-
         return d
 
     return input_fn
 
 
-def serving_input_fn_builder(batch_size, max_encoder_length,
-                             vocab_model_file, substitute_newline):
-    """Creates an `input_fn` closure for exported SavedModel."""
-
-    def dynamic_padding(inp, min_size):
-        pad_size = tf.maximum(min_size - tf.shape(inp)[1], 0)
-        paddings = [[0, 0], [0, pad_size]]
-        return tf.pad(inp, paddings)
-
-    def input_fn():
-        # text input
-        text = tf.compat.v1.placeholder(tf.string, [batch_size], name="input_text")
-
-        # text tokenize
-        tokenizer = tft.SentencepieceTokenizer(
-            model=tf.io.gfile.GFile(vocab_model_file, "rb").read())
-        if substitute_newline:
-            text = tf.strings.regex_replace(text, "\n", substitute_newline)
-        # Remove space before special tokens.
-        text = tf.strings.regex_replace(text, r" ([<\[]\S+[>\]])", b"\\1")
-        ids = tokenizer.tokenize(text)
-        if isinstance(ids, tf.RaggedTensor):
-            ids = ids.to_tensor(0)
-
-        # text padding: Pad only if necessary and reshape properly
-        padded_ids = dynamic_padding(ids, max_encoder_length)
-        ids = tf.slice(padded_ids, [0, 0], [batch_size, max_encoder_length])
-
-        receiver_tensors = {"input": text}
-        features = {"input_ids": tf.cast(ids, tf.int32, name="input_ids")}
-
-        return tf.estimator.export.ServingInputReceiver(
-            features=features, receiver_tensors=receiver_tensors)
-
-    return input_fn
-
-
 def model_fn_builder(transformer_config):
-    """Returns `model_fn` closure for TPUEstimator."""
 
-    def model_fn(features, labels, mode, params):  # pylint: disable=unused-argument
-        """The `model_fn` for TPUEstimator."""
+    def model_fn(features, labels, mode, params):  # params fix
 
         if isinstance(features, dict):
             if not labels and "target_ids" in features:
@@ -267,19 +213,16 @@ def model_fn_builder(transformer_config):
             features = features["input_ids"]
 
         is_training = (mode == tf.estimator.ModeKeys.TRAIN)
-
         model = modeling.TransformerModel(transformer_config)
+        (llh, logits, pred_ids), _ = model(features, target_ids=labels, training=is_training)
 
-        (llh, logits, pred_ids), _ = model(features, target_ids=labels,
-                                           training=is_training)
         total_loss = padded_cross_entropy_loss(
             logits, labels,
             transformer_config["label_smoothing"],
             transformer_config["vocab_size"])
 
         tvars = tf.compat.v1.trainable_variables()
-
-        utils.log_variables(tvars, transformer_config["ckpt_var_list"])
+        # utils.log_variables(tvars, transformer_config["ckpt_var_list"])
 
         output_spec = None
         if mode == tf.estimator.ModeKeys.TRAIN:
@@ -298,10 +241,11 @@ def model_fn_builder(transformer_config):
                 posemb = "pegasus/embeddings/position_embeddings"
                 tvars = list(filter(lambda v: v.name.split(":")[0] != posemb, tvars))
 
-            if True:
-                logging.info("fixing transformers encoder, i.e. not trainable")
-                rule = "pegasus/decoder/layer_15"
-                tvars = list(filter(lambda v: rule in v.name.split(":")[0], tvars))
+            # if True:
+            #     logging.info("fixing transformers encoder, i.e. not trainable")
+            #     # rule = "pegasus/decoder/layer_15"
+            #     rule = "pegasus/decoder"
+            #     tvars = list(filter(lambda v: rule in v.name.split(":")[0], tvars))
 
             gradients = optimizer.compute_gradients(total_loss, tvars)
             train_op = optimizer.apply_gradients(gradients, global_step=global_step)
@@ -329,6 +273,7 @@ def model_fn_builder(transformer_config):
                     r1 += score["rouge1"].fmeasure
                     r2 += score["rouge2"].fmeasure
                     rl += score["rougeLsum"].fmeasure
+
                 return r1 / len(label_sent), r2 / len(label_sent), rl / len(label_sent)
 
             def metric_fn(loss, log_probs, label_ids, pred_ids):
@@ -347,20 +292,23 @@ def model_fn_builder(transformer_config):
                 pred_sent = tokenizer.detokenize(pred_ids)
                 pred_sent = tf.strings.regex_replace(pred_sent, r"([<\[]\S+[>\]])",
                                                      b" \\1")
+
                 if transformer_config["substitute_newline"]:
                     label_sent = tf.strings.regex_replace(
                         label_sent, transformer_config["substitute_newline"], "\n")
                     pred_sent = tf.strings.regex_replace(
                         pred_sent, transformer_config["substitute_newline"], "\n")
+
                 rouge_value = tf.compat.v1.py_func(
                     func=rouge_py_func,
                     inp=[label_sent, pred_sent],
                     Tout=[tf.float64, tf.float64, tf.float64],
                     stateful=False)
+
                 rouge_value = tf.cast(rouge_value, tf.float32)
                 rouge1 = tf.compat.v1.metrics.mean(values=rouge_value[0])
                 rouge2 = tf.compat.v1.metrics.mean(values=rouge_value[1])
-                rougeL = tf.compat.v1.metrics.mean(values=rouge_value[2])  # pylint: disable=invalid-name
+                rougeL = tf.compat.v1.metrics.mean(values=rouge_value[2]) # pylint: disable=invalid-name
 
                 metric_dict.update({
                     "eval/Rouge-1": rouge1,
@@ -371,29 +319,11 @@ def model_fn_builder(transformer_config):
                 return metric_dict
 
             eval_metric_ops = metric_fn(total_loss, llh, labels, pred_ids)
+
             output_spec = tf.estimator.EstimatorSpec(
                 mode=mode,
                 loss=total_loss,
                 eval_metric_ops=eval_metric_ops)
-        else:
-
-            prediction_dict = {"pred_ids": pred_ids}
-
-            tokenizer = tft.SentencepieceTokenizer(
-                model=tf.io.gfile.GFile(transformer_config["vocab_model_file"],
-                                        "rb").read())
-            pred_sent = tokenizer.detokenize(pred_ids)
-            # Add a space before special tokens.
-            pred_sent = tf.strings.regex_replace(
-                pred_sent, r"([<\[]\S+[>\]])", b" \\1")
-            if transformer_config["substitute_newline"]:
-                pred_sent = tf.strings.regex_replace(
-                    pred_sent, transformer_config["substitute_newline"], "\n")
-            prediction_dict.update({"pred_sent": pred_sent})
-
-            output_spec = tf.estimator.EstimatorSpec(
-                mode=mode,
-                predictions=prediction_dict)
 
         return output_spec
 
@@ -445,7 +375,7 @@ def padded_cross_entropy_loss(logits, labels, smoothing, vocab_size):
 
 
 def main(_):
-    if not FLAGS.do_train and not FLAGS.do_eval and not FLAGS.do_export:
+    if not FLAGS.do_train and not FLAGS.do_eval and not FLAGS.do_pred:
         raise ValueError(
             "At least one of `do_train`, `do_eval` must be True.")
 
@@ -489,7 +419,7 @@ def main(_):
             max_encoder_length=FLAGS.max_encoder_length,
             max_decoder_length=FLAGS.max_decoder_length,
             substitute_newline=FLAGS.substitute_newline,
-            is_training=False, batch_size=FLAGS.train_batch_size)
+            is_training=False, batch_size=FLAGS.eval_batch_size)
 
         # Run continuous evaluation for latest checkpoint as training progresses.
         last_evaluated = None
@@ -500,7 +430,7 @@ def main(_):
                     logging.info("No checkpoints found yet.")
                 else:
                     logging.info("Latest checkpoint %s already evaluated.", latest)
-                time.sleep(300)
+                time.sleep(200)
                 continue
             else:
                 logging.info("Evaluating check point %s", latest)
@@ -518,18 +448,7 @@ def main(_):
                     for key in sorted(result.keys()):
                         logging.info("  %s = %s", key, str(result[key]))
                         writer.write("%s = %s\n" % (key, str(result[key])))
-
-    if FLAGS.do_export:
-        logging.info("***** Running export *****")
-
-        serving_input_fn = serving_input_fn_builder(
-            batch_size=FLAGS.eval_batch_size,
-            vocab_model_file=FLAGS.vocab_model_file,
-            max_encoder_length=FLAGS.max_encoder_length,
-            substitute_newline=FLAGS.substitute_newline)
-
-        estimator.export_saved_model(
-            os.path.join(FLAGS.output_dir, "export"), serving_input_fn)
+            break
 
 
 if __name__ == "__main__":

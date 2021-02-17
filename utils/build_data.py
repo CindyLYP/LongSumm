@@ -101,24 +101,7 @@ def gen_training_data():
     return inp, tar, sec, summ
 
 
-def read_tf_record(filepath='/data/ysc/tensorflow_datasets/scientific_papers/'
-                            'arxiv/1.1.1/scientific_papers-test.tfrecord-00001-of-00002'):
-    def _parse_record(example_photo):
-        features = {
-            'inputs': tf.FixedLenFeature((), tf.string),
-            'targets': tf.FixedLenFeature((), tf.string)
-        }
-        parsed_features = tf.parse_single_example(example_photo, features=features)
-        return parsed_features['inputs'], parsed_features['targets']
-
-    ds = tf.data.TFRecordDataset(filepath)
-    ds.map(_parse_record)
-    for d in ds.take(10):
-        (x, y) = d
-    return x, y
-
-
-def xml2json(info_path='../dataset/abstract_info.json', xml_path='../check_data'):
+def xml2json(info_path='../dataset/json_data/pdf_info.json', xml_path='../dataset/xml'):
     def ns_tag(*args):
         ns = "/{http://www.tei-c.org/ns/1.0}"
 
@@ -126,13 +109,22 @@ def xml2json(info_path='../dataset/abstract_info.json', xml_path='../check_data'
 
     with open(info_path, 'r') as f:
         abs_info = json.load(f)
+    remain = []
+    cnt = 0
     for i, it in enumerate(abs_info):
         xml_file = xml_path + os.sep + str(it['id']) + '.tei.xml'
 
+        if not os.path.exists(xml_file):
+            cnt += 1
+            continue
         dom = etree.parse(xml_file)
         root = dom.getroot()
 
-        abstract = str(root.find(ns_tag('abstract', 'p')).xpath('text()')[0])
+        try:
+            abstract = str(root.find(ns_tag('abstract', 'p')).xpath('text()')[0])
+        except:
+            print("no abstract found in ", xml_file)
+            exit(1)
         abs_info[i]['abstract'] = abstract
 
         body = root.findall(ns_tag('body', 'div'))
@@ -144,13 +136,19 @@ def xml2json(info_path='../dataset/abstract_info.json', xml_path='../check_data'
             if not ps:
                 print('no content found in ', i, it['id'])
                 continue
-            section_name.append(etree.tostring(head, encoding='utf-8', method='text').decode('utf-8').lower())
+            try:
+                section_name.append(etree.tostring(head, encoding='utf-8', method='text').decode('utf-8').lower())
+            except:
+                print("no head found in ",xml_file)
+                exit(1)
             section_content.append(" ".join([etree.tostring(p, encoding='utf-8', method='text').
                                             decode('utf-8') for p in ps]))
         abs_info[i]['section_name'] = section_name
         abs_info[i]['section_content'] = section_content
-    with open("../dataset/train.json", 'w') as f:
-        json.dump(abs_info, f)
+        remain.append(abs_info[i])
+    with open("../dataset/xml/remain.json", 'w') as f:
+        json.dump(remain, f)
+    print(cnt)
 
 
 def _bytes_feature(value):
@@ -201,10 +199,10 @@ def read_tf_record(file_path):  # "need '/' at the end of the path eg: /home/dat
     print("total num: ", len(list(ds.as_numpy_iterator())))
     ds = ds.map(_decode_record)
 
-    # # try this to print an example
-    # for i in ds.take(1):
-    #     print(i)
-    #
+    # try this to print an example
+    for i in ds.take(10):
+        print("Feature:\n{}\n\nLabel:\n{}\n\n".format(i[0].numpy().decode('utf-8'), i[1].numpy().decode('utf-8')))
+
     return ds
 
 
@@ -248,18 +246,45 @@ def gen_long_arxiv_data(file_path='../bigbird/dataset/arxiv/train.tfrecord-'):
     print("=====           finish           =====")
 
 
-file_path = '../dataset/arxiv/train.tfrecord-'
+file_path = '../dataset/gen_data/train.tfrecord-'
 
-gen_long_arxiv_data(file_path)
-# ds = tf.data.TFRecordDataset(file_path)
-# ds = ds.map(_decode_record)
-# for i in ds.take(3):
-#     print(repr(i))
-#
-# dataset = ds.repeat(5).shuffle(1024).batch(32)
-#
-# dataset = dataset.repeat(2)
-# dataset = dataset.batch(4) # Batch size to use
-#
-# iterator = dataset.make_one_shot_iterator()
-# batch_features, batch_labels = iterator.get_next()
+
+def ex_data():
+    d = []
+    reh = 50
+    with open("../dataset/json_data/gen_data.json", 'r', encoding='utf-8') as f:
+        line = f.readline()
+        while line:
+            d.append(json.loads(line))
+            line = f.readline()
+    val_acl = d[:reh]
+    val_arxiv = d[len(d)-1000:]
+    data = d[reh:len(d)-1000]
+    le = len(data)
+
+    feat_type = {'document': 'string',
+                 'summary': 'string'}
+
+    def transfer_feat(rd):
+        doc = [it[0] for it in rd]
+        summ = [it[1] for it in rd]
+
+        return {'document': doc, 'summary': summ}
+
+    feat = transfer_feat(val_acl)
+    write_record(feat, feat_type, "../dataset/gen_data/val_acl.tfrecord")
+    print("write val acl")
+    feat = transfer_feat(val_arxiv)
+    write_record(feat, feat_type, "../dataset/gen_data/val_arxiv.tfrecord")
+    print("write val arxiv")
+    cnt = 0
+    for i in tqdm(range(0, le, 6000)):
+        feat = transfer_feat(data[i:min(i+3000, le)])
+        write_record(feat, feat_type, "../dataset/gen_data/train.tfrecord-%d"%cnt)
+        cnt += 1
+    print(cnt)
+
+
+# ex_data()
+# read_tf_record('../dataset/gen_data/')
+# xml2json()

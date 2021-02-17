@@ -159,17 +159,19 @@ def beam_search(symbols_to_logits_fn,
 
     # run loop.
     (_, final_alive_seq_BxMxT, final_alive_scores_BxM, _,
-     final_finished_seq_BxMxT, final_finished_scores_BxM) = tf.while_loop(
-        lambda *args: True,  # Always do T iterations
-        _loop_body,
-        loop_vars=[
-            init_i, init_alive_seq_BxMxT, init_alive_log_probs_BxM,
-            init_alive_cache_BxMxU, init_finished_seq_BxMxT,
-            init_finished_scores_BxM
-        ],
-        parallel_iterations=1,
-        back_prop=False,
-        maximum_iterations=T,
+     final_finished_seq_BxMxT, final_finished_scores_BxM) = tf.nest.map_structure(  # fix
+        tf.stop_gradient,
+        tf.while_loop(
+            lambda *args: True,  # Always do T iterations
+            _loop_body,
+            loop_vars=[
+                init_i, init_alive_seq_BxMxT, init_alive_log_probs_BxM,
+                init_alive_cache_BxMxU, init_finished_seq_BxMxT,
+                init_finished_scores_BxM
+            ],
+            parallel_iterations=1,
+            maximum_iterations=T,
+        )
     )
 
     # process finished.

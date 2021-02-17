@@ -563,24 +563,15 @@ class EmbeddingLayer(tf.compat.v1.layers.Layer):
 
 
 def get_estimator(config, model_fn, keep_checkpoint_max=10):
-    """Create TPUEstimator object for given config and model_fn."""
-    tpu_cluster_resolver = None
 
-    # Batch size book-keeping
-    # Estimators handle batch sizes differently among GPUs and TPUs
-    # GPU: Estimator needs per core batch size
-    # TPU: Estimator needs total batch size, i.e. num_cores * per core batch size
-    config_train_batch_size = config["train_batch_size"]  # For estimator
-    config_eval_batch_size = config["eval_batch_size"]  # For estimator
     effective_train_batch_size = config["train_batch_size"]  # For human
     effective_eval_batch_size = config["eval_batch_size"]  # For human
 
-    # distribute_strategy = tf.distribute.MirroredStrategy(["GPU:7"])
-    # effective_train_batch_size *= distribute_strategy.num_replicas_in_sync
+    distribute_strategy = tf.distribute.MirroredStrategy()
 
     run_config = tf.estimator.RunConfig(
         model_dir=config["output_dir"],
-        # train_distribute=distribute_strategy,
+        train_distribute=distribute_strategy,
         save_checkpoints_steps=config["save_checkpoints_steps"],
         keep_checkpoint_max=keep_checkpoint_max)
 

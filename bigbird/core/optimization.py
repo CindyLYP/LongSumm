@@ -118,10 +118,6 @@ def get_optimizer(params, learning_rate):
     if optimizer is None:
         raise ValueError("Unknown optimizer: {}.".format(params["optimizer"]))
 
-    if params["use_tpu"]:
-        # Average the gradients across TPU cores.
-        optimizer = tf.compat.v1.tpu.CrossShardOptimizer(optimizer)
-
     return optimizer
 
 

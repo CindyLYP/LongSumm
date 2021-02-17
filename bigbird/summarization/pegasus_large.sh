@@ -1,5 +1,4 @@
 #!/bin/bash
-export PATHONPATH=.
 # TF_XLA_FLAGS=--tf_xla_auto_jit=2
 python3 bigbird/summarization/run_summarization.py \
   --data_dir="/data/ysc/pycharm_work_space/LongSumm/bigbird/dataset" \

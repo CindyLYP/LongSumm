@@ -49,7 +49,7 @@ flags.DEFINE_float(
     "attention_probs_dropout_prob", 0.1,
     "The dropout probability for attention coefficients when using original.")
 flags.DEFINE_string(
-    "hidden_act", "gelu",
+    "hidden_act", "relu",
     "The non-linear activation function (function or string) in the encoder "
     "and pooler.")
 flags.DEFINE_float(
@@ -83,7 +83,7 @@ flags.DEFINE_bool(
     "use_bias", False,
     "Whether to use bias for key/query/value.")
 flags.DEFINE_bool(
-    "rescale_embedding", False,
+    "rescale_embedding", True,
     "Whether to rescale word embedding by hidden dimensions.")
 flags.DEFINE_string(
     "scope", "pegasus",
@@ -135,39 +135,6 @@ flags.DEFINE_float(
 
 # TPU settings
 
-flags.DEFINE_bool(
-    "use_tpu", False,
-    "Whether to use TPU or GPU/CPU.")
-
-flags.DEFINE_string(
-    "tpu_name", None,
-    "The Cloud TPU to use for training. This should be either the name "
-    "used when creating the Cloud TPU, or a grpc://ip.address.of.tpu:8470 "
-    "url.")
-
-flags.DEFINE_string(
-    "tpu_zone", None,
-    "[Optional] GCE zone where the Cloud TPU is located in. If not "
-    "specified, we will attempt to automatically detect the GCE project from "
-    "metadata.")
-
-flags.DEFINE_string(
-    "tpu_job_name", None,
-    "Name of TPU worker, if anything other than 'tpu_worker'")
-
-flags.DEFINE_string(
-    "gcp_project", None,
-    "[Optional] Project name for the Cloud TPU-enabled project. If not "
-    "specified, we will attempt to automatically detect the GCE project from "
-    "metadata.")
-
-flags.DEFINE_string(
-    "master", None,
-    "[Optional] TensorFlow master URL.")
-
-flags.DEFINE_integer(
-    "num_tpu_cores", 8,
-    "Only used if `use_tpu` is True. Total number of TPU cores to use.")
 
 flags.DEFINE_string(
     "iterations_per_loop", "1000",
@@ -214,7 +181,7 @@ def as_dictionary():
         "substitute_newline": FLAGS.substitute_newline,
         "do_train": FLAGS.do_train,
         "do_eval": FLAGS.do_eval,
-        "do_export": FLAGS.do_export,
+        "do_pred": FLAGS.do_pred,
         "train_batch_size": FLAGS.train_batch_size,
         "eval_batch_size": FLAGS.eval_batch_size,
         "optimizer": FLAGS.optimizer,
@@ -227,15 +194,7 @@ def as_dictionary():
         "optimizer_beta2": FLAGS.optimizer_beta2,
         "optimizer_epsilon": FLAGS.optimizer_epsilon,
         # TPU settings
-        "use_tpu": FLAGS.use_tpu,
-        "tpu_name": FLAGS.tpu_name,
-        "tpu_zone": FLAGS.tpu_zone,
-        "tpu_job_name": FLAGS.tpu_job_name,
-        "gcp_project": FLAGS.gcp_project,
-        "master": FLAGS.master,
-        "num_tpu_cores": FLAGS.num_tpu_cores,
         "iterations_per_loop": FLAGS.iterations_per_loop,
-        "gpu_id": FLAGS.gpu_id,
     }
 
     # pretraining dedicated flags

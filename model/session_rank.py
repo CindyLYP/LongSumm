@@ -7,15 +7,17 @@ from nltk.corpus import stopwords
 from tqdm import tqdm
 import numpy as np
 from utils.build_data import write_record
+import random
 
 stop_words = stopwords.words('english')
 
 print("length of stopwords: ", len(stop_words))
 print(stop_words[:20])
 
-window_size = 3000
-buffer = 72
-decode_max_len = 10000
+window_size = 1700
+buffer = 100
+decode_max_len = 200
+split = 30
 
 
 def load_model(path="/home/gitlib/pretrain_model/pytorch_pegasus"):
@@ -43,8 +45,9 @@ def slide_window(raw_data: str, mode='window'):
     words = nltk.word_tokenize(raw_data)
     if len(words) - window_size - buffer < 0:
         spilt_data.append(raw_data)
-    for i in range(0, len(words), window_size):
-        spilt_data.append(" ".join(words[max(0, i - buffer):min(i + window_size, len(words))]))
+    else:
+        for i in range(0, len(words), window_size):
+            spilt_data.append(" ".join(words[max(0, i - buffer):min(i + window_size, len(words))]))
 
     return spilt_data
 
@@ -53,6 +56,10 @@ def window_score(single_window_data: str, gt_rm_sw: list, metric='recall'):
     if metric == 'recall':
         win_rm_sw = word_token(single_window_data, "article")
         score = [len(set(win_rm_sw) & set(it)) / len(set(it)) for it in gt_rm_sw]
+
+    if metric == 'precision':
+        win_rm_sw = word_token(single_window_data, "article")
+        score = [len(set(win_rm_sw) & set(it)) / len(set(win_rm_sw)) for it in gt_rm_sw]
 
     return score
 
@@ -65,6 +72,8 @@ def word_token(raw_str, str_type):
             words.extend(nltk.word_tokenize(sent))
     if str_type == "sent":
         words = nltk.word_tokenize(raw_str)
+    if str_type == "no_stop":
+        return nltk.word_tokenize(raw_str)
 
     return [w for w in words if w.lower() not in stop_words]
 
@@ -76,27 +85,48 @@ def save_record(d, s, f):
     write_record(feat, feat_type, f)
 
 
-def session_rank(document, summary, out_file):
+def session_rank(document, summary, out_file, mode='more'):
     split_doc = list(map(slide_window, document))
     split_summary = [nltk.sent_tokenize(it) for it in summary]
 
     features, labels = [], []
     for i in tqdm(range(len(split_doc))):
         gt_rm_sw = [word_token(s, "sent") for s in split_summary[i]]
-        scores = np.array([window_score(it, gt_rm_sw) for it in split_doc[i]])
-        ind = np.argmax(scores, axis=0)
-        summ = [[] for it in split_doc[i]]
-        for j in range(len(split_summary[i])):
-            summ[ind[j]].append(split_summary[i][j])
+        if mode == 'less':
+            scores = np.array([window_score(it, gt_rm_sw, metric="recall") for it in split_doc[i]])
 
-        for j in range(len(split_doc[i])):
-            features.append(split_doc[i][j])
-            if summ[j]:
+            ind = np.argmax(scores, axis=0)
+            summ = [[] for it in split_doc[i]]
+            for j in range(len(split_summary[i])):
+                summ[ind[j]].append(split_summary[i][j])
+
+            for j in range(len(split_doc[i])):
+                if not summ[j]:
+                    continue
+                features.append(split_doc[i][j])
                 labels.append(" ".join(summ[j]))
-            else:
-                labels.append("<unused_34>")
+
+        if mode == 'more':
+            np_s = np.array(split_summary[i])
+            scores = np.array([window_score(it, gt_rm_sw, metric="recall") for it in split_doc[i]])
+            d1, d2 = scores.shape
+            for j in range(d1):
+                s_len = 0
+                for _ in range(d2):
+                    if s_len > decode_max_len:
+                        break
+                    r = np.argmax(scores[j])
+                    s_len += len(word_token(split_summary[i][r], 'no_stop'))
+                    scores[j][r] = -1
+            mask = (scores < 0)
+
+            for j in range(d1):
+                summ = " ".join(np_s[mask[j]])
+                features.append(split_doc[i][j])
+                labels.append(summ)
 
     save_record(features, labels, out_file)
+    print("num examples: ", len(features))
 
     print("write into %s" % out_file)
 
@@ -110,26 +140,40 @@ def test_unit():
     print(score)
 
 
-def input_fn(file_path='../dataset/json_data/bigbird_train.json'):
-    with open(file_path, 'r') as f:
-        d = json.load(f)
-    document = d['document']
-    summary = d['summary']
+def input_fn(file_path):
+    d = []
+    with open(file_path, 'r', encoding='utf-8') as f:
+        line = f.readline()
+        while line:
+            d.append(json.loads(line))
+            line = f.readline()
+
+    random.shuffle(d)
+    document = []
+    summary = []
+    for it in d:
+        document.append(it['artical'])
+        summary.append(it['summary'])
     return document, summary
 
 
 def main():
-    in_file = '../dataset/json_data/bigbird_train.json'
+    in_file = '../dataset/json_data/acl_ss.json'
     document, summary = input_fn(in_file)
-    out_file = '../dataset/slide_window_data/train/train.tfrecord-0'
-    val_file = '../dataset/slide_window_data/val/val.tfrecord-0'
-    pred_file = '../dataset/slide_window_data/pred/pred.tfrecord-0'
-    train_x, train_y = document[10:], summary[10:]
-    val_x, val_y = document[:10], summary[:10]
+    out_file = '../dataset/acl_ss_clean/train/train.tfrecord'
+    val_file = '../dataset/acl_ss_clean/eval/eval.tfrecord'
+    pred_json = '../dataset/acl_ss_clean/pred/pred.json'
+    pred_tfd = '../dataset/acl_ss_clean/pred/pred.tfrecord'
+    train_x, train_y = document[split:], summary[split:]
+    val_x, val_y = document[:split], summary[:split]
 
     session_rank(train_x, train_y, out_file)
     session_rank(val_x, val_y, val_file)
-    save_record(val_x, val_y, pred_file)
+    pred = []
+    for i in range(split):
+        pred.append({'document':val_x[i], "summary": val_y[i]})
+    with open(pred_json, 'w') as f:
+        json.dump(pred, f)
+    save_record(val_x, val_y, pred_tfd)
 
 
-main()

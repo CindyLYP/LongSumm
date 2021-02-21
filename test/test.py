@@ -6,10 +6,11 @@ import json
 import numpy as np
 from utils.build_data import read_tf_record
 from lxml import etree
-
+from model.session_rank import slide_window
+import re
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "5"
 
 
 def test_dataset():
@@ -94,35 +95,9 @@ def test_dataset():
 
 
 def gen_test_data():
-    info_path = '../dataset/json_data/union_add.json'
-    xml_path = '../dataset/xml'
+    vocab_model_file = "../bigbird/vocab/pegasus.model"
 
-    def ns_tag(*args):
-        ns = "/{http://www.tei-c.org/ns/1.0}"
-
-        return './%s%s' % (ns, ns.join(args))
-
-    cnt = 0
-    titles = []
-    for a, b, files in os.walk(xml_path):
-
-        for file in files:
-            xml_file = xml_path + os.sep + file
-
-            dom = etree.parse(xml_file)
-            root = dom.getroot()
-
-            try:
-                title = str(root.find(ns_tag('title')).xpath('text()')[0])
-            except:
-                print("no title found in ", xml_file)
-            titles.append(title)
-
-    myt = set(titles)
-    print("len :", len(myt))
-    for it in myt:
-        if titles.count(it) != 1:
-            print("find  %d papers has the same title [%s]" % (titles.count(it), it))
+    read_tf_record('../dataset/acl_ss_clean/train/')
 
 
 gen_test_data()

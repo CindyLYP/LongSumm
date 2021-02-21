@@ -15,7 +15,7 @@
 """Run summarization fine-tuning for BigBird.."""
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1,3,4,5,6,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 
 import time
@@ -26,20 +26,19 @@ from bigbird.core import modeling
 from bigbird.core import optimization
 from bigbird.core import utils
 import tensorflow.compat.v2 as tf
-import tensorflow_datasets as tfds
 import tensorflow_text as tft
 from rouge_score import rouge_scorer
 
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string(
-    "data_dir", "/home/gitlib/longsumm/dataset/slide_window_data/train/",
+    "data_dir", "/home/gitlib/longsumm/dataset/acl_ss_clean/train/",
     "The input data dir. Should contain the TFRecord files. "
     "Can be TF Dataset with prefix tfds://")
 
 
 flags.DEFINE_string(
-    "output_dir", "/home/gitlib/longsumm/output/slide_window",
+    "output_dir", "/home/gitlib/longsumm/output/acl_ss_clean",
     "The output directory where the model checkpoints will be written.")
 
 
@@ -48,7 +47,7 @@ flags.DEFINE_string(
     "Initial checkpoint (usually from a pre-trained BigBird model).")
 
 flags.DEFINE_integer(
-    "max_encoder_length", 3072,  # 3072, 4096
+    "max_encoder_length", 2048,  # 3072, 4096
     "The maximum total input sequence length after SentencePiece tokenization. "
     "Sequences longer than this will be truncated, and sequences shorter "
     "than this will be padded.")
@@ -75,7 +74,7 @@ flags.DEFINE_bool(
 
 
 flags.DEFINE_integer(
-    "train_batch_size", 1,
+    "train_batch_size", 2,
     "Local batch size for training. "
     "Total batch size will be multiplied by number gpu/tpu cores available.")
 
@@ -95,11 +94,11 @@ flags.DEFINE_string(
     "Optimizer to use. Can be Adafactor, Adam, and AdamWeightDecay.")
 
 flags.DEFINE_float(
-    "learning_rate", 1e-4,
+    "learning_rate", 1e-3,
     "The initial learning rate for Adam.")
 
 flags.DEFINE_integer(
-    "num_train_steps", 600000,
+    "num_train_steps", 800000,
     "Total number of training steps to perform.")
 
 flags.DEFINE_integer(
@@ -111,7 +110,7 @@ flags.DEFINE_integer(
     "How often to save the model checkpoint.")
 
 flags.DEFINE_integer(
-    "max_eval_steps", 5,
+    "max_eval_steps", 2,
     "Maximum number of eval steps.")
 
 flags.DEFINE_bool(
@@ -142,7 +141,6 @@ def input_fn_builder(data_dir, vocab_model_file, max_encoder_length,
             "summary": tf.io.FixedLenFeature([], tf.string),
         }
         example = tf.io.parse_single_example(record, name_to_features)
-        # example["document"] = tf.compat.v1.Print(example["document"], [example["document"]])
         return example["document"], example["summary"]
 
     def _tokenize_example(document, summary):
@@ -175,8 +173,6 @@ def input_fn_builder(data_dir, vocab_model_file, max_encoder_length,
     def input_fn():
         """The actual input function."""
 
-        # Load dataset and handle tfds separately
-
         file_dir = tf.io.gfile.walk(data_dir)
         file_dir = next(file_dir)
 
@@ -185,6 +181,7 @@ def input_fn_builder(data_dir, vocab_model_file, max_encoder_length,
         logging.info("input dataset: " + " ".join(files))
 
         d = tf.data.TFRecordDataset(files)
+
         d = d.map(_decode_record,
                   num_parallel_calls=tf.data.experimental.AUTOTUNE,
                   deterministic=is_training)

@@ -161,7 +161,7 @@ def _bytes_feature(value):
 def write_record(features: dict, feat_type: dict, file_path):
     def _bytes_feature(value):
         """Returns a bytes_list from a string / byte."""
-        return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value.encode('utf-8')]))
+        return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value.encode('utf-8', 'ignore')]))
 
     feat_name = list(features.keys())
     n_example = len(features[feat_name[0]])
@@ -285,6 +285,51 @@ def ex_data():
     print(cnt)
 
 
-# ex_data()
-# read_tf_record('../dataset/gen_data/')
-# xml2json()
+def gen_acl_ss_data():
+
+    with open("../dataset/json_data/acl515.json", 'r') as f:
+        d = json.load(f)
+    tot_data = []
+    cnt = 0
+    for it in d:
+        if "shortscience" in it['source_website']:
+            continue
+        doc = it['abstract'] + " ".join(it['section_content'])
+        summ = " ".join(it['summary'])
+
+        if len(summ.split()) <= 100:
+            cnt += 1
+            continue
+
+        tot_data.append({"document": doc,
+                         "summary": summ})
+    print("acl drop num: ", cnt)
+
+    union_data = []
+    with open('../dataset/json_data/union_add.json', 'r') as f:
+        line = f.readline()
+        while line:
+            union_data.append(json.loads(line))
+            line = f.readline()
+    cnt = 0
+
+    def drop_url(s):
+        return re.sub(r'(https|http)?:\/\/(\w|\.|\/|\?|\=|\&|\%|\-|\#)*\b', '[url]', s, flags=re.MULTILINE)
+    for it in union_data:
+        doc = it['page']['text']
+        summ = drop_url(it['summary'])
+        if len(doc.split()) < 1000 or len(summ.split()) < 50:
+            cnt += 1
+            continue
+        tot_data.append({"document": doc,
+                         "summary": summ})
+
+    print("short science drop num: ", cnt)
+    print("=="*32)
+    print("total data: ", len(tot_data))
+    with open("../dataset/json_data/acl_ss.json", 'w') as f:
+        json.dump(tot_data, f)
+    print("finish")
+
+
+# gen_acl_ss_data()

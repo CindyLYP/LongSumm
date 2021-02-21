@@ -16,7 +16,7 @@ print(stop_words[:20])
 
 window_size = 1700
 buffer = 100
-decode_max_len = 200
+decode_max_len = 100
 split = 30
 
 

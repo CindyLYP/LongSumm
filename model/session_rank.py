@@ -14,9 +14,9 @@ stop_words = stopwords.words('english')
 print("length of stopwords: ", len(stop_words))
 print(stop_words[:20])
 
-window_size = 1700
+window_size = 2800
 buffer = 100
-decode_max_len = 100
+decode_max_len = 200
 split = 30
 
 
@@ -86,6 +86,7 @@ def save_record(d, s, f):
 
 
 def session_rank(document, summary, out_file, mode='more'):
+    print("rank mode: ", mode)
     split_doc = list(map(slide_window, document))
     split_summary = [nltk.sent_tokenize(it) for it in summary]
 

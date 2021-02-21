@@ -15,7 +15,7 @@
 """Run summarization fine-tuning for BigBird.."""
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 
 import time
@@ -47,13 +47,13 @@ flags.DEFINE_string(
     "Initial checkpoint (usually from a pre-trained BigBird model).")
 
 flags.DEFINE_integer(
-    "max_encoder_length", 2048,  # 3072, 4096
+    "max_encoder_length", 3072,  # 3072, 4096
     "The maximum total input sequence length after SentencePiece tokenization. "
     "Sequences longer than this will be truncated, and sequences shorter "
     "than this will be padded.")
 
 flags.DEFINE_integer(
-    "max_decoder_length", 128,  # 256 608
+    "max_decoder_length", 256,  # 256 608
     "The maximum total input sequence length after SentencePiece tokenization. "
     "Sequences longer than this will be truncated, and sequences shorter "
     "than this will be padded.")
@@ -74,7 +74,7 @@ flags.DEFINE_bool(
 
 
 flags.DEFINE_integer(
-    "train_batch_size", 2,
+    "train_batch_size", 1,
     "Local batch size for training. "
     "Total batch size will be multiplied by number gpu/tpu cores available.")
 

@@ -1,8 +1,7 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"]='1'
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 print(os.environ["CUDA_VISIBLE_DEVICES"])
-
 from bigbird.core import flags
 from bigbird.core import modeling
 from bigbird.summarization import run_summarization
@@ -23,14 +22,14 @@ FLAGS(sys.argv)
 # tf.enable_v2_behavior()
 
 
-FLAGS.max_encoder_length = 2048
+FLAGS.max_encoder_length = 3072
 FLAGS.max_decoder_length = 256
 FLAGS.vocab_model_file = "/home/gitlib/longsumm/bigbird/vocab/pegasus.model"
 FLAGS.eval_batch_size = 4
 FLAGS.substitute_newline = "<n>"
-ckpt_path = '/home/gitlib/longsumm/output/acl_ss_part/model.ckpt-50000'
+ckpt_path = '/home/gitlib/longsumm/output/acl_ss_part/model.ckpt-40000'
 pred_out = '/home/gitlib/longsumm/output/acl_ss_part/pred.txt'
-pred_in = '/home/gitlib/longsumm/dataset/acl_ss_clean/pred/pred.json'
+pred_in = '/home/gitlib/longsumm/dataset/json_data/test.json'
 
 tokenizer = tft.SentencepieceTokenizer(
         model=tf.io.gfile.GFile(FLAGS.vocab_model_file, "rb").read())
@@ -64,8 +63,8 @@ def main():
     container = EagerVariableStore()
     with container.as_default():
         model = modeling.TransformerModel(transformer_config)
-
-    with open(pred_in, 'r') as f:
+    dataset = []
+    with open(pred_in, 'r', encoding='utf-8') as f:
         dataset = json.load(f)
 
     @tf.function(experimental_compile=True)
@@ -94,6 +93,7 @@ def main():
 
     cnt = 0
     s1, s2 = [], []
+    pred_test = []
 
     with open(pred_out, 'w', encoding='utf-8') as f:
 
@@ -101,6 +101,8 @@ def main():
             print("### Example %d" % i)
             document, summary = ex['document'], ex['summary']
             doc_ids = input_fn(document)
+            print("pred tensor shape: ", doc_ids.shape)
+
             _, _, pred_ids = fwd_only(doc_ids)
             pred_sents = tokenizer.detokenize(pred_ids)
             pred_sents = tf.strings.regex_replace(pred_sents, r"([<\[]\S+[>\]])", b" \\1")
@@ -123,13 +125,16 @@ def main():
             for it in pred_list:
                 print(it)
                 print("**"*32)
+            pred_test.append({'id': ex['id'], 'pred': pred_summary})
+
         res = rouge_metric(s1, s2)
         avg_rouge = "average rouge score: \n"
         for key in sorted(single_rouge.keys()):
             avg_rouge += "%s = %.4f\n" % (key, single_rouge[key])
         f.write(avg_rouge)
         print(avg_rouge)
-
+    with open('/home/gitlib/longsumm/output/test/pred.json', 'w') as f:
+        json.dump(pred_test, f)
 
 if __name__=="__main__":
     main()

@@ -95,9 +95,20 @@ def test_dataset():
 
 
 def gen_test_data():
-    vocab_model_file = "../bigbird/vocab/pegasus.model"
+    d = []
+    res = []
+    with open("../dataset/json_data/raw_test.json", 'r', encoding='utf-8') as f:
+        line = f.readline()
+        while line:
+            d.append(json.loads(line))
+            line = f.readline()
+    for it in d:
+        res.append({"document": it['text'], "id": it['id'], "summary": " "})
+    with open("../dataset/json_data/test.json", 'w') as f:
+        json.dump(res, f)
 
-    read_tf_record('../dataset/acl_ss_clean/train/')
+def test_gpu():
+
 
 
 gen_test_data()

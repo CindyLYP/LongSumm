@@ -108,7 +108,9 @@ def gen_test_data():
         json.dump(res, f)
 
 def test_gpu():
+    a = ["21","ads","21","sd","11","ads"]
+    t = []
+    [t.append(i) for i in a if i not in t]
+    print(t)
 
-
-
-gen_test_data()
+test_gpu()

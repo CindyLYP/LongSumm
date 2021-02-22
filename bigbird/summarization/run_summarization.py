@@ -15,7 +15,12 @@
 """Run summarization fine-tuning for BigBird.."""
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
+if "CUDA_VISIBLE_DEVICES" in os.environ.keys():
+    print("already choose gpu: ", os.environ["CUDA_VISIBLE_DEVICES"])
+else:
+    os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+    print("set gpu: ", os.environ["CUDA_VISIBLE_DEVICES"])
+
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 
 import time
@@ -38,7 +43,7 @@ flags.DEFINE_string(
 
 
 flags.DEFINE_string(
-    "output_dir", "/home/gitlib/longsumm/output/acl_ss_clean",
+    "output_dir", "/home/gitlib/longsumm/output/acl_ss_small",
     "The output directory where the model checkpoints will be written.")
 
 
@@ -47,13 +52,13 @@ flags.DEFINE_string(
     "Initial checkpoint (usually from a pre-trained BigBird model).")
 
 flags.DEFINE_integer(
-    "max_encoder_length", 3072,  # 3072, 4096
+    "max_encoder_length", 1024,  # 3072, 4096
     "The maximum total input sequence length after SentencePiece tokenization. "
     "Sequences longer than this will be truncated, and sequences shorter "
     "than this will be padded.")
 
 flags.DEFINE_integer(
-    "max_decoder_length", 256,  # 256 608
+    "max_decoder_length", 128,  # 256 608
     "The maximum total input sequence length after SentencePiece tokenization. "
     "Sequences longer than this will be truncated, and sequences shorter "
     "than this will be padded.")
@@ -90,11 +95,11 @@ flags.DEFINE_string(
 
 
 flags.DEFINE_string(
-    "optimizer", "Adafactor",
+    "optimizer", "Adam",
     "Optimizer to use. Can be Adafactor, Adam, and AdamWeightDecay.")
 
 flags.DEFINE_float(
-    "learning_rate", 1e-3,
+    "learning_rate", 1e-4,
     "The initial learning rate for Adam.")
 
 flags.DEFINE_integer(
@@ -106,7 +111,7 @@ flags.DEFINE_integer(
     "Number of steps to perform linear warmup.")
 
 flags.DEFINE_integer(
-    "save_checkpoints_steps", 10000,
+    "save_checkpoints_steps", 5000,
     "How often to save the model checkpoint.")
 
 flags.DEFINE_integer(

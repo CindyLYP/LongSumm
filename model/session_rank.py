@@ -14,9 +14,9 @@ stop_words = stopwords.words('english')
 print("length of stopwords: ", len(stop_words))
 print(stop_words[:20])
 
-window_size = 2800
-buffer = 100
-decode_max_len = 200
+window_size = 960
+buffer = 64
+decode_max_len = 120
 split = 30
 
 
@@ -86,7 +86,6 @@ def save_record(d, s, f):
 
 
 def session_rank(document, summary, out_file, mode='more'):
-    print("rank mode: ", mode)
     split_doc = list(map(slide_window, document))
     split_summary = [nltk.sent_tokenize(it) for it in summary]
 
@@ -161,10 +160,12 @@ def input_fn(file_path):
 def main():
     in_file = '../dataset/json_data/acl_ss.json'
     document, summary = input_fn(in_file)
-    out_file = '../dataset/acl_ss_clean/train/train.tfrecord'
-    val_file = '../dataset/acl_ss_clean/eval/eval.tfrecord'
-    pred_json = '../dataset/acl_ss_clean/pred/pred.json'
-    pred_tfd = '../dataset/acl_ss_clean/pred/pred.tfrecord'
+    out_file = '../dataset/acl_ss_small/train/train.tfrecord'
+    val_file = '../dataset/acl_ss_small/eval/eval.tfrecord'
+    pred_json = '../dataset/acl_ss_small/pred/pred.json'
+    pred_tfd = '../dataset/acl_ss_small/pred/pred.tfrecord'
+    with open ('../dataset/acl_ss_small/param.json', 'w') as f:
+        json.dump({'window_size': window_size, 'decode_max_len': decode_max_len, 'buffer': buffer}, f)
     train_x, train_y = document[split:], summary[split:]
     val_x, val_y = document[:split], summary[:split]
 

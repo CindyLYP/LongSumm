@@ -18,7 +18,7 @@ import os
 if "CUDA_VISIBLE_DEVICES" in os.environ.keys():
     print("already choose gpu: ", os.environ["CUDA_VISIBLE_DEVICES"])
 else:
-    os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
     print("set gpu: ", os.environ["CUDA_VISIBLE_DEVICES"])
 
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
@@ -37,7 +37,7 @@ from rouge_score import rouge_scorer
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string(
-    "data_dir", "/home/gitlib/longsumm/dataset/acl_ss_clean/train/",
+    "data_dir", "/home/gitlib/longsumm/dataset/acl_ss_small/train/",
     "The input data dir. Should contain the TFRecord files. "
     "Can be TF Dataset with prefix tfds://")
 
@@ -79,7 +79,7 @@ flags.DEFINE_bool(
 
 
 flags.DEFINE_integer(
-    "train_batch_size", 1,
+    "train_batch_size", 4,
     "Local batch size for training. "
     "Total batch size will be multiplied by number gpu/tpu cores available.")
 
@@ -99,7 +99,7 @@ flags.DEFINE_string(
     "Optimizer to use. Can be Adafactor, Adam, and AdamWeightDecay.")
 
 flags.DEFINE_float(
-    "learning_rate", 1e-4,
+    "learning_rate", 1e-2,
     "The initial learning rate for Adam.")
 
 flags.DEFINE_integer(

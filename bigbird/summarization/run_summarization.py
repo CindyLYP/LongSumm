@@ -15,7 +15,12 @@
 """Run summarization fine-tuning for BigBird.."""
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
+if "CUDA_VISIBLE_DEVICES" in os.environ.keys():
+    print("already choose gpu: ", os.environ["CUDA_VISIBLE_DEVICES"])
+else:
+    os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
+    print("set gpu: ", os.environ["CUDA_VISIBLE_DEVICES"])
+
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 
 import time
@@ -32,13 +37,13 @@ from rouge_score import rouge_scorer
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string(
-    "data_dir", "/home/gitlib/longsumm/dataset/acl_ss_clean/train/",
+    "data_dir", "/home/gitlib/longsumm/dataset/acl_ss_small/train/",
     "The input data dir. Should contain the TFRecord files. "
     "Can be TF Dataset with prefix tfds://")
 
 
 flags.DEFINE_string(
-    "output_dir", "/home/gitlib/longsumm/output/acl_ss_clean",
+    "output_dir", "/home/gitlib/longsumm/output/acl_ss_small",
     "The output directory where the model checkpoints will be written.")
 
 
@@ -47,13 +52,13 @@ flags.DEFINE_string(
     "Initial checkpoint (usually from a pre-trained BigBird model).")
 
 flags.DEFINE_integer(
-    "max_encoder_length", 3072,  # 3072, 4096
+    "max_encoder_length", 1024,  # 3072, 4096
     "The maximum total input sequence length after SentencePiece tokenization. "
     "Sequences longer than this will be truncated, and sequences shorter "
     "than this will be padded.")
 
 flags.DEFINE_integer(
-    "max_decoder_length", 256,  # 256 608
+    "max_decoder_length", 128,  # 256 608
     "The maximum total input sequence length after SentencePiece tokenization. "
     "Sequences longer than this will be truncated, and sequences shorter "
     "than this will be padded.")
@@ -74,7 +79,7 @@ flags.DEFINE_bool(
 
 
 flags.DEFINE_integer(
-    "train_batch_size", 1,
+    "train_batch_size", 4,
     "Local batch size for training. "
     "Total batch size will be multiplied by number gpu/tpu cores available.")
 
@@ -94,7 +99,7 @@ flags.DEFINE_string(
     "Optimizer to use. Can be Adafactor, Adam, and AdamWeightDecay.")
 
 flags.DEFINE_float(
-    "learning_rate", 1e-3,
+    "learning_rate", 1e-2,
     "The initial learning rate for Adam.")
 
 flags.DEFINE_integer(

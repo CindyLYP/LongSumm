@@ -1,7 +1,6 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]='1'
-os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
-print(os.environ["CUDA_VISIBLE_DEVICES"])
+os.environ["CUDA_VISIBLE_DEVICES"]='5'
+
 from bigbird.core import flags
 from bigbird.core import modeling
 from bigbird.summarization import run_summarization
@@ -22,13 +21,13 @@ FLAGS(sys.argv)
 # tf.enable_v2_behavior()
 
 
-FLAGS.max_encoder_length = 3072
-FLAGS.max_decoder_length = 256
+FLAGS.max_encoder_length = 2048
+FLAGS.max_decoder_length = 128
 FLAGS.vocab_model_file = "/home/gitlib/longsumm/bigbird/vocab/pegasus.model"
 FLAGS.eval_batch_size = 4
 FLAGS.substitute_newline = "<n>"
-ckpt_path = '/home/gitlib/longsumm/output/acl_ss_part/model.ckpt-40000'
-pred_out = '/home/gitlib/longsumm/output/acl_ss_part/pred.txt'
+ckpt_path = '/home/gitlib/longsumm/output/acl_ss_clean/model.ckpt-60000'
+pred_out = '/home/gitlib/longsumm/output/acl_ss_clean/pred.txt'
 pred_in = '/home/gitlib/longsumm/dataset/json_data/test.json'
 
 tokenizer = tft.SentencepieceTokenizer(
@@ -135,6 +134,7 @@ def main():
         print(avg_rouge)
     with open('/home/gitlib/longsumm/output/test/pred.json', 'w') as f:
         json.dump(pred_test, f)
+
 
 if __name__=="__main__":
     main()

@@ -1,5 +1,7 @@
 import re
 import nltk
+from summa import summarizer
+from summa import keywords
 
 
 def drop_sent(raw_s: str):
@@ -10,5 +12,10 @@ def drop_sent(raw_s: str):
     return " ".join(d_sentences)
 
 
+def add_summ(text):
+    res = summarizer.summarize(text)
+    return res
 
-def add_summ():
+
+def add_keywords(s):
+    return keywords.keywords(s)

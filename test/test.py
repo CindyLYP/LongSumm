@@ -107,10 +107,21 @@ def gen_test_data():
     with open("../dataset/json_data/test.json", 'w') as f:
         json.dump(res, f)
 
+
 def test_gpu():
-    a = ["21","ads","21","sd","11","ads"]
-    t = []
-    [t.append(i) for i in a if i not in t]
-    print(t)
+    d = []
+    with open("../dataset/json_data/final_test_data_list.json", 'r', encoding='utf-8') as f:
+        l = f.readline()
+        while l:
+            d.append(json.loads(l))
+            l = f.readline()
+
+    res = []
+    for it in d:
+        doc = " ".join(it['text_list'])
+        res.append({'document': doc, 'summary': " ", 'id': it['id']})
+    with open('../dataset/json_data/test_with_abs.json', 'w') as f:
+        json.dump(res,f)
+
 
 test_gpu()

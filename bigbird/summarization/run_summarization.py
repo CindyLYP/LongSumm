@@ -18,7 +18,7 @@ import os
 if "CUDA_VISIBLE_DEVICES" in os.environ.keys():
     print("already choose gpu: ", os.environ["CUDA_VISIBLE_DEVICES"])
 else:
-    os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
     print("set gpu: ", os.environ["CUDA_VISIBLE_DEVICES"])
 
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
@@ -95,7 +95,7 @@ flags.DEFINE_string(
 
 
 flags.DEFINE_string(
-    "optimizer", "Adam",
+    "optimizer", "Adafactor",
     "Optimizer to use. Can be Adafactor, Adam, and AdamWeightDecay.")
 
 flags.DEFINE_float(

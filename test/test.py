@@ -3,10 +3,6 @@ import tensorflow_datasets as tfds
 import tensorflow_text as tft
 import torch
 import json
-import numpy as np
-from utils.build_data import read_tf_record
-from lxml import etree
-from model.session_rank import slide_window
 import re
 import os
 
@@ -108,14 +104,31 @@ def gen_test_data():
         json.dump(res, f)
 
 
-def test_gpu():
+def test_re():
+    d = "human ab We use the SimpleQuestions (Bordes et al., 2015) and WebQSP (Yih et al., 2016) datasets."
+    p = re.compile('\(.*?et al.*?\)')
+    print(re.sub(p, '', d))
+
+
+def test_test():
     d = []
-    with open("../dataset/json_data/1.json", 'r', encoding='utf-8') as f:
-        l = f.readline()
-        while l:
-            d = json.loads(l)
-            l = f.readline()
-    print(d)
+    with open('../dataset/json_data/test_data_abs.json', 'r', encoding='utf-8') as f:
+        line = f.readline()
+        while line:
+            d.append(json.loads(line))
+            line = f.readline()
+
+    t_res, s_res = [], []
+    for it in d:
+        idx = it['id']
+        sections = [section['content'] for section in it['text']]
+        document = " ".join(sections)
+        t_res.append({'document': document, 'summary': " ", 'id': idx})
+        s_res.append({'document': sections, 'summary': " ", 'id': idx})
+    with open("../dataset/json_data/test.json", 'w') as f:
+        json.dump(t_res, f)
+    with open("../dataset/json_data/sections_test.json", 'w') as f:
+        json.dump(s_res, f)
 
 
-test_gpu()
+test_test()

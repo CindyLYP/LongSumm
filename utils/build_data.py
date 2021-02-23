@@ -101,54 +101,48 @@ def gen_training_data():
     return inp, tar, sec, summ
 
 
-def xml2json(info_path='../dataset/json_data/pdf_info.json', xml_path='../dataset/xml'):
+def xml2json(xml_path='../dataset/xml'):
     def ns_tag(*args):
         ns = "/{http://www.tei-c.org/ns/1.0}"
 
         return './%s%s' % (ns, ns.join(args))
+    ds = []
+    for d, _, files in os.walk(xml_path):
+        item = {}
+        for file in files:
+            xml_file = xml_path + os.sep + file
 
-    with open(info_path, 'r') as f:
-        abs_info = json.load(f)
-    remain = []
-    cnt = 0
-    for i, it in enumerate(abs_info):
-        xml_file = xml_path + os.sep + str(it['id']) + '.tei.xml'
+            dom = etree.parse(xml_file)
+            root = dom.getroot()
 
-        if not os.path.exists(xml_file):
-            cnt += 1
-            continue
-        dom = etree.parse(xml_file)
-        root = dom.getroot()
-
-        try:
-            abstract = str(root.find(ns_tag('abstract', 'p')).xpath('text()')[0])
-        except:
-            print("no abstract found in ", xml_file)
-            exit(1)
-        abs_info[i]['abstract'] = abstract
-
-        body = root.findall(ns_tag('body', 'div'))
-        section_name, section_content = [], []
-
-        for div in body:
-            head = div.find(ns_tag('head'))
-            ps = div.findall(ns_tag('p'))
-            if not ps:
-                print('no content found in ', i, it['id'])
-                continue
             try:
-                section_name.append(etree.tostring(head, encoding='utf-8', method='text').decode('utf-8').lower())
+                abstract = str(root.find(ns_tag('abstract', 'p')).xpath('text()')[0])
             except:
-                print("no head found in ",xml_file)
+                print("no abstract found in ", xml_file)
                 exit(1)
-            section_content.append(" ".join([etree.tostring(p, encoding='utf-8', method='text').
-                                            decode('utf-8') for p in ps]))
-        abs_info[i]['section_name'] = section_name
-        abs_info[i]['section_content'] = section_content
-        remain.append(abs_info[i])
-    with open("../dataset/xml/remain.json", 'w') as f:
-        json.dump(remain, f)
-    print(cnt)
+            item['abstract'] = abstract
+
+            body = root.findall(ns_tag('body', 'div'))
+            section_name, section_content = [], []
+
+            for div in body:
+                head = div.find(ns_tag('head'))
+                ps = div.findall(ns_tag('p'))
+                if not ps:
+                    print('no content found in ')
+                    continue
+                try:
+                    section_name.append(etree.tostring(head, encoding='utf-8', method='text').decode('utf-8').lower())
+                except:
+                    print("no head found in ", xml_file)
+                    exit(1)
+                section_content.append(" ".join([etree.tostring(p, encoding='utf-8', method='text').
+                                                decode('utf-8') for p in ps]))
+            item['section_name'] = section_name
+            item['section_content'] = section_content
+            ds.append(item)
+    with open("../dataset/xml/gtest.json", 'w') as f:
+        json.dump(ds, f)
 
 
 def _bytes_feature(value):
@@ -206,83 +200,7 @@ def read_tf_record(file_path):  # "need '/' at the end of the path eg: /home/dat
     return ds
 
 
-def gen_long_arxiv_data(file_path='../bigbird/dataset/arxiv/train.tfrecord-'):
-    d = tfds.load('scientific_papers/arxiv', split="train", data_dir='/home/tensorflow_datasets',
-                  as_supervised=True)
-    threhold = [2000, 3000, 4000, 5000]
-    d = d.as_numpy_iterator()
-    feat_type = {'document': 'string',
-                 'summary': 'string'}
-    articles = []
-    summaries = []
-    print("===== write into the tf records =====")
-    cnt = 0
-    for it in tqdm(d):
-        article = it[0].decode('utf-8')
-        summary = it[1].decode('utf-8')
-        l = len(summary.split())
-        for j in range(4):
-            if threhold[j] > 0 and j * 100 < l <= (j + 1) * 100:
-                articles.append(article), summaries.append(summary)
-                threhold[j] -= 1
-                flag = False
-                break
-        if l > 400:
-            articles.append(article), summaries.append(summary)
-        if len(articles) >= 4096:
-            print("write into record-%d" % cnt)
-            features = {'document': articles,
-                        'summary': summaries}
-            write_record(features, feat_type, file_path + str(cnt))
-            print("write finish")
-            cnt += 1
-            articles.clear(), summaries.clear()
-
-    if articles:
-        features = {'document': articles,
-                    'summary': summaries}
-        write_record(features, feat_type, file_path + str(cnt))
-
-    print("=====           finish           =====")
-
-
 file_path = '../dataset/gen_data/train.tfrecord-'
-
-
-def ex_data():
-    d = []
-    reh = 50
-    with open("../dataset/json_data/gen_data.json", 'r', encoding='utf-8') as f:
-        line = f.readline()
-        while line:
-            d.append(json.loads(line))
-            line = f.readline()
-    val_acl = d[:reh]
-    val_arxiv = d[len(d)-1000:]
-    data = d[reh:len(d)-1000]
-    le = len(data)
-
-    feat_type = {'document': 'string',
-                 'summary': 'string'}
-
-    def transfer_feat(rd):
-        doc = [it[0] for it in rd]
-        summ = [it[1] for it in rd]
-
-        return {'document': doc, 'summary': summ}
-
-    feat = transfer_feat(val_acl)
-    write_record(feat, feat_type, "../dataset/gen_data/val_acl.tfrecord")
-    print("write val acl")
-    feat = transfer_feat(val_arxiv)
-    write_record(feat, feat_type, "../dataset/gen_data/val_arxiv.tfrecord")
-    print("write val arxiv")
-    cnt = 0
-    for i in tqdm(range(0, le, 6000)):
-        feat = transfer_feat(data[i:min(i+3000, le)])
-        write_record(feat, feat_type, "../dataset/gen_data/train.tfrecord-%d"%cnt)
-        cnt += 1
-    print(cnt)
 
 
 def gen_acl_ss_data():
@@ -332,4 +250,4 @@ def gen_acl_ss_data():
     print("finish")
 
 
-# gen_acl_ss_data()
+xml2json()

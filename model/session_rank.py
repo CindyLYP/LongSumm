@@ -18,6 +18,8 @@ window_size = 960
 buffer = 64
 decode_max_len = 120
 split = 30
+print("window_size: ", window_size)
+print("decode_max_len: ", decode_max_len)
 
 
 def load_model(path="/home/gitlib/pretrain_model/pytorch_pegasus"):

@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = '3'
+os.environ["CUDA_VISIBLE_DEVICES"] = '5'
 
 from bigbird.core import flags
 from bigbird.core import modeling
@@ -21,14 +21,14 @@ FLAGS(sys.argv)
 # tf.enable_v2_behavior()
 
 
-FLAGS.max_encoder_length = 3072
-FLAGS.max_decoder_length = 256
+FLAGS.max_encoder_length = 1024
+FLAGS.max_decoder_length = 128
 FLAGS.vocab_model_file = "/home/gitlib/longsumm/bigbird/vocab/pegasus.model"
 FLAGS.eval_batch_size = 4
 FLAGS.substitute_newline = "<n>"
 
-ckpt_path = '/home/gitlib/longsumm/output/acl_ss_clean/model.ckpt-60000'
-pred_out = '/home/gitlib/longsumm/output/acl_ss_clean/pred.txt'
+ckpt_path = '/home/gitlib/longsumm/output/acl_ss_small/model.ckpt-50000'
+pred_out = '/home/gitlib/longsumm/output/acl_ss_small/pred.txt'
 pred_in = '/home/gitlib/longsumm/dataset/json_data/test_with_abs.json'
 
 tokenizer = tft.SentencepieceTokenizer(

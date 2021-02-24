@@ -23,26 +23,34 @@ def add_keywords(s):
     return keywords.keywords(s)
 
 
-def sentence_pick():
-    with open("../output/test/abt_small.json", 'r', encoding='utf-8') as f:
-        d = json.load(f)
-
-    def  sent_sim(s,t):
+def sent_sim(s, t, mode='jaccard'):
+    if mode == 'jaccard':
         ws = set(nltk.word_tokenize(s))
         wt = set(nltk.word_tokenize(t))
-        return len(ws & wt) / min(len(ws), len(wt))
-
-    for key in d.keys():
-        summary = d[key]
-        sents = nltk.sent_tokenize(summary)
-        words = [set(nltk.word_tokenize(sent)) for sent in sents]
-        mask = np.ones(len(sents))
-        for i in range(len(words)):
-            k = i
-            
+        return len(ws & wt) / len(ws | wt)
 
 
+def self_clip(raw_str: str, r=0.8):
+    sents = nltk.sent_tokenize(raw_str)
+    sents = np.array(sents)
+    l = len(sents)
+    mask = np.ones(l, dtype=bool)
+    for i in range(l):
+        if not mask[i]:
+            continue
+        for j in range(i+1, l):
+            if sent_sim(sents[i],sents[j], mode='jaccard') >= r:
+                mask[j] = False
 
-sentence_pick()
+    selected_sents = sents[mask]
+    clip_str = " ".join(selected_sents)
+    return clip_str
+
+
+
+
+
+
+
 
 

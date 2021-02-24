@@ -111,24 +111,15 @@ def test_re():
 
 
 def test_test():
-    d = []
-    with open('../dataset/json_data/test_data_abs.json', 'r', encoding='utf-8') as f:
-        line = f.readline()
-        while line:
-            d.append(json.loads(line))
-            line = f.readline()
-
-    t_res, s_res = [], []
-    for it in d:
-        idx = it['id']
-        sections = [section['content'] for section in it['text']]
-        document = " ".join(sections)
-        t_res.append({'document': document, 'summary': " ", 'id': idx})
-        s_res.append({'document': sections, 'summary': " ", 'id': idx})
-    with open("../dataset/json_data/test.json", 'w') as f:
-        json.dump(t_res, f)
-    with open("../dataset/json_data/sections_test.json", 'w') as f:
-        json.dump(s_res, f)
+    a = tf.constant([[1,2,3],[2,3,4],[3,4,5]])
+    c = None
+    for i in range(a.shape[0]):
+        b = tf.reshape(a[i], shape=(1, -1))
+        if c is None:
+            c = b[:, :-1]
+        else:
+            c = tf.concat([c,b[:, :-1]], axis=0)
+    print(c)
 
 
 test_test()

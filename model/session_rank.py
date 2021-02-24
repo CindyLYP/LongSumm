@@ -14,11 +14,12 @@ stop_words = stopwords.words('english')
 print("length of stopwords: ", len(stop_words))
 print(stop_words[:20])
 
-window_size = 960
-buffer = 64
-decode_max_len = 120
+window_size = 924
+buffer = 100
+decode_max_len = 220
 split = 30
 print("window_size: ", window_size)
+print("buffer: ", buffer)
 print("decode_max_len: ", decode_max_len)
 
 

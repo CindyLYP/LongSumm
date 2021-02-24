@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = '5'
+os.environ["CUDA_VISIBLE_DEVICES"] = '3'
 
 from bigbird.core import flags
 from bigbird.core import modeling
@@ -21,15 +21,16 @@ FLAGS(sys.argv)
 # tf.enable_v2_behavior()
 
 
-FLAGS.max_encoder_length = 1024
-FLAGS.max_decoder_length = 128
+FLAGS.max_encoder_length = 3072
+FLAGS.max_decoder_length = 256
 FLAGS.vocab_model_file = "/home/gitlib/longsumm/bigbird/vocab/pegasus.model"
 FLAGS.eval_batch_size = 4
 FLAGS.substitute_newline = "<n>"
 
-ckpt_path = '/home/gitlib/longsumm/output/acl_ss_small/model.ckpt-50000'
-pred_out = '/home/gitlib/longsumm/output/acl_ss_small/pred.txt'
-pred_in = '/home/gitlib/longsumm/dataset/json_data/test_with_abs.json'
+ckpt_path = '/home/gitlib/longsumm/output/acl_ss_clean/model.ckpt-80000'
+ckpt_path = '/home/gitlib/pretrain_model/bigbird_pegasus/model.ckpt-300000'
+pred_out = '/home/gitlib/longsumm/output/acl_ss_clean/pred.txt'
+pred_in = '/home/gitlib/longsumm/dataset/json_data/test.json'
 
 tokenizer = tft.SentencepieceTokenizer(
         model=tf.io.gfile.GFile(FLAGS.vocab_model_file, "rb").read())
@@ -75,7 +76,8 @@ def main():
 
     ex = input_fn(dataset[10]['document'])
     with container.as_default():
-        llh, logits, pred_ids = fwd_only(ex)
+        tmp = tf.reshape(ex[0], shape=(1,-1))
+        llh, logits, pred_ids = fwd_only(tmp)
 
     print('==== build model')
 
@@ -102,8 +104,20 @@ def main():
             document, summary = ex['document'], ex['summary']
             doc_ids = input_fn(document)
             print("pred tensor shape: ", doc_ids.shape)
+            print("loop windows: ", end="")
+            pred_ids = None
+            for j in range(doc_ids.shape[0]):
+                doc_id = tf.reshape(doc_ids[j], shape=(1, -1))
+                _, _, pred_id = fwd_only(doc_id)
+                if pred_ids is None:
+                    pred_ids = pred_id
+                else:
+                    pred_ids = tf.concat([pred_ids, pred_id], axis=0)
+                print("#", end="")
 
-            _, _, pred_ids = fwd_only(doc_ids)
+            print("\npred from model done, pred shape: ", pred_ids.shape)
+
+            # _, _, pred_ids = fwd_only(doc_ids)
             pred_sents = tokenizer.detokenize(pred_ids)
             pred_sents = tf.strings.regex_replace(pred_sents, r"([<\[]\S+[>\]])", b" \\1")
             if transformer_config["substitute_newline"]:

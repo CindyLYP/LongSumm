@@ -1,5 +1,6 @@
 from utils.format import *
 import json
+from tqdm import tqdm
 
 
 def trans_file():
@@ -7,7 +8,7 @@ def trans_file():
         d = json.load(f)
 
     res = {}
-    with open("../output/test/test_with_abs.json", 'w') as f:
+    with open("../output/test/cur_test.json", 'w') as f:
         for it in d:
             summ = drop_sent(it['pred'])
             res[it['id']] = summ
@@ -29,17 +30,17 @@ def summ_test():
         f.write(json.dumps(res))
 
 
-def merge_files():
-    with open("../output/test/test_with_abs.json", 'r', encoding='utf-8') as f:
-        d1 = json.load(f)
-    with open("../output/test/result_1000.json", 'r', encoding='utf-8') as f:
-        d2 = json.load(f)
-    d = {}
-    for k in d1.keys():
-        s = d1[k] + " " + d2[k]
-        d[k] = add_summ(s)
-    with open("../output/test/t3.json", 'w') as f:
-        json.dump(d, f)
+def test_merge():
+    out_dir = "../output/test/"
+    file = 'cur_test.json'
+    with open(out_dir+file, 'r', encoding='utf-8') as f:
+        d = json.load(f)
+    clip_d = {}
+    for k in tqdm(d.keys()):
+        clip_d[k] = self_clip(d[k], r=0.8)
+    with open(out_dir+"clip_"+file, 'w') as f:
+        json.dump(clip_d, f)
 
 
 trans_file()
+test_merge()

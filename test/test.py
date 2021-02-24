@@ -111,15 +111,17 @@ def test_re():
 
 
 def test_test():
-    a = tf.constant([[1,2,3],[2,3,4],[3,4,5]])
-    c = None
-    for i in range(a.shape[0]):
-        b = tf.reshape(a[i], shape=(1, -1))
-        if c is None:
-            c = b[:, :-1]
-        else:
-            c = tf.concat([c,b[:, :-1]], axis=0)
-    print(c)
+    d = []
+    with open("../output/test/aic.json", 'r', encoding='utf-8') as f:
+        l = f.readline()
+        while l:
+            d.append(json.loads(l))
+            l = f.readline()
+    res = {}
+    for i in d:
+        res[i['id']] = i['text']
+    with open("../output/test/raic.json", 'w') as f:
+        json.dump(res, f)
 
 
 test_test()

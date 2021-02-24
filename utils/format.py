@@ -4,6 +4,8 @@ from summa import summarizer
 from summa import keywords
 import json
 import numpy as np
+from nltk.corpus import stopwords
+stop_words = stopwords.words('english')
 
 
 def drop_sent(raw_s: str):
@@ -23,10 +25,16 @@ def add_keywords(s):
     return keywords.keywords(s)
 
 
-def sent_sim(s, t, mode='jaccard'):
+def sent_sim(s, t, mode='jaccard', use_stopwords=True):
+    ws = nltk.word_tokenize(s)
+    wt = nltk.word_tokenize(t)
+    if use_stopwords:
+        ws = [i for i in ws if i.lower() not in stop_words]
+        wt = [i for i in wt if i.lower() not in stop_words]
+
     if mode == 'jaccard':
-        ws = set(nltk.word_tokenize(s))
-        wt = set(nltk.word_tokenize(t))
+        ws = set(ws)
+        wt = set(wt)
         return len(ws & wt) / len(ws | wt)
 
 

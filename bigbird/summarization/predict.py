@@ -27,8 +27,8 @@ FLAGS.vocab_model_file = "/home/gitlib/longsumm/bigbird/vocab/pegasus.model"
 FLAGS.eval_batch_size = 4
 FLAGS.substitute_newline = "<n>"
 
-ckpt_path = '/home/gitlib/longsumm/output/acl_ss_clean/model.ckpt-80000'
-ckpt_path = '/home/gitlib/pretrain_model/bigbird_pegasus/model.ckpt-300000'
+ckpt_path = '/home/gitlib/longsumm/output/acl_ss_clean/model.ckpt-90000'
+# ckpt_path = '/home/gitlib/pretrain_model/bigbird_pegasus/model.ckpt-300000'
 pred_out = '/home/gitlib/longsumm/output/acl_ss_clean/pred.txt'
 pred_in = '/home/gitlib/longsumm/dataset/json_data/test.json'
 

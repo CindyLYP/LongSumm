@@ -42,5 +42,10 @@ def test_merge():
         json.dump(clip_d, f)
 
 
+def merge_files():
+    f1 = "../output/test/.json"
+    f2 = "../output/test/cur_test.json"
+
+
 trans_file()
 test_merge()

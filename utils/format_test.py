@@ -15,18 +15,17 @@ def trans_file():
         f.write(json.dumps(res))
 
 
-def summ_test():
-    pred_in = '/home/gitlib/longsumm/dataset/json_data/test.json'
+def summ_test(pred_in, pred_out):
     with open(pred_in, 'r', encoding='utf-8') as f:
         dataset = json.load(f)
 
     res = {}
-    with open("../output/test/textrank.json", 'w') as f:
-        for it in dataset:
-            doc = it['document']
+    with open(pred_out, 'w') as f:
+        for k in dataset.keys():
+            doc = dataset[k]
             s = add_summ(doc)
             # print(s), print("--" * 64), print(add_keywords(doc)), print("**" * 64)
-            res[it['id']] = s
+            res[k] = s
         f.write(json.dumps(res))
 
 
@@ -43,12 +42,15 @@ def test_merge():
 
 
 def merge_files():
-    f1 = "../output/merge/header.json"
-    f2 = "../output/merge/test_win_1024.json"
+    f1 = "../output/merge/1003_1021_replace_stay.json"
+    f2 = "../output/merge/ex_best.json"
     out = "../output/merge/merge.json"
-    summary_merge(f1, f2, out, r=0.8)
+
+    summary_merge(f1, f2, out, r=0.3, method='recall')
 
 
 # trans_file()
 # test_merge()
-merge_files()
+# merge_files()
+
+print(join_words("abs is a good : , fue, cla ss, i am a boy"))

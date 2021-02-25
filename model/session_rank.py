@@ -14,7 +14,7 @@ stop_words = stopwords.words('english')
 print("length of stopwords: ", len(stop_words))
 print(stop_words[:20])
 
-window_size = 2800
+window_size = 800
 buffer = 200
 decode_max_len = 220
 split = 30

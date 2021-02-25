@@ -8,7 +8,7 @@ def trans_file():
         d = json.load(f)
 
     res = {}
-    with open("../output/test/cur_test.json", 'w') as f:
+    with open("../output/test/test.json", 'w') as f:
         for it in d:
             summ = drop_sent(it['pred'])
             res[it['id']] = summ
@@ -32,7 +32,7 @@ def summ_test():
 
 def test_merge():
     out_dir = "../output/test/"
-    file = 'cur_test.json'
+    file = 'test.json'
     with open(out_dir+file, 'r', encoding='utf-8') as f:
         d = json.load(f)
     clip_d = {}
@@ -43,9 +43,12 @@ def test_merge():
 
 
 def merge_files():
-    f1 = "../output/test/.json"
-    f2 = "../output/test/cur_test.json"
+    f1 = "../output/merge/header.json"
+    f2 = "../output/merge/test_win_1024.json"
+    out = "../output/merge/merge.json"
+    summary_merge(f1, f2, out, r=0.8)
 
 
-trans_file()
-test_merge()
+# trans_file()
+# test_merge()
+merge_files()

@@ -1,3 +1,9 @@
+# @Author: yingsenci
+# @Time: 2021/03/30
+# @Contact: scying@zju.edu.com,
+# @Description: divide scientific documents into session piece dataset for training
+
+
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import nltk
 import json
@@ -44,6 +50,16 @@ def window_score_pegasus(single_window_data: str, gt_emb, tokenizer, model):
 
 
 def slide_window(raw_data: str, mode='window'):
+    """
+    split raw data into piece of session
+
+    Args:
+        raw_data: str, raw text of a paper
+        mode: str, not used
+    Returns:
+    split_data: list, session data
+
+    """
     spilt_data = []
     words = nltk.word_tokenize(raw_data)
     if len(words) - window_size - buffer < 0:
@@ -56,6 +72,7 @@ def slide_window(raw_data: str, mode='window'):
 
 
 def window_score(single_window_data: str, gt_rm_sw: list, metric='recall'):
+    """compute all scores of a session with all ground truth """
     if metric == 'recall':
         win_rm_sw = word_token(single_window_data, "article")
         score = [len(set(win_rm_sw) & set(it)) / len(set(it)) for it in gt_rm_sw]
@@ -68,6 +85,7 @@ def window_score(single_window_data: str, gt_rm_sw: list, metric='recall'):
 
 
 def word_token(raw_str, str_type):
+    """token replacement"""
     if str_type == "article":
         sents = nltk.sent_tokenize(raw_str)
         words = []
@@ -82,6 +100,7 @@ def word_token(raw_str, str_type):
 
 
 def save_record(d, s, f):
+    """save tf record type data"""
     feat = {"document": d, "summary": s}
     feat_type = {'document': 'string',
                  'summary': 'string'}
@@ -89,6 +108,18 @@ def save_record(d, s, f):
 
 
 def session_rank(document, summary, out_file, mode='more'):
+    """
+    split document into session piece and match each session with its ground truth
+
+    Args:
+        document: list, document list
+        summary: list, ground truth list
+        out_file: str, output file path
+        mode: str, match method 'more' means matching as much labels as possible to each session
+
+    Returns:
+    tf record type dataset
+    """
     split_doc = list(map(slide_window, document))
     split_summary = [nltk.sent_tokenize(it) for it in summary]
 

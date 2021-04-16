@@ -1,3 +1,7 @@
+# @Author: yingsenci
+# @Time: 2021/03/30
+# @Contact: scying@zju.edu.com,
+# @Description: predict summary for scientific documents
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = '7'
 

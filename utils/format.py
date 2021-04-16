@@ -1,3 +1,9 @@
+# @Author: yingsenci
+# @Time: 2021/03/30
+# @Contact: scying@zju.edu.com,
+# @Description: ensemble method for summarization
+
+
 import re
 import nltk
 from summa import summarizer
@@ -12,6 +18,7 @@ stop_words = stopwords.words('english')
 
 
 def drop_sent(raw_s: str):
+    """drop redundancy"""
     sentences = nltk.sent_tokenize(raw_s)
     d_sentences = []
     [d_sentences.append(it) for it in sentences if it not in d_sentences]
@@ -20,11 +27,13 @@ def drop_sent(raw_s: str):
 
 
 def add_summ(text):
+    """auto summarize"""
     res = summarizer.summarize(text)
     return res
 
 
 def sent_sim(s, t, mode='jaccard', use_stopwords=True):
+    """sentences similarity """
     ws = nltk.word_tokenize(s)
     wt = nltk.word_tokenize(t)
     if use_stopwords:
@@ -38,6 +47,7 @@ def sent_sim(s, t, mode='jaccard', use_stopwords=True):
 
 
 def self_clip(raw_str: str, r=0.8):
+    """clip same sentences"""
     sents = nltk.sent_tokenize(raw_str)
     sents = np.array(sents)
     l = len(sents)
@@ -55,6 +65,7 @@ def self_clip(raw_str: str, r=0.8):
 
 
 def summary_merge(file1, file2, out_file, r=0.5):
+    """ensemble the output of abstractive model and the extractive model"""
     with open(file1, 'r', encoding='utf-8') as f:
         d2 = json.load(f)
 

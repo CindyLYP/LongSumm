@@ -1,3 +1,9 @@
+# @Author: yingsenci
+# @Time: 2021/03/30
+# @Contact: scying@zju.edu.com,
+# @Description: implement of the text rank algorithm
+
+
 from utils.build_data import *
 from nltk.tokenize import sent_tokenize
 import nltk
@@ -16,6 +22,7 @@ min_diff = 1e-5
 
 
 def gen_embedding(path):
+    """return word embedding from path file"""
     word_emb = {}
     with open(path, encoding='utf-8') as f:
         for line in tqdm(f):
@@ -29,6 +36,7 @@ def remove_stopwords(s):
 
 
 def page_rank(similarity_matrix):
+    """page rank algorithm"""
     cur_vector = np.array([1] * len(similarity_matrix))
 
     pre = 0
@@ -43,6 +51,15 @@ def page_rank(similarity_matrix):
 
 
 def rank_scores(sentences, word_embeddings):
+    """
+    text rank algorithm implement by page rank
+    Args:
+        sentences: list, sentences for rank
+        word_embeddings: dict, word embedding default: glove
+    Returns:
+        sentences_rank: np.array, sentences score
+
+    """
 
     clean_sentences = pd.Series(sentences).str.replace('[^a-zA-Z]', ' ')
 
